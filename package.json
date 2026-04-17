@@ -8,6 +8,9 @@
     "dev:web": "pnpm --filter @gestschool/web-admin dev",
     "build:api": "pnpm --filter @gestschool/api build",
     "build:web": "pnpm --filter @gestschool/web-admin build",
+    "render:build:api": "pnpm --filter @gestschool/api prisma:generate && pnpm --filter @gestschool/api build",
+    "render:start:api": "pnpm --filter @gestschool/api start:prod",
+    "render:start:worker": "pnpm --filter @gestschool/api start:worker",
     "lint:api": "pnpm --filter @gestschool/api lint",
     "lint:web": "pnpm --filter @gestschool/web-admin lint"
   }

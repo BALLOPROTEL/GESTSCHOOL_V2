@@ -39,25 +39,25 @@ then the service is not using the repository `render.yaml` blueprint, or the Ren
 Use this API build command on Render:
 
 ```bash
-corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @gestschool/api prisma:generate && pnpm --filter @gestschool/api build
+corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile && pnpm render:build:api
 ```
 
 Use this API start command:
 
 ```bash
-pnpm --filter @gestschool/api start:prod
+pnpm render:start:api
 ```
 
 Use this worker build command:
 
 ```bash
-corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @gestschool/api prisma:generate && pnpm --filter @gestschool/api build
+corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile && pnpm render:build:api
 ```
 
 Use this worker start command:
 
 ```bash
-pnpm --filter @gestschool/api start:worker
+pnpm render:start:worker
 ```
 
 ## Vercel output directory guardrail

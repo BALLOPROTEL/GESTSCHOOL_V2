@@ -9,10 +9,9 @@ services:
       corepack enable &&
       corepack prepare pnpm@10.24.0 --activate &&
       pnpm install --frozen-lockfile &&
-      pnpm --filter @gestschool/api prisma:generate &&
-      pnpm --filter @gestschool/api build
+      pnpm render:build:api
     startCommand: >
-      pnpm --filter @gestschool/api start:prod
+      pnpm render:start:api
     envVars:
       - key: NODE_ENV
         value: production
@@ -87,10 +86,9 @@ services:
       corepack enable &&
       corepack prepare pnpm@10.24.0 --activate &&
       pnpm install --frozen-lockfile &&
-      pnpm --filter @gestschool/api prisma:generate &&
-      pnpm --filter @gestschool/api build
+      pnpm render:build:api
     startCommand: >
-      pnpm --filter @gestschool/api start:worker
+      pnpm render:start:worker
     envVars:
       - key: NODE_ENV
         value: production
