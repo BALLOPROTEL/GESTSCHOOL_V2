@@ -20,6 +20,7 @@
     "db:seed:users": "node ./scripts/run-ts-script-with-env.cjs prisma/seed-users.ts",
     "db:seed:minimal": "node ./scripts/run-ts-script-with-env.cjs prisma/seed-minimal.ts",
     "db:admin": "node ./scripts/run-ts-script-with-env.cjs scripts/postgres-database-admin.ts",
+    "db:reset-staff-password": "node ./scripts/run-ts-script-with-env.cjs scripts/reset-staff-password.ts",
     "audit:legacy": "node ./scripts/run-ts-script-with-env.cjs scripts/legacy-inventory.ts",
     "audit:precutover": "node ./scripts/run-ts-script-with-env.cjs scripts/precutover-db-audit.ts",
     "migrate:timetable:dry-run": "node ./scripts/run-ts-script-with-env.cjs scripts/timetable-reference-backfill.ts",

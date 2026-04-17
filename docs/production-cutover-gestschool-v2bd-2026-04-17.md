@@ -100,6 +100,16 @@ Critical flows that must remain part of post-cutover monitoring:
 - timetable writes with `roomId` and `teacherAssignmentId`
 - absence of orphan portal accounts
 
+## Staff password recovery
+
+Seeded production staff passwords are not documented in this repository. If an initial staff password is unknown after cutover, reset only the affected staff account with:
+
+```bash
+RESET_USERNAME=admin@gestschool.local RESET_PASSWORD="<strong-password>" pnpm --filter @gestschool/api db:reset-staff-password
+```
+
+The password must be 12-128 characters and include uppercase, lowercase, digit and special character. The script only targets `STAFF` accounts, reactivates the user if needed, revokes existing refresh tokens and never prints the password in logs.
+
 ## Rollback plan
 
 Rollback is allowed only if a critical production incident blocks normal operation.
