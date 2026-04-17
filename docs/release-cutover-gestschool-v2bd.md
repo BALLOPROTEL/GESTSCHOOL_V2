@@ -60,6 +60,24 @@ Use this worker start command:
 pnpm --filter @gestschool/api start:worker
 ```
 
+## Vercel output directory guardrail
+
+The Vercel project must use the repository root as its root directory.
+
+Vercel build command:
+
+```bash
+pnpm build:web:vercel
+```
+
+Vercel output directory:
+
+```text
+dist
+```
+
+The script builds `apps/web-admin` normally, then copies `apps/web-admin/dist` to root `dist` so Vercel can publish the expected output directory even when dashboard settings default to `dist`.
+
 ## Local pre-release validation
 
 Target database:
