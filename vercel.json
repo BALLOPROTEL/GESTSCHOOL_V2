@@ -3,7 +3,7 @@
   "framework": "vite",
   "installCommand": "corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @gestschool/web-admin run build",
-  "outputDirectory": "apps/web-admin/dist",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/v1",
