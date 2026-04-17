@@ -24,6 +24,42 @@ Blocking facts:
 
 Therefore, staging and production must be triggered from the authenticated deployment environment, or after installing/authenticating the required CLIs and linking the project.
 
+## Render deployment command guardrail
+
+GestSchool_V2 is a pnpm workspace. Render must not use its default `yarn` build command for this repository.
+
+If Render logs show:
+
+```text
+Running build command 'yarn'
+```
+
+then the service is not using the repository `render.yaml` blueprint, or the Render dashboard has a manual build command overriding the blueprint.
+
+Use this API build command on Render:
+
+```bash
+corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @gestschool/api prisma:generate && pnpm --filter @gestschool/api build
+```
+
+Use this API start command:
+
+```bash
+pnpm --filter @gestschool/api start:prod
+```
+
+Use this worker build command:
+
+```bash
+corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @gestschool/api prisma:generate && pnpm --filter @gestschool/api build
+```
+
+Use this worker start command:
+
+```bash
+pnpm --filter @gestschool/api start:worker
+```
+
 ## Local pre-release validation
 
 Target database:

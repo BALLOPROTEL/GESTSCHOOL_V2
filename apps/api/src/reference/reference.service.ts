@@ -1160,6 +1160,18 @@ export class ReferenceService {
     if (payload.weeklyHours !== undefined && payload.weeklyHours <= 0) {
       throw new BadRequestException("Subject weekly hours must be greater than zero.");
     }
+
+    const duplicateCode = await this.prisma.subject.findFirst({
+      where: {
+        tenantId,
+        id: ignoreId ? { not: ignoreId } : undefined,
+        code: payload.code.trim()
+      }
+    });
+    if (duplicateCode) {
+      throw new ConflictException("Subject code already exists.");
+    }
+
     if (payload.levelIds?.length) {
       const levelCount = await this.prisma.level.count({
         where: {
