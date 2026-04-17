@@ -62,21 +62,25 @@ pnpm --filter @gestschool/api start:worker
 
 ## Vercel output directory guardrail
 
-The Vercel project must use the repository root as its root directory.
+GestSchool_V2 deploys the `apps/web-admin` Vite frontend on Vercel. The clean configuration is one of these two modes:
 
-Vercel build command:
-
-```bash
-pnpm build:web:vercel
-```
-
-Vercel output directory:
+Mode A - Vercel root directory set to `apps/web-admin`:
 
 ```text
-dist
+Root Directory: apps/web-admin
+Build Command: pnpm build
+Output Directory: dist
 ```
 
-The script builds `apps/web-admin` normally, then copies `apps/web-admin/dist` to root `dist` so Vercel can publish the expected output directory even when dashboard settings default to `dist`.
+Mode B - Vercel root directory left empty at repository root:
+
+```text
+Root Directory: <empty>
+Build Command: pnpm --filter @gestschool/web-admin run build
+Output Directory: apps/web-admin/dist
+```
+
+Do not mix these modes. If `Root Directory` is `apps/web-admin`, the build command must not use `pnpm --filter @gestschool/web-admin ...`; it should simply run `pnpm build` inside the web package.
 
 ## Local pre-release validation
 

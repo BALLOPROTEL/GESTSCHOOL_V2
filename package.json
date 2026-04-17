@@ -8,7 +8,6 @@
     "dev:web": "pnpm --filter @gestschool/web-admin dev",
     "build:api": "pnpm --filter @gestschool/api build",
     "build:web": "pnpm --filter @gestschool/web-admin build",
-    "build:web:vercel": "pnpm --filter @gestschool/web-admin build && node scripts/prepare-vercel-output.mjs",
     "lint:api": "pnpm --filter @gestschool/api lint",
     "lint:web": "pnpm --filter @gestschool/web-admin lint"
   }
