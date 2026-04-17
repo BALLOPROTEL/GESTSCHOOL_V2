@@ -689,6 +689,35 @@ const HERO_SLIDES: HeroSlide[] = [
   }
 ];
 
+const decorateResponsiveTables = (root: ParentNode): void => {
+  const tables = root.querySelectorAll<HTMLTableElement>(".table-wrap table");
+
+  tables.forEach((table) => {
+    const headers = Array.from(table.querySelectorAll<HTMLTableCellElement>("thead th")).map((header) =>
+      header.textContent?.replace(/\s+/g, " ").trim() || ""
+    );
+
+    table.dataset.responsiveTable = "true";
+
+    table.querySelectorAll<HTMLTableRowElement>("tbody tr").forEach((row) => {
+      Array.from(row.children).forEach((cell, index) => {
+        if (!(cell instanceof HTMLTableCellElement)) return;
+        if (cell.colSpan > 1) {
+          cell.removeAttribute("data-label");
+          return;
+        }
+
+        const label = headers[index];
+        if (label) {
+          cell.dataset.label = label;
+        } else {
+          cell.removeAttribute("data-label");
+        }
+      });
+    });
+  });
+};
+
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
   const appRootRef = useRef<HTMLElement | null>(null);
@@ -1233,6 +1262,25 @@ export function App(): JSX.Element {
   });
   const bootstrapSessionKeyRef = useRef<string | null>(null);
   const bootstrapSessionInFlightRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const root = appRootRef.current;
+    if (!root) return;
+
+    decorateResponsiveTables(root);
+
+    const observer = new MutationObserver(() => {
+      decorateResponsiveTables(root);
+    });
+
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+
+    return () => observer.disconnect();
+  }, [session, tab, uiLanguage]);
 
   const enterPreview = useCallback(() => {
     if (!PREVIEW_MODE_ENABLED) {

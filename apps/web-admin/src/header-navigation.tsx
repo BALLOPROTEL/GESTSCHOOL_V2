@@ -950,6 +950,13 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("mobile-shell-open", mobileOpen);
+    return () => {
+      document.documentElement.classList.remove("mobile-shell-open");
+    };
+  }, [mobileOpen]);
+
   return (
     <header ref={rootRef} className="panel app-shell-header global-header-shell">
       <div className="global-header-row">
@@ -1135,15 +1142,50 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
         </div>
       </div>
 
+      <button
+        type="button"
+        className={`header-mobile-backdrop ${mobileOpen ? "is-open" : ""}`.trim()}
+        aria-hidden="true"
+        tabIndex={-1}
+        onClick={() => setMobileOpen(false)}
+      />
+
       <div
         id="header-mobile-panel"
         className={`header-mobile-panel ${mobileOpen ? "is-open" : ""}`.trim()}
+        role="dialog"
+        aria-modal="true"
+        aria-hidden={!mobileOpen}
+        aria-label="Navigation mobile GestSchool"
       >
+        <div className="header-mobile-panel-head">
+          <div className="header-mobile-brand">
+            <span className="global-brand-logo mobile">
+              <img src={logoSrc} alt="" aria-hidden="true" />
+            </span>
+            <div>
+              <strong>GestSchool</strong>
+              <small>{user.roleLabel}</small>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="header-mobile-close"
+            aria-label="Fermer le menu mobile"
+            onClick={() => setMobileOpen(false)}
+          >
+            <span aria-hidden="true">X</span>
+          </button>
+        </div>
+
         <HeaderSearchBar
           value={searchValue}
           placeholder={searchPlaceholder}
           onChange={onSearchChange}
-          onSubmit={onSearchSubmit}
+          onSubmit={() => {
+            onSearchSubmit?.();
+            setMobileOpen(false);
+          }}
         />
 
         <div className="header-mobile-sections">
@@ -1217,6 +1259,18 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
         <div className="header-mobile-footer">
           <button
             type="button"
+            className={`header-mobile-link ${messages.active ? "is-active" : ""}`.trim()}
+            disabled={messages.disabled}
+            onClick={() => {
+              messages.onSelect();
+              setMobileOpen(false);
+            }}
+          >
+            <span>{messages.label}</span>
+            <small>{messages.disabled ? messages.statusLabel || "Non finalise" : `${messages.count} message(s)`}</small>
+          </button>
+          <button
+            type="button"
             className={`header-mobile-link ${notifications.active ? "is-active" : ""}`.trim()}
             onClick={() => {
               notifications.onSelect();
@@ -1231,7 +1285,14 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
               <strong>{user.username}</strong>
               <small>{user.roleLabel}</small>
             </div>
-            <button type="button" className="header-logout-button" onClick={user.onLogout}>
+            <button
+              type="button"
+              className="header-logout-button"
+              onClick={() => {
+                setMobileOpen(false);
+                user.onLogout();
+              }}
+            >
               <span>Deconnexion</span>
             </button>
           </div>
