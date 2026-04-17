@@ -38,6 +38,7 @@ type ApiRequestOptions = {
 
 const INITIAL_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 30_000;
+const MIN_REFRESH_TOKEN_LENGTH = 32;
 
 const INITIAL_API_CONNECTION_STATE: ApiConnectionState = {
   lastFailureAt: null,
@@ -67,6 +68,7 @@ export function useAuthSession(options: UseAuthSessionOptions) {
   const sessionRef = useRef<Session | null>(session);
   const apiConnectionRef = useRef<ApiConnectionState>(INITIAL_API_CONNECTION_STATE);
   const probePromiseRef = useRef<Promise<boolean> | null>(null);
+  const refreshPromiseRef = useRef<Promise<Session | null> | null>(null);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -180,8 +182,19 @@ export function useAuthSession(options: UseAuthSessionOptions) {
   }, [markApiAvailable]);
 
   const refresh = useCallback(async (): Promise<Session | null> => {
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    const refreshPromise = (async (): Promise<Session | null> => {
     const current = sessionRef.current;
     if (!current?.refreshToken) return null;
+    if (current.refreshToken.length < MIN_REFRESH_TOKEN_LENGTH) {
+      clearSession();
+      onClearData();
+      onAuthError("Session locale invalide. Merci de vous reconnecter.");
+      return null;
+    }
 
     if (!(await ensureApiAvailable())) {
       onRefreshNotice("API indisponible. Reconnexion...");
@@ -213,6 +226,16 @@ export function useAuthSession(options: UseAuthSessionOptions) {
       markApiUnavailable();
       onRefreshNotice("API indisponible. Reconnexion...");
       return null;
+    }
+    })();
+
+    refreshPromiseRef.current = refreshPromise;
+    try {
+      return await refreshPromise;
+    } finally {
+      if (refreshPromiseRef.current === refreshPromise) {
+        refreshPromiseRef.current = null;
+      }
     }
   }, [
     apiBaseUrl,

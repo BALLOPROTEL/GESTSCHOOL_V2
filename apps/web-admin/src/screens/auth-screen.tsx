@@ -67,6 +67,7 @@ type AuthScreenProps = {
   onSubmitResetPassword: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   onSubmitFirstConnection: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   onEnterPreview: () => void;
+  previewEnabled: boolean;
 };
 
 type ToolbarProps = {
@@ -382,7 +383,8 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
     onSubmitForgotPassword,
     onSubmitResetPassword,
     onSubmitFirstConnection,
-    onEnterPreview
+    onEnterPreview,
+    previewEnabled
   } = props;
 
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -493,10 +495,12 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
         <button type="button" className="auth-canvas__link auth-canvas__link--cta" onClick={onShowFirstConnection}>
           Activer mon compte
         </button>
-        <button type="button" className="auth-canvas__secondary-submit" onClick={onEnterPreview}>
-          <span>Voir la v2 sans connexion</span>
-          <ArrowIcon />
-        </button>
+        {previewEnabled ? (
+          <button type="button" className="auth-canvas__secondary-submit" onClick={onEnterPreview}>
+            <span>Voir la v2 sans connexion</span>
+            <ArrowIcon />
+          </button>
+        ) : null}
       </div>
     </>
   );

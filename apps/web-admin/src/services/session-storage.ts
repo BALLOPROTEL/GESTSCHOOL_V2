@@ -5,6 +5,8 @@ const STORAGE_KEY = "gestschool.web-admin.session";
 const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
 const LANGUAGE_STORAGE_KEY = "gestschool.web-admin.language";
 const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
+const PREVIEW_ACCESS_TOKEN = "__preview__";
+const MIN_TOKEN_LENGTH = 32;
 
 export const readRememberedLogin = (defaultTenantId: string): RememberedLogin | null => {
   const raw = localStorage.getItem(LOGIN_HINT_STORAGE_KEY);
@@ -28,7 +30,11 @@ const isStoredSession = (value: unknown): value is Session => {
   const candidate = value as Partial<Session> & { user?: Partial<Session["user"]> };
   return (
     typeof candidate.accessToken === "string" &&
+    candidate.accessToken.length >= MIN_TOKEN_LENGTH &&
+    candidate.accessToken !== PREVIEW_ACCESS_TOKEN &&
     typeof candidate.refreshToken === "string" &&
+    candidate.refreshToken.length >= MIN_TOKEN_LENGTH &&
+    candidate.refreshToken !== PREVIEW_ACCESS_TOKEN &&
     typeof candidate.tenantId === "string" &&
     typeof candidate.user?.username === "string" &&
     typeof candidate.user?.role === "string" &&

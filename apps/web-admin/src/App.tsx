@@ -124,6 +124,8 @@ const resolveApiBaseUrls = (): string[] => {
 
 const API_BASE_URLS = resolveApiBaseUrls();
 const PREVIEW_ACCESS_TOKEN = "__preview__";
+const PREVIEW_MODE_ENABLED =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_PREVIEW === "true";
 const CHANNEL_LABELS: Record<string, string> = {
   CASH: "Especes",
   MOBILE_MONEY: "Mobile money",
@@ -1233,6 +1235,11 @@ export function App(): JSX.Element {
   const bootstrapSessionInFlightRef = useRef<string | null>(null);
 
   const enterPreview = useCallback(() => {
+    if (!PREVIEW_MODE_ENABLED) {
+      setError("Le mode apercu local est desactive en production.");
+      return;
+    }
+
     const nowIso = new Date().toISOString();
     const previewSchoolYearId = "preview-sy-2025";
     const previewCyclePrimaryId = "preview-cycle-primary";
@@ -1816,7 +1823,7 @@ export function App(): JSX.Element {
   }, [clearData, markApiAvailable, saveSession]);
 
   const currentRole = (session?.user.role as Role | undefined) || null;
-  const isPreviewSession = session?.accessToken === PREVIEW_ACCESS_TOKEN;
+  const isPreviewSession = PREVIEW_MODE_ENABLED && session?.accessToken === PREVIEW_ACCESS_TOKEN;
   const currentRoleLabel = currentRole ? formatRoleLabel(currentRole) : "Visiteur";
   const apiAvailable = apiConnection.status === "online";
   const apiStatusText =
@@ -1903,7 +1910,7 @@ export function App(): JSX.Element {
   const currentSlide = HERO_SLIDES[2];
 
   useEffect(() => {
-    if (session || window.location.hash !== "#preview-admin") {
+    if (!PREVIEW_MODE_ENABLED || session || window.location.hash !== "#preview-admin") {
       return;
     }
 
@@ -10539,6 +10546,7 @@ export function App(): JSX.Element {
             onSubmitResetPassword={(event) => void submitResetPassword(event)}
             onSubmitFirstConnection={(event) => void submitFirstConnection(event)}
             onEnterPreview={enterPreview}
+            previewEnabled={PREVIEW_MODE_ENABLED}
           />
           {showLegacyAuthPreview ? <section className="auth-layout fade-up">
           <article className="panel auth-visual">
