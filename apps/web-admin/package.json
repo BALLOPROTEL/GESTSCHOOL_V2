@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:web:vercel": "pnpm build",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\""
   },
