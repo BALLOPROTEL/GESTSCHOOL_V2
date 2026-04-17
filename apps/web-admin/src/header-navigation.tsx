@@ -791,8 +791,6 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     settings.find((item) => item.id === "reports") ??
     schoolLife.find((item) => item.id === "schoolLifeNotifications") ??
     dashboard;
-  const studentsAction = scolarite.find((item) => item.id === "students") ?? dashboard;
-  const enrollmentAction = scolarite.find((item) => item.id === "enrollments") ?? dashboard;
   const gradesAction = schoolLife.find((item) => item.id === "grades") ?? dashboard;
   const timetableAction = schoolLife.find((item) => item.id === "schoolLifeTimetable") ?? dashboard;
   const notificationCenterAction =
