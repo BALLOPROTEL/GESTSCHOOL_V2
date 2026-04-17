@@ -7,11 +7,11 @@
   "rewrites": [
     {
       "source": "/api/v1",
-      "destination": "https://gestschool-c880.onrender.com/api/v1"
+      "destination": "https://gestschool-ylik.onrender.com/api/v1"
     },
     {
       "source": "/api/v1/(.*)",
-      "destination": "https://gestschool-c880.onrender.com/api/v1/$1"
+      "destination": "https://gestschool-ylik.onrender.com/api/v1/$1"
     },
     {
       "source": "/(.*)",

@@ -8,21 +8,25 @@ This document tracks the controlled staging/production cutover from legacy `gest
 
 ## Current execution status
 
-Platform deployment was not executed from this workstation.
+Platform cutover has been completed from the authenticated Render/Vercel dashboards and confirmed by the release operator.
 
-Blocking facts:
+Active production API:
 
-- `vercel` CLI: not installed.
-- `render` CLI: not installed.
-- `VERCEL_TOKEN`: not present.
-- `VERCEL_ORG_ID`: not present.
-- `VERCEL_PROJECT_ID`: not present.
-- `RENDER_API_KEY`: not present.
-- Render service ids: not present.
-- `D:\PROJETS\GestSchool_V2` is not a Git repository, so Git-based auto-deploy cannot be triggered from this folder.
-- The repository contains `render.yaml` and `vercel.json`, but no local authenticated platform link is available.
+```text
+https://gestschool-ylik.onrender.com
+```
 
-Therefore, staging and production must be triggered from the authenticated deployment environment, or after installing/authenticating the required CLIs and linking the project.
+Active production database:
+
+```text
+gestschool_v2BD
+```
+
+Final production report:
+
+```text
+docs/production-cutover-gestschool-v2bd-2026-04-17.md
+```
 
 ## Render deployment command guardrail
 
@@ -207,4 +211,6 @@ Future reprise must be selective and scripted in this order:
 
 ## Release verdict
 
-Technical database preparation is ready. Platform cutover is blocked until Render/Vercel authentication and target service ids/project links are available.
+Production cutover is complete.
+
+`gestschool_v2BD` is the official active database for GestSchool_V2. Legacy `gestschool` and `gestschool_legacy_backup_20260416212622` remain preserved for rollback/archive only.

@@ -78,8 +78,8 @@ Do not point local troubleshooting commands at production by accident.
 5. Verify Render API health:
 
 ```powershell
-(Invoke-WebRequest -Uri "https://gestschool-c880.onrender.com/api/v1/health/live").StatusCode
-(Invoke-WebRequest -Uri "https://gestschool-c880.onrender.com/api/v1/health/ready").StatusCode
+(Invoke-WebRequest -Uri "https://gestschool-ylik.onrender.com/api/v1/health/live").StatusCode
+(Invoke-WebRequest -Uri "https://gestschool-ylik.onrender.com/api/v1/health/ready").StatusCode
 ```
 
 ## Supabase security follow-up

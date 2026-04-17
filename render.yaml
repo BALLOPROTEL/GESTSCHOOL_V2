@@ -70,11 +70,11 @@ services:
       - key: FILE_STORAGE_DRIVER
         value: LOCAL
       - key: FILE_STORAGE_BASE_URL
-        value: https://gestschool-c880.onrender.com/files
+        value: https://gestschool-ylik.onrender.com/files
       - key: ANALYTICS_CACHE_TTL_SECONDS
         value: "45"
       - key: CORS_ORIGINS
-        value: https://gestschool-api.vercel.app
+        sync: false
       - key: SWAGGER_ENABLED
         value: "false"
   - type: worker

@@ -78,6 +78,7 @@ Seed users available by default (`pnpm --filter @gestschool/api seed:users`):
 - Rapport execution reset DB: voir `docs/clean-db-reset-execution-report.md`.
 - Rapport final `gestschool_v2BD`: voir `docs/final-cutover-gestschool-v2bd-report.md`.
 - Bascule staging/production `gestschool_v2BD`: voir `docs/release-cutover-gestschool-v2bd.md`.
+- Rapport de bascule production: voir `docs/production-cutover-gestschool-v2bd-2026-04-17.md`.
 - Les nouveaux flux doivent privilegier `StudentTrackPlacement`, `Parent.userId` + `ParentStudentLink.parentId`, `TeacherAssignment`, `Room` et les ids canoniques d'emploi du temps.
 - Les champs legacy comme `Enrollment`, `parentUserId`, `teacherName` et `room` restent des compatibilites transitoires, pas des sources de verite pour les nouveaux chantiers.
 
