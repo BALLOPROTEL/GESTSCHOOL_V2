@@ -1,0 +1,80 @@
+{
+  "generatedAt": "2026-04-16T22:24:36.917Z",
+  "mode": "READ_ONLY_PRE_CUTOVER_AUDIT",
+  "safety": "This command only reads through Prisma. It does not update, delete, migrate, or backfill data.",
+  "compatibilityLevel": "READY_CANDIDATE",
+  "volumes": {
+    "users": 3,
+    "students": 0,
+    "parents": 0,
+    "parentStudentLinks": 0,
+    "teachers": 0,
+    "teacherAssignments": 0,
+    "teacherClassAssignments": 0,
+    "rooms": 0,
+    "timetableSlots": 0,
+    "enrollments": 0,
+    "studentTrackPlacements": 0,
+    "classrooms": 0
+  },
+  "sourceOfTruthTargets": {
+    "teacherPortal": "Teacher.userId -> TeacherAssignment",
+    "parentPortal": "Parent.userId -> ParentStudentLink.parentId",
+    "studentCurriculum": "StudentTrackPlacement, with Enrollment kept only as compatibility",
+    "timetableRoom": "TimetableSlot.roomId -> Room",
+    "timetableTeacher": "TimetableSlot.teacherAssignmentId -> TeacherAssignment"
+  },
+  "anomalies": {
+    "orphanAccounts": {
+      "teacher": 0,
+      "parent": 0,
+      "student": 0,
+      "samples": {
+        "teacher": [],
+        "parent": [],
+        "student": []
+      }
+    },
+    "legacyIamTeacherAssignments": {
+      "count": 0,
+      "samples": []
+    },
+    "parentLinksWithoutParentProfile": {
+      "count": 0,
+      "legacyOnlyCount": 0,
+      "samples": []
+    },
+    "enrollmentPlacementDrift": {
+      "enrollmentsWithoutPlacement": 0,
+      "placementsWithoutLegacyEnrollment": 0,
+      "samples": {
+        "enrollmentsWithoutPlacement": [],
+        "placementsWithoutLegacyEnrollment": []
+      }
+    },
+    "timetableCanonicalCoverage": {
+      "slotsTotal": 0,
+      "slotsWithRoomId": 0,
+      "slotsWithTeacherAssignmentId": 0,
+      "slotsWithoutRoomIdButWithText": 0,
+      "slotsWithoutTeacherAssignmentIdButWithText": 0,
+      "roomBackfillUniqueMatches": 0,
+      "roomBackfillAmbiguousOrUnmatched": 0,
+      "teacherBackfillUniqueMatches": 0,
+      "teacherBackfillAmbiguousOrUnmatched": 0,
+      "roomSamplesToReview": [],
+      "teacherSamplesToReview": []
+    },
+    "classroomMainRoomTextStillPresent": {
+      "count": 0,
+      "samples": []
+    }
+  },
+  "recommendedNextCommands": [
+    "pnpm --filter @gestschool/api migrate:timetable:dry-run",
+    "Review unique matches and ambiguous rows.",
+    "pnpm --filter @gestschool/api migrate:timetable:apply",
+    "pnpm --filter @gestschool/api audit:precutover",
+    "Only then consider TIMETABLE_REQUIRE_CANONICAL_REFS=true on staging."
+  ]
+}

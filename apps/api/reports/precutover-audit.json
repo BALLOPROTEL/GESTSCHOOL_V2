@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-04-16T17:25:47.292Z",
+  "mode": "READ_ONLY_PRE_CUTOVER_SCHEMA_AUDIT",
+  "safety": "This command only inspected information_schema. It did not update, delete, migrate, or backfill data.",
+  "compatibilityLevel": "SCHEMA_INCOMPATIBLE",
+  "schemaCompatibility": {
+    "isCompatible": false,
+    "presentTables": [
+      "enrollments",
+      "parent_student_links",
+      "students",
+      "teacher_class_assignments",
+      "timetable_slots",
+      "users"
+    ],
+    "missingTables": [
+      "classrooms",
+      "parents",
+      "rooms",
+      "student_track_placements",
+      "teacher_assignments",
+      "teachers"
+    ],
+    "missingColumns": [
+      {
+        "table": "enrollments",
+        "columns": [
+          "track"
+        ]
+      },
+      {
+        "table": "parent_student_links",
+        "columns": [
+          "parent_id"
+        ]
+      },
+      {
+        "table": "students",
+        "columns": [
+          "user_id"
+        ]
+      },
+      {
+        "table": "timetable_slots",
+        "columns": [
+          "track",
+          "room_id",
+          "teacher_assignment_id"
+        ]
+      },
+      {
+        "table": "users",
+        "columns": [
+          "account_type"
+        ]
+      }
+    ]
+  },
+  "blockers": [
+    "The connected PostgreSQL database is not yet on the GestSchool_V2 Prisma schema.",
+    "Run this only on a staging clone, then apply Prisma migrations before data audits/backfills.",
+    "Do not run e2e or timetable apply against this database until the schema compatibility report is clean."
+  ],
+  "recommendedNextCommands": [
+    "Create or restore a staging clone of the legacy GESTSCHOOL database.",
+    "Point DATABASE_URL and DIRECT_URL to the staging clone.",
+    "pnpm --filter @gestschool/api db:migrate:deploy",
+    "pnpm --filter @gestschool/api audit:precutover"
+  ]
+}

@@ -1,0 +1,1130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AcademicTrack {
+  FRANCOPHONE
+  ARABOPHONE
+}
+
+enum RotationGroup {
+  GROUP_A
+  GROUP_B
+}
+
+enum AcademicPlacementStatus {
+  ACTIVE
+  INACTIVE
+  COMPLETED
+  SUSPENDED
+}
+
+enum AcademicStage {
+  PRIMARY
+  SECONDARY
+  HIGHER
+
+  @@map("academic_stage")
+}
+
+enum PedagogicalRuleType {
+  FIRST_CYCLE_PARALLEL_ROTATION
+  SECOND_CYCLE_WEEKLY_TRACK_SPLIT
+}
+
+enum ReportCardMode {
+  TRACK_SINGLE
+  PRIMARY_COMBINED
+
+  @@map("report_card_mode")
+}
+
+model Student {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  matricule   String      @db.VarChar(30)
+  firstName   String      @map("first_name") @db.VarChar(100)
+  lastName    String      @map("last_name") @db.VarChar(100)
+  sex         String      @db.Char(1)
+  birthDate   DateTime?   @map("birth_date") @db.Date
+  birthPlace  String?     @map("birth_place") @db.VarChar(120)
+  nationality String?     @db.VarChar(80)
+  address     String?
+  phone       String?     @db.VarChar(30)
+  email       String?     @db.VarChar(120)
+  photoUrl    String?     @map("photo_url")
+  establishmentId String? @map("establishment_id") @db.Uuid
+  admissionDate DateTime? @map("admission_date") @db.Date
+  administrativeNotes String? @map("administrative_notes") @db.VarChar(1000)
+  internalId String? @map("internal_id") @db.VarChar(40)
+  birthCertificateNo String? @map("birth_certificate_no") @db.VarChar(80)
+  specialNeeds String? @map("special_needs") @db.VarChar(1000)
+  primaryLanguage String? @map("primary_language") @db.VarChar(60)
+  userId      String?     @unique(map: "students_user_id_key") @map("user_id") @db.Uuid
+  status      String      @default("ACTIVE") @db.VarChar(20)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  archivedAt  DateTime?   @map("archived_at") @db.Timestamptz(6)
+  enrollments Enrollment[]
+  invoices    Invoice[]
+  grades      GradeEntry[]
+  reportCards ReportCard[]
+  attendance  Attendance[]
+  notifications Notification[]
+  parentLinks ParentStudentLink[]
+  trackPlacements StudentTrackPlacement[]
+  user        User?       @relation("StudentUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, matricule], map: "students_tenant_id_matricule_key")
+  @@map("students")
+}
+
+model User {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String         @map("tenant_id") @db.Uuid
+  username      String         @db.VarChar(150)
+  email         String?        @db.VarChar(150)
+  phone         String?        @db.VarChar(30)
+  passwordHash  String         @map("password_hash")
+  role          String         @db.VarChar(30)
+  accountType   String         @default("STAFF") @map("account_type") @db.VarChar(30)
+  displayName   String?        @map("display_name") @db.VarChar(180)
+  firstName     String?        @map("first_name") @db.VarChar(100)
+  lastName      String?        @map("last_name") @db.VarChar(100)
+  avatarUrl     String?        @map("avatar_url")
+  establishmentId String?      @map("establishment_id") @db.Uuid
+  staffFunction String?        @map("staff_function") @db.VarChar(120)
+  department    String?        @db.VarChar(120)
+  notes         String?        @db.VarChar(1000)
+  mustChangePasswordAtFirstLogin Boolean @default(false) @map("must_change_password_at_first_login")
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  refreshTokens RefreshToken[]
+  iamAuditLogs  IamAuditLog[]
+  teacherAssignments TeacherClassAssignment[] @relation("TeacherAssignments")
+  teacherProfile Teacher? @relation("TeacherUser")
+  teacherDocumentUploads TeacherDocument[] @relation("TeacherDocumentUploads")
+  parentLinks ParentStudentLink[] @relation("ParentStudentLinks")
+  parentProfile Parent? @relation("ParentUser")
+  studentProfile Student? @relation("StudentUser")
+
+  @@unique([tenantId, username], map: "users_tenant_id_username_key")
+  @@unique([tenantId, email], map: "users_tenant_id_email_key")
+  @@index([tenantId, accountType], map: "idx_users_tenant_account_type")
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([tokenHash], map: "refresh_tokens_token_hash_key")
+  @@index([userId], map: "idx_refresh_tokens_user_id")
+  @@index([expiresAt], map: "idx_refresh_tokens_expires_at")
+  @@map("refresh_tokens")
+}
+
+model SchoolYear {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String         @map("tenant_id") @db.Uuid
+  code        String         @db.VarChar(20)
+  label       String         @db.VarChar(40)
+  startDate   DateTime       @map("start_date") @db.Date
+  endDate     DateTime       @map("end_date") @db.Date
+  status      String         @default("DRAFT") @db.VarChar(20)
+  previousYearId String?     @map("previous_year_id") @db.Uuid
+  isActive    Boolean        @default(false) @map("is_active")
+  isDefault   Boolean        @default(false) @map("is_default")
+  sortOrder   Int?           @map("sort_order")
+  comment     String?        @db.VarChar(500)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  previousYear SchoolYear?   @relation("SchoolYearPreviousYear", fields: [previousYearId], references: [id])
+  nextYears   SchoolYear[]   @relation("SchoolYearPreviousYear")
+  classes     Classroom[]
+  cycles      Cycle[]
+  periods     AcademicPeriod[]
+  enrollments Enrollment[]
+  feePlans    FeePlan[]
+  invoices    Invoice[]
+  attendance  Attendance[]
+  timetableSlots TimetableSlot[]
+  teacherAssignments TeacherClassAssignment[]
+  teacherPedagogicalAssignments TeacherAssignment[]
+  roomAssignments RoomAssignment[]
+  roomAvailabilities RoomAvailability[]
+  trackPlacements StudentTrackPlacement[]
+  pedagogicalRules PedagogicalRule[]
+
+  @@unique([tenantId, code], map: "school_years_tenant_id_code_key")
+  @@unique([tenantId, label], map: "school_years_tenant_id_label_key")
+  @@map("school_years")
+}
+
+model Cycle {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  schoolYearId String @map("school_year_id") @db.Uuid
+  code      String   @db.VarChar(20)
+  label     String   @db.VarChar(100)
+  academicStage AcademicStage @default(PRIMARY) @map("academic_stage")
+  sortOrder Int      @map("sort_order")
+  description String? @db.VarChar(500)
+  theoreticalAgeMin Int? @map("theoretical_age_min")
+  theoreticalAgeMax Int? @map("theoretical_age_max")
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  schoolYear SchoolYear @relation(fields: [schoolYearId], references: [id])
+  levels    Level[]
+  teacherSkills TeacherSkill[]
+  roomAssignments RoomAssignment[]
+  pedagogicalRules PedagogicalRule[]
+
+  @@unique([tenantId, schoolYearId, code], map: "cycles_tenant_id_school_year_id_code_key")
+  @@map("cycles")
+}
+
+model Level {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String      @map("tenant_id") @db.Uuid
+  cycleId   String      @map("cycle_id") @db.Uuid
+  track     AcademicTrack @default(FRANCOPHONE)
+  code      String      @db.VarChar(20)
+  label     String      @db.VarChar(100)
+  alias     String?     @db.VarChar(50)
+  sortOrder Int         @map("sort_order")
+  status    String      @default("ACTIVE") @db.VarChar(20)
+  theoreticalAge Int?   @map("theoretical_age")
+  description String?   @db.VarChar(500)
+  defaultSection String? @map("default_section") @db.VarChar(100)
+  rotationGroup RotationGroup? @map("rotation_group")
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+  cycle     Cycle       @relation(fields: [cycleId], references: [id])
+  classes   Classroom[]
+  feePlans  FeePlan[]
+  subjectScopes SubjectLevelScope[]
+  teacherSkills TeacherSkill[]
+  roomAssignments RoomAssignment[]
+  trackPlacements StudentTrackPlacement[]
+  pedagogicalRules PedagogicalRule[]
+
+  @@unique([tenantId, cycleId, code], map: "levels_tenant_id_cycle_id_code_key")
+  @@map("levels")
+}
+
+model Classroom {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String      @map("tenant_id") @db.Uuid
+  schoolYearId String      @map("school_year_id") @db.Uuid
+  levelId      String      @map("level_id") @db.Uuid
+  track        AcademicTrack @default(FRANCOPHONE)
+  code         String      @db.VarChar(30)
+  label        String      @db.VarChar(100)
+  capacity     Int?
+  status       String      @default("ACTIVE") @db.VarChar(20)
+  homeroomTeacherName String? @map("homeroom_teacher_name") @db.VarChar(140)
+  mainRoom     String?     @map("main_room") @db.VarChar(80)
+  actualCapacity Int?      @map("actual_capacity")
+  filiere      String?     @db.VarChar(100)
+  series       String?     @db.VarChar(100)
+  speciality   String?     @db.VarChar(120)
+  description  String?     @db.VarChar(500)
+  teachingMode String?     @map("teaching_mode") @db.VarChar(40)
+  rotationGroup RotationGroup? @map("rotation_group")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+  schoolYear   SchoolYear  @relation(fields: [schoolYearId], references: [id])
+  level        Level       @relation(fields: [levelId], references: [id])
+  enrollments  Enrollment[]
+  grades       GradeEntry[]
+  reportCards  ReportCard[]
+  attendance   Attendance[]
+  timetableSlots TimetableSlot[]
+  teacherAssignments TeacherClassAssignment[]
+  teacherPedagogicalAssignments TeacherAssignment[]
+  roomAssignments RoomAssignment[]
+  trackPlacements StudentTrackPlacement[]
+  pedagogicalRules PedagogicalRule[]
+
+  @@unique([tenantId, schoolYearId, code], map: "classes_tenant_id_school_year_id_code_key")
+  @@map("classes")
+}
+
+model Subject {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String       @map("tenant_id") @db.Uuid
+  code      String       @db.VarChar(20)
+  label     String       @db.VarChar(120)
+  status    String       @default("ACTIVE") @db.VarChar(20)
+  nature    String       @default("FRANCOPHONE") @db.VarChar(30)
+  isArabic  Boolean      @default(false) @map("is_arabic")
+  shortLabel String?     @map("short_label") @db.VarChar(60)
+  defaultCoefficient Decimal? @map("default_coefficient") @db.Decimal(6, 2)
+  category  String?      @db.VarChar(100)
+  description String?    @db.VarChar(500)
+  color     String?      @db.VarChar(20)
+  weeklyHours Decimal?   @map("weekly_hours") @db.Decimal(6, 2)
+  isGraded  Boolean      @default(true) @map("is_graded")
+  isOptional Boolean     @default(false) @map("is_optional")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  levelScopes SubjectLevelScope[]
+  grades    GradeEntry[]
+  timetableSlots TimetableSlot[]
+  teacherAssignments TeacherClassAssignment[]
+  teacherSkills TeacherSkill[]
+  teacherPedagogicalAssignments TeacherAssignment[]
+  roomAssignments RoomAssignment[]
+
+  @@unique([tenantId, code], map: "subjects_tenant_id_code_key")
+  @@map("subjects")
+}
+
+model AcademicPeriod {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  schoolYearId String       @map("school_year_id") @db.Uuid
+  code         String       @db.VarChar(20)
+  label        String       @db.VarChar(100)
+  startDate    DateTime     @map("start_date") @db.Date
+  endDate      DateTime     @map("end_date") @db.Date
+  periodType   String       @map("period_type") @db.VarChar(20)
+  sortOrder    Int          @default(1) @map("sort_order")
+  status       String       @default("ACTIVE") @db.VarChar(20)
+  parentPeriodId String?    @map("parent_period_id") @db.Uuid
+  isGradeEntryOpen Boolean  @default(false) @map("is_grade_entry_open")
+  gradeEntryDeadline DateTime? @map("grade_entry_deadline") @db.Date
+  lockDate     DateTime?    @map("lock_date") @db.Date
+  comment      String?      @db.VarChar(500)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  schoolYear   SchoolYear   @relation(fields: [schoolYearId], references: [id])
+  parentPeriod AcademicPeriod? @relation("AcademicPeriodHierarchy", fields: [parentPeriodId], references: [id])
+  childPeriods AcademicPeriod[] @relation("AcademicPeriodHierarchy")
+  grades       GradeEntry[]
+  reportCards  ReportCard[]
+  teacherPedagogicalAssignments TeacherAssignment[]
+  roomAssignments RoomAssignment[]
+  roomAvailabilities RoomAvailability[]
+
+  @@unique([tenantId, schoolYearId, code], map: "academic_periods_tenant_id_school_year_id_code_key")
+  @@map("academic_periods")
+}
+
+model SubjectLevelScope {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  subjectId String   @map("subject_id") @db.Uuid
+  levelId   String   @map("level_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, subjectId, levelId], map: "subject_level_scopes_tenant_id_subject_id_level_id_key")
+  @@index([tenantId, levelId], map: "idx_subject_level_scopes_level")
+  @@map("subject_level_scopes")
+}
+
+model Enrollment {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  schoolYearId     String    @map("school_year_id") @db.Uuid
+  studentId        String    @map("student_id") @db.Uuid
+  classId          String    @map("class_id") @db.Uuid
+  track            AcademicTrack @default(FRANCOPHONE)
+  enrollmentDate   DateTime  @map("enrollment_date") @db.Date
+  enrollmentStatus String    @default("ENROLLED") @map("enrollment_status") @db.VarChar(20)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  schoolYear       SchoolYear @relation(fields: [schoolYearId], references: [id])
+  student          Student    @relation(fields: [studentId], references: [id])
+  classroom        Classroom  @relation(fields: [classId], references: [id])
+  placement        StudentTrackPlacement? @relation("LegacyEnrollmentPlacement")
+
+  @@unique([tenantId, schoolYearId, studentId, track], map: "enrollments_tenant_id_school_year_id_student_id_track_key")
+  @@map("enrollments")
+}
+
+model StudentTrackPlacement {
+  id                 String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String                  @map("tenant_id") @db.Uuid
+  studentId          String                  @map("student_id") @db.Uuid
+  schoolYearId       String                  @map("school_year_id") @db.Uuid
+  track              AcademicTrack
+  levelId            String                  @map("level_id") @db.Uuid
+  classId            String?                 @map("class_id") @db.Uuid
+  legacyEnrollmentId String?                 @unique(map: "student_track_placements_legacy_enrollment_id_key") @map("legacy_enrollment_id") @db.Uuid
+  placementStatus    AcademicPlacementStatus @default(ACTIVE) @map("placement_status")
+  isPrimary          Boolean                 @default(false) @map("is_primary")
+  startDate          DateTime?               @map("start_date") @db.Date
+  endDate            DateTime?               @map("end_date") @db.Date
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                @default(now()) @map("updated_at") @db.Timestamptz(6)
+  student            Student                 @relation(fields: [studentId], references: [id])
+  schoolYear         SchoolYear              @relation(fields: [schoolYearId], references: [id])
+  level              Level                   @relation(fields: [levelId], references: [id])
+  classroom          Classroom?              @relation(fields: [classId], references: [id])
+  legacyEnrollment   Enrollment?             @relation("LegacyEnrollmentPlacement", fields: [legacyEnrollmentId], references: [id], onDelete: SetNull)
+  grades             GradeEntry[]
+  reportCards        ReportCard[]
+  secondaryReportCards ReportCard[]          @relation("ReportCardSecondaryPlacement")
+  attendance         Attendance[]
+  billingInvoices    Invoice[]               @relation("InvoiceBillingPlacement")
+  secondaryInvoices  Invoice[]               @relation("InvoiceSecondaryPlacement")
+
+  @@unique([tenantId, schoolYearId, studentId, track], map: "uq_student_track_placements_scope")
+  @@index([tenantId, studentId, schoolYearId], map: "idx_student_track_placements_student_year")
+  @@index([tenantId, classId], map: "idx_student_track_placements_class")
+  @@map("student_track_placements")
+}
+
+model FeePlan {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  schoolYearId String    @map("school_year_id") @db.Uuid
+  levelId      String    @map("level_id") @db.Uuid
+  label        String    @db.VarChar(120)
+  totalAmount  Decimal   @map("total_amount") @db.Decimal(14, 2)
+  currency     String    @default("CFA") @db.Char(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id])
+  level        Level      @relation(fields: [levelId], references: [id])
+  invoices     Invoice[]
+
+  @@unique([tenantId, schoolYearId, levelId, label], map: "fee_plans_tenant_id_school_year_id_level_id_label_key")
+  @@map("fee_plans")
+}
+
+model Invoice {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  studentId    String    @map("student_id") @db.Uuid
+  schoolYearId String    @map("school_year_id") @db.Uuid
+  feePlanId    String?   @map("fee_plan_id") @db.Uuid
+  billingPlacementId String? @map("billing_placement_id") @db.Uuid
+  secondaryPlacementId String? @map("secondary_placement_id") @db.Uuid
+  invoiceNo    String    @map("invoice_no") @db.VarChar(40)
+  amountDue    Decimal   @map("amount_due") @db.Decimal(14, 2)
+  amountPaid   Decimal   @default(0) @map("amount_paid") @db.Decimal(14, 2)
+  status       String    @default("OPEN") @db.VarChar(20)
+  dueDate      DateTime? @map("due_date") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  student      Student   @relation(fields: [studentId], references: [id])
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id])
+  feePlan      FeePlan?  @relation(fields: [feePlanId], references: [id])
+  billingPlacement StudentTrackPlacement? @relation("InvoiceBillingPlacement", fields: [billingPlacementId], references: [id], onDelete: SetNull)
+  secondaryPlacement StudentTrackPlacement? @relation("InvoiceSecondaryPlacement", fields: [secondaryPlacementId], references: [id], onDelete: SetNull)
+  payments     Payment[]
+
+  @@unique([tenantId, invoiceNo], map: "invoices_tenant_id_invoice_no_key")
+  @@index([tenantId, studentId, status], map: "idx_invoices_tenant_student_status")
+  @@map("invoices")
+}
+
+model Payment {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  invoiceId         String    @map("invoice_id") @db.Uuid
+  receiptNo         String    @map("receipt_no") @db.VarChar(40)
+  paidAmount        Decimal   @map("paid_amount") @db.Decimal(14, 2)
+  paymentMethod     String    @map("payment_method") @db.VarChar(30)
+  paidAt            DateTime  @map("paid_at") @db.Timestamptz(6)
+  referenceExternal String?   @map("reference_external") @db.VarChar(120)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  invoice           Invoice   @relation(fields: [invoiceId], references: [id])
+
+  @@unique([tenantId, receiptNo], map: "payments_tenant_id_receipt_no_key")
+  @@index([tenantId, paidAt], map: "idx_payments_tenant_paid_at")
+  @@map("payments")
+}
+
+model GradeEntry {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  studentId        String    @map("student_id") @db.Uuid
+  classId          String    @map("class_id") @db.Uuid
+  placementId      String?   @map("placement_id") @db.Uuid
+  track            AcademicTrack @default(FRANCOPHONE)
+  subjectId        String    @map("subject_id") @db.Uuid
+  academicPeriodId String    @map("academic_period_id") @db.Uuid
+  assessmentLabel  String    @map("assessment_label") @db.VarChar(120)
+  assessmentType   String    @default("DEVOIR") @map("assessment_type") @db.VarChar(30)
+  score            Decimal   @db.Decimal(5, 2)
+  scoreMax         Decimal   @default(20) @map("score_max") @db.Decimal(5, 2)
+  absent           Boolean   @default(false)
+  comment          String?
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  student          Student   @relation(fields: [studentId], references: [id])
+  classroom        Classroom @relation(fields: [classId], references: [id])
+  placement        StudentTrackPlacement? @relation(fields: [placementId], references: [id], onDelete: SetNull)
+  subject          Subject   @relation(fields: [subjectId], references: [id])
+  academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id])
+
+  @@unique([tenantId, studentId, classId, subjectId, academicPeriodId, assessmentLabel], map: "uq_grades_tenant_student_class_subject_period_assess")
+  @@index([tenantId, classId, academicPeriodId], map: "idx_grades_tenant_class_period")
+  @@map("grades")
+}
+
+model ReportCard {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  studentId        String    @map("student_id") @db.Uuid
+  classId          String    @map("class_id") @db.Uuid
+  placementId      String?   @map("placement_id") @db.Uuid
+  secondaryPlacementId String? @map("secondary_placement_id") @db.Uuid
+  track            AcademicTrack @default(FRANCOPHONE)
+  mode             ReportCardMode @default(TRACK_SINGLE)
+  academicPeriodId String    @map("academic_period_id") @db.Uuid
+  averageGeneral   Decimal   @map("avg_general") @db.Decimal(6, 3)
+  classRank        Int?      @map("class_rank")
+  appreciation     String?   @db.VarChar(40)
+  summaryData      Json?     @map("summary_data")
+  pdfDataUrl       String?   @map("pdf_url")
+  publishedAt      DateTime? @map("published_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  student          Student   @relation(fields: [studentId], references: [id])
+  classroom        Classroom @relation(fields: [classId], references: [id])
+  placement        StudentTrackPlacement? @relation(fields: [placementId], references: [id], onDelete: SetNull)
+  secondaryPlacement StudentTrackPlacement? @relation("ReportCardSecondaryPlacement", fields: [secondaryPlacementId], references: [id], onDelete: SetNull)
+  academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id])
+
+  @@unique([tenantId, studentId, classId, academicPeriodId], map: "uq_report_cards_tenant_student_class_period")
+  @@index([tenantId, classId, academicPeriodId], map: "idx_report_cards_tenant_class_period")
+  @@map("report_cards")
+}
+
+
+model Attendance {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  studentId      String    @map("student_id") @db.Uuid
+  classId        String    @map("class_id") @db.Uuid
+  schoolYearId   String    @map("school_year_id") @db.Uuid
+  placementId    String?   @map("placement_id") @db.Uuid
+  track          AcademicTrack @default(FRANCOPHONE)
+  attendanceDate DateTime  @map("attendance_date") @db.Date
+  status         String    @default("PRESENT") @db.VarChar(20)
+  reason         String?
+  justificationStatus String @default("PENDING") @map("justification_status") @db.VarChar(20)
+  validationComment String? @map("validation_comment") @db.VarChar(400)
+  validatedByUserId String? @map("validated_by_user_id") @db.Uuid
+  validatedAt DateTime? @map("validated_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  student        Student   @relation(fields: [studentId], references: [id])
+  classroom      Classroom @relation(fields: [classId], references: [id])
+  schoolYear     SchoolYear @relation(fields: [schoolYearId], references: [id])
+  placement      StudentTrackPlacement? @relation(fields: [placementId], references: [id], onDelete: SetNull)
+  attachments    AttendanceAttachment[]
+
+  @@unique([tenantId, studentId, classId, attendanceDate], map: "uq_att_tenant_student_class_date")
+  @@index([tenantId, classId, attendanceDate], map: "idx_att_tenant_class_date")
+  @@map("attendance")
+}
+
+model AttendanceAttachment {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  attendanceId     String    @map("attendance_id") @db.Uuid
+  fileName         String    @map("file_name") @db.VarChar(180)
+  fileUrl          String    @map("file_url")
+  mimeType         String?   @map("mime_type") @db.VarChar(120)
+  uploadedByUserId String?   @map("uploaded_by_user_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  attendance       Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, attendanceId], map: "idx_atta_tenant_attendance")
+  @@index([tenantId, createdAt], map: "idx_atta_tenant_created_at")
+  @@map("attendance_attachments")
+}
+
+model TimetableSlot {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  classId      String    @map("class_id") @db.Uuid
+  schoolYearId String    @map("school_year_id") @db.Uuid
+  track        AcademicTrack @default(FRANCOPHONE)
+  rotationGroup RotationGroup? @map("rotation_group")
+  subjectId    String    @map("subject_id") @db.Uuid
+  dayOfWeek    Int       @map("day_of_week")
+  startTime    String    @map("start_time") @db.Char(5)
+  endTime      String    @map("end_time") @db.Char(5)
+  room         String?   @db.VarChar(80)
+  teacherName  String?   @map("teacher_name") @db.VarChar(120)
+  roomId       String?   @map("room_id") @db.Uuid
+  teacherAssignmentId String? @map("teacher_assignment_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  classroom    Classroom @relation(fields: [classId], references: [id])
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id])
+  subject      Subject   @relation(fields: [subjectId], references: [id])
+  roomRef      Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  teacherAssignment TeacherAssignment? @relation(fields: [teacherAssignmentId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, classId, dayOfWeek, startTime], map: "uq_tts_tenant_class_day_start")
+  @@index([tenantId, classId, dayOfWeek], map: "idx_tts_tenant_class_day")
+  @@index([tenantId, roomId, dayOfWeek], map: "idx_tts_tenant_room_day")
+  @@index([tenantId, teacherAssignmentId, dayOfWeek], map: "idx_tts_tenant_teacher_assignment_day")
+  @@map("timetable_slots")
+}
+
+model PedagogicalRule {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String              @map("tenant_id") @db.Uuid
+  schoolYearId  String?             @map("school_year_id") @db.Uuid
+  cycleId       String?             @map("cycle_id") @db.Uuid
+  levelId       String?             @map("level_id") @db.Uuid
+  classId       String?             @map("class_id") @db.Uuid
+  code          String              @db.VarChar(40)
+  label         String              @db.VarChar(140)
+  ruleType      PedagogicalRuleType @map("rule_type")
+  track         AcademicTrack?
+  rotationGroup RotationGroup?      @map("rotation_group")
+  config        Json
+  isActive      Boolean             @default(true) @map("is_active")
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  schoolYear    SchoolYear?         @relation(fields: [schoolYearId], references: [id], onDelete: SetNull)
+  cycle         Cycle?              @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  level         Level?              @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  classroom     Classroom?          @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, code], map: "pedagogical_rules_tenant_id_code_key")
+  @@index([tenantId, schoolYearId], map: "idx_pedagogical_rules_tenant_school_year")
+  @@index([tenantId, cycleId], map: "idx_pedagogical_rules_tenant_cycle")
+  @@index([tenantId, levelId], map: "idx_pedagogical_rules_tenant_level")
+  @@index([tenantId, classId], map: "idx_pedagogical_rules_tenant_class")
+  @@map("pedagogical_rules")
+}
+
+model Notification {
+  id                  String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String                         @map("tenant_id") @db.Uuid
+  studentId           String?                        @map("student_id") @db.Uuid
+  audienceRole        String?                        @map("audience_role") @db.VarChar(30)
+  title               String                         @db.VarChar(160)
+  message             String
+  channel             String                         @default("IN_APP") @db.VarChar(20)
+  status              String                         @default("PENDING") @db.VarChar(20)
+  targetAddress       String?                        @map("target_address") @db.VarChar(190)
+  provider            String?                        @db.VarChar(40)
+  providerMessageId   String?                        @map("provider_message_id") @db.VarChar(160)
+  deliveryStatus      String                         @default("QUEUED") @map("delivery_status") @db.VarChar(30)
+  attempts            Int                            @default(0)
+  lastError           String?                        @map("last_error")
+  nextAttemptAt       DateTime?                      @map("next_attempt_at") @db.Timestamptz(6)
+  deliveredAt         DateTime?                      @map("delivered_at") @db.Timestamptz(6)
+  scheduledAt         DateTime?                      @map("scheduled_at") @db.Timestamptz(6)
+  sentAt              DateTime?                      @map("sent_at") @db.Timestamptz(6)
+  requestId           String?                        @map("request_id") @db.VarChar(80)
+  correlationId       String?                        @map("correlation_id") @db.VarChar(120)
+  idempotencyKey      String?                        @map("idempotency_key") @db.VarChar(200)
+  schemaVersion       String?                        @map("schema_version") @db.VarChar(20)
+  sourceDomain        String?                        @map("source_domain") @db.VarChar(60)
+  sourceAction        String?                        @map("source_action") @db.VarChar(80)
+  sourceReferenceType String?                        @map("source_reference_type") @db.VarChar(80)
+  sourceReferenceId   String?                        @map("source_reference_id") @db.VarChar(120)
+  templateKey         String?                        @map("template_key") @db.VarChar(80)
+  requestPayload      Json?                          @map("request_payload")
+  createdAt           DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  student             Student?                       @relation(fields: [studentId], references: [id])
+  deliveryAttempts    NotificationDeliveryAttempt[]
+  providerCallbacks   NotificationProviderCallback[]
+
+  @@index([tenantId, status, channel], map: "idx_notif_tenant_status_channel")
+  @@index([tenantId, status, nextAttemptAt], map: "idx_notif_tenant_status_next_attempt")
+  @@index([tenantId, studentId], map: "idx_notif_tenant_student")
+  @@index([tenantId, providerMessageId], map: "idx_notif_tenant_provider_message")
+  @@unique([tenantId, requestId], map: "uq_notifications_tenant_request")
+  @@unique([tenantId, idempotencyKey], map: "uq_notifications_tenant_idempotency")
+  @@map("notifications")
+}
+
+model NotificationDeliveryAttempt {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String       @map("tenant_id") @db.Uuid
+  notificationId    String       @map("notification_id") @db.Uuid
+  attemptNo         Int          @map("attempt_no")
+  channel           String       @db.VarChar(20)
+  provider          String?      @db.VarChar(40)
+  providerMessageId String?      @map("provider_message_id") @db.VarChar(160)
+  targetAddress     String?      @map("target_address") @db.VarChar(190)
+  status            String       @db.VarChar(30)
+  errorMessage      String?      @map("error_message")
+  startedAt         DateTime     @map("started_at") @db.Timestamptz(6)
+  finishedAt        DateTime?    @map("finished_at") @db.Timestamptz(6)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  notification      Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, attemptNo], map: "uq_notification_delivery_attempt_no")
+  @@index([tenantId, notificationId], map: "idx_notif_attempts_tenant_notification")
+  @@index([tenantId, status, createdAt], map: "idx_notif_attempts_tenant_status_created")
+  @@map("notification_delivery_attempts")
+}
+
+model NotificationProviderCallback {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String        @map("tenant_id") @db.Uuid
+  notificationId    String?       @map("notification_id") @db.Uuid
+  provider          String        @db.VarChar(40)
+  providerMessageId String        @map("provider_message_id") @db.VarChar(160)
+  eventStatus       String        @map("event_status") @db.VarChar(30)
+  dedupeKey         String        @unique(map: "notification_provider_callbacks_dedupe_key_key") @map("dedupe_key") @db.VarChar(240)
+  occurredAt        DateTime      @map("occurred_at") @db.Timestamptz(6)
+  errorMessage      String?       @map("error_message")
+  payload           Json?
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+  notification      Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, provider, providerMessageId], map: "idx_notif_callbacks_tenant_provider_message")
+  @@index([tenantId, occurredAt], map: "idx_notif_callbacks_tenant_occurred")
+  @@map("notification_provider_callbacks")
+}
+
+model TeacherClassAssignment {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String     @map("tenant_id") @db.Uuid
+  userId       String     @map("user_id") @db.Uuid
+  classId      String     @map("class_id") @db.Uuid
+  schoolYearId String     @map("school_year_id") @db.Uuid
+  subjectId    String?    @map("subject_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamptz(6)
+  user         User       @relation("TeacherAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  classroom    Classroom  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  subject      Subject?   @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, userId, classId, schoolYearId], map: "uq_teacher_assignments_scope")
+  @@index([tenantId, userId], map: "idx_teacher_assignments_tenant_user")
+  @@index([tenantId, classId], map: "idx_teacher_assignments_tenant_class")
+  @@map("teacher_class_assignments")
+}
+
+model Teacher {
+  id                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId               String              @map("tenant_id") @db.Uuid
+  matricule              String              @db.VarChar(40)
+  firstName              String              @map("first_name") @db.VarChar(100)
+  lastName               String              @map("last_name") @db.VarChar(100)
+  sex                    String?             @db.Char(1)
+  birthDate              DateTime?           @map("birth_date") @db.Date
+  primaryPhone           String?             @map("primary_phone") @db.VarChar(30)
+  secondaryPhone         String?             @map("secondary_phone") @db.VarChar(30)
+  email                  String?             @db.VarChar(150)
+  address                String?
+  photoUrl               String?             @map("photo_url")
+  nationality            String?             @db.VarChar(80)
+  identityDocumentType   String?             @map("identity_document_type") @db.VarChar(40)
+  identityDocumentNumber String?             @map("identity_document_number") @db.VarChar(80)
+  hireDate               DateTime?           @map("hire_date") @db.Date
+  teacherType            String              @default("TITULAIRE") @map("teacher_type") @db.VarChar(30)
+  speciality             String?             @db.VarChar(140)
+  mainDiploma            String?             @map("main_diploma") @db.VarChar(140)
+  teachingLanguage       String?             @map("teaching_language") @db.VarChar(60)
+  status                 String              @default("ACTIVE") @db.VarChar(20)
+  establishmentId        String?             @map("establishment_id") @db.Uuid
+  userId                 String?             @unique(map: "teachers_user_id_key") @map("user_id") @db.Uuid
+  internalNotes          String?             @map("internal_notes") @db.VarChar(1000)
+  createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  archivedAt             DateTime?           @map("archived_at") @db.Timestamptz(6)
+  user                   User?               @relation("TeacherUser", fields: [userId], references: [id], onDelete: SetNull)
+  skills                 TeacherSkill[]
+  assignments            TeacherAssignment[]
+  documents              TeacherDocument[]
+
+  @@unique([tenantId, matricule], map: "teachers_tenant_id_matricule_key")
+  @@unique([tenantId, email], map: "teachers_tenant_id_email_key")
+  @@index([tenantId, status], map: "idx_teachers_tenant_status")
+  @@index([tenantId, teacherType], map: "idx_teachers_tenant_type")
+  @@map("teachers")
+}
+
+model TeacherSkill {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  teacherId       String   @map("teacher_id") @db.Uuid
+  subjectId       String   @map("subject_id") @db.Uuid
+  track           AcademicTrack @default(FRANCOPHONE)
+  cycleId         String?  @map("cycle_id") @db.Uuid
+  levelId         String?  @map("level_id") @db.Uuid
+  qualification   String?  @db.VarChar(140)
+  yearsExperience Int?     @map("years_experience")
+  priority        Int?
+  status          String   @default("ACTIVE") @db.VarChar(20)
+  comment         String?  @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  teacher         Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject         Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  cycle           Cycle?   @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  level           Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, teacherId, subjectId, track, cycleId, levelId], map: "teacher_skills_scope_key")
+  @@index([tenantId, teacherId], map: "idx_teacher_skills_tenant_teacher")
+  @@index([tenantId, subjectId], map: "idx_teacher_skills_tenant_subject")
+  @@index([tenantId, track], map: "idx_teacher_skills_tenant_track")
+  @@map("teacher_skills")
+}
+
+model TeacherAssignment {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  teacherId         String          @map("teacher_id") @db.Uuid
+  schoolYearId      String          @map("school_year_id") @db.Uuid
+  classId           String          @map("class_id") @db.Uuid
+  subjectId         String          @map("subject_id") @db.Uuid
+  track             AcademicTrack   @default(FRANCOPHONE)
+  periodId          String?         @map("period_id") @db.Uuid
+  workloadHours     Decimal?        @map("workload_hours") @db.Decimal(6, 2)
+  coefficient       Decimal?        @db.Decimal(6, 2)
+  isHomeroomTeacher Boolean         @default(false) @map("is_homeroom_teacher")
+  role              String?         @db.VarChar(60)
+  startDate         DateTime        @map("start_date") @db.Date
+  endDate           DateTime?       @map("end_date") @db.Date
+  status            String          @default("ACTIVE") @db.VarChar(20)
+  comment           String?         @db.VarChar(500)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  teacher           Teacher         @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  schoolYear        SchoolYear      @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  classroom         Classroom       @relation(fields: [classId], references: [id], onDelete: Restrict)
+  subject           Subject         @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  academicPeriod    AcademicPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  timetableSlots    TimetableSlot[]
+
+  @@unique([tenantId, teacherId, schoolYearId, classId, subjectId, track], map: "teacher_assignments_scope_key")
+  @@index([tenantId, teacherId, status], map: "idx_teacher_assignments_tenant_teacher_status")
+  @@index([tenantId, schoolYearId, classId], map: "idx_teacher_assignments_tenant_year_class")
+  @@index([tenantId, subjectId], map: "idx_teacher_assignments_tenant_subject")
+  @@index([tenantId, track], map: "idx_teacher_assignments_tenant_track")
+  @@map("teacher_assignments")
+}
+
+model TeacherDocument {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  teacherId      String    @map("teacher_id") @db.Uuid
+  documentType   String    @map("document_type") @db.VarChar(40)
+  fileUrl        String    @map("file_url")
+  originalName   String    @map("original_name") @db.VarChar(180)
+  mimeType       String?   @map("mime_type") @db.VarChar(120)
+  size           Int?
+  uploadedAt     DateTime  @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+  uploadedBy     String?   @map("uploaded_by") @db.Uuid
+  status         String    @default("ACTIVE") @db.VarChar(20)
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(6)
+  teacher        Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  uploadedByUser User?     @relation("TeacherDocumentUploads", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, teacherId, status], map: "idx_teacher_documents_tenant_teacher_status")
+  @@map("teacher_documents")
+}
+
+model RoomType {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  code        String   @db.VarChar(40)
+  name        String   @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  status      String   @default("ACTIVE") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  rooms       Room[]
+
+  @@unique([tenantId, code], map: "room_types_tenant_id_code_key")
+  @@index([tenantId, status], map: "idx_room_types_tenant_status")
+  @@map("room_types")
+}
+
+model Room {
+  id                        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                  String             @map("tenant_id") @db.Uuid
+  code                      String             @db.VarChar(40)
+  name                      String             @db.VarChar(120)
+  building                  String?            @db.VarChar(120)
+  floor                     String?            @db.VarChar(40)
+  location                  String?            @db.VarChar(180)
+  description               String?            @db.VarChar(500)
+  roomTypeId                String             @map("room_type_id") @db.Uuid
+  capacity                  Int
+  examCapacity              Int?               @map("exam_capacity")
+  status                    String             @default("ACTIVE") @db.VarChar(20)
+  isSharedBetweenCurricula  Boolean            @default(true) @map("is_shared_between_curricula")
+  defaultTrack              AcademicTrack?     @map("default_track")
+  establishmentId           String?            @map("establishment_id") @db.Uuid
+  notes                     String?            @db.VarChar(1000)
+  createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  archivedAt                DateTime?          @map("archived_at") @db.Timestamptz(6)
+  roomType                  RoomType           @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+  assignments               RoomAssignment[]
+  availabilities            RoomAvailability[]
+  timetableSlots            TimetableSlot[]
+
+  @@unique([tenantId, code], map: "rooms_tenant_id_code_key")
+  @@index([tenantId, status], map: "idx_rooms_tenant_status")
+  @@index([tenantId, roomTypeId], map: "idx_rooms_tenant_type")
+  @@index([tenantId, defaultTrack], map: "idx_rooms_tenant_default_track")
+  @@map("rooms")
+}
+
+model RoomAssignment {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  roomId         String          @map("room_id") @db.Uuid
+  schoolYearId   String          @map("school_year_id") @db.Uuid
+  classId        String?         @map("class_id") @db.Uuid
+  levelId        String?         @map("level_id") @db.Uuid
+  cycleId        String?         @map("cycle_id") @db.Uuid
+  track          AcademicTrack?  @map("track")
+  subjectId      String?         @map("subject_id") @db.Uuid
+  periodId       String?         @map("period_id") @db.Uuid
+  assignmentType String          @default("SHARED_ROOM") @map("assignment_type") @db.VarChar(40)
+  startDate      DateTime?       @map("start_date") @db.Date
+  endDate        DateTime?       @map("end_date") @db.Date
+  status         String          @default("ACTIVE") @db.VarChar(20)
+  comment        String?         @db.VarChar(500)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  room           Room            @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  schoolYear     SchoolYear      @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  classroom      Classroom?      @relation(fields: [classId], references: [id], onDelete: SetNull)
+  level          Level?          @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  cycle          Cycle?          @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  subject        Subject?        @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  academicPeriod AcademicPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, roomId, schoolYearId, classId, levelId, cycleId, track, subjectId, periodId, assignmentType], map: "room_assignments_scope_key")
+  @@index([tenantId, roomId, status], map: "idx_room_assignments_tenant_room_status")
+  @@index([tenantId, schoolYearId, status], map: "idx_room_assignments_tenant_year_status")
+  @@index([tenantId, track], map: "idx_room_assignments_tenant_track")
+  @@map("room_assignments")
+}
+
+model RoomAvailability {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String          @map("tenant_id") @db.Uuid
+  roomId           String          @map("room_id") @db.Uuid
+  dayOfWeek        Int?            @map("day_of_week")
+  startTime        String?         @map("start_time") @db.Char(5)
+  endTime          String?         @map("end_time") @db.Char(5)
+  availabilityType String          @default("AVAILABLE") @map("availability_type") @db.VarChar(30)
+  schoolYearId     String?         @map("school_year_id") @db.Uuid
+  periodId         String?         @map("period_id") @db.Uuid
+  comment          String?         @db.VarChar(500)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  room             Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  schoolYear       SchoolYear?     @relation(fields: [schoolYearId], references: [id], onDelete: SetNull)
+  academicPeriod   AcademicPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, roomId, availabilityType], map: "idx_room_availabilities_tenant_room_type")
+  @@index([tenantId, schoolYearId], map: "idx_room_availabilities_tenant_year")
+  @@map("room_availabilities")
+}
+
+model ParentStudentLink {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  parentId     String?  @map("parent_id") @db.Uuid
+  parentUserId String?  @map("parent_user_id") @db.Uuid
+  studentId    String   @map("student_id") @db.Uuid
+  relationship String?  @db.VarChar(40)
+  relationType String?  @map("relation_type") @db.VarChar(40)
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  isPrimaryContact Boolean @default(false) @map("is_primary_contact")
+  livesWithStudent Boolean? @map("lives_with_student")
+  pickupAuthorized Boolean? @map("pickup_authorized")
+  legalGuardian Boolean @default(false) @map("legal_guardian")
+  financialResponsible Boolean @default(false) @map("financial_responsible")
+  emergencyContact Boolean @default(false) @map("emergency_contact")
+  status       String   @default("ACTIVE") @db.VarChar(20)
+  comment      String?  @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  archivedAt   DateTime? @map("archived_at") @db.Timestamptz(6)
+  parent       User?    @relation("ParentStudentLinks", fields: [parentUserId], references: [id], onDelete: SetNull)
+  parentProfile Parent? @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, parentUserId, studentId], map: "uq_parent_links_scope")
+  @@index([tenantId, parentId], map: "idx_parent_links_tenant_parent_profile")
+  @@index([tenantId, parentUserId], map: "idx_parent_links_tenant_parent")
+  @@index([tenantId, studentId], map: "idx_parent_links_tenant_student")
+  @@index([tenantId, status], map: "idx_parent_links_tenant_status")
+  @@map("parent_student_links")
+}
+
+model Parent {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  parentalRole           String   @default("OTHER") @map("parental_role") @db.VarChar(40)
+  firstName              String   @map("first_name") @db.VarChar(100)
+  lastName               String   @map("last_name") @db.VarChar(100)
+  sex                    String?  @db.Char(1)
+  primaryPhone           String   @map("primary_phone") @db.VarChar(30)
+  secondaryPhone         String?  @map("secondary_phone") @db.VarChar(30)
+  email                  String?  @db.VarChar(150)
+  address                String?
+  profession             String?  @db.VarChar(120)
+  identityDocumentType   String?  @map("identity_document_type") @db.VarChar(40)
+  identityDocumentNumber String?  @map("identity_document_number") @db.VarChar(80)
+  status                 String   @default("ACTIVE") @db.VarChar(20)
+  establishmentId        String?  @map("establishment_id") @db.Uuid
+  userId                 String?  @unique(map: "parents_user_id_key") @map("user_id") @db.Uuid
+  notes                  String?  @db.VarChar(1000)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  archivedAt             DateTime? @map("archived_at") @db.Timestamptz(6)
+  user                   User?    @relation("ParentUser", fields: [userId], references: [id], onDelete: SetNull)
+  studentLinks           ParentStudentLink[]
+
+  @@index([tenantId, status], map: "idx_parents_tenant_status")
+  @@index([tenantId, parentalRole], map: "idx_parents_tenant_role")
+  @@index([tenantId, email], map: "idx_parents_tenant_email")
+  @@map("parents")
+}
+
+model MosqueMember {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String           @map("tenant_id") @db.Uuid
+  memberCode String           @map("member_code") @db.VarChar(40)
+  fullName   String           @map("full_name") @db.VarChar(140)
+  sex        String?          @db.Char(1)
+  phone      String?          @db.VarChar(30)
+  email      String?          @db.VarChar(120)
+  address    String?
+  joinedAt   DateTime?        @map("joined_at") @db.Date
+  status     String           @default("ACTIVE") @db.VarChar(20)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  donations  MosqueDonation[]
+
+  @@unique([tenantId, memberCode], map: "mosque_members_tenant_id_member_code_key")
+  @@index([tenantId, status], map: "idx_mosque_members_tenant_status")
+  @@map("mosque_members")
+}
+
+model MosqueActivity {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  code          String   @db.VarChar(40)
+  title         String   @db.VarChar(160)
+  activityDate  DateTime @map("activity_date") @db.Date
+  category      String   @db.VarChar(40)
+  location      String?  @db.VarChar(120)
+  description   String?
+  isSchoolLinked Boolean @default(false) @map("is_school_linked")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, code], map: "mosque_activities_tenant_id_code_key")
+  @@index([tenantId, activityDate], map: "idx_mosque_activities_tenant_date")
+  @@map("mosque_activities")
+}
+
+model MosqueDonation {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String       @map("tenant_id") @db.Uuid
+  memberId    String?      @map("member_id") @db.Uuid
+  amount      Decimal      @db.Decimal(14, 2)
+  currency    String       @default("CFA") @db.Char(3)
+  channel     String       @default("CASH") @db.VarChar(30)
+  donatedAt   DateTime     @map("donated_at") @db.Timestamptz(6)
+  referenceNo String?      @map("reference_no") @db.VarChar(60)
+  notes       String?
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  member      MosqueMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, referenceNo], map: "mosque_donations_tenant_id_reference_no_key")
+  @@index([tenantId, donatedAt], map: "idx_mosque_donations_tenant_donated_at")
+  @@index([tenantId, memberId], map: "idx_mosque_donations_tenant_member")
+  @@map("mosque_donations")
+}
+
+model RolePermission {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  role      String   @db.VarChar(30)
+  resource  String   @db.VarChar(50)
+  action    String   @db.VarChar(30)
+  allowed   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, role, resource, action], map: "uq_role_permissions_tenant_role_resource_action")
+  @@index([tenantId, role], map: "idx_role_permissions_tenant_role")
+  @@map("role_permissions")
+}
+
+model IamAuditLog {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  action     String    @db.VarChar(50)
+  resource   String    @db.VarChar(60)
+  resourceId String?   @map("resource_id")
+  payload    Json?
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt], map: "idx_iam_audit_logs_tenant_created")
+  @@index([tenantId, userId], map: "idx_iam_audit_logs_tenant_user")
+  @@map("iam_audit_logs")
+}
+
+model OutboxEvent {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String?   @map("tenant_id") @db.Uuid
+  aggregateType String    @map("aggregate_type") @db.VarChar(80)
+  aggregateId   String    @map("aggregate_id") @db.VarChar(100)
+  eventType     String    @map("event_type") @db.VarChar(120)
+  status        String    @default("PENDING") @db.VarChar(20)
+  payload       Json
+  metadata      Json?
+  dedupeKey     String?   @map("dedupe_key") @db.VarChar(200)
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  claimedAt     DateTime? @map("claimed_at") @db.Timestamptz(6)
+  claimedBy     String?   @map("claimed_by") @db.VarChar(120)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([dedupeKey], map: "outbox_events_dedupe_key_key")
+  @@index([status, availableAt], map: "idx_outbox_events_status_available_at")
+  @@index([status, claimedAt], map: "idx_outbox_events_status_claimed_at")
+  @@index([tenantId, createdAt], map: "idx_outbox_events_tenant_created_at")
+  @@map("outbox_events")
+}

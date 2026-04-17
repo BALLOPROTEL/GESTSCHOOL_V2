@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-04-16T22:26:56.691Z",
+  "mode": "DRY_RUN",
+  "safety": "No data was written. Re-run with --apply only after reviewing plannedUpdates and ambiguous rows.",
+  "scannedSlots": 0,
+  "roomBackfillable": 0,
+  "teacherBackfillable": 0,
+  "rowsPlannedForUpdate": 0,
+  "rowsUpdated": 0,
+  "unresolved": {
+    "unmatchedRooms": 0,
+    "ambiguousRooms": 0,
+    "unmatchedTeachers": 0,
+    "ambiguousTeachers": 0
+  },
+  "samples": {
+    "plannedUpdates": [],
+    "unmatchedRooms": [],
+    "ambiguousRooms": [],
+    "unmatchedTeachers": [],
+    "ambiguousTeachers": []
+  }
+}

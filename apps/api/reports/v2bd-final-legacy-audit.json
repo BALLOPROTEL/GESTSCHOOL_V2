@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-04-16T22:26:56.435Z",
+  "purpose": "Lot 0 guardrail inventory. This script does not migrate data; it counts legacy records before source-of-truth changes.",
+  "sourceOfTruthTargets": {
+    "teachers": "Teacher + TeacherAssignment",
+    "parents": "Parent + ParentStudentLink.parentId; parentUserId is only a temporary portal compatibility bridge",
+    "enrollments": "StudentTrackPlacement",
+    "rooms": "Room + RoomAssignment + TimetableSlot.roomId",
+    "timetableTeachers": "TeacherAssignment + TimetableSlot.teacherAssignmentId"
+  },
+  "legacyCounts": {
+    "teacherClassAssignments": 0,
+    "teacherAssignments": 0,
+    "teacherProfilesLinkedToUsers": 0,
+    "teacherClassAssignmentsWithTeacherProfile": 0,
+    "teacherClassAssignmentsWithoutTeacherProfile": 0,
+    "teacherClassAssignmentsWithInactiveOrNonTeacherUser": 0,
+    "parentStudentLinks": 0,
+    "parentStudentLinksWithoutParentProfile": 0,
+    "enrollments": 0,
+    "studentTrackPlacements": 0,
+    "enrollmentsWithoutPlacement": 0,
+    "placementsLinkedToLegacyEnrollment": 0,
+    "orphanTeacherAccounts": 0,
+    "orphanParentAccounts": 0,
+    "orphanStudentAccounts": 0,
+    "timetableSlotsWithoutRoomId": 0,
+    "timetableSlotsWithoutTeacherAssignmentId": 0,
+    "timetableSlotsWithRoomText": 0,
+    "timetableRoomTextsMatchedToRoom": 0,
+    "classroomMainRoomTexts": 0,
+    "classroomMainRoomTextsMatchedToRoom": 0
+  },
+  "cleanupCandidates": {
+    "timetableRoomTextsNotMatchedToRoom": [],
+    "classroomMainRoomTextsNotMatchedToRoom": []
+  },
+  "migrationNotes": [
+    "Teacher portal should read TeacherAssignment only; TeacherClassAssignment is legacy inventory material.",
+    "Parent portal should resolve Parent.userId first and then read ParentStudentLink.parentId.",
+    "Do not remove Enrollment writes until every downstream consumer is confirmed on StudentTrackPlacement.",
+    "TimetableSlot.room and teacherName are compatibility display fields; new writes should prefer roomId and teacherAssignmentId.",
+    "Manual arbitration is required for orphan TEACHER/PARENT/STUDENT accounts and unmatched room texts."
+  ]
+}
