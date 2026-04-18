@@ -400,24 +400,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
     authAssistMode === "forgot" ? "forgot" : authAssistMode === "first" ? "first" : "login";
   const currentLanguageMeta = UI_LANGUAGE_META[uiLanguage];
   const currentLanguageCode = AUTH_LANGUAGE_CODES[uiLanguage];
-  const heroLabel =
-    currentView === "forgot"
-      ? "Mot de passe oublie?"
-      : currentView === "first"
-        ? "Activer mon compte"
-        : "Connexion";
-  const heroContextCopy =
-    currentView === "forgot"
-      ? "Recuperez l'acces a votre compte"
-      : currentView === "first"
-        ? "Finalisez votre premiere connexion avec le mot de passe temporaire recu."
-        : "Connectez-vous a votre compte";
-  const heroHighlights =
-    currentView === "forgot"
-      ? ["Recuperation securisee", "Jeton de reinitialisation", "Validation rapide"]
-      : currentView === "first"
-        ? ["Activation initiale", "Mot de passe temporaire", "Compte pret a l'emploi"]
-        : ["Scolarite", "Finance", "Notes & bulletins"];
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent): void => {
@@ -433,7 +415,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
   const renderLoginView = (): JSX.Element => (
     <>
       <header className="auth-canvas__card-header">
-        <span className="auth-canvas__card-kicker">Connexion</span>
         <h2>Connexion</h2>
         <p>Connectez-vous a votre compte</p>
       </header>
@@ -512,7 +493,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           <BackIcon />
           Retour connexion
         </button>
-        <span className="auth-canvas__card-kicker">Mot de passe oublie?</span>
         <h2>Mot de passe oublie?</h2>
         <p>Recuperez l'acces a votre compte</p>
       </header>
@@ -604,7 +584,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           <BackIcon />
           Retour connexion
         </button>
-        <span className="auth-canvas__card-kicker">Activer mon compte</span>
         <h2>Activer mon compte</h2>
         <p>Finalisez votre premiere connexion avec le mot de passe temporaire recu.</p>
       </header>
@@ -681,7 +660,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
       <article className="auth-canvas__hero">
         <div className="auth-canvas__hero-stack">
           <div className="auth-canvas__hero-copy">
-            <span className="auth-canvas__hero-chip">{heroLabel}</span>
             <div className="auth-canvas__brand">
               <h1>GestSchool</h1>
               <p className="auth-canvas__subtitle">{schoolName}</p>
@@ -689,23 +667,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
                 Acces centralise pour administrer les eleves, les enseignants et les parents d'eleves.
               </p>
             </div>
-          </div>
-
-          <div className="auth-canvas__hero-context">
-            <h3>{heroLabel}</h3>
-            <p>{heroContextCopy}</p>
-          </div>
-
-          <div className="auth-canvas__hero-highlights" aria-label="Points forts GestSchool v2">
-            {heroHighlights.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="auth-canvas__hero-media">
-          <div className="auth-canvas__hero-visual">
-            <img src="/new-login-v2.png" alt="Apercu de l'interface GestSchool v2" loading="lazy" />
           </div>
         </div>
       </article>

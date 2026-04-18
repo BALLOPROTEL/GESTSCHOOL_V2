@@ -59,7 +59,6 @@ import type {
   UserAccount,
   WorkflowStepDef
 } from "./app-types";
-import { FlipIconButton } from "./components/flip-icon-button";
 import { AppSidebar } from "./components/app-sidebar";
 import { ConstructionPageMosquee } from "./construction-page-mosquee";
 import { WorkflowGuide } from "./components/workflow-guide";
@@ -3441,18 +3440,6 @@ export function App(): JSX.Element {
       setLanguageFlipTarget(null);
       languageFlipTimeoutRef.current = null;
     }, animationDuration);
-  };
-
-  const toggleForgotPasswordPanel = (): void => {
-    setAuthAssistMode((prev) => (prev === "forgot" ? "none" : "forgot"));
-    setError(null);
-    setNotice(null);
-  };
-
-  const toggleFirstConnectionPanel = (): void => {
-    setAuthAssistMode((prev) => (prev === "first" ? "none" : "first"));
-    setError(null);
-    setNotice(null);
   };
 
   const showLoginPanel = (): void => {
@@ -10423,7 +10410,6 @@ export function App(): JSX.Element {
   const quickLinks = homeTiles.filter((tile) => tile.screen !== tab).slice(0, 4);
   const nextLanguage = languageFlipTarget || getNextUiLanguage(uiLanguage);
   const nextLanguageMeta = UI_LANGUAGE_META[nextLanguage];
-  const nextThemeMode = themeFlipTarget || getNextThemeMode(themeMode);
   const lastSyncLabel = lastSyncAt
     ? new Date(lastSyncAt).toLocaleString(currentLanguageMeta.locale)
     : "Non synchronise";
@@ -10543,8 +10529,6 @@ export function App(): JSX.Element {
       setTab("dashboard");
     }
   };
-  const showLegacyAuthPreview = window.location.hash === "#__legacy-auth";
-
   return (
     <main
       ref={appRootRef}
@@ -10557,292 +10541,44 @@ export function App(): JSX.Element {
       <div className="aurora aurora-right" />
 
       {!session ? (
-        <>
-          <AuthScreen
-            schoolName={SCHOOL_NAME}
-            themeMode={themeMode}
-            themeBusy={Boolean(themeFlipTarget)}
-            onSelectTheme={selectThemeMode}
-            uiLanguage={uiLanguage}
-            languageBusy={Boolean(languageFlipTarget)}
-            onSelectLanguage={selectLanguage}
-            apiStatus={apiConnection.status}
-            apiStatusText={apiStatusText}
-            loginForm={loginForm}
-            loginUsernameError={loginErrors.username}
-            loginPasswordError={loginErrors.password}
-            onLoginFormChange={(patch) => setLoginForm((prev) => ({ ...prev, ...patch }))}
-            rememberMe={rememberMe}
-            onRememberMeChange={(next) => {
-              setRememberMe(next);
-              if (!next) localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
-            }}
-            loadingAuth={loadingAuth}
-            onSubmitLogin={(event) => void login(event)}
-            authAssistMode={authAssistMode}
-            onShowLogin={showLoginPanel}
-            onShowForgotPassword={showForgotPasswordPanel}
-            onShowFirstConnection={showFirstConnectionPanel}
-            forgotPasswordForm={forgotPasswordForm}
-            onForgotPasswordChange={(patch) => setForgotPasswordForm((prev) => ({ ...prev, ...patch }))}
-            resetPasswordForm={resetPasswordForm}
-            onResetPasswordChange={(patch) => setResetPasswordForm((prev) => ({ ...prev, ...patch }))}
-            firstConnectionForm={firstConnectionForm}
-            onFirstConnectionChange={(patch) => setFirstConnectionForm((prev) => ({ ...prev, ...patch }))}
-            authAssistLoading={authAssistLoading}
-            onSubmitForgotPassword={(event) => void requestForgotPasswordToken(event)}
-            onSubmitResetPassword={(event) => void submitResetPassword(event)}
-            onSubmitFirstConnection={(event) => void submitFirstConnection(event)}
-            onEnterPreview={enterPreview}
-            previewEnabled={PREVIEW_MODE_ENABLED}
-          />
-          {showLegacyAuthPreview ? <section className="auth-layout fade-up">
-          <article className="panel auth-visual">
-            <div className="auth-visual-surface">
-              <div className="auth-visual-copy">
-                <div className="auth-visual-brand">
-                  <span className="auth-visual-badge">
-                    <img src="/logo.png" alt={`Logo ${SCHOOL_NAME}`} />
-                  </span>
-                  <div className="auth-visual-text">
-                    <h2>{SCHOOL_NAME}</h2>
-                    <p className="auth-visual-note">
-                      Accès centralisé pour administrer les élèves, les enseignants et les parents d’élèves.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="auth-visual-media">
-                <img
-                  className="auth-illustration-photo"
-                  src="/loginPage.png"
-                  alt={`Identite visuelle de ${SCHOOL_NAME}`}
-                  loading="lazy"
-                />
-              </div>
-            </div>
-          </article>
-
-          <section className="panel auth-panel auth-card">
-            <div className="auth-card-head">
-              <h2>Connexion</h2>
-              <div className="auth-card-controls">
-                <FlipIconButton
-                  buttonClassName="auth-theme-toggle theme-toggle"
-                  currentIconSrc={themeMode === "light" ? "/mode-clair.png" : "/mode-sombre.png"}
-                  nextIconSrc={nextThemeMode === "light" ? "/mode-clair.png" : "/mode-sombre.png"}
-                  label={
-                    themeFlipTarget
-                      ? "Changement de theme en cours"
-                      : `Passer en ${nextThemeMode === "dark" ? "mode sombre" : "mode clair"}`
-                  }
-                  isFlipping={Boolean(themeFlipTarget)}
-                  onClick={toggleThemeMode}
-                />
-                <FlipIconButton
-                  buttonClassName="auth-theme-toggle language-toggle"
-                  currentIconSrc={currentLanguageMeta.iconSrc}
-                  nextIconSrc={nextLanguageMeta.iconSrc}
-                  label={
-                    languageFlipTarget
-                      ? "Changement de langue en cours"
-                      : `Passer de ${currentLanguageMeta.label} a ${nextLanguageMeta.label}`
-                  }
-                  isFlipping={Boolean(languageFlipTarget)}
-                  onClick={cycleLanguage}
-                />
-              </div>
-            </div>
-            {apiConnection.status !== "online" ? (
-              <p
-                className={`auth-api-banner auth-api-banner-${apiConnection.status}`.trim()}
-                role="status"
-              >
-                {apiStatusText}
-              </p>
-            ) : null}
-            <form className="form-grid auth-form-grid" onSubmit={(event) => void login(event)}>
-              <label className="auth-field">
-                <span className="visually-hidden">Email ou identifiant</span>
-                <input
-                  value={loginForm.username}
-                  onChange={(event) => setLoginForm((prev) => ({ ...prev, username: event.target.value }))}
-                  placeholder="Email ou Identifiant"
-                  required
-                />
-                {fieldError(loginErrors, "username")}
-              </label>
-              <label className="auth-field">
-                <span className="visually-hidden">Mot de passe</span>
-                <input
-                  type="password"
-                  value={loginForm.password}
-                  onChange={(event) => setLoginForm((prev) => ({ ...prev, password: event.target.value }))}
-                  placeholder="Mot de Passe"
-                  required
-                  minLength={8}
-                />
-                {fieldError(loginErrors, "password")}
-              </label>
-
-              <div className="auth-inline-row">
-                <label className="auth-check">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(event) => {
-                      const next = event.target.checked;
-                      setRememberMe(next);
-                      if (!next) localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
-                    }}
-                  />
-                  <span>Se souvenir de moi</span>
-                </label>
-                <button type="button" className="auth-link-button" onClick={toggleForgotPasswordPanel}>
-                  Mot de passe oublie?
-                </button>
-              </div>
-
-              <button type="submit" className="auth-submit" disabled={loadingAuth}>
-                {loadingAuth ? "Connexion..." : "Se Connecter"}
-              </button>
-              <button
-                type="button"
-                className="auth-bottom-link"
-                aria-expanded={authAssistMode === "first"}
-                onClick={toggleFirstConnectionPanel}
-              >
-                Premiere connexion ? {authAssistMode === "first" ? "Masquer" : "Activer"}
-              </button>
-            </form>
-            {authAssistMode === "forgot" ? (
-              <article className="auth-assist-panel">
-                <h3>Reinitialisation du mot de passe</h3>
-                <form className="auth-assist-grid" onSubmit={(event) => void requestForgotPasswordToken(event)}>
-                  <label>
-                    Identifiant
-                    <input
-                      value={forgotPasswordForm.username}
-                      onChange={(event) =>
-                        setForgotPasswordForm((prev) => ({ ...prev, username: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                  <button type="submit" disabled={authAssistLoading}>
-                    {authAssistLoading ? "Envoi..." : "Envoyer les instructions"}
-                  </button>
-                </form>
-                <form className="auth-assist-grid" onSubmit={(event) => void submitResetPassword(event)}>
-                  <label>
-                    Code de reinitialisation
-                    <input
-                      value={resetPasswordForm.token}
-                      onChange={(event) =>
-                        setResetPasswordForm((prev) => ({ ...prev, token: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                  <label>
-                    Nouveau mot de passe
-                    <input
-                      type="password"
-                      value={resetPasswordForm.newPassword}
-                      onChange={(event) =>
-                        setResetPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))
-                      }
-                      minLength={12}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Confirmation
-                    <input
-                      type="password"
-                      value={resetPasswordForm.confirmPassword}
-                      onChange={(event) =>
-                        setResetPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
-                      }
-                      minLength={12}
-                      required
-                    />
-                  </label>
-                  <button type="submit" disabled={authAssistLoading}>
-                    {authAssistLoading ? "Validation..." : "Valider la reinitialisation"}
-                  </button>
-                </form>
-                <p className="auth-assist-note">
-                  Le jeton de reinitialisation n'est plus affiche dans l'application. Utiliser un
-                  jeton transmis par un canal securise.
-                </p>
-              </article>
-            ) : null}
-            {authAssistMode === "first" ? (
-              <article className="auth-first-steps">
-                <h3>Activation premiere connexion</h3>
-                <form className="auth-assist-grid" onSubmit={(event) => void submitFirstConnection(event)}>
-                  <label>
-                    Identifiant
-                    <input
-                      value={firstConnectionForm.username}
-                      onChange={(event) =>
-                        setFirstConnectionForm((prev) => ({ ...prev, username: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                  <label>
-                    Mot de passe temporaire
-                    <input
-                      type="password"
-                      value={firstConnectionForm.temporaryPassword}
-                      onChange={(event) =>
-                        setFirstConnectionForm((prev) => ({
-                          ...prev,
-                          temporaryPassword: event.target.value
-                        }))
-                      }
-                      minLength={8}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Nouveau mot de passe
-                    <input
-                      type="password"
-                      value={firstConnectionForm.newPassword}
-                      onChange={(event) =>
-                        setFirstConnectionForm((prev) => ({ ...prev, newPassword: event.target.value }))
-                      }
-                      minLength={12}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Confirmation
-                    <input
-                      type="password"
-                      value={firstConnectionForm.confirmPassword}
-                      onChange={(event) =>
-                        setFirstConnectionForm((prev) => ({
-                          ...prev,
-                          confirmPassword: event.target.value
-                        }))
-                      }
-                      minLength={12}
-                      required
-                    />
-                  </label>
-                  <button type="submit" disabled={authAssistLoading}>
-                    {authAssistLoading ? "Activation..." : "Activer le compte"}
-                  </button>
-                </form>
-              </article>
-            ) : null}
-          </section>
-        </section> : null}
-        </>
+        <AuthScreen
+          schoolName={SCHOOL_NAME}
+          themeMode={themeMode}
+          themeBusy={Boolean(themeFlipTarget)}
+          onSelectTheme={selectThemeMode}
+          uiLanguage={uiLanguage}
+          languageBusy={Boolean(languageFlipTarget)}
+          onSelectLanguage={selectLanguage}
+          apiStatus={apiConnection.status}
+          apiStatusText={apiStatusText}
+          loginForm={loginForm}
+          loginUsernameError={loginErrors.username}
+          loginPasswordError={loginErrors.password}
+          onLoginFormChange={(patch) => setLoginForm((prev) => ({ ...prev, ...patch }))}
+          rememberMe={rememberMe}
+          onRememberMeChange={(next) => {
+            setRememberMe(next);
+            if (!next) localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
+          }}
+          loadingAuth={loadingAuth}
+          onSubmitLogin={(event) => void login(event)}
+          authAssistMode={authAssistMode}
+          onShowLogin={showLoginPanel}
+          onShowForgotPassword={showForgotPasswordPanel}
+          onShowFirstConnection={showFirstConnectionPanel}
+          forgotPasswordForm={forgotPasswordForm}
+          onForgotPasswordChange={(patch) => setForgotPasswordForm((prev) => ({ ...prev, ...patch }))}
+          resetPasswordForm={resetPasswordForm}
+          onResetPasswordChange={(patch) => setResetPasswordForm((prev) => ({ ...prev, ...patch }))}
+          firstConnectionForm={firstConnectionForm}
+          onFirstConnectionChange={(patch) => setFirstConnectionForm((prev) => ({ ...prev, ...patch }))}
+          authAssistLoading={authAssistLoading}
+          onSubmitForgotPassword={(event) => void requestForgotPasswordToken(event)}
+          onSubmitResetPassword={(event) => void submitResetPassword(event)}
+          onSubmitFirstConnection={(event) => void submitFirstConnection(event)}
+          onEnterPreview={enterPreview}
+          previewEnabled={PREVIEW_MODE_ENABLED}
+        />
       ) : (
         <section className="workspace fade-up">
           <HeaderNavigation

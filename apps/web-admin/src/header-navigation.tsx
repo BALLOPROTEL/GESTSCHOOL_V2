@@ -957,6 +957,13 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     };
   }, [mobileOpen]);
 
+  const handleOpenIdChange = (value: string | null) => {
+    setOpenId(value);
+    if (value) {
+      setMobileOpen(false);
+    }
+  };
+
   return (
     <header ref={rootRef} className="panel app-shell-header global-header-shell">
       <div className="global-header-row">
@@ -998,14 +1005,14 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
               label="Scolarite"
               items={scolarite}
               openId={openId}
-              onOpenChange={setOpenId}
+              onOpenChange={handleOpenIdChange}
             />
             <HeaderDropdownMenu
               id="school-life"
               label="Vie scolaire"
               items={schoolLife}
               openId={openId}
-              onOpenChange={setOpenId}
+              onOpenChange={handleOpenIdChange}
             />
             <HeaderDropdownMenu
               id="settings"
@@ -1014,7 +1021,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
               extraGroups={settingsGroups}
               preferences={preferences}
               openId={openId}
-              onOpenChange={setOpenId}
+              onOpenChange={handleOpenIdChange}
             />
           </nav>
         </div>
@@ -1034,7 +1041,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
               icon="apps"
               label="Acces rapides"
               openId={openId}
-              onOpenChange={setOpenId}
+              onOpenChange={handleOpenIdChange}
             >
               <HeaderQuickActionsPanel items={quickActions} onOpenChange={setOpenId} />
             </HeaderUtilityDropdown>
@@ -1053,7 +1060,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
               icon="messages"
               label={messages.label}
               openId={openId}
-              onOpenChange={setOpenId}
+              onOpenChange={handleOpenIdChange}
             >
               <HeaderFeedPanel
                 title={messagesDisabled ? "Messagerie non branchee" : "Messages"}
@@ -1092,7 +1099,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
               icon="notifications"
               label={notifications.label}
               openId={openId}
-              onOpenChange={setOpenId}
+              onOpenChange={handleOpenIdChange}
             >
               <HeaderFeedPanel
                 title="Notifications"
@@ -1120,7 +1127,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
             actions={userMenuActions}
             user={user}
             openId={openId}
-            onOpenChange={setOpenId}
+            onOpenChange={handleOpenIdChange}
           />
           <button
             type="button"
