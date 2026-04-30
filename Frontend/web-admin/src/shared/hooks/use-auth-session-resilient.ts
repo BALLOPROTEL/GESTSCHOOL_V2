@@ -147,9 +147,7 @@ export function useAuthSession(options: UseAuthSessionOptions) {
 
   const probeApiBaseUrl = useCallback(async (candidateApiBaseUrl: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${candidateApiBaseUrl}/health/live`, {
-        headers: { "Cache-Control": "no-cache" }
-      });
+      const response = await fetch(`${candidateApiBaseUrl}/health/live`);
       if (!response.ok) {
         return false;
       }

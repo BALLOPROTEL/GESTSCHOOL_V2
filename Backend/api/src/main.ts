@@ -36,7 +36,8 @@ async function bootstrap(): Promise<void> {
       "x-tenant-id",
       "x-request-id",
       "x-notification-webhook-secret",
-      "x-metrics-token"
+      "x-metrics-token",
+      "Cache-Control"
     ],
     exposedHeaders: ["x-request-id"]
   });

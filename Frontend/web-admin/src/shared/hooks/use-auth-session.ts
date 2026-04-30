@@ -146,9 +146,7 @@ export function useAuthSession(options: UseAuthSessionOptions) {
 
       const probePromise = (async (): Promise<boolean> => {
         try {
-          const response = await fetch(`${apiBaseUrl}/health/live`, {
-            headers: { "Cache-Control": "no-cache" }
-          });
+          const response = await fetch(`${apiBaseUrl}/health/live`);
           if (!response.ok) {
             markApiUnavailable();
             return false;
