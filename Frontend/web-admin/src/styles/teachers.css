@@ -1,0 +1,88 @@
+/* GestSchool_V2 teachers module */
+.teachers-hero,
+.teachers-panel {
+  gap: 0.88rem;
+}
+
+.teachers-screen-shell {
+  display: grid;
+  gap: clamp(0.88rem, 1.3vw, 1.15rem);
+}
+
+.teachers-panel {
+  align-content: start;
+}
+
+.teachers-panel .table-header {
+  align-items: start;
+}
+
+.teachers-panel .table-wrap {
+  margin-top: 0.12rem;
+}
+
+.teachers-panel tbody td:first-child {
+  font-weight: 800;
+}
+
+.teachers-panel .button-ghost,
+.teachers-panel .button-danger {
+  min-height: 2.35rem;
+}
+
+.teachers-form-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.82rem 0.84rem;
+}
+
+.teachers-form-grid > label {
+  grid-column: span 3;
+  min-width: 0;
+}
+
+.teachers-filter-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.teachers-filter-grid > label {
+  grid-column: span 3;
+}
+
+.teachers-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+  gap: 0.78rem;
+}
+
+.teachers-identity-card {
+  align-content: start;
+  gap: 0.3rem;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+@media (max-width: 1320px) {
+  .teachers-form-grid > label,
+  .teachers-filter-grid > label {
+    grid-column: span 6;
+  }
+
+  .teachers-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .teachers-form-grid > label,
+  .teachers-filter-grid > label {
+    grid-column: span 12;
+  }
+
+  .teachers-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

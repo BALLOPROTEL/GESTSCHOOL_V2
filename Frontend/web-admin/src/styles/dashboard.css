@@ -1,0 +1,62 @@
+/* Dashboard density pass: keep executive information readable before secondary panels compete. */
+.dashboard-shell-v2 {
+  gap: clamp(1rem, 1.5vw, 1.35rem);
+}
+
+.dashboard-hero-shell {
+  overflow: hidden;
+}
+
+.dashboard-hero-content {
+  max-width: 54rem;
+}
+
+.dashboard-hero-actions {
+  margin-top: 0.15rem;
+}
+
+.dashboard-kpi-grid-flex {
+  align-items: stretch;
+}
+
+.kpi-card-flex {
+  min-height: 7.15rem;
+}
+
+.dashboard-main-grid {
+  align-items: start;
+}
+
+.dashboard-panel-shell {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.dashboard-section-head {
+  margin-bottom: 0;
+}
+
+.dashboard-section-head h3,
+.dashboard-section-head h2 {
+  letter-spacing: -0.025em;
+}
+
+.dashboard-modules .module-grid {
+  gap: 0.9rem;
+}
+
+.dashboard-side {
+  display: grid;
+  gap: clamp(0.9rem, 1.3vw, 1.2rem);
+}
+
+.priority-panel .priority-list,
+.notice-list {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.priority-item,
+.notice-card {
+  min-height: 4.6rem;
+}

@@ -1,0 +1,35 @@
+/* Parents screen density pass: separate identity, contact and parent-child relationship work. */
+.parents-screen-shell {
+  gap: clamp(0.9rem, 1.4vw, 1.2rem);
+}
+
+.parents-screen-shell .module-modern {
+  align-content: start;
+}
+
+.parents-screen-shell .table-header {
+  align-items: start;
+}
+
+.parents-screen-shell .students-table-toolbar {
+  justify-content: flex-end;
+}
+
+.parents-screen-shell .selected-parent-card,
+.parents-screen-shell .module-form {
+  border-top: 1px solid color-mix(in srgb, var(--flexadm-surface-border) 26%, transparent);
+  padding-top: 0.9rem;
+}
+
+.parents-screen-shell .check-row {
+  min-height: 2.85rem;
+  align-items: center;
+}
+
+.parents-screen-shell td:first-child {
+  font-weight: 800;
+}
+
+.parents-screen-shell .button-danger {
+  min-height: 2.35rem;
+}

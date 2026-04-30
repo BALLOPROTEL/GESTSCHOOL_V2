@@ -11,6 +11,8 @@
     "render:build:api": "pnpm --filter @gestschool/api prisma:generate && pnpm --filter @gestschool/api build",
     "render:start:api": "pnpm --filter @gestschool/api start:prod",
     "render:start:worker": "pnpm --filter @gestschool/api start:worker",
+    "lint": "pnpm lint:api && pnpm lint:web",
+    "build": "pnpm build:api && pnpm build:web",
     "lint:api": "pnpm --filter @gestschool/api lint",
     "lint:web": "pnpm --filter @gestschool/web-admin lint"
   }

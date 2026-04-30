@@ -1,0 +1,57 @@
+/* Auth canvas density pass: clearer separation between brand, form states and recovery flows. */
+.auth-canvas {
+  gap: clamp(1rem, 1.8vw, 1.45rem);
+}
+
+.auth-canvas__hero {
+  align-content: space-between;
+}
+
+.auth-canvas__hero-copy {
+  max-width: 34rem;
+}
+
+.auth-canvas__card {
+  isolation: isolate;
+}
+
+.auth-canvas__card-inner {
+  display: grid;
+  gap: clamp(0.9rem, 1.3vw, 1.2rem);
+}
+
+.auth-canvas__card-header {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.auth-canvas__form,
+.auth-canvas__form--compact,
+.auth-canvas__grid-form {
+  gap: 0.82rem;
+}
+
+.auth-canvas__inline {
+  margin-top: 0.1rem;
+}
+
+.auth-canvas__panel {
+  display: grid;
+  gap: 0.82rem;
+}
+
+.auth-canvas__panel-copy {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.auth-canvas__footer-block,
+.auth-canvas__footer-links {
+  display: grid;
+  gap: 0.68rem;
+  justify-items: center;
+}
+
+.auth-canvas__security-note {
+  margin-top: 0.85rem;
+}

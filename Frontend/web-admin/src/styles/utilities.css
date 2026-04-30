@@ -1,0 +1,776 @@
+/* Lot 4 - global responsive harmonization
+   Final design-system layer: cards, headers, tabs, actions, overlays and touch density. */
+
+:root {
+  --responsive-space-1: clamp(0.42rem, 0.8vw, 0.58rem);
+  --responsive-space-2: clamp(0.58rem, 1vw, 0.78rem);
+  --responsive-space-3: clamp(0.78rem, 1.25vw, 1rem);
+  --responsive-space-4: clamp(0.96rem, 1.7vw, 1.32rem);
+  --responsive-radius-card: clamp(0.92rem, 1.4vw, 1.18rem);
+  --responsive-radius-control: 0.88rem;
+  --responsive-touch-target: max(var(--shell-touch-target, 2.75rem), 2.72rem);
+  --responsive-title-lg: clamp(1.46rem, 2.4vw, 2.28rem);
+  --responsive-title-md: clamp(1.14rem, 1.6vw, 1.54rem);
+  --responsive-copy: clamp(0.84rem, 0.96vw, 0.94rem);
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+:where(
+  .page,
+  .workspace,
+  .screen-host,
+  .app-shell-main,
+  .dashboard-shell-v2,
+  .dashboard-hero-shell,
+  .dashboard-panel-shell,
+  .module-modern,
+  .module-overview-shell,
+  .reference-shell,
+  .reference-workflow-shell,
+  .workflow-shell,
+  .workflow-body,
+  .panel,
+  .table-panel,
+  .editor-panel,
+  .card-panel,
+  .priority-panel,
+  .messages-layout,
+  .messages-list-panel,
+  .messages-conversation-panel,
+  .messages-side,
+  .students-screen-shell,
+  .teachers-panel,
+  .teachers-hero
+) {
+  min-width: 0;
+}
+
+:where(
+  .panel,
+  .module-modern,
+  .table-panel,
+  .editor-panel,
+  .card-panel,
+  .priority-panel,
+  .notice-card,
+  .soft-card,
+  .day-card,
+  .dashboard-hero-shell,
+  .dashboard-panel-shell,
+  .reference-card,
+  .messages-side-card,
+  .messages-list-panel,
+  .messages-conversation-panel,
+  .messages-compose-card,
+  .message-thread-card,
+  .module-card,
+  .metric-card,
+  .kpi-card,
+  .kpi-card-flex,
+  .dashboard-hero-metric,
+  .module-overview-card,
+  .students-overview-card,
+  .teachers-identity-card,
+  .auth-canvas__panel,
+  .auth-canvas__card
+) {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--responsive-radius-card);
+}
+
+:where(
+  .dashboard-hero-shell,
+  .dashboard-panel-shell,
+  .table-panel,
+  .editor-panel,
+  .module-modern,
+  .reference-card,
+  .messages-list-panel,
+  .messages-conversation-panel,
+  .messages-side-card,
+  .students-list-panel,
+  .teachers-panel
+) {
+  padding: clamp(0.86rem, 1.45vw, 1.12rem);
+}
+
+:where(
+  .dashboard-kpi-grid,
+  .dashboard-kpi-grid-flex,
+  .module-grid,
+  .module-overview-grid,
+  .students-overview-grid,
+  .teachers-detail-grid,
+  .dashboard-hero-aside,
+  .messages-side
+) {
+  min-width: 0;
+  gap: var(--responsive-space-2);
+}
+
+:where(
+  .dashboard-kpi-grid-flex,
+  .module-overview-grid,
+  .students-overview-grid,
+  .dashboard-hero-aside
+) {
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+}
+
+:where(
+  .table-header,
+  .context-bar,
+  .priority-panel-head,
+  .reference-card-head,
+  .messages-conversation-toolbar,
+  .iam-permissions-header,
+  .dashboard-hero-flex,
+  .dashboard-hero-content,
+  .messages-hero,
+  .students-overview,
+  .teachers-hero
+) {
+  min-width: 0;
+  gap: var(--responsive-space-3);
+}
+
+:where(
+  .table-header > div,
+  .context-bar > div,
+  .reference-card-head > div,
+  .dashboard-hero-content,
+  .messages-compose-copy,
+  .message-thread-copy,
+  .module-card .module-text
+) {
+  min-width: 0;
+}
+
+:where(
+  .dashboard-hero h2,
+  .context-bar h2,
+  .table-header h2,
+  .table-header h3,
+  .reference-card-head h3,
+  .auth-canvas__card-header h2
+) {
+  font-size: var(--responsive-title-md);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.dashboard-hero h2 {
+  font-size: var(--responsive-title-lg);
+}
+
+:where(
+  .section-lead,
+  .dashboard-hero-copy,
+  .message-thread-card p,
+  .notice-card p,
+  .auth-canvas__description,
+  .auth-canvas__panel-copy p
+) {
+  max-width: 68ch;
+  font-size: var(--responsive-copy);
+  line-height: 1.62;
+}
+
+:where(
+  button,
+  .button-ghost,
+  .button-danger,
+  .hero-primary-cta,
+  .hero-secondary-cta,
+  .mobile-section-toggle,
+  .workflow-tab,
+  .header-nav-button,
+  .header-icon-button,
+  .header-mobile-toggle,
+  .header-mobile-link,
+  .header-dropdown-item,
+  .header-preference-button,
+  .header-logout-button
+) {
+  min-height: var(--responsive-touch-target);
+  min-width: 0;
+}
+
+:where(
+  .actions,
+  .context-actions,
+  .dashboard-hero-actions,
+  .module-inline-strip,
+  .module-inline-stack,
+  .messages-compose-actions,
+  .footer-actions,
+  .auth-canvas__inline,
+  .auth-canvas__footer-links,
+  .iam-permissions-actions,
+  .row-actions,
+  .inline-actions
+) {
+  min-width: 0;
+  gap: var(--responsive-space-2);
+}
+
+:where(
+  .module-inline-strip,
+  .module-inline-stack,
+  .dashboard-hero-foot,
+  .messages-thread-summary,
+  .messages-conversation-meta
+) {
+  scrollbar-width: thin;
+  scroll-padding-inline: var(--responsive-space-2);
+}
+
+:where(
+  .students-overview-status,
+  .module-header-badge,
+  .module-inline-pill,
+  .dashboard-section-badge,
+  .status-pill,
+  .notification-badge,
+  .message-thread-badge,
+  .dashboard-hero-foot span,
+  .messages-compose-hints span
+) {
+  min-width: 0;
+  min-height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.36rem;
+  max-width: 100%;
+  padding: 0.32rem 0.66rem;
+  border-radius: 999px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.workflow-tabs {
+  min-width: 0;
+  display: flex;
+  gap: var(--responsive-space-2);
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: var(--responsive-space-2);
+  scrollbar-width: thin;
+}
+
+.workflow-tab {
+  flex: 0 0 auto;
+  max-width: min(18rem, 82vw);
+  white-space: normal;
+}
+
+.workflow-step,
+.module-card,
+.message-thread-card,
+.header-dropdown-item,
+.header-mobile-link,
+.header-preference-button {
+  touch-action: manipulation;
+}
+
+:where(
+  .header-dropdown-menu,
+  .header-utility-panel,
+  .header-user-dropdown,
+  .header-mobile-panel,
+  .toast-pop
+) {
+  max-width: min(100vw - 1rem, 28rem);
+  max-height: calc(100dvh - 1rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.toast-pop {
+  inset-inline: auto max(0.75rem, env(safe-area-inset-right));
+}
+
+@media (max-width: 1180px) {
+  :where(
+    .dashboard-hero-flex,
+    .messages-layout,
+    .reference-workflow-shell,
+    .workflow-body,
+    .iam-account-form
+  ) {
+    grid-template-columns: 1fr !important;
+  }
+
+  :where(
+    .dashboard-hero-actions,
+    .context-actions,
+    .iam-permissions-actions,
+    .messages-compose-actions
+  ) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --responsive-space-2: 0.62rem;
+    --responsive-space-3: 0.78rem;
+    --responsive-title-lg: clamp(1.28rem, 7vw, 1.68rem);
+    --responsive-title-md: clamp(1.05rem, 5.5vw, 1.34rem);
+  }
+
+  :where(
+    .dashboard-hero-shell,
+    .dashboard-panel-shell,
+    .table-panel,
+    .editor-panel,
+    .module-modern,
+    .reference-card,
+    .messages-list-panel,
+    .messages-conversation-panel,
+    .messages-side-card,
+    .students-list-panel,
+    .teachers-panel,
+    .panel
+  ) {
+    padding: clamp(0.72rem, 3vw, 0.9rem) !important;
+    border-radius: 0.96rem;
+  }
+
+  :where(
+    .dashboard-kpi-grid,
+    .dashboard-kpi-grid-flex,
+    .module-grid,
+    .module-overview-grid,
+    .students-overview-grid,
+    .teachers-detail-grid,
+    .dashboard-hero-aside,
+    .messages-side
+  ) {
+    grid-template-columns: 1fr !important;
+  }
+
+  :where(
+    .table-header,
+    .context-bar,
+    .priority-panel-head,
+    .reference-card-head,
+    .messages-conversation-toolbar,
+    .iam-permissions-header,
+    .messages-hero,
+    .students-overview,
+    .teachers-hero
+  ) {
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+  }
+
+  :where(
+    .actions,
+    .context-actions,
+    .dashboard-hero-actions,
+    .messages-compose-actions,
+    .footer-actions,
+    .auth-canvas__inline,
+    .auth-canvas__footer-links,
+    .iam-permissions-actions,
+    .row-actions,
+    .inline-actions
+  ) {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  :where(
+    .actions,
+    .context-actions,
+    .dashboard-hero-actions,
+    .messages-compose-actions,
+    .footer-actions,
+    .auth-canvas__inline,
+    .auth-canvas__footer-links,
+    .iam-permissions-actions,
+    .row-actions,
+    .inline-actions
+  ) > * {
+    width: 100%;
+  }
+
+  :where(
+    .module-inline-strip,
+    .module-inline-stack,
+    .dashboard-hero-foot,
+    .messages-thread-summary,
+    .messages-conversation-meta
+  ) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    padding-bottom: 0.12rem;
+    scrollbar-width: none;
+  }
+
+  :where(
+    .module-inline-strip,
+    .module-inline-stack,
+    .dashboard-hero-foot,
+    .messages-thread-summary,
+    .messages-conversation-meta
+  )::-webkit-scrollbar {
+    display: none;
+  }
+
+  :where(
+    .module-inline-strip,
+    .module-inline-stack,
+    .dashboard-hero-foot,
+    .messages-thread-summary,
+    .messages-conversation-meta
+  ) > * {
+    flex: 0 0 auto;
+  }
+
+  .workflow-tabs {
+    margin-inline: calc(var(--shell-gutter-mobile, 0.75rem) * -0.35);
+    padding-inline: calc(var(--shell-gutter-mobile, 0.75rem) * 0.35);
+    scrollbar-width: none;
+  }
+
+  .workflow-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workflow-tab {
+    flex-basis: min(13rem, 74vw);
+  }
+
+  .toast-pop {
+    position: fixed !important;
+    inset-inline: 0.56rem !important;
+    width: auto !important;
+    max-width: none;
+    max-height: calc(100dvh - 1.12rem);
+  }
+
+  .toast-pop {
+    inset-block-end: max(0.56rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 420px) {
+  :where(
+    .dashboard-hero-shell,
+    .dashboard-panel-shell,
+    .table-panel,
+    .editor-panel,
+    .module-modern,
+    .reference-card,
+    .messages-list-panel,
+    .messages-conversation-panel,
+    .messages-side-card,
+    .students-list-panel,
+    .teachers-panel,
+    .panel
+  ) {
+    padding: 0.7rem !important;
+    border-radius: 0.88rem;
+  }
+
+  :where(
+    .students-overview-status,
+    .module-header-badge,
+    .module-inline-pill,
+    .dashboard-section-badge,
+    .status-pill
+  ) {
+    min-height: 1.78rem;
+    padding-inline: 0.52rem;
+    font-size: 0.68rem;
+  }
+}
+
+/* Header responsive stability patch
+   Keep the topbar, profile menu and mobile drawer as independent overlay layers. */
+:root {
+  --shell-z-header: 600;
+  --shell-z-backdrop: 610;
+  --shell-z-drawer: 620;
+  --shell-z-dropdown: 630;
+}
+
+.global-header-shell.panel,
+.global-header-shell {
+  overflow: visible !important;
+  z-index: var(--shell-z-header);
+  isolation: isolate;
+}
+
+.global-header-row,
+.global-header-actions,
+.header-utility-actions,
+.header-user-menu,
+.header-dropdown,
+.header-utility-dropdown {
+  min-width: 0;
+}
+
+.global-header-row {
+  overflow: visible;
+}
+
+.global-header-actions,
+.header-utility-actions {
+  flex-wrap: nowrap !important;
+  align-items: center;
+}
+
+.global-header-actions {
+  flex: 0 0 auto;
+}
+
+.header-user-menu,
+.header-mobile-toggle {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1100px) {
+  .global-header-shell.panel,
+  .global-header-shell {
+    padding: 0.5rem !important;
+    overflow: visible !important;
+  }
+
+  .global-header-row {
+    grid-template-columns: minmax(0, 1fr) max-content !important;
+    align-items: center !important;
+    gap: clamp(0.38rem, 2vw, 0.58rem);
+    overflow: visible;
+  }
+
+  .global-brand {
+    max-width: min(54vw, 20rem);
+    overflow: hidden;
+  }
+
+  .global-brand-copy {
+    overflow: hidden;
+  }
+
+  .global-brand-copy strong,
+  .global-brand-copy small {
+    max-width: 100% !important;
+  }
+
+  .global-header-actions {
+    width: auto !important;
+    min-width: max-content;
+    max-width: max-content;
+    justify-content: flex-end !important;
+    gap: clamp(0.34rem, 1.7vw, 0.48rem) !important;
+  }
+
+  .header-user-menu {
+    width: auto !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+  }
+
+  .header-user-trigger {
+    flex: 0 0 var(--shell-touch-target);
+    width: var(--shell-touch-target);
+    min-width: var(--shell-touch-target);
+  }
+
+  .header-mobile-toggle {
+    flex: 0 0 auto;
+    min-width: max-content;
+    white-space: nowrap;
+  }
+
+  .header-mobile-backdrop {
+    z-index: var(--shell-z-backdrop) !important;
+  }
+
+  .header-mobile-panel {
+    z-index: var(--shell-z-drawer) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --shell-header-height: 3.45rem;
+  }
+
+  .global-header-shell.panel,
+  .global-header-shell {
+    padding: 0.46rem !important;
+  }
+
+  .global-brand {
+    max-width: min(48vw, 15rem);
+  }
+
+  .global-header-actions {
+    gap: 0.34rem !important;
+  }
+
+  .header-user-trigger {
+    width: 2.72rem;
+    min-width: 2.72rem;
+  }
+
+  .header-mobile-toggle {
+    min-height: 2.72rem !important;
+    padding-inline: 0.72rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .global-header-shell.panel,
+  .global-header-shell {
+    padding: 0.42rem !important;
+  }
+
+  .global-header-row {
+    gap: 0.3rem;
+  }
+
+  .global-brand {
+    max-width: min(38vw, 10.5rem);
+  }
+
+  .header-user-trigger {
+    width: 2.58rem;
+    min-width: 2.58rem;
+  }
+
+  .header-mobile-toggle {
+    min-width: 2.58rem;
+    padding-inline: 0.58rem !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .header-mobile-toggle {
+    width: 2.58rem;
+    padding-inline: 0 !important;
+  }
+
+  .header-mobile-toggle > span:last-child {
+    display: none;
+  }
+}
+
+/* Desktop sidebar collapse stability
+   Hidden sidebar must leave the grid, otherwise it creates a blank first row. */
+@media (min-width: 1101px) {
+  .app-shell.is-sidebar-collapsed {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0 !important;
+    align-items: start;
+  }
+
+  .app-shell.is-sidebar-collapsed > .app-sidebar,
+  .app-shell.is-sidebar-collapsed > .app-sidebar-v2 {
+    display: none !important;
+  }
+
+  .app-shell.is-sidebar-collapsed > .app-shell-main {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    width: 100%;
+  }
+}
+
+/* Responsive polish: touch targets and horizontal-scroll affordance. */
+@media (max-width: 1100px) {
+  .header-user-trigger {
+    flex-basis: max(2.75rem, var(--shell-touch-target, 2.75rem)) !important;
+    width: max(2.75rem, var(--shell-touch-target, 2.75rem)) !important;
+    min-width: max(2.75rem, var(--shell-touch-target, 2.75rem)) !important;
+    min-height: max(2.75rem, var(--shell-touch-target, 2.75rem)) !important;
+  }
+}
+
+:where(
+  .workflow-tabs,
+  .module-inline-strip,
+  .module-inline-stack,
+  .dashboard-hero-foot,
+  .messages-thread-summary,
+  .messages-conversation-meta
+) {
+  --scroll-fade-size: 2.35rem;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    #000 0,
+    #000 calc(100% - var(--scroll-fade-size)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    #000 0,
+    #000 calc(100% - var(--scroll-fade-size)),
+    transparent 100%
+  );
+}
+
+:where(
+  .workflow-tabs,
+  .module-inline-strip,
+  .module-inline-stack,
+  .dashboard-hero-foot,
+  .messages-thread-summary,
+  .messages-conversation-meta
+)::after {
+  content: "";
+  flex: 0 0 0.7rem;
+  width: 0.7rem;
+  height: 1px;
+}
+
+@media (min-width: 1101px) {
+  :where(
+    .workflow-tabs,
+    .module-inline-strip,
+    .module-inline-stack,
+    .dashboard-hero-foot,
+    .messages-thread-summary,
+    .messages-conversation-meta
+  ) {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  :where(
+    .workflow-tabs,
+    .module-inline-strip,
+    .module-inline-stack,
+    .dashboard-hero-foot,
+    .messages-thread-summary,
+    .messages-conversation-meta
+  )::after {
+    content: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

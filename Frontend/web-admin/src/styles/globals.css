@@ -1,0 +1,113 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --bg: #f8f9fa;
+  --panel: #ffffff;
+  --panel-soft: #f3f7f8;
+  --ink-900: #122328;
+  --ink-800: #1d323a;
+  --ink-700: #31464f;
+  --ink-500: #64808a;
+  --line: #d6e0e4;
+  --line-strong: #c2d0d7;
+
+  --primary: #11806f;
+  --primary-700: #0c6a5d;
+  --primary-900: #07463f;
+  --danger: #d64e4e;
+
+  --tone-blue-bg: #e9f2ff;
+  --tone-blue-fg: #2b6fd6;
+  --tone-orange-bg: #fff2e3;
+  --tone-orange-fg: #d27a1f;
+  --tone-violet-bg: #f1ebff;
+  --tone-violet-fg: #7a4fd1;
+  --tone-green-bg: #e9faef;
+  --tone-green-fg: #2f9a50;
+  --tone-teal-bg: #e8fbfa;
+  --tone-teal-fg: #179c95;
+  --tone-pink-bg: #ffeaf4;
+  --tone-pink-fg: #cb4f8d;
+  --tone-indigo-bg: #ecefff;
+  --tone-indigo-fg: #4e5fd2;
+  --tone-slate-bg: #eff2f5;
+  --tone-slate-fg: #5f6e7a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  color: var(--ink-900);
+  background: var(--bg);
+}
+
+a {
+  color: var(--primary-700);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  padding: 1rem clamp(1rem, 2vw, 2.2rem) 1.8rem;
+}
+
+.page.page-auth {
+  padding: 0;
+  min-height: 100dvh;
+}
+
+.aurora {
+  position: fixed;
+  z-index: -1;
+  width: 29rem;
+  height: 29rem;
+  border-radius: 999px;
+  filter: blur(84px);
+  opacity: 0.16;
+}
+
+.aurora-left {
+  top: -8rem;
+  left: -8rem;
+  background: #92dfd4;
+}
+
+.aurora-right {
+  right: -9rem;
+  bottom: -8rem;
+  background: #b9d8ff;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 10px 22px rgba(21, 34, 38, 0.06);
+}
+
+.panel h2,
+.panel h3,
+.panel h4 {
+  margin: 0;
+  font-family: "Montserrat", "Nunito Sans", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.panel h2 {
+  font-size: clamp(1.2rem, 1.3vw, 1.6rem);
+}
+
+.panel h3 {
+  font-size: clamp(1.04rem, 1.1vw, 1.22rem);
+}

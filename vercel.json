@@ -3,16 +3,8 @@
   "framework": "vite",
   "installCommand": "corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @gestschool/web-admin run build",
-  "outputDirectory": "apps/web-admin/dist",
+  "outputDirectory": "Frontend/web-admin/dist",
   "rewrites": [
-    {
-      "source": "/api/v1",
-      "destination": "https://gestschool-ylik.onrender.com/api/v1"
-    },
-    {
-      "source": "/api/v1/(.*)",
-      "destination": "https://gestschool-ylik.onrender.com/api/v1/$1"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

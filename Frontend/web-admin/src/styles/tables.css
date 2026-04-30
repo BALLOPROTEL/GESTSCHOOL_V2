@@ -1,0 +1,299 @@
+/* Lot 3 - canonical responsive tables and lists
+   Tables keep their dense grid on desktop/tablet, then become readable cards on phones. */
+
+:root {
+  --table-card-gap: 0.72rem;
+  --table-card-padding: 0.86rem;
+  --table-card-radius: 1rem;
+  --table-label-width: minmax(6.4rem, 0.42fr);
+}
+
+.table-panel,
+.students-list-panel,
+.teachers-panel,
+.iam-permissions-panel {
+  min-width: 0;
+}
+
+.table-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap table {
+  width: 100%;
+  min-width: max(100%, 44rem);
+  table-layout: auto;
+}
+
+.table-wrap:has(th:nth-child(8)) table {
+  min-width: max(100%, 56rem);
+}
+
+.table-wrap:has(th:nth-child(10)) table {
+  min-width: max(100%, 66rem);
+}
+
+.table-wrap:has(th:nth-child(11)) table {
+  min-width: max(100%, 72rem);
+}
+
+.table-wrap th,
+.table-wrap td {
+  overflow-wrap: anywhere;
+}
+
+.table-wrap th:last-child,
+.table-wrap td:last-child {
+  min-width: 7.8rem;
+}
+
+.table-wrap td:has(.table-actions),
+.table-wrap td:has(button),
+.table-wrap td:has(.button-ghost) {
+  vertical-align: top;
+}
+
+.table-actions,
+.table-wrap td > .actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.table-actions > button,
+.table-wrap td > button,
+.table-wrap td > .button-ghost,
+.table-wrap td > .actions > button {
+  min-height: 2.36rem;
+  min-width: 0;
+  padding-inline: 0.72rem;
+  white-space: nowrap;
+}
+
+.empty-row {
+  min-height: 4rem;
+  color: color-mix(in srgb, var(--flexadm-surface-copy-soft, var(--ink-500)) 84%, transparent);
+  font-weight: 800;
+}
+
+@media (min-width: 761px) {
+  .table-wrap::before {
+    content: none !important;
+  }
+
+  .table-wrap thead th {
+    white-space: nowrap;
+  }
+
+  .table-wrap tbody tr {
+    transition: background 160ms ease, transform 160ms ease;
+  }
+
+  .table-wrap tbody tr:hover td {
+    background: color-mix(in srgb, var(--flexadm-accent-soft, #0dd3d0) 9%, transparent);
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  .table-wrap {
+    max-height: min(62vh, 34rem);
+  }
+
+  .table-wrap table {
+    min-width: max(100%, 50rem);
+  }
+
+  .table-wrap:has(th:nth-child(8)) table {
+    min-width: max(100%, 62rem);
+  }
+
+  .table-wrap:has(th:nth-child(10)) table {
+    min-width: max(100%, 72rem);
+  }
+
+  .table-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(6.8rem, 1fr));
+    align-items: stretch;
+  }
+
+  .table-actions > button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .table-wrap {
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .table-wrap::before {
+    content: none !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+    border: 0;
+    background: transparent;
+  }
+
+  .table-wrap table[data-responsive-table="true"] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .table-wrap table[data-responsive-table="true"] tbody {
+    display: grid;
+    gap: var(--table-card-gap);
+    width: 100%;
+  }
+
+  .table-wrap table[data-responsive-table="true"] tr {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    gap: 0;
+    padding: var(--table-card-padding);
+    border: 1px solid color-mix(in srgb, var(--flexadm-surface-border, var(--line)) 48%, transparent);
+    border-radius: var(--table-card-radius);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--flexadm-surface-raised, var(--panel)) 96%, #0dd3d0) 0%, color-mix(in srgb, var(--flexadm-surface, var(--panel-soft)) 96%, #020b12) 100%);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.12);
+  }
+
+  .table-wrap table[data-responsive-table="true"] tr:has(.empty-row) {
+    padding: 0;
+    border-style: dashed;
+    background: color-mix(in srgb, var(--flexadm-surface-raised, var(--panel-soft)) 64%, transparent);
+    box-shadow: none;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td {
+    display: grid;
+    grid-template-columns: var(--table-label-width) minmax(0, 1fr);
+    gap: 0.76rem;
+    align-items: start;
+    width: 100%;
+    min-width: 0;
+    padding: 0.58rem 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--flexadm-surface-border, var(--line)) 32%, transparent);
+    background: transparent !important;
+    color: var(--flexadm-surface-copy, var(--ink-900));
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:first-child {
+    padding-top: 0;
+    color: var(--flexadm-surface-copy, var(--ink-900));
+    font-family: "Sora", "Manrope", sans-serif;
+    font-size: 0.9rem;
+    font-weight: 850;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td::before {
+    content: attr(data-label);
+    min-width: 0;
+    color: color-mix(in srgb, var(--flexadm-surface-copy-soft, var(--ink-500)) 82%, transparent);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    line-height: 1.35;
+    text-transform: uppercase;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td.empty-row,
+  .table-wrap table[data-responsive-table="true"] td[colspan] {
+    display: block;
+    width: 100%;
+    padding: 1.25rem;
+    border: 0;
+    text-align: center;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td.empty-row::before,
+  .table-wrap table[data-responsive-table="true"] td[colspan]::before {
+    content: none;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:has(.table-actions),
+  .table-wrap table[data-responsive-table="true"] td:has(button),
+  .table-wrap table[data-responsive-table="true"] td:has(.button-ghost),
+  .table-wrap table[data-responsive-table="true"] td[data-label*="Action"] {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:has(.table-actions)::before,
+  .table-wrap table[data-responsive-table="true"] td:has(button)::before,
+  .table-wrap table[data-responsive-table="true"] td:has(.button-ghost)::before,
+  .table-wrap table[data-responsive-table="true"] td[data-label*="Action"]::before {
+    padding-bottom: 0.1rem;
+  }
+
+  .table-actions,
+  .table-wrap td > .actions {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(8.2rem, 1fr));
+    gap: 0.48rem;
+    width: 100%;
+  }
+
+  .table-actions > button,
+  .table-wrap td > button,
+  .table-wrap td > .button-ghost,
+  .table-wrap td > .actions > button {
+    width: 100%;
+    min-height: var(--form-touch-height, 2.86rem);
+    white-space: normal;
+  }
+
+  .status-pill,
+  .module-inline-pill,
+  .module-header-badge {
+    max-width: 100%;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --table-label-width: minmax(5.7rem, 0.4fr);
+  }
+
+  .table-wrap table[data-responsive-table="true"] tr {
+    padding: 0.72rem;
+    border-radius: 0.9rem;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td {
+    grid-template-columns: 1fr;
+    gap: 0.24rem;
+    padding-block: 0.52rem;
+  }
+}

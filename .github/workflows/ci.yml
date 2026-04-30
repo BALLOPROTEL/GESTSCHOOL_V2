@@ -26,6 +26,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
       DIRECT_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
+      TEST_DATABASE_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
+      TEST_DIRECT_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
       JWT_SECRET: ci-secret
       JWT_EXPIRES_IN: 1h
       REFRESH_TOKEN_TTL_DAYS: 30
@@ -72,10 +74,19 @@ jobs:
           fi
 
       - name: Run API e2e tests (PostgreSQL)
-        run: pnpm --filter @gestschool/api test:e2e:db
+        run: pnpm --filter @gestschool/api test:e2e:db:fresh
+
+      - name: Show test database migration status
+        run: pnpm --filter @gestschool/api db:status:test
 
       - name: Lint Web Admin
         run: pnpm --filter @gestschool/web-admin lint
+
+      - name: Run Web Admin tests
+        run: pnpm --filter @gestschool/web-admin test
+
+      - name: Run Web Admin smoke checks
+        run: pnpm --filter @gestschool/web-admin test:smoke
 
       - name: Build Web Admin
         run: pnpm --filter @gestschool/web-admin build

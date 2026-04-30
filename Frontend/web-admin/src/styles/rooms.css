@@ -1,0 +1,34 @@
+/* Rooms screen density pass: physical resources need clearer separation than generic teacher panels. */
+.rooms-screen-shell {
+  display: grid;
+  gap: clamp(0.9rem, 1.4vw, 1.2rem);
+}
+
+.rooms-screen-shell .teachers-panel {
+  gap: 0.95rem;
+}
+
+.rooms-screen-shell .table-header {
+  align-items: start;
+}
+
+.rooms-screen-shell .module-form {
+  border-top: 1px solid color-mix(in srgb, var(--flexadm-surface-border) 26%, transparent);
+  padding-top: 0.9rem;
+}
+
+.rooms-screen-shell .teachers-detail-grid {
+  gap: 0.9rem;
+}
+
+.rooms-screen-shell .teachers-identity-card {
+  min-height: 8rem;
+}
+
+.rooms-screen-shell .table-actions {
+  align-items: center;
+}
+
+.rooms-screen-shell .status-pill {
+  white-space: nowrap;
+}

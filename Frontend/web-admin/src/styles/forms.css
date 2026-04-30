@@ -1,0 +1,438 @@
+/* Lot 2 - canonical responsive forms
+   Form-only layer: grids, fields, checks and actions for admin workflows. */
+
+:root {
+  --form-gap-x: clamp(0.72rem, 1.15vw, 0.94rem);
+  --form-gap-y: clamp(0.72rem, 1.2vw, 0.9rem);
+  --form-label-gap: 0.38rem;
+  --form-control-height: max(var(--ui-control-height, 2.72rem), 2.78rem);
+  --form-touch-height: 2.86rem;
+  --form-card-padding: clamp(0.84rem, 1.3vw, 1.05rem);
+}
+
+.module-form,
+.module-filter,
+.filter-grid,
+.form-grid,
+.split-grid,
+.iam-account-form,
+.iam-form-section,
+.iam-account-summary,
+.auth-canvas__form,
+.auth-canvas__grid-form {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.module-form.form-grid,
+.filter-grid.module-filter,
+.students-form-grid,
+.teachers-form-grid,
+.teachers-filter-grid,
+.reference-grid-strict.form-grid,
+.iam-form-grid,
+.compact-form {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--form-gap-y) var(--form-gap-x);
+  align-items: start;
+}
+
+.module-form,
+.module-filter,
+.filter-grid {
+  padding: var(--form-card-padding);
+}
+
+.module-form.form-grid > label,
+.filter-grid.module-filter > label,
+.students-form-grid > label,
+.teachers-form-grid > label,
+.teachers-filter-grid > label,
+.reference-grid-strict.form-grid > label,
+.iam-form-grid > label,
+.compact-form > label,
+.iam-inline-help {
+  min-width: 0;
+  width: 100%;
+  align-self: stretch;
+}
+
+.module-form.form-grid > label,
+.students-form-grid > label,
+.teachers-form-grid > label {
+  grid-column: span 4;
+}
+
+.filter-grid.module-filter > label,
+.teachers-filter-grid > label {
+  grid-column: span 3;
+}
+
+.reference-grid-strict.form-grid > label,
+.iam-form-grid > label,
+.iam-inline-help,
+.compact-form > label {
+  grid-column: span 6;
+}
+
+.module-form.form-grid > .span-2,
+.students-form-grid > .span-2,
+.teachers-form-grid > .span-2,
+.reference-grid-strict.form-grid > .span-2 {
+  grid-column: span 6;
+}
+
+.module-form.form-grid > .form-grid-span-full,
+.students-form-grid > .form-grid-span-full,
+.teachers-form-grid > .form-grid-span-full,
+.reference-grid-strict.form-grid > .form-grid-span-full,
+.iam-form-grid > .form-grid-span-full,
+.module-form.form-grid > .actions,
+.filter-grid.module-filter > .actions,
+.students-form-grid > .actions,
+.teachers-form-grid > .actions,
+.reference-grid-strict.form-grid > .actions,
+.iam-form-grid > .actions,
+.module-form.form-grid > .hint,
+.filter-grid.module-filter > .hint,
+.module-form.form-grid > .table-wrap,
+.module-form.form-grid > .mini-list,
+.reference-toggle-grid {
+  grid-column: 1 / -1;
+}
+
+.module-form.form-grid label:not(.check-row),
+.filter-grid.module-filter label:not(.check-row),
+.students-form-grid label:not(.check-row),
+.teachers-form-grid label:not(.check-row),
+.teachers-filter-grid label:not(.check-row),
+.reference-grid-strict.form-grid label:not(.check-row),
+.iam-form-grid label:not(.check-row),
+.auth-canvas__stacked-field {
+  display: grid;
+  align-content: start;
+  gap: var(--form-label-gap);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.module-form.form-grid input,
+.module-form.form-grid select,
+.module-form.form-grid textarea,
+.filter-grid.module-filter input,
+.filter-grid.module-filter select,
+.filter-grid.module-filter textarea,
+.students-form-grid input,
+.students-form-grid select,
+.students-form-grid textarea,
+.teachers-form-grid input,
+.teachers-form-grid select,
+.teachers-form-grid textarea,
+.teachers-filter-grid input,
+.teachers-filter-grid select,
+.teachers-filter-grid textarea,
+.reference-grid-strict.form-grid input,
+.reference-grid-strict.form-grid select,
+.reference-grid-strict.form-grid textarea,
+.iam-form-grid input,
+.iam-form-grid select,
+.iam-form-grid textarea,
+.auth-canvas__stacked-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--form-control-height);
+}
+
+.module-form.form-grid textarea,
+.students-form-grid textarea,
+.teachers-form-grid textarea,
+.reference-grid-strict.form-grid textarea,
+.iam-form-grid textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.check-row,
+.iam-check-row,
+.reference-check-row,
+.auth-canvas__check {
+  min-width: 0;
+  min-height: var(--form-control-height);
+  display: flex !important;
+  align-items: center;
+  gap: 0.62rem;
+  padding: 0.66rem 0.78rem;
+  border: 1px solid color-mix(in srgb, var(--flexadm-surface-border, var(--line)) 46%, transparent);
+  border-radius: 0.88rem;
+  background: color-mix(in srgb, var(--flexadm-surface-raised, var(--panel-soft)) 70%, transparent);
+  color: color-mix(in srgb, var(--flexadm-surface-copy, var(--ink-900)) 90%, transparent);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.module-form.form-grid > .check-row,
+.students-form-grid > .check-row,
+.teachers-form-grid > .check-row,
+.reference-grid-strict.form-grid > .check-row {
+  grid-column: span 4;
+}
+
+.iam-form-grid > .check-row,
+.iam-form-grid > .iam-check-row {
+  grid-column: span 6;
+}
+
+.iam-form-grid > .check-row.form-grid-span-full,
+.iam-form-grid > .iam-check-row.form-grid-span-full {
+  grid-column: 1 / -1;
+}
+
+.check-row input[type="checkbox"],
+.iam-check-row input[type="checkbox"],
+.reference-check-row input[type="checkbox"],
+.auth-canvas__check input[type="checkbox"] {
+  width: 1.08rem;
+  min-width: 1.08rem;
+  height: 1.08rem;
+  min-height: 1.08rem;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.module-form.form-grid > .actions,
+.filter-grid.module-filter > .actions,
+.students-form-grid > .actions,
+.teachers-form-grid > .actions,
+.reference-grid-strict.form-grid > .actions,
+.iam-form-grid > .actions,
+.auth-canvas__grid-form > button,
+.auth-canvas__form > button {
+  min-width: 0;
+}
+
+.module-form.form-grid > .actions,
+.filter-grid.module-filter > .actions,
+.students-form-grid > .actions,
+.teachers-form-grid > .actions,
+.reference-grid-strict.form-grid > .actions,
+.iam-form-grid > .actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.58rem;
+  padding-top: 0.08rem;
+}
+
+.module-form.form-grid > .actions > *,
+.filter-grid.module-filter > .actions > *,
+.students-form-grid > .actions > *,
+.teachers-form-grid > .actions > *,
+.reference-grid-strict.form-grid > .actions > *,
+.iam-form-grid > .actions > * {
+  min-height: var(--form-control-height);
+}
+
+.iam-account-form {
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.34fr);
+  gap: clamp(0.78rem, 1.4vw, 1rem);
+}
+
+.iam-form-section {
+  align-content: start;
+}
+
+.iam-account-summary {
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+}
+
+.auth-canvas__form,
+.auth-canvas__grid-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.78rem;
+}
+
+.auth-canvas__grid-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.auth-canvas__grid-form > .auth-canvas__stacked-field,
+.auth-canvas__grid-form > button,
+.auth-canvas__grid-form > .auth-api-banner,
+.auth-canvas__form > button,
+.auth-canvas__form > .auth-api-banner {
+  min-width: 0;
+}
+
+.auth-canvas__grid-form > button,
+.auth-canvas__grid-form > .auth-api-banner,
+.auth-canvas__form > button,
+.auth-canvas__form > .auth-api-banner {
+  grid-column: 1 / -1;
+}
+
+.auth-canvas__inline,
+.auth-canvas__footer-links {
+  flex-wrap: wrap;
+  gap: 0.58rem;
+}
+
+@media (max-width: 1180px) {
+  .module-form.form-grid > label,
+  .students-form-grid > label,
+  .teachers-form-grid > label,
+  .filter-grid.module-filter > label,
+  .teachers-filter-grid > label,
+  .reference-grid-strict.form-grid > label,
+  .iam-form-grid > label,
+  .iam-inline-help,
+  .compact-form > label,
+  .module-form.form-grid > .check-row,
+  .students-form-grid > .check-row,
+  .teachers-form-grid > .check-row,
+  .reference-grid-strict.form-grid > .check-row,
+  .iam-form-grid > .check-row,
+  .iam-form-grid > .iam-check-row,
+  .module-form.form-grid > .span-2,
+  .students-form-grid > .span-2,
+  .teachers-form-grid > .span-2,
+  .reference-grid-strict.form-grid > .span-2 {
+    grid-column: span 6;
+  }
+
+  .iam-account-form {
+    grid-template-columns: 1fr;
+  }
+
+  .iam-account-summary,
+  .iam-form-section {
+    grid-column: 1;
+  }
+
+  .iam-account-summary {
+    position: static;
+    grid-row: auto;
+    max-height: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .module-form,
+  .module-filter,
+  .filter-grid {
+    padding: clamp(0.74rem, 3.2vw, 0.92rem) !important;
+  }
+
+  .module-form.form-grid,
+  .filter-grid.module-filter,
+  .students-form-grid,
+  .teachers-form-grid,
+  .teachers-filter-grid,
+  .reference-grid-strict.form-grid,
+  .iam-form-grid,
+  .compact-form,
+  .auth-canvas__grid-form {
+    grid-template-columns: 1fr !important;
+    gap: 0.72rem !important;
+  }
+
+  .module-form.form-grid > *,
+  .filter-grid.module-filter > *,
+  .students-form-grid > *,
+  .teachers-form-grid > *,
+  .teachers-filter-grid > *,
+  .reference-grid-strict.form-grid > *,
+  .iam-form-grid > *,
+  .compact-form > *,
+  .auth-canvas__grid-form > * {
+    grid-column: 1 / -1 !important;
+    min-width: 0;
+  }
+
+  .module-form.form-grid input,
+  .module-form.form-grid select,
+  .module-form.form-grid textarea,
+  .filter-grid.module-filter input,
+  .filter-grid.module-filter select,
+  .filter-grid.module-filter textarea,
+  .students-form-grid input,
+  .students-form-grid select,
+  .students-form-grid textarea,
+  .teachers-form-grid input,
+  .teachers-form-grid select,
+  .teachers-form-grid textarea,
+  .teachers-filter-grid input,
+  .teachers-filter-grid select,
+  .teachers-filter-grid textarea,
+  .reference-grid-strict.form-grid input,
+  .reference-grid-strict.form-grid select,
+  .reference-grid-strict.form-grid textarea,
+  .iam-form-grid input,
+  .iam-form-grid select,
+  .iam-form-grid textarea,
+  .auth-canvas__field input,
+  .auth-canvas__stacked-field input {
+    min-height: var(--form-touch-height);
+    font-size: 16px;
+  }
+
+  .check-row,
+  .iam-check-row,
+  .reference-check-row,
+  .auth-canvas__check {
+    min-height: var(--form-touch-height);
+    padding: 0.72rem 0.78rem;
+  }
+
+  .module-form.form-grid > .actions,
+  .filter-grid.module-filter > .actions,
+  .students-form-grid > .actions,
+  .teachers-form-grid > .actions,
+  .reference-grid-strict.form-grid > .actions,
+  .iam-form-grid > .actions,
+  .auth-canvas__inline,
+  .auth-canvas__footer-links {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    justify-content: stretch !important;
+  }
+
+  .module-form.form-grid > .actions > *,
+  .filter-grid.module-filter > .actions > *,
+  .students-form-grid > .actions > *,
+  .teachers-form-grid > .actions > *,
+  .reference-grid-strict.form-grid > .actions > *,
+  .iam-form-grid > .actions > *,
+  .auth-canvas__inline > *,
+  .auth-canvas__footer-links > *,
+  .auth-canvas__form > button,
+  .auth-canvas__grid-form > button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .module-form.form-grid,
+  .filter-grid.module-filter,
+  .students-form-grid,
+  .teachers-form-grid,
+  .teachers-filter-grid,
+  .reference-grid-strict.form-grid,
+  .iam-form-grid,
+  .compact-form {
+    gap: 0.64rem !important;
+  }
+
+  .module-form,
+  .module-filter,
+  .filter-grid {
+    border-radius: 0.86rem;
+  }
+}
