@@ -24,12 +24,11 @@ export const resolveApiBaseUrls = (options: {
   }
 
   const configured = normalizeApiBaseUrl(options.configuredBaseUrl);
-  const candidates = [
-    ...(configured && !isLoopbackApiBaseUrl(configured) ? [configured] : []),
-    DEFAULT_API_PROXY_BASE
-  ];
+  if (configured && !isLoopbackApiBaseUrl(configured)) {
+    return [configured];
+  }
 
-  return Array.from(new Set(candidates));
+  return [DEFAULT_API_PROXY_BASE];
 };
 
 export const API_BASE_URLS = resolveApiBaseUrls({

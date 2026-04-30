@@ -240,46 +240,46 @@ export function useAuthSession(options: UseAuthSessionOptions) {
     }
 
     const refreshPromise = (async (): Promise<Session | null> => {
-    const current = sessionRef.current;
-    if (!current?.refreshToken) return null;
-    if (current.refreshToken.length < MIN_REFRESH_TOKEN_LENGTH) {
-      clearSession();
-      onClearData();
-      onAuthError("Session locale invalide. Merci de vous reconnecter.");
-      return null;
-    }
-
-    if (!(await ensureApiAvailable())) {
-      onRefreshNotice("API indisponible. Reconnexion...");
-      return null;
-    }
-
-    try {
-      const response = await fetch(resolveApiUrl("/auth/refresh"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: current.refreshToken })
-      });
-      if (!response.ok) {
+      const current = sessionRef.current;
+      if (!current?.refreshToken) return null;
+      if (current.refreshToken.length < MIN_REFRESH_TOKEN_LENGTH) {
         clearSession();
         onClearData();
-        onAuthError("Session expiree.");
+        onAuthError("Session locale invalide. Merci de vous reconnecter.");
         return null;
       }
-      const payload = (await response.json()) as AuthPayload;
-      const nextSession: Session = {
-        ...payload,
-        tenantId: current.tenantId || payload.user.tenantId
-      };
-      saveSession(nextSession);
-      onRefreshSuccess();
-      onRefreshNotice("Session actualisee.");
-      return nextSession;
-    } catch {
-      markApiUnavailable();
-      onRefreshNotice("API indisponible. Reconnexion...");
-      return null;
-    }
+
+      if (!(await ensureApiAvailable())) {
+        onRefreshNotice("API indisponible. Reconnexion...");
+        return null;
+      }
+
+      try {
+        const response = await fetch(resolveApiUrl("/auth/refresh"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: current.refreshToken })
+        });
+        if (!response.ok) {
+          clearSession();
+          onClearData();
+          onAuthError("Session expiree.");
+          return null;
+        }
+        const payload = (await response.json()) as AuthPayload;
+        const nextSession: Session = {
+          ...payload,
+          tenantId: current.tenantId || payload.user.tenantId
+        };
+        saveSession(nextSession);
+        onRefreshSuccess();
+        onRefreshNotice("Session actualisee.");
+        return nextSession;
+      } catch {
+        markApiUnavailable();
+        onRefreshNotice("API indisponible. Reconnexion...");
+        return null;
+      }
     })();
 
     refreshPromiseRef.current = refreshPromise;
