@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
-  NotFoundException
+  NotFoundException,
+  UnauthorizedException
 } from "@nestjs/common";
 import {
   type AcademicTrack,
@@ -11,6 +13,7 @@ import {
   type FeePlan,
   type Invoice,
   type Payment,
+  type PaymentProviderAttempt,
   type Student
 } from "@prisma/client";
 
@@ -26,6 +29,7 @@ import {
   UpdateInvoiceDto
 } from "./dto/finance.dto";
 import { buildSimplePdf, toPdfDataUrl } from "../common/pdf.util";
+import { PaydunyaProvider, type PaydunyaCallbackData } from "../payments/paydunya.provider";
 
 type FeePlanView = {
   id: string;
@@ -85,6 +89,26 @@ type ReceiptView = PaymentView & {
   pdfDataUrl: string;
 };
 
+type PaymentAttemptView = {
+  id: string;
+  tenantId: string;
+  invoiceId: string;
+  invoiceNo?: string;
+  paymentId?: string;
+  provider: string;
+  mode: string;
+  providerToken?: string;
+  providerPaymentId?: string;
+  providerStatus: string;
+  amount: number;
+  currency: string;
+  checkoutUrl?: string;
+  failureReason?: string;
+  paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type RecoveryDashboardView = {
   schoolYearId?: string;
   totals: {
@@ -107,6 +131,7 @@ export class FinanceService {
   constructor(
     private readonly academicStructureService: AcademicStructureService,
     private readonly notificationRequestBus: NotificationRequestBusService,
+    private readonly paydunyaProvider: PaydunyaProvider,
     private readonly prisma: PrismaService,
     private readonly referenceService: ReferenceService
   ) {}
@@ -511,6 +536,238 @@ export class FinanceService {
     return this.paymentView(created);
   }
 
+  async initiatePaydunyaPayment(
+    tenantId: string,
+    payload: { invoiceId: string }
+  ): Promise<PaymentAttemptView> {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: payload.invoiceId, tenantId },
+      include: { student: true }
+    });
+
+    if (!invoice) {
+      throw new NotFoundException("Invoice not found.");
+    }
+    if (invoice.status === "VOID") {
+      throw new ConflictException("Cannot initiate payment for a VOID invoice.");
+    }
+
+    const amountDue = this.decimalToNumber(invoice.amountDue);
+    const amountPaid = this.decimalToNumber(invoice.amountPaid);
+    const remainingAmount = this.roundAmount(amountDue - amountPaid);
+    if (remainingAmount <= 0) {
+      throw new ConflictException("Invoice is already paid.");
+    }
+
+    const attempt = await this.prisma.paymentProviderAttempt.create({
+      data: {
+        tenantId,
+        invoiceId: invoice.id,
+        provider: "PAYDUNYA",
+        mode: this.paydunyaProvider.mode(),
+        providerStatus: "INITIATING",
+        amount: remainingAmount,
+        currency: "CFA",
+        updatedAt: new Date()
+      },
+      include: { invoice: true }
+    });
+
+    try {
+      const checkout = await this.paydunyaProvider.createCheckoutInvoice({
+        attemptId: attempt.id,
+        tenantId,
+        invoiceId: invoice.id,
+        invoiceNo: invoice.invoiceNo,
+        amount: remainingAmount,
+        currency: "CFA",
+        customerName: `${invoice.student.firstName} ${invoice.student.lastName}`.trim(),
+        customerEmail: invoice.student.email || undefined,
+        customerPhone: invoice.student.phone || undefined
+      });
+
+      const updated = await this.prisma.paymentProviderAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          providerToken: checkout.token,
+          providerPaymentId: checkout.token,
+          providerStatus: "PENDING",
+          checkoutUrl: checkout.checkoutUrl,
+          callbackPayload: checkout.raw as Prisma.InputJsonValue,
+          updatedAt: new Date()
+        },
+        include: { invoice: true }
+      });
+
+      return this.paymentAttemptView(updated);
+    } catch (error: unknown) {
+      await this.prisma.paymentProviderAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          providerStatus: "INIT_FAILED",
+          failureReason: this.safeProviderError(error),
+          updatedAt: new Date()
+        }
+      });
+      throw new BadRequestException("PayDunya sandbox payment initiation failed.");
+    }
+  }
+
+  async handlePaydunyaCallback(body: unknown, query?: unknown): Promise<PaymentAttemptView> {
+    let callback: PaydunyaCallbackData;
+    try {
+      callback = this.paydunyaProvider.extractCallbackData(body, query);
+    } catch {
+      throw new BadRequestException("Invalid PayDunya callback payload.");
+    }
+
+    const attempt = await this.prisma.paymentProviderAttempt.findFirst({
+      where: {
+        provider: "PAYDUNYA",
+        providerToken: callback.token
+      },
+      include: { invoice: true }
+    });
+
+    if (!attempt) {
+      throw new BadRequestException("Unknown PayDunya invoice token.");
+    }
+
+    if (!this.paydunyaProvider.verifyCallbackHash(callback.hash)) {
+      await this.prisma.paymentProviderAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          providerStatus: "CALLBACK_REJECTED",
+          callbackPayload: callback.raw as Prisma.InputJsonValue,
+          failureReason: "Invalid PayDunya callback hash.",
+          updatedAt: new Date()
+        }
+      });
+      throw new UnauthorizedException("Invalid PayDunya callback hash.");
+    }
+
+    const effectiveCallback = await this.resolvePaydunyaCallbackStatus(callback);
+    const providerStatus = this.normalizePaydunyaStatus(effectiveCallback.status);
+
+    if (providerStatus !== "COMPLETED") {
+      const updated = await this.prisma.paymentProviderAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          providerStatus,
+          callbackPayload: effectiveCallback.raw as Prisma.InputJsonValue,
+          failureReason: effectiveCallback.failureReason || null,
+          updatedAt: new Date()
+        },
+        include: { invoice: true }
+      });
+      return this.paymentAttemptView(updated);
+    }
+
+    const paidAt = new Date();
+    const updatedAttempt = await this.prisma.$transaction(async (transaction) => {
+      const currentAttempt = await transaction.paymentProviderAttempt.findFirst({
+        where: { id: attempt.id },
+        include: { invoice: { include: { student: true } } }
+      });
+      if (!currentAttempt) {
+        throw new NotFoundException("Payment attempt not found.");
+      }
+      if (currentAttempt.paymentId) {
+        return currentAttempt;
+      }
+
+      const invoice = currentAttempt.invoice;
+      if (invoice.status === "VOID") {
+        throw new ConflictException("Cannot confirm payment for a VOID invoice.");
+      }
+
+      const amountDue = this.decimalToNumber(invoice.amountDue);
+      const amountPaid = this.decimalToNumber(invoice.amountPaid);
+      const remainingAmount = this.roundAmount(amountDue - amountPaid);
+      const callbackAmount = effectiveCallback.totalAmount || this.decimalToNumber(currentAttempt.amount);
+      const paidAmount = this.roundAmount(Math.min(callbackAmount, remainingAmount));
+      if (paidAmount <= 0) {
+        throw new ConflictException("Invoice is already paid.");
+      }
+
+      const createdPayment = await transaction.payment.create({
+        data: {
+          tenantId: currentAttempt.tenantId,
+          invoiceId: invoice.id,
+          receiptNo: this.generateReceiptNo(),
+          paidAmount,
+          paymentMethod: "PAYDUNYA",
+          paidAt,
+          referenceExternal: callback.token,
+          updatedAt: paidAt
+        },
+        include: {
+          invoice: {
+            include: {
+              student: true
+            }
+          }
+        }
+      });
+
+      const nextAmountPaid = this.roundAmount(amountPaid + paidAmount);
+      const nextStatus = this.resolveInvoiceStatus(nextAmountPaid, amountDue);
+      await transaction.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          amountPaid: nextAmountPaid,
+          status: nextStatus,
+          updatedAt: paidAt
+        }
+      });
+
+      await this.publishPaymentReceivedNotification(
+        transaction,
+        currentAttempt.tenantId,
+        createdPayment
+      );
+
+      return transaction.paymentProviderAttempt.update({
+        where: { id: currentAttempt.id },
+        data: {
+          paymentId: createdPayment.id,
+          providerPaymentId: effectiveCallback.token,
+          providerStatus: "COMPLETED",
+          callbackPayload: effectiveCallback.raw as Prisma.InputJsonValue,
+          failureReason: null,
+          paidAt,
+          updatedAt: paidAt
+        },
+        include: { invoice: true }
+      });
+    });
+
+    return this.paymentAttemptView(updatedAttempt);
+  }
+
+  async getPaymentStatus(tenantId: string, id: string): Promise<PaymentAttemptView | PaymentView> {
+    const attempt = await this.prisma.paymentProviderAttempt.findFirst({
+      where: { id, tenantId },
+      include: { invoice: true }
+    });
+    if (attempt) {
+      return this.paymentAttemptView(attempt);
+    }
+
+    const payment = await this.prisma.payment.findFirst({
+      where: { id, tenantId },
+      include: {
+        invoice: {
+          include: { student: true }
+        }
+      }
+    });
+    if (!payment) {
+      throw new NotFoundException("Payment or provider attempt not found.");
+    }
+    return this.paymentView(payment);
+  }
+
   async getReceipt(tenantId: string, paymentId: string): Promise<ReceiptView> {
     const payment = await this.prisma.payment.findFirst({
       where: {
@@ -616,6 +873,118 @@ export class FinanceService {
         void: counts.VOID
       }
     };
+  }
+
+  private paymentAttemptView(
+    row: PaymentProviderAttempt & { invoice?: { invoiceNo: string } | null }
+  ): PaymentAttemptView {
+    return {
+      id: row.id,
+      tenantId: row.tenantId,
+      invoiceId: row.invoiceId,
+      invoiceNo: row.invoice?.invoiceNo,
+      paymentId: row.paymentId || undefined,
+      provider: row.provider,
+      mode: row.mode,
+      providerToken: row.providerToken || undefined,
+      providerPaymentId: row.providerPaymentId || undefined,
+      providerStatus: row.providerStatus,
+      amount: this.decimalToNumber(row.amount),
+      currency: row.currency,
+      checkoutUrl: row.checkoutUrl || undefined,
+      failureReason: row.failureReason || undefined,
+      paidAt: row.paidAt?.toISOString(),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString()
+    };
+  }
+
+  private async resolvePaydunyaCallbackStatus(
+    callback: PaydunyaCallbackData
+  ): Promise<PaydunyaCallbackData> {
+    try {
+      return await this.paydunyaProvider.confirmPayment(callback.token);
+    } catch {
+      throw new BadRequestException("Unable to confirm PayDunya payment status.");
+    }
+  }
+
+  private normalizePaydunyaStatus(status: string): "PENDING" | "CANCELLED" | "FAILED" | "COMPLETED" {
+    const normalized = status.trim().toLowerCase();
+    if (normalized === "completed" || normalized === "complete" || normalized === "success") {
+      return "COMPLETED";
+    }
+    if (normalized === "cancelled" || normalized === "canceled") {
+      return "CANCELLED";
+    }
+    if (normalized === "failed" || normalized === "failure") {
+      return "FAILED";
+    }
+    return "PENDING";
+  }
+
+  private safeProviderError(error: unknown): string {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message.replace(/PAYDUNYA-[A-Z-]+:?\s*[^,\s]+/g, "[redacted]").slice(0, 500);
+    }
+    return "Provider request failed.";
+  }
+
+  private async publishPaymentReceivedNotification(
+    transaction: Prisma.TransactionClient,
+    tenantId: string,
+    createdPayment: Payment & {
+      invoice: {
+        invoiceNo: string;
+        studentId: string;
+        student?: { firstName: string; lastName: string } | null;
+      };
+    }
+  ): Promise<void> {
+    const studentName = createdPayment.invoice.student
+      ? `${createdPayment.invoice.student.firstName} ${createdPayment.invoice.student.lastName}`.trim()
+      : "Votre enfant";
+    const amountLabel = this.decimalToNumber(createdPayment.paidAmount).toFixed(2);
+    const paidDate = createdPayment.paidAt.toISOString().slice(0, 10);
+
+    await this.notificationRequestBus.publish(
+      {
+        tenantId,
+        kind: "PAYMENT_RECEIVED",
+        channel: "IN_APP",
+        recipient: {
+          audienceRole: "PARENT",
+          studentId: createdPayment.invoice.studentId
+        },
+        content: {
+          templateKey: "payment-received",
+          title: "Paiement recu",
+          message:
+            `${studentName}: paiement ${createdPayment.receiptNo} de ${amountLabel} ` +
+            `enregistre pour la facture ${createdPayment.invoice.invoiceNo} le ${paidDate}.`,
+          variables: {
+            invoiceId: createdPayment.invoiceId,
+            invoiceNo: createdPayment.invoice.invoiceNo,
+            paidAmount: this.decimalToNumber(createdPayment.paidAmount),
+            paidAt: createdPayment.paidAt.toISOString(),
+            paymentId: createdPayment.id,
+            paymentMethod: createdPayment.paymentMethod,
+            receiptNo: createdPayment.receiptNo,
+            studentId: createdPayment.invoice.studentId,
+            studentName
+          }
+        },
+        source: {
+          domain: "finance",
+          action: "payment.recorded",
+          referenceType: "payment",
+          referenceId: createdPayment.id
+        },
+        correlationId: createdPayment.id,
+        idempotencyKey: `notification-request:finance:payment:${createdPayment.id}`
+      },
+      transaction
+    );
   }
 
   private feePlanView(row: FeePlan): FeePlanView {

@@ -4,6 +4,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import {
+  AcademicPlacementStatus,
   AcademicTrack,
   type AcademicPeriod,
   type Classroom,
@@ -39,6 +40,7 @@ export class GradesEntryService {
       subjectId?: string;
       academicPeriodId?: string;
       studentId?: string;
+      placementId?: string;
       track?: AcademicTrack;
     }
   ): Promise<GradeView[]> {
@@ -49,6 +51,7 @@ export class GradesEntryService {
         subjectId: filters.subjectId,
         academicPeriodId: filters.academicPeriodId,
         studentId: filters.studentId,
+        placementId: filters.placementId,
         track: filters.track
       },
       include: {
@@ -81,10 +84,9 @@ export class GradesEntryService {
 
     const saved = await this.prisma.gradeEntry.upsert({
       where: {
-        tenantId_studentId_classId_subjectId_academicPeriodId_assessmentLabel: {
+        tenantId_placementId_subjectId_academicPeriodId_assessmentLabel: {
           tenantId,
-          studentId: payload.studentId,
-          classId: payload.classId,
+          placementId: placement.id,
           subjectId: payload.subjectId,
           academicPeriodId: payload.academicPeriodId,
           assessmentLabel: payload.assessmentLabel.trim()
@@ -93,7 +95,7 @@ export class GradesEntryService {
       create: {
         tenantId,
         studentId: payload.studentId,
-        classId: payload.classId,
+        classId: classroom.id,
         placementId: placement.id,
         track: placement.track,
         subjectId: payload.subjectId,
@@ -157,7 +159,8 @@ export class GradesEntryService {
         subjectId: payload.subjectId,
         academicPeriodId: payload.academicPeriodId,
         studentId: grade.studentId,
-        track: payload.track
+        track: payload.track,
+        placementId: grade.placementId
       });
       placementByStudentId.set(grade.studentId, {
         id: context.placement.id,
@@ -171,12 +174,15 @@ export class GradesEntryService {
         if (item.score > scoreMax) {
           throw new ConflictException("score cannot exceed scoreMax.");
         }
+        const placement = placementByStudentId.get(item.studentId);
+        if (!placement) {
+          throw new ConflictException("Student has no academic placement for this grade.");
+        }
         return this.prisma.gradeEntry.upsert({
           where: {
-            tenantId_studentId_classId_subjectId_academicPeriodId_assessmentLabel: {
+            tenantId_placementId_subjectId_academicPeriodId_assessmentLabel: {
               tenantId,
-              studentId: item.studentId,
-              classId: payload.classId,
+              placementId: placement.id,
               subjectId: payload.subjectId,
               academicPeriodId: payload.academicPeriodId,
               assessmentLabel: payload.assessmentLabel.trim()
@@ -185,9 +191,9 @@ export class GradesEntryService {
           create: {
             tenantId,
             studentId: item.studentId,
-            classId: payload.classId,
-            placementId: placementByStudentId.get(item.studentId)?.id,
-            track: placementByStudentId.get(item.studentId)?.track || classroom.track,
+            classId: classroom.id,
+            placementId: placement.id,
+            track: placement.track,
             subjectId: payload.subjectId,
             academicPeriodId: payload.academicPeriodId,
             assessmentLabel: payload.assessmentLabel.trim(),
@@ -203,8 +209,8 @@ export class GradesEntryService {
             score: item.score,
             scoreMax,
             absent: item.absent ?? false,
-            placementId: placementByStudentId.get(item.studentId)?.id,
-            track: placementByStudentId.get(item.studentId)?.track || classroom.track,
+            placementId: placement.id,
+            track: placement.track,
             comment: item.comment,
             updatedAt: new Date()
           }
@@ -242,6 +248,7 @@ export class GradesEntryService {
       classId: string | null;
       schoolYearId: string;
       studentId: string;
+      placementStatus?: AcademicPlacementStatus;
     };
   }> {
     const [classroom, subject, period] = await Promise.all([
@@ -278,7 +285,8 @@ export class GradesEntryService {
             track: true,
             classId: true,
             schoolYearId: true,
-            studentId: true
+            studentId: true,
+            placementStatus: true
           }
         })
       : await this.academicStructureService.requirePlacementForStudentClass(
@@ -295,6 +303,14 @@ export class GradesEntryService {
 
     if (placement.classId !== classroom.id || placement.schoolYearId !== classroom.schoolYearId) {
       throw new ConflictException("Placement must belong to the same class and school year.");
+    }
+
+    if (
+      placement.placementStatus &&
+      placement.placementStatus !== AcademicPlacementStatus.ACTIVE &&
+      placement.placementStatus !== AcademicPlacementStatus.COMPLETED
+    ) {
+      throw new ConflictException("Placement must be active or completed for grade entry.");
     }
 
     return {

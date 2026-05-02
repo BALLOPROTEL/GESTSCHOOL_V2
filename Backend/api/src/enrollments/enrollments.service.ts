@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { AcademicTrack, type Enrollment } from "@prisma/client";
+import {
+  AcademicPlacementStatus,
+  AcademicTrack,
+  Prisma
+} from "@prisma/client";
 
 import { AcademicStructureService } from "../academic-structure/academic-structure.service";
 import { PrismaService } from "../database/prisma.service";
@@ -33,6 +37,15 @@ type EnrollmentView = {
   secondaryTrack?: AcademicTrack;
 };
 
+type EnrollmentPlacementRow = Prisma.StudentTrackPlacementGetPayload<{
+  include: {
+    student: true;
+    classroom: true;
+    schoolYear: true;
+    legacyEnrollment: true;
+  };
+}>;
+
 @Injectable()
 export class EnrollmentsService {
   constructor(
@@ -50,7 +63,7 @@ export class EnrollmentsService {
       track?: string;
     }
   ): Promise<EnrollmentView[]> {
-    const rows = await this.prisma.enrollment.findMany({
+    const rows = await this.prisma.studentTrackPlacement.findMany({
       where: {
         tenantId,
         schoolYearId: filters.schoolYearId,
@@ -64,12 +77,12 @@ export class EnrollmentsService {
         student: true,
         classroom: true,
         schoolYear: true,
-        placement: true
+        legacyEnrollment: true
       },
-      orderBy: [{ enrollmentDate: "desc" }]
+      orderBy: [{ startDate: "desc" }, { createdAt: "desc" }]
     });
 
-    return Promise.all(rows.map((row) => this.toView(row)));
+    return Promise.all(rows.map((row) => this.toViewFromPlacement(row)));
   }
 
   async create(
@@ -104,24 +117,24 @@ export class EnrollmentsService {
       { syncLegacyEnrollment: true }
     );
 
-    const created = await this.prisma.enrollment.findFirst({
+    const created = await this.prisma.studentTrackPlacement.findFirst({
       where: {
         tenantId,
-        id: placement.legacyEnrollmentId
+        id: placement.id
       },
       include: {
         student: true,
         classroom: true,
         schoolYear: true,
-        placement: true
+        legacyEnrollment: true
       }
     });
 
     if (!created) {
-      throw new ConflictException("Legacy enrollment could not be synchronized.");
+      throw new ConflictException("Academic placement could not be synchronized.");
     }
 
-    return this.toView(created);
+    return this.toViewFromPlacement(created);
   }
 
   async listPlacements(
@@ -155,39 +168,33 @@ export class EnrollmentsService {
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
-    const existing = await this.prisma.enrollment.findFirst({
+    const placement = await this.prisma.studentTrackPlacement.findFirst({
+      where: {
+        tenantId,
+        OR: [{ id }, { legacyEnrollmentId: id }]
+      }
+    });
+
+    if (placement) {
+      await this.academicStructureService.deleteTrackPlacement(tenantId, placement.id, {
+        deleteLegacyEnrollment: true
+      });
+      return;
+    }
+
+    const legacyEnrollment = await this.prisma.enrollment.findFirst({
       where: { id, tenantId }
     });
 
-    if (!existing) {
-      throw new NotFoundException("Enrollment not found.");
+    if (!legacyEnrollment) {
+      throw new NotFoundException("Academic placement or legacy enrollment not found.");
     }
 
-    await this.prisma.$transaction(async (transaction) => {
-      const placement = await transaction.studentTrackPlacement.findFirst({
-        where: {
-          tenantId,
-          legacyEnrollmentId: existing.id
-        }
-      });
-
-      if (placement) {
-        await transaction.studentTrackPlacement.delete({
-          where: { id: placement.id }
-        });
-      }
-
-      await transaction.enrollment.delete({ where: { id } });
-    });
+    await this.prisma.enrollment.delete({ where: { id } });
   }
 
-  private async toView(
-    row: Enrollment & {
-      student?: { firstName: string; lastName: string } | null;
-      classroom?: { label: string } | null;
-      schoolYear?: { code: string } | null;
-      placement?: { id: string } | null;
-    }
+  private async toViewFromPlacement(
+    row: EnrollmentPlacementRow
   ): Promise<EnrollmentView> {
     const placementContext =
       await this.academicStructureService.resolvePrimarySecondaryPlacements(
@@ -196,22 +203,26 @@ export class EnrollmentsService {
         row.schoolYearId
       );
     const linkedPlacement =
-      placementContext.placements.find(
-        (placement) => placement.id === row.placement?.id
-      ) ||
+      placementContext.placements.find((placement) => placement.id === row.id) ||
       placementContext.placements.find((placement) => placement.track === row.track);
+    const enrollmentDate =
+      row.legacyEnrollment?.enrollmentDate ||
+      row.startDate ||
+      row.createdAt;
 
     return {
-      id: row.id,
+      id: row.legacyEnrollmentId || row.id,
       tenantId: row.tenantId,
       schoolYearId: row.schoolYearId,
       studentId: row.studentId,
-      classId: row.classId,
+      classId: row.classId || row.legacyEnrollment?.classId || "",
       track: row.track,
-      placementId: row.placement?.id,
+      placementId: row.id,
       isPrimary: linkedPlacement?.isPrimary,
-      enrollmentDate: row.enrollmentDate.toISOString().slice(0, 10),
-      enrollmentStatus: row.enrollmentStatus,
+      enrollmentDate: enrollmentDate.toISOString().slice(0, 10),
+      enrollmentStatus:
+        row.legacyEnrollment?.enrollmentStatus ||
+        this.placementStatusToEnrollmentStatus(row.placementStatus),
       studentName: row.student
         ? `${row.student.firstName} ${row.student.lastName}`.trim()
         : undefined,
@@ -222,5 +233,14 @@ export class EnrollmentsService {
       primaryTrack: placementContext.primaryPlacement?.track,
       secondaryTrack: placementContext.secondaryPlacement?.track
     };
+  }
+
+  private placementStatusToEnrollmentStatus(
+    status: AcademicPlacementStatus
+  ): string {
+    if (status === AcademicPlacementStatus.ACTIVE) return "ENROLLED";
+    if (status === AcademicPlacementStatus.COMPLETED) return "COMPLETED";
+    if (status === AcademicPlacementStatus.SUSPENDED) return "SUSPENDED";
+    return "INACTIVE";
   }
 }

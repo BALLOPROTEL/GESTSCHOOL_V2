@@ -435,6 +435,7 @@ model Invoice {
   billingPlacement StudentTrackPlacement? @relation("InvoiceBillingPlacement", fields: [billingPlacementId], references: [id], onDelete: SetNull)
   secondaryPlacement StudentTrackPlacement? @relation("InvoiceSecondaryPlacement", fields: [secondaryPlacementId], references: [id], onDelete: SetNull)
   payments     Payment[]
+  providerAttempts PaymentProviderAttempt[]
 
   @@unique([tenantId, invoiceNo], map: "invoices_tenant_id_invoice_no_key")
   @@index([tenantId, studentId, status], map: "idx_invoices_tenant_student_status")
@@ -453,10 +454,38 @@ model Payment {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
   invoice           Invoice   @relation(fields: [invoiceId], references: [id])
+  providerAttempts  PaymentProviderAttempt[]
 
   @@unique([tenantId, receiptNo], map: "payments_tenant_id_receipt_no_key")
   @@index([tenantId, paidAt], map: "idx_payments_tenant_paid_at")
   @@map("payments")
+}
+
+model PaymentProviderAttempt {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  invoiceId         String    @map("invoice_id") @db.Uuid
+  paymentId         String?   @map("payment_id") @db.Uuid
+  provider          String    @db.VarChar(40)
+  mode              String    @db.VarChar(20)
+  providerToken     String?   @map("provider_token") @db.VarChar(160)
+  providerPaymentId String?   @map("provider_payment_id") @db.VarChar(160)
+  providerStatus    String    @default("INITIATING") @map("provider_status") @db.VarChar(40)
+  amount            Decimal   @db.Decimal(14, 2)
+  currency          String    @default("CFA") @db.Char(3)
+  checkoutUrl       String?   @map("checkout_url")
+  callbackPayload   Json?     @map("callback_payload")
+  failureReason     String?   @map("failure_reason")
+  paidAt            DateTime? @map("paid_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  invoice           Invoice   @relation(fields: [invoiceId], references: [id])
+  payment           Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, provider, providerToken], map: "payment_provider_attempts_tenant_provider_token_key")
+  @@index([tenantId, invoiceId, providerStatus], map: "idx_payment_attempts_invoice_status")
+  @@index([tenantId, providerPaymentId], map: "idx_payment_attempts_provider_payment")
+  @@map("payment_provider_attempts")
 }
 
 model GradeEntry {
@@ -483,7 +512,9 @@ model GradeEntry {
   academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id])
 
   @@unique([tenantId, studentId, classId, subjectId, academicPeriodId, assessmentLabel], map: "uq_grades_tenant_student_class_subject_period_assess")
+  @@unique([tenantId, placementId, subjectId, academicPeriodId, assessmentLabel], map: "uq_grades_tenant_placement_subject_period_assess")
   @@index([tenantId, classId, academicPeriodId], map: "idx_grades_tenant_class_period")
+  @@index([tenantId, placementId, academicPeriodId], map: "idx_grades_tenant_placement_period")
   @@map("grades")
 }
 
@@ -512,7 +543,9 @@ model ReportCard {
   academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id])
 
   @@unique([tenantId, studentId, classId, academicPeriodId], map: "uq_report_cards_tenant_student_class_period")
+  @@unique([tenantId, placementId, academicPeriodId], map: "uq_report_cards_tenant_placement_period")
   @@index([tenantId, classId, academicPeriodId], map: "idx_report_cards_tenant_class_period")
+  @@index([tenantId, placementId, academicPeriodId], map: "idx_report_cards_tenant_placement_period")
   @@map("report_cards")
 }
 
@@ -541,7 +574,9 @@ model Attendance {
   attachments    AttendanceAttachment[]
 
   @@unique([tenantId, studentId, classId, attendanceDate], map: "uq_att_tenant_student_class_date")
+  @@unique([tenantId, placementId, attendanceDate], map: "uq_att_tenant_placement_date")
   @@index([tenantId, classId, attendanceDate], map: "idx_att_tenant_class_date")
+  @@index([tenantId, placementId, attendanceDate], map: "idx_att_tenant_placement_date")
   @@map("attendance")
 }
 

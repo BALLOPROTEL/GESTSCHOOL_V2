@@ -40,6 +40,7 @@ export class SchoolLifeService {
     tenantId: string,
     filters: {
       classId?: string;
+      placementId?: string;
       fromDate?: string;
       toDate?: string;
     }
@@ -52,6 +53,7 @@ export class SchoolLifeService {
     filters: {
       classId?: string;
       studentId?: string;
+      placementId?: string;
       status?: string;
       fromDate?: string;
       toDate?: string;

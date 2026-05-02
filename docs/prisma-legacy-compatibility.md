@@ -8,7 +8,12 @@ The current policy is to contain, document, and phase out safely.
 
 ### Enrollment / placement compatibility
 
-The source of truth is progressively shifting to `StudentTrackPlacement`, but several compatibility links remain active:
+`StudentTrackPlacement` is now the canonical academic source of truth.
+`Enrollment` is deprecated as an academic source and remains only as a temporary
+compatibility mirror for historical routes, existing UI expectations and legacy
+data inspection.
+
+Active compatibility links:
 
 - `StudentTrackPlacement.legacyEnrollmentId`
 - `Enrollment.placement` through the `LegacyEnrollmentPlacement` relation
@@ -18,11 +23,25 @@ The source of truth is progressively shifting to `StudentTrackPlacement`, but se
 - `Attendance.placementId`
 - finance flows still resolve placement-aware billing contexts
 
+Current rule:
+
+- new academic writes must resolve or receive `StudentTrackPlacement.id`
+- `GradeEntry`, `ReportCard` and `Attendance` keep `classId` as denormalized context only
+- unique write identity for grades, report cards and attendance is placement-first
+- `/enrollments` reads from `StudentTrackPlacement`; legacy `Enrollment` ids are returned only for compatibility
+- new code must not use `Enrollment` as the source for class, track or academic year placement
+
 Important correction:
 
 - The current Prisma schema does not expose an `Enrollment.trackPlacementId` scalar field.
 - The compatibility bridge is held from `StudentTrackPlacement.legacyEnrollmentId` to `Enrollment`.
 - New code must not introduce a fresh enrollment-to-placement scalar without a dedicated migration decision.
+
+Removal status:
+
+- `Enrollment` is **deprecated, not deleted**.
+- It cannot be removed until production data confirms every administrative and UI dependency has moved away from it.
+- Any future destructive removal requires a dedicated migration inventory, data export/backfill plan and rollback plan.
 
 ### Timetable canonical references
 

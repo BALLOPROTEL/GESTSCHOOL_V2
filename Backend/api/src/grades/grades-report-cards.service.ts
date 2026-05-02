@@ -60,6 +60,30 @@ export class GradesReportCardsService {
       throw new ConflictException("Classroom and period must belong to the same school year.");
     }
 
+    if (payload.placementId) {
+      const requestedPlacement = await this.prisma.studentTrackPlacement.findFirst({
+        where: {
+          id: payload.placementId,
+          tenantId,
+          studentId: payload.studentId,
+          schoolYearId: classroom.schoolYearId,
+          classId: classroom.id,
+          placementStatus: {
+            in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+          }
+        },
+        select: {
+          id: true
+        }
+      });
+
+      if (!requestedPlacement) {
+        throw new ConflictException(
+          "Report card placement must match the student, class and school year."
+        );
+      }
+    }
+
     const cards = await this.syncStudentReportCardsForPeriod(
       tenantId,
       payload.studentId,
@@ -93,6 +117,7 @@ export class GradesReportCardsService {
       classId?: string;
       academicPeriodId?: string;
       studentId?: string;
+      placementId?: string;
       track?: AcademicTrack;
     }
   ): Promise<ReportCardView[]> {
@@ -100,7 +125,8 @@ export class GradesReportCardsService {
       where: {
         tenantId,
         academicPeriodId: filters.academicPeriodId,
-        studentId: filters.studentId
+        studentId: filters.studentId,
+        placementId: filters.placementId
       },
       include: {
         student: true,
@@ -221,9 +247,14 @@ export class GradesReportCardsService {
       }
     });
 
+    const expectedPlacementIds = new Set(drafts.map((draft) => draft.placementId));
     const expectedClassIds = new Set(drafts.map((draft) => draft.classId));
     const obsoleteIds = existingRows
-      .filter((row) => !expectedClassIds.has(row.classId))
+      .filter((row) =>
+        row.placementId
+          ? !expectedPlacementIds.has(row.placementId)
+          : !expectedClassIds.has(row.classId)
+      )
       .map((row) => row.id);
 
     const savedRows = await this.prisma.$transaction(async (transaction) => {
@@ -231,10 +262,9 @@ export class GradesReportCardsService {
         drafts.map((draft) =>
           transaction.reportCard.upsert({
             where: {
-              tenantId_studentId_classId_academicPeriodId: {
+              tenantId_placementId_academicPeriodId: {
                 tenantId,
-                studentId,
-                classId: draft.classId,
+                placementId: draft.placementId,
                 academicPeriodId
               }
             },
@@ -315,34 +345,48 @@ export class GradesReportCardsService {
       throw new ConflictException("Classroom and period must belong to the same school year.");
     }
 
-    const [placements, gradeRows] = await Promise.all([
-      this.prisma.studentTrackPlacement.findMany({
-        where: {
-          tenantId,
-          classId,
-          schoolYearId: classroom.schoolYearId,
-          track: classroom.track,
-          placementStatus: {
-            in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
-          }
-        },
-        include: {
-          student: true
-        },
-        orderBy: [{ student: { lastName: "asc" } }, { student: { firstName: "asc" } }]
-      }),
-      this.prisma.gradeEntry.findMany({
-        where: {
-          tenantId,
-          classId,
-          academicPeriodId,
-          track: classroom.track
-        },
-        include: {
-          subject: true
+    const placements = await this.prisma.studentTrackPlacement.findMany({
+      where: {
+        tenantId,
+        classId,
+        schoolYearId: classroom.schoolYearId,
+        track: classroom.track,
+        placementStatus: {
+          in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
         }
-      })
-    ]);
+      },
+      include: {
+        student: true
+      },
+      orderBy: [{ student: { lastName: "asc" } }, { student: { firstName: "asc" } }]
+    });
+
+    const placementIds = placements.map((placement) => placement.id);
+    const gradeOr: Prisma.GradeEntryWhereInput[] = [
+      {
+        placementId: null,
+        classId,
+        track: classroom.track
+      }
+    ];
+    if (placementIds.length > 0) {
+      gradeOr.unshift({
+        placementId: {
+          in: placementIds
+        }
+      });
+    }
+
+    const gradeRows = await this.prisma.gradeEntry.findMany({
+      where: {
+        tenantId,
+        academicPeriodId,
+        OR: gradeOr
+      },
+      include: {
+        subject: true
+      }
+    });
 
     const gradeByStudent = new Map<
       string,
@@ -482,6 +526,9 @@ export class GradesReportCardsService {
 
       const leadSection = sections[0];
       const secondarySection = sections[1];
+      if (!leadSection.placementId) {
+        throw new ConflictException("Report card generation requires a canonical placement.");
+      }
       const averageGeneral =
         sections.reduce((total, section) => total + section.averageGeneral, 0) /
         sections.length;
@@ -530,6 +577,9 @@ export class GradesReportCardsService {
           placement,
           academicPeriodId
         );
+        if (!section.placementId) {
+          throw new ConflictException("Report card generation requires a canonical placement.");
+        }
         const pdf = buildSimplePdf([
           "GestSchool Report Card",
           `Class: ${section.classLabel || section.classId}`,

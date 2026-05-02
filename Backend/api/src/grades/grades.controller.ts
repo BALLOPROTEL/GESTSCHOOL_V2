@@ -49,6 +49,7 @@ export class GradesController {
     @Query("subjectId") subjectId?: string,
     @Query("academicPeriodId") academicPeriodId?: string,
     @Query("studentId") studentId?: string,
+    @Query("placementId") placementId?: string,
     @Query("track") track?: AcademicTrack,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
@@ -58,6 +59,7 @@ export class GradesController {
       subjectId,
       academicPeriodId,
       studentId,
+      placementId,
       track
     });
   }
@@ -111,6 +113,7 @@ export class GradesController {
     @Query("classId") classId?: string,
     @Query("academicPeriodId") academicPeriodId?: string,
     @Query("studentId") studentId?: string,
+    @Query("placementId") placementId?: string,
     @Query("track") track?: AcademicTrack,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
@@ -119,6 +122,7 @@ export class GradesController {
       classId,
       academicPeriodId,
       studentId,
+      placementId,
       track
     });
   }

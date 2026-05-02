@@ -27,6 +27,11 @@ export class CreateAttendanceDto {
   @IsUUID("all")
   classId!: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  placementId?: string;
+
   @ApiProperty({ example: "2026-09-12" })
   @IsDateString()
   attendanceDate!: string;
@@ -83,6 +88,11 @@ export class BulkAttendanceEntryDto {
   @ApiProperty()
   @IsUUID("all")
   studentId!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  placementId?: string;
 
   @ApiPropertyOptional({
     example: "ABSENT",

@@ -2,9 +2,9 @@ services:
   - type: web
     name: gestschool-api
     runtime: node
-    plan: starter
+    plan: free
     autoDeploy: true
-    healthCheckPath: /api/v1/health/ready
+    healthCheckPath: /api/v1/health/live
     buildCommand: >
       corepack enable &&
       corepack prepare pnpm@10.24.0 --activate &&
@@ -49,8 +49,14 @@ services:
         value: "true"
       - key: NOTIFICATIONS_WORKER_ENABLED
         value: "false"
+      - key: OUTBOX_IN_PROCESS_ENABLED
+        value: "true"
+      - key: OUTBOX_POLL_INTERVAL_MS
+        value: "30000"
+      - key: OUTBOX_BATCH_SIZE
+        value: "10"
       - key: OUTBOX_WORKER_BATCH_SIZE
-        value: "80"
+        value: "10"
       - key: OUTBOX_CLAIM_TTL_SECONDS
         value: "120"
       - key: OUTBOX_MAX_ATTEMPTS
@@ -59,68 +65,69 @@ services:
         value: "15"
       - key: NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS
         value: "120"
-      - key: NOTIFY_EMAIL_PROVIDER
-        value: MOCK
-      - key: NOTIFY_SMS_PROVIDER
-        value: MOCK
+      - key: NOTIFICATIONS_EMAIL_PROVIDER
+        value: brevo
+      - key: NOTIFICATIONS_SMS_PROVIDER
+        value: brevo
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        value: no-reply@al-manarat-islamiyat.com
+      - key: BREVO_SENDER_NAME
+        value: Al Manarat Islamiyat
+      - key: BREVO_SMS_SENDER
+        value: Al Manarat Islamiyat
+      - key: BREVO_SMS_DRY_RUN
+        value: "true"
+      - key: ALLOW_REAL_SMS
+        value: "false"
+      - key: NOTIFICATION_TEST_EMAIL
+        sync: false
+      - key: NOTIFICATION_TEST_PHONE
+        sync: false
       - key: NOTIFICATION_WEBHOOK_SECRET
         generateValue: true
       - key: MONITORING_METRICS_TOKEN
         generateValue: true
+      - key: STORAGE_PROVIDER
+        value: supabase
       - key: FILE_STORAGE_DRIVER
-        value: LOCAL
-      - key: FILE_STORAGE_BASE_URL
-        value: https://gestschool-ylik.onrender.com/files
+        value: SUPABASE
+      - key: FILE_STORAGE_ALLOW_LOCAL_IN_PROD
+        value: "false"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET_DOCUMENTS
+        value: gestschool-documents
+      - key: SUPABASE_STORAGE_BUCKET_RECEIPTS
+        value: gestschool-receipts
+      - key: SUPABASE_STORAGE_BUCKET_REPORT_CARDS
+        value: gestschool-report-cards
+      - key: SUPABASE_STORAGE_BUCKET_AVATARS
+        value: gestschool-avatars
+      - key: PAYMENT_PROVIDER
+        value: paydunya
+      - key: PAYDUNYA_MODE
+        value: sandbox
+      - key: PAYDUNYA_MASTER_KEY
+        sync: false
+      - key: PAYDUNYA_PUBLIC_KEY
+        sync: false
+      - key: PAYDUNYA_PRIVATE_KEY
+        sync: false
+      - key: PAYDUNYA_TOKEN
+        sync: false
+      - key: PAYDUNYA_CALLBACK_URL
+        value: https://gestschool-ylik.onrender.com/api/v1/payments/paydunya/callback
+      - key: PAYDUNYA_RETURN_URL
+        value: https://gestschool.vercel.app
+      - key: PAYDUNYA_CANCEL_URL
+        value: https://gestschool.vercel.app
       - key: ANALYTICS_CACHE_TTL_SECONDS
         value: "45"
       - key: CORS_ORIGINS
         sync: false
       - key: SWAGGER_ENABLED
         value: "false"
-  - type: worker
-    name: gestschool-worker
-    runtime: node
-    plan: starter
-    autoDeploy: true
-    buildCommand: >
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install --frozen-lockfile &&
-      pnpm render:build:api
-    startCommand: >
-      pnpm render:start:worker
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: DEFAULT_TENANT_ID
-        value: 00000000-0000-0000-0000-000000000001
-      - key: DEV_BOOTSTRAP_USERS_ON_START
-        value: "false"
-      - key: DEV_BOOTSTRAP_PORTAL_USERS
-        value: "false"
-      - key: TIMETABLE_REQUIRE_CANONICAL_REFS
-        value: "true"
-      - key: NOTIFICATIONS_WORKER_ENABLED
-        value: "true"
-      - key: OUTBOX_WORKER_BATCH_SIZE
-        value: "80"
-      - key: OUTBOX_CLAIM_TTL_SECONDS
-        value: "120"
-      - key: OUTBOX_MAX_ATTEMPTS
-        value: "6"
-      - key: OUTBOX_RETRY_BASE_SECONDS
-        value: "15"
-      - key: NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS
-        value: "120"
-      - key: NOTIFY_EMAIL_PROVIDER
-        value: MOCK
-      - key: NOTIFY_SMS_PROVIDER
-        value: MOCK
-      - key: NOTIFICATION_WEBHOOK_SECRET
-        generateValue: true

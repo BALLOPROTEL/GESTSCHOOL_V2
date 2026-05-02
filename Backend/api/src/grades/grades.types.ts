@@ -89,7 +89,7 @@ export type ReportCardView = {
 export type ReportCardDraft = {
   studentId: string;
   classId: string;
-  placementId?: string;
+  placementId: string;
   secondaryPlacementId?: string;
   track: AcademicTrack;
   mode: ReportCardMode;

@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { AcademicTrack, Prisma } from "@prisma/client";
+import {
+  AcademicPlacementStatus,
+  AcademicTrack,
+  Prisma,
+  type Classroom,
+  type Student
+} from "@prisma/client";
 
 import { AcademicStructureService } from "../academic-structure/academic-structure.service";
 import { PrismaService } from "../database/prisma.service";
@@ -40,13 +46,15 @@ export class SchoolLifeAttendanceService {
     tenantId: string,
     filters: {
       classId?: string;
+      placementId?: string;
       fromDate?: string;
       toDate?: string;
     }
   ): Promise<AttendanceSummaryView> {
     const where: Prisma.AttendanceWhereInput = {
       tenantId,
-      classId: filters.classId
+      classId: filters.classId,
+      placementId: filters.placementId
     };
 
     if (filters.fromDate || filters.toDate) {
@@ -123,6 +131,7 @@ export class SchoolLifeAttendanceService {
     filters: {
       classId?: string;
       studentId?: string;
+      placementId?: string;
       status?: string;
       fromDate?: string;
       toDate?: string;
@@ -132,6 +141,7 @@ export class SchoolLifeAttendanceService {
       tenantId,
       classId: filters.classId,
       studentId: filters.studentId,
+      placementId: filters.placementId,
       status: filters.status
     };
 
@@ -162,14 +172,12 @@ export class SchoolLifeAttendanceService {
     tenantId: string,
     payload: CreateAttendanceDto
   ): Promise<AttendanceView> {
-    const classroom = await this.referenceService.requireClassroom(tenantId, payload.classId);
-    const student = await this.requireStudent(tenantId, payload.studentId);
-    const placement = await this.academicStructureService.requirePlacementForStudentClass(
-      tenantId,
-      student.id,
-      classroom.id,
-      classroom.schoolYearId
-    );
+    const { classroom, student, placement } =
+      await this.resolveAttendancePlacementContext(tenantId, {
+        classId: payload.classId,
+        studentId: payload.studentId,
+        placementId: payload.placementId
+      });
 
     const status = this.normalizeAttendanceStatus(payload.status || "PRESENT");
     const requiresJustification = this.requiresAttendanceJustification(status);
@@ -217,7 +225,7 @@ export class SchoolLifeAttendanceService {
         error.code === "P2002"
       ) {
         throw new ConflictException(
-          "Attendance already exists for this student, class and date."
+          "Attendance already exists for this placement and date."
         );
       }
       throw error;
@@ -248,12 +256,13 @@ export class SchoolLifeAttendanceService {
       seenStudentIds.add(entry.studentId);
 
       try {
-        await this.requireStudent(tenantId, entry.studentId);
-        const placement = await this.academicStructureService.requirePlacementForStudentClass(
+        const { student, placement } = await this.resolveAttendancePlacementContext(
           tenantId,
-          entry.studentId,
-          classroom.id,
-          classroom.schoolYearId
+          {
+            classId: classroom.id,
+            studentId: entry.studentId,
+            placementId: entry.placementId
+          }
         );
 
         const status = this.normalizeAttendanceStatus(entry.status || defaultStatus);
@@ -262,8 +271,7 @@ export class SchoolLifeAttendanceService {
         const existing = await this.prisma.attendance.findFirst({
           where: {
             tenantId,
-            studentId: entry.studentId,
-            classId: classroom.id,
+            placementId: placement.id,
             attendanceDate
           }
         });
@@ -304,7 +312,7 @@ export class SchoolLifeAttendanceService {
             const createdAttendance = await transaction.attendance.create({
               data: {
                 tenantId,
-                studentId: entry.studentId,
+                studentId: student.id,
                 classId: classroom.id,
                 schoolYearId: classroom.schoolYearId,
                 placementId: placement.id,
@@ -362,14 +370,17 @@ export class SchoolLifeAttendanceService {
 
     const classId = payload.classId || existing.classId;
     const studentId = payload.studentId || existing.studentId;
+    const preserveExistingPlacement = !payload.classId && !payload.studentId;
 
-    const classroom = await this.referenceService.requireClassroom(tenantId, classId);
-    await this.requireStudent(tenantId, studentId);
-    const placement = await this.academicStructureService.requirePlacementForStudentClass(
+    const { classroom, placement } = await this.resolveAttendancePlacementContext(
       tenantId,
-      studentId,
-      classroom.id,
-      classroom.schoolYearId
+      {
+        classId,
+        studentId,
+        placementId:
+          payload.placementId ||
+          (preserveExistingPlacement ? existing.placementId || undefined : undefined)
+      }
     );
 
     const nextStatus = payload.status
@@ -427,7 +438,7 @@ export class SchoolLifeAttendanceService {
         error.code === "P2002"
       ) {
         throw new ConflictException(
-          "Attendance already exists for this student, class and date."
+          "Attendance already exists for this placement and date."
         );
       }
       throw error;
@@ -571,6 +582,68 @@ export class SchoolLifeAttendanceService {
     return row;
   }
 
+  private async resolveAttendancePlacementContext(
+    tenantId: string,
+    context: {
+      classId: string;
+      studentId: string;
+      placementId?: string;
+    }
+  ): Promise<{
+    classroom: Classroom;
+    student: Student;
+    placement: {
+      id: string;
+      track: AcademicTrack;
+      classId: string | null;
+      schoolYearId: string;
+      studentId: string;
+      placementStatus?: AcademicPlacementStatus;
+    };
+  }> {
+    const classroom = await this.referenceService.requireClassroom(tenantId, context.classId);
+    const student = await this.requireStudent(tenantId, context.studentId);
+    const placement = context.placementId
+      ? await this.prisma.studentTrackPlacement.findFirst({
+          where: {
+            id: context.placementId,
+            tenantId,
+            studentId: student.id,
+            placementStatus: {
+              in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+            }
+          },
+          select: {
+            id: true,
+            track: true,
+            classId: true,
+            schoolYearId: true,
+            studentId: true,
+            placementStatus: true
+          }
+        })
+      : await this.academicStructureService.requirePlacementForStudentClass(
+          tenantId,
+          student.id,
+          classroom.id,
+          classroom.schoolYearId
+        );
+
+    if (!placement) {
+      throw new ConflictException("Student has no academic placement in this class.");
+    }
+
+    if (placement.classId !== classroom.id || placement.schoolYearId !== classroom.schoolYearId) {
+      throw new ConflictException("Attendance placement must match the class and school year.");
+    }
+
+    return {
+      classroom,
+      student,
+      placement
+    };
+  }
+
   private normalizeAttendanceStatus(status: string): AttendanceStatus {
     const normalized = status.trim().toUpperCase();
     if (normalized === "ABSENT") return "ABSENT";
@@ -597,7 +670,7 @@ export class SchoolLifeAttendanceService {
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return "Duplicate attendance row for this student/date.";
+      return "Duplicate attendance row for this placement/date.";
     }
 
     return "Unexpected error.";

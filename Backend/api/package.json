@@ -24,6 +24,7 @@
     "db:reset-staff-password": "node ./scripts/run-ts-script-with-env.cjs scripts/reset-staff-password.ts",
     "audit:legacy": "node ./scripts/run-ts-script-with-env.cjs scripts/legacy-inventory.ts",
     "audit:precutover": "node ./scripts/run-ts-script-with-env.cjs scripts/precutover-db-audit.ts",
+    "dry-run:legacy": "pnpm run audit:precutover",
     "migrate:timetable:dry-run": "node ./scripts/run-ts-script-with-env.cjs scripts/timetable-reference-backfill.ts",
     "migrate:timetable:apply": "node ./scripts/run-ts-script-with-env.cjs scripts/timetable-reference-backfill.ts --apply",
     "seed:users": "pnpm run db:seed:users",

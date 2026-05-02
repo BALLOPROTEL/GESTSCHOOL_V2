@@ -14,17 +14,19 @@ export class BackgroundTasksService {
     private readonly notificationsService: NotificationsService
   ) {}
 
-  async runOnce(): Promise<{
+  async runOnce(options?: { batchSize?: number }): Promise<{
     audit: Awaited<ReturnType<AuditOutboxProcessorService["processPendingEvents"]>>;
     notifications: Awaited<ReturnType<NotificationsService["dispatchPendingNotificationsGlobal"]>>;
     notificationRequests: Awaited<
       ReturnType<NotificationRequestProcessorService["processPendingEvents"]>
     >;
   }> {
-    const audit = await this.auditOutboxProcessor.processPendingEvents();
-    const notificationRequests = await this.notificationRequestProcessor.processPendingEvents();
+    const batchSize = options?.batchSize;
+    const audit = await this.auditOutboxProcessor.processPendingEvents(batchSize);
+    const notificationRequests =
+      await this.notificationRequestProcessor.processPendingEvents(batchSize);
     const notifications = await this.notificationsService.dispatchPendingNotificationsGlobal(
-      this.notificationBatchSize()
+      batchSize ?? this.notificationBatchSize()
     );
 
     return {

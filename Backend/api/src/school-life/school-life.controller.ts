@@ -59,6 +59,7 @@ export class SchoolLifeController {
   async attendanceSummary(
     @Req() request: { user?: AuthenticatedUser },
     @Query("classId") classId?: string,
+    @Query("placementId") placementId?: string,
     @Query("fromDate") fromDate?: string,
     @Query("toDate") toDate?: string,
     @Headers("x-tenant-id") tenantHeader?: string
@@ -66,6 +67,7 @@ export class SchoolLifeController {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.schoolLifeService.getAttendanceSummary(tenantId, {
       classId,
+      placementId,
       fromDate,
       toDate
     });
@@ -79,6 +81,7 @@ export class SchoolLifeController {
     @Req() request: { user?: AuthenticatedUser },
     @Query("classId") classId?: string,
     @Query("studentId") studentId?: string,
+    @Query("placementId") placementId?: string,
     @Query("status") status?: string,
     @Query("fromDate") fromDate?: string,
     @Query("toDate") toDate?: string,
@@ -88,6 +91,7 @@ export class SchoolLifeController {
     return this.schoolLifeService.listAttendance(tenantId, {
       classId,
       studentId,
+      placementId,
       status: status?.trim().toUpperCase(),
       fromDate,
       toDate

@@ -141,6 +141,126 @@ describe("Source-of-truth guardrails (e2e)", () => {
     expect(arabophoneEnrollments.body[0].placementId).toBe(arabophonePlacement.body.id);
   });
 
+  it("writes grades, report cards and attendance against StudentTrackPlacement", async () => {
+    const placements = await request(context.app.getHttpServer())
+      .get("/api/v1/enrollments/placements")
+      .query({ studentId: baseline.studentTwoId, schoolYearId: baseline.schoolYearId })
+      .set("Authorization", `Bearer ${scolariteAccessToken}`)
+      .expect(200);
+
+    const placement = placements.body.find(
+      (item: { track: string }) => item.track === "FRANCOPHONE"
+    );
+    expect(placement).toBeDefined();
+
+    const grade = await request(context.app.getHttpServer())
+      .post("/api/v1/grades")
+      .set("Authorization", `Bearer ${scolariteAccessToken}`)
+      .send({
+        studentId: baseline.studentTwoId,
+        classId: baseline.classId,
+        placementId: placement.id,
+        subjectId: baseline.subjectId,
+        academicPeriodId: baseline.academicPeriodId,
+        assessmentLabel: "Placement guard",
+        assessmentType: "DEVOIR",
+        score: 15,
+        scoreMax: 20
+      })
+      .expect(201);
+
+    expect(grade.body.placementId).toBe(placement.id);
+
+    const updatedGrade = await request(context.app.getHttpServer())
+      .post("/api/v1/grades")
+      .set("Authorization", `Bearer ${scolariteAccessToken}`)
+      .send({
+        studentId: baseline.studentTwoId,
+        classId: baseline.classId,
+        placementId: placement.id,
+        subjectId: baseline.subjectId,
+        academicPeriodId: baseline.academicPeriodId,
+        assessmentLabel: "Placement guard",
+        assessmentType: "DEVOIR",
+        score: 16,
+        scoreMax: 20
+      })
+      .expect(201);
+
+    expect(updatedGrade.body.id).toBe(grade.body.id);
+
+    const persistedGrades = await context.prisma.gradeEntry.findMany({
+      where: {
+        tenantId: TENANT_ID,
+        placementId: placement.id,
+        subjectId: baseline.subjectId,
+        academicPeriodId: baseline.academicPeriodId,
+        assessmentLabel: "Placement guard"
+      }
+    });
+    expect(persistedGrades).toHaveLength(1);
+    expect(persistedGrades[0].classId).toBe(baseline.classId);
+
+    const reportCard = await request(context.app.getHttpServer())
+      .post("/api/v1/report-cards/generate")
+      .set("Authorization", `Bearer ${scolariteAccessToken}`)
+      .send({
+        studentId: baseline.studentTwoId,
+        classId: baseline.classId,
+        placementId: placement.id,
+        academicPeriodId: baseline.academicPeriodId,
+        publish: true
+      })
+      .expect(201);
+
+    expect(reportCard.body.placementId).toBe(placement.id);
+
+    const persistedReportCards = await context.prisma.reportCard.findMany({
+      where: {
+        tenantId: TENANT_ID,
+        placementId: placement.id,
+        academicPeriodId: baseline.academicPeriodId
+      }
+    });
+    expect(persistedReportCards).toHaveLength(1);
+
+    const attendance = await request(context.app.getHttpServer())
+      .post("/api/v1/attendance")
+      .set("Authorization", `Bearer ${scolariteAccessToken}`)
+      .send({
+        studentId: baseline.studentTwoId,
+        classId: baseline.classId,
+        placementId: placement.id,
+        attendanceDate: "2026-09-15",
+        status: "ABSENT",
+        reason: "Placement guard"
+      })
+      .expect(201);
+
+    expect(attendance.body.placementId).toBe(placement.id);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/attendance")
+      .set("Authorization", `Bearer ${scolariteAccessToken}`)
+      .send({
+        studentId: baseline.studentTwoId,
+        classId: baseline.classId,
+        placementId: placement.id,
+        attendanceDate: "2026-09-15",
+        status: "LATE"
+      })
+      .expect(409);
+
+    const persistedAttendance = await context.prisma.attendance.findMany({
+      where: {
+        tenantId: TENANT_ID,
+        placementId: placement.id,
+        attendanceDate: new Date("2026-09-15")
+      }
+    });
+    expect(persistedAttendance).toHaveLength(1);
+  });
+
   it("uses Parent and ParentStudentLink as canonical portal scope while keeping parentUserId as bridge only", async () => {
     const parentUser = await context.prisma.user.findFirstOrThrow({
       where: {

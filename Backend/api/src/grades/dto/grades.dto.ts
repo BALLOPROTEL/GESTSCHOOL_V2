@@ -80,6 +80,11 @@ export class BulkGradeItemDto {
   @IsUUID("all")
   studentId!: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  placementId?: string;
+
   @ApiProperty({ example: 14 })
   @IsNumber()
   @Min(0)

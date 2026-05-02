@@ -1,104 +1,120 @@
-# Deploy Demo Client (GitHub + Render + Vercel)
+# Deployment Render Free + Vercel
 
-Ce guide te permet de mettre en ligne la v1 pour Mosquee Blanche avec:
-- API NestJS + PostgreSQL sur Render
-- Web-admin sur Vercel
+Contexte actuel:
+- une seule API Render en plan gratuit
+- pas de worker Render separe
+- pas de staging Render dedie
+- frontend Vercel
+- Supabase Storage, Brevo et PayDunya sont configures par variables Render
 
-## 1) Base de donnees (important)
+## Render API
 
-La base du projet est **PostgreSQL** (pas MongoDB).
+`render.yaml` decrit uniquement le service web `gestschool-api`.
 
-En production:
-- Render cree une base geree (`gestschool-postgres`) via `render.yaml`.
-- L'API utilise `DATABASE_URL` (injecte automatiquement par Render).
-- Au demarrage, l'API applique uniquement:
-  - `prisma migrate deploy`
-- `seed:users` ne doit plus etre lance automatiquement en production.
-- Si des comptes de demo sont necessaires, lancer `pnpm --filter @gestschool/api seed:users`
-  une seule fois depuis un shell d'administration ou un job ponctuel.
+Le service utilise:
+- `plan: free`
+- `healthCheckPath: /api/v1/health/live`
+- `startCommand: pnpm render:start:api`
 
-## 2) Push du code sur GitHub
+Le worker separe n'est pas requis dans ce contexte. L'API peut traiter l'outbox en mode in-process leger:
+- `NOTIFICATIONS_WORKER_ENABLED=false`
+- `OUTBOX_IN_PROCESS_ENABLED=true`
+- `OUTBOX_POLL_INTERVAL_MS=30000`
+- `OUTBOX_BATCH_SIZE=10`
 
-Si le dossier n'est pas encore un repo Git:
+Ce mode est acceptable pour Render free et petite charge. Il n'est pas recommande pour une charge elevee. Le passage futur vers un worker separe consiste a:
+1. creer un worker Render
+2. mettre `OUTBOX_IN_PROCESS_ENABLED=false` sur l'API
+3. mettre `NOTIFICATIONS_WORKER_ENABLED=true` sur le worker
+4. partager les memes variables DB/providers avec le worker
 
-```powershell
-git init
-git add .
-git commit -m "Sprint 11 + deployment setup"
-git branch -M main
-git remote add origin https://github.com/<ton_user>/<ton_repo>.git
-git push -u origin main
+## Variables Render API
+
+Backend/runtime:
+- `NODE_ENV=production`
+- `HOST=0.0.0.0`
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `CORS_ORIGINS=https://gestschool.vercel.app`
+- `JWT_SECRET`
+- `PASSWORD_RESET_SECRET`
+- `MONITORING_METRICS_TOKEN`
+
+Supabase Storage:
+- `STORAGE_PROVIDER=supabase`
+- `FILE_STORAGE_DRIVER=SUPABASE`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_STORAGE_BUCKET_DOCUMENTS=gestschool-documents`
+- `SUPABASE_STORAGE_BUCKET_RECEIPTS=gestschool-receipts`
+- `SUPABASE_STORAGE_BUCKET_REPORT_CARDS=gestschool-report-cards`
+- `SUPABASE_STORAGE_BUCKET_AVATARS=gestschool-avatars`
+
+Brevo:
+- `NOTIFICATIONS_EMAIL_PROVIDER=brevo`
+- `NOTIFICATIONS_SMS_PROVIDER=brevo`
+- `BREVO_API_KEY`
+- `BREVO_SENDER_EMAIL=no-reply@al-manarat-islamiyat.com`
+- `BREVO_SENDER_NAME=Al Manarat Islamiyat`
+- `BREVO_SMS_SENDER=Al Manarat Islamiyat`
+- `BREVO_SMS_DRY_RUN=true`
+- `ALLOW_REAL_SMS=false`
+
+PayDunya sandbox:
+- `PAYMENT_PROVIDER=paydunya`
+- `PAYDUNYA_MODE=sandbox`
+- `PAYDUNYA_MASTER_KEY`
+- `PAYDUNYA_PUBLIC_KEY`
+- `PAYDUNYA_PRIVATE_KEY`
+- `PAYDUNYA_TOKEN`
+- `PAYDUNYA_CALLBACK_URL=https://gestschool-ylik.onrender.com/api/v1/payments/paydunya/callback`
+- `PAYDUNYA_RETURN_URL=https://gestschool.vercel.app`
+- `PAYDUNYA_CANCEL_URL=https://gestschool.vercel.app`
+
+Never put provider secrets in Vercel.
+
+## Vercel Frontend
+
+Required variable:
+- `VITE_API_BASE_URL=https://gestschool-ylik.onrender.com/api/v1`
+
+No Supabase service role key, Brevo key or PayDunya key belongs in Vercel.
+
+## Secure Provider Config Check
+
+After deploy, call:
+
+```bash
+curl -H "x-metrics-token: $MONITORING_METRICS_TOKEN" \
+  https://gestschool-ylik.onrender.com/api/v1/monitoring/providers
 ```
 
-## 3) Deployer l'API + DB sur Render
+The endpoint only returns booleans and enabled/disabled status. It must not return secret values.
 
-Option recommandee:
-- Dans Render: `New` -> `Blueprint`
-- Connecte ton repo GitHub
-- Render detecte `render.yaml` et cree:
-  - `gestschool-postgres` (PostgreSQL)
-  - `gestschool-api` (web service)
+## Post-Deployment Checklist
 
-Apres premier deploy:
-1. Ouvre le service `gestschool-api` -> `Environment`.
-2. Mets a jour:
-   - `FILE_STORAGE_BASE_URL` avec l'URL reelle du service Render.
-   - `CORS_ORIGINS` avec l'URL Vercel finale (voir etape 4).
-3. Verifie:
-   - `https://<api>.onrender.com/api/v1/health/live`
-   - `https://<api>.onrender.com/api/docs` seulement si `SWAGGER_ENABLED=true`
+API:
+- `GET https://gestschool-ylik.onrender.com/api/v1/health/live`
+- `GET https://gestschool-ylik.onrender.com/api/v1/health/ready`
+- provider check endpoint returns expected booleans
+- login admin works from Vercel
+- no CORS error from `https://gestschool.vercel.app`
 
-## 4) Deployer le web-admin sur Vercel
+Frontend:
+- Vercel loads
+- login calls Render URL, not `/api/v1` on Vercel
+- dashboard loads
+- modules eleves, inscriptions, finance, notes, portails open
 
-Option simple:
-- Vercel -> `Add New` -> `Project`
-- Import repo GitHub
-- Vercel utilise `vercel.json` a la racine.
+Providers:
+- Supabase upload descriptor returns `driver=SUPABASE`
+- Brevo email test is sent only if `NOTIFICATION_TEST_EMAIL` is explicitly set
+- SMS remains dry-run while `ALLOW_REAL_SMS=false`
+- PayDunya initiate returns sandbox checkout URL
+- PayDunya callback creates one payment and duplicate callback remains idempotent
 
-Ajoute la variable d'environnement de prod:
-- `VITE_API_BASE_URL=https://<api>.onrender.com/api/v1`
+## Known Limits
 
-Lance le deploy, puis recupere l'URL:
-- `https://<ton-projet>.vercel.app`
-
-## 5) Finaliser CORS cote API
-
-Retourne sur Render (`gestschool-api`):
-- `CORS_ORIGINS=https://<ton-projet>.vercel.app`
-
-Redeploie ensuite le service API.
-
-## 6) Comptes de demo a envoyer au client
-
-- `admin@gestschool.local / admin12345`
-- `scolarite@gestschool.local / scolarite123`
-- `comptable@gestschool.local / comptable123`
-
-Si tu veux changer les mots de passe demo, modifie les variables Render:
-- `ADMIN_PASSWORD`
-- `SCOLARITE_PASSWORD`
-- `COMPTABLE_PASSWORD`
-
-Puis redeploie.
-
-## 7) Checklist avant envoi du lien client
-
-- Login OK depuis Vercel
-- CRUD eleves OK
-- Modules Mosquee / Finance / Notes OK
-- Rapports & conformite OK
-- Export PDF/Excel OK
-- Health API OK
-
-## 8) Message type au client
-
-```text
-Bonjour,
-
-Voici la premiere version web de demonstration:
-- Application: https://<ton-projet>.vercel.app
-- Compte test: admin@gestschool.local / <mot_de_passe>
-
-Merci de tester les modules (Eleves, Inscriptions, Comptabilite, Mosquee, Rapports)
-et de nous faire un retour sur l'ergonomie et les besoins metier prioritaires.
-```
+Render free can sleep, so first request can be slow.
+In-process outbox runs only while the API process is awake.
+For high volume notifications, move to a separate worker.

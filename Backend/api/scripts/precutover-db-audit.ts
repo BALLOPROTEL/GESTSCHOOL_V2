@@ -7,9 +7,15 @@ const prisma = new PrismaClient();
 
 const REQUIRED_SCHEMA: RequiredSchema = {
   classes: ["id", "tenant_id", "main_room"],
+  attendance: ["id", "tenant_id", "student_id", "class_id", "school_year_id", "placement_id", "track"],
   enrollments: ["id", "tenant_id", "student_id", "school_year_id", "track"],
+  fee_plans: ["id", "tenant_id", "school_year_id", "level_id", "total_amount"],
+  grades: ["id", "tenant_id", "student_id", "class_id", "placement_id", "track"],
+  invoices: ["id", "tenant_id", "student_id", "school_year_id", "billing_placement_id"],
+  payments: ["id", "tenant_id", "invoice_id", "receipt_no", "paid_amount"],
   parent_student_links: ["id", "tenant_id", "parent_id", "parent_user_id", "student_id"],
   parents: ["id", "tenant_id", "user_id", "status", "archived_at"],
+  report_cards: ["id", "tenant_id", "student_id", "class_id", "placement_id", "track"],
   rooms: ["id", "tenant_id", "code", "name", "status", "archived_at"],
   student_track_placements: ["id", "tenant_id", "student_id", "school_year_id", "track"],
   students: ["id", "tenant_id", "user_id", "matricule"],
@@ -255,7 +261,13 @@ async function main(): Promise<void> {
       prisma.timetableSlot.count(),
       prisma.enrollment.count(),
       prisma.studentTrackPlacement.count(),
-      prisma.classroom.count()
+      prisma.classroom.count(),
+      prisma.gradeEntry.count(),
+      prisma.reportCard.count(),
+      prisma.attendance.count(),
+      prisma.feePlan.count(),
+      prisma.invoice.count(),
+      prisma.payment.count()
     ]).then(
       ([
         users,
@@ -269,7 +281,13 @@ async function main(): Promise<void> {
         timetableSlots,
         enrollments,
         studentTrackPlacements,
-        classrooms
+        classrooms,
+        grades,
+        reportCards,
+        attendance,
+        feePlans,
+        invoices,
+        payments
       ]) => ({
         users,
         students,
@@ -282,7 +300,13 @@ async function main(): Promise<void> {
         timetableSlots,
         enrollments,
         studentTrackPlacements,
-        classrooms
+        classrooms,
+        grades,
+        reportCards,
+        attendance,
+        feePlans,
+        invoices,
+        payments
       })
     ),
     prisma.user.findMany({
@@ -418,14 +442,59 @@ async function main(): Promise<void> {
       (row) => row.candidateTeacherAssignmentIds.length !== 1
     ).length
   };
+  const level = compatibilityLevel(metrics);
+  const auditedBusinessRows =
+    totals.users +
+    totals.students +
+    totals.parents +
+    totals.parentStudentLinks +
+    totals.teachers +
+    totals.teacherAssignments +
+    totals.teacherClassAssignments +
+    totals.rooms +
+    totals.timetableSlots +
+    totals.enrollments +
+    totals.studentTrackPlacements +
+    totals.classrooms +
+    totals.grades +
+    totals.reportCards +
+    totals.attendance +
+    totals.feePlans +
+    totals.invoices +
+    totals.payments;
+  const hasBusinessData = auditedBusinessRows > 0;
+  const effectiveLevel = hasBusinessData ? level : "SCHEMA_READY_NO_BUSINESS_DATA";
 
   const report = {
     generatedAt: new Date().toISOString(),
     mode: "READ_ONLY_PRE_CUTOVER_AUDIT",
     safety:
       "This command only reads through Prisma. It does not update, delete, migrate, or backfill data.",
-    compatibilityLevel: compatibilityLevel(metrics),
+    compatibilityLevel: effectiveLevel,
+    readiness: {
+      schemaReady: schemaCompatibility.isCompatible,
+      businessDataAssessed: hasBusinessData,
+      businessDataReady: hasBusinessData && level === "READY_CANDIDATE",
+      auditedBusinessRows,
+      dryRunOnly: true,
+      destructiveActionTaken: false,
+      conclusion:
+        !hasBusinessData
+          ? "Schema is compatible, but no business rows were found. This proves only script/schema readiness, not legacy business-data readiness."
+          : level === "READY_CANDIDATE"
+          ? "Schema and audited data mappings are clean enough to prepare a supervised staging apply."
+          : "Schema is readable, but business data still has blockers or manual-review items before any apply."
+    },
     volumes: totals,
+    domainCoverage: {
+      academicReference: ["school_years", "cycles", "levels", "classes", "subjects", "academic_periods"],
+      identityAndLinks: ["users", "students", "parents", "parent_student_links", "teachers"],
+      academicPlacement: ["student_track_placements", "enrollments"],
+      evaluations: ["grades", "report_cards"],
+      schoolLife: ["attendance", "timetable_slots"],
+      finance: ["fee_plans", "invoices", "payments"],
+      facilitiesAndStaffing: ["rooms", "room_assignments", "teacher_assignments"]
+    },
     sourceOfTruthTargets: {
       teacherPortal: "Teacher.userId -> TeacherAssignment",
       parentPortal: "Parent.userId -> ParentStudentLink.parentId",
@@ -486,7 +555,17 @@ async function main(): Promise<void> {
         samples: sample(classroomsWithMainRoomText)
       }
     },
+    rollbackStrategy: {
+      stagingDryRun:
+        "Dry-run reports are append-only local artifacts. No DB rollback is required because this command does not write.",
+      applyPhase:
+        "Before any future apply, take a PostgreSQL custom-format backup of the target, store the artifact URI, and rehearse restore into a separate DB.",
+      forbidden:
+        "Never run apply scripts on production until a staging dry-run report is READY_CANDIDATE and reviewed."
+    },
     recommendedNextCommands: [
+      "pnpm --filter @gestschool/api audit:legacy -- --out=artifacts/legacy-inventory.json",
+      "pnpm --filter @gestschool/api audit:precutover -- --out=artifacts/precutover-dry-run.json",
       "pnpm --filter @gestschool/api migrate:timetable:dry-run",
       "Review unique matches and ambiguous rows.",
       "pnpm --filter @gestschool/api migrate:timetable:apply",

@@ -16,9 +16,11 @@ import { resolveTenantContext } from "../common/tenant-context.util";
 import { FinanceService } from "../finance/finance.service";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
+import { Public } from "../security/public.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
 import { CreatePaymentDto } from "./dto/create-payment.dto";
+import { InitiatePaydunyaPaymentDto } from "./dto/paydunya-payment.dto";
 
 @ApiTags("payments")
 @ApiBearerAuth("bearer")
@@ -64,6 +66,46 @@ export class PaymentsController {
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.financeService.recordPayment(tenantId, body);
+  }
+
+  @Post("paydunya/initiate")
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE)
+  @RequirePermission("payments", "create")
+  @ApiOperation({ summary: "Initiate a PayDunya sandbox checkout for an invoice" })
+  async initiatePaydunya(
+    @Req() request: { user?: AuthenticatedUser },
+    @Body() body: InitiatePaydunyaPaymentDto,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.financeService.initiatePaydunyaPayment(tenantId, body);
+  }
+
+  @Public()
+  @Post("paydunya/callback")
+  @ApiOperation({ summary: "Receive PayDunya IPN callback" })
+  async paydunyaCallback(@Body() body: unknown, @Query() query: Record<string, unknown>) {
+    return this.financeService.handlePaydunyaCallback(body, query);
+  }
+
+  @Public()
+  @Get("paydunya/callback")
+  @ApiOperation({ summary: "Receive PayDunya callback token fallback" })
+  async paydunyaCallbackGet(@Query() query: Record<string, unknown>) {
+    return this.financeService.handlePaydunyaCallback({}, query);
+  }
+
+  @Get(":id/status")
+  @Roles(UserRole.ADMIN, UserRole.COMPTABLE, UserRole.SCOLARITE)
+  @RequirePermission("payments", "read")
+  @ApiOperation({ summary: "Get internal payment or provider attempt status" })
+  async status(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.financeService.getPaymentStatus(tenantId, id);
   }
 
   @Get(":id/receipt")

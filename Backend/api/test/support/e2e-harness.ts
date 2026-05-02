@@ -55,6 +55,7 @@ export function configureE2eEnvironment(): void {
   process.env.DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || TENANT_ID;
   process.env.REDIS_URL = "";
   process.env.NOTIFICATIONS_WORKER_ENABLED = "false";
+  process.env.OUTBOX_IN_PROCESS_ENABLED = "false";
   process.env.NOTIFY_EMAIL_PROVIDER = process.env.NOTIFY_EMAIL_PROVIDER || "MOCK";
   process.env.NOTIFY_SMS_PROVIDER = process.env.NOTIFY_SMS_PROVIDER || "MOCK";
   process.env.NOTIFICATION_WEBHOOK_SECRET = process.env.NOTIFICATION_WEBHOOK_SECRET || "test-webhook-secret";
@@ -367,6 +368,7 @@ export async function cleanDatabase(prisma: PrismaService): Promise<void> {
   await prisma.teacherDocument.deleteMany({});
   await prisma.teacherAssignment.deleteMany({});
   await prisma.teacherSkill.deleteMany({});
+  await prisma.paymentProviderAttempt.deleteMany({});
   await prisma.payment.deleteMany({});
   await prisma.invoice.deleteMany({});
   await prisma.feePlan.deleteMany({});

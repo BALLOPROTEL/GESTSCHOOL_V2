@@ -23,6 +23,7 @@ export class GradesService {
       subjectId?: string;
       academicPeriodId?: string;
       studentId?: string;
+      placementId?: string;
       track?: AcademicTrack;
     }
   ) {
@@ -51,6 +52,7 @@ export class GradesService {
       classId?: string;
       academicPeriodId?: string;
       studentId?: string;
+      placementId?: string;
       track?: AcademicTrack;
     }
   ) {
