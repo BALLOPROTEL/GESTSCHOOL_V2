@@ -26,8 +26,128 @@
 }
 
 .teachers-panel .button-ghost,
+.teachers-panel .button-edit,
 .teachers-panel .button-danger {
   min-height: 2.35rem;
+}
+
+.teachers-panel .button-edit {
+  align-items: center;
+  background: var(--button-primary-bg, #51ced8);
+  border: 1px solid color-mix(in srgb, var(--button-primary-bg, #51ced8) 78%, #087985);
+  border-radius: var(--button-radius, 8px);
+  color: var(--button-primary-text, #071014);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 800;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+}
+
+.teachers-panel .button-edit:hover,
+.teachers-panel .button-edit:focus-visible {
+  background: #bff0f3;
+  color: #071014;
+}
+
+.teachers-panel .status-pill {
+  white-space: nowrap;
+}
+
+.teachers-panel table th {
+  text-transform: none;
+}
+
+.teachers-panel .empty-state-block {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 7rem;
+}
+
+.teachers-panel .empty-state-block p {
+  margin: 0;
+}
+
+.teachers-panel .empty-row small {
+  color: var(--text-secondary);
+  display: block;
+  font-weight: 700;
+  margin-top: 0.25rem;
+}
+
+.teachers-panel .form-help {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: -0.25rem 0 0;
+}
+
+.teacher-file-upload {
+  border: 1px solid var(--border-color, #b8c7d8);
+  border-radius: var(--input-radius, 8px);
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+}
+
+.teacher-file-upload__label {
+  color: var(--text-primary, #071014);
+  font-weight: 900;
+}
+
+.teacher-file-upload__input {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+.teacher-file-upload__body {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.teacher-file-upload__button {
+  width: fit-content;
+}
+
+.teacher-file-upload__empty {
+  color: var(--text-secondary, #334155);
+  font-weight: 800;
+}
+
+.teacher-file-upload__file {
+  align-items: center;
+  background: color-mix(in srgb, var(--button-primary-bg, #51ced8) 12%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--button-primary-bg, #51ced8) 45%, var(--border-color, #b8c7d8));
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  padding: 0.62rem 0.75rem;
+}
+
+.teacher-file-upload__file strong,
+.teacher-file-upload__file small {
+  color: var(--text-primary, #071014);
+}
+
+.teacher-file-upload__file small {
+  font-weight: 800;
+}
+
+.teachers-panel .form-error {
+  color: var(--erp-button-danger-bg, #ff0000ff);
+  font-weight: 900;
+  margin: 0;
+}
+
+:root[data-theme="dark"] .teacher-file-upload__file {
+  background: color-mix(in srgb, var(--button-primary-bg, #51ced8) 16%, #0b1720);
 }
 
 .teachers-form-grid {

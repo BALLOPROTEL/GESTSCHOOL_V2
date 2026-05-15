@@ -319,15 +319,6 @@ label,
   color: var(--ink-700);
 }
 
-.dashboard-hero {
-  background: linear-gradient(120deg, #dbeafe 0%, #eff6ff 60%, #ffffff 100%);
-  border-color: var(--line);
-}
-
-:root[data-theme="dark"] .dashboard-hero {
-  background: linear-gradient(120deg, #1e293b 0%, #0f172a 60%, #111827 100%);
-}
-
 .module-card,
 .priority-item,
 .notice-card,
@@ -1151,7 +1142,6 @@ code {
     padding-right: 0.82rem;
   }
 
-  .dashboard-hero,
   .module-card,
   .priority-item,
   .notice-card,

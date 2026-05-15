@@ -425,6 +425,7 @@ export class TeachersSupportService {
       teacherName: this.teacherName(row.teacher),
       documentType: row.documentType,
       fileUrl: row.fileUrl,
+      documentName: row.documentName || undefined,
       originalName: row.originalName,
       mimeType: row.mimeType || undefined,
       size: row.size ?? undefined,

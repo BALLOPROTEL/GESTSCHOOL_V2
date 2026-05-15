@@ -68,14 +68,6 @@
     grid-template-columns: 1fr;
   }
 
-  .dashboard-hero {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-primary-cta {
-    justify-self: start;
-  }
-
   .header-right {
     width: 100%;
     justify-items: start;
@@ -185,10 +177,6 @@
     padding-right: 0.9rem;
   }
 
-  .hero-quote {
-    font-size: 1.05rem;
-  }
-
   .trend-row {
     grid-template-columns: 1fr;
     gap: 0.35rem;
@@ -206,7 +194,6 @@
     align-items: flex-start;
   }
 
-  .hero-primary-cta,
   .actions button,
   .row-actions button,
   .inline-actions button {

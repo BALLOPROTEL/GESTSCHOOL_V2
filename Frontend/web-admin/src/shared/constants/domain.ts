@@ -30,11 +30,11 @@ export const TEACHING_MODE_OPTIONS = [
 
 export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Administrateur",
-  SCOLARITE: "Scolarite",
+  SCOLARITE: "Scolarité",
   ENSEIGNANT: "Portail enseignant",
   COMPTABLE: "Comptable",
   PARENT: "Portail parent",
-  STUDENT: "Portail eleve"
+  STUDENT: "Portail élève"
 };
 
 export const INVOICE_STATUS_LABELS: Record<string, string> = {
@@ -70,11 +70,11 @@ export const PORTAL_NOTIFICATION_STATUS_LABELS: Record<string, string> = {
 
 export const AUDIENCE_ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administration",
-  SCOLARITE: "Scolarite",
+  SCOLARITE: "Scolarité",
   ENSEIGNANT: "Enseignants",
-  COMPTABLE: "Comptabilite",
+  COMPTABLE: "Comptabilité",
   PARENT: "Parents",
-  STUDENT: "Eleves"
+  STUDENT: "Élèves"
 };
 
 export const MEMBER_STATUS_LABELS: Record<string, string> = {
@@ -101,7 +101,7 @@ export const WEEKDAY_LABELS: Record<number, string> = {
 
 export const PERMISSION_ACTION_LABELS: Record<PermissionAction, string> = {
   read: "Lecture",
-  create: "Creation",
+  create: "Création",
   update: "Modification",
   delete: "Suppression",
   validate: "Validation",
@@ -109,7 +109,7 @@ export const PERMISSION_ACTION_LABELS: Record<PermissionAction, string> = {
 };
 
 export const PERMISSION_RESOURCE_LABELS: Record<PermissionResource, string> = {
-  students: "Eleves",
+  students: "Élèves",
   parents: "Parents",
   teachers: "Enseignants",
   rooms: "Salles",
@@ -117,17 +117,17 @@ export const PERMISSION_RESOURCE_LABELS: Record<PermissionResource, string> = {
   teacherPortal: "Portail enseignant",
   parentPortal: "Portail parent",
   enrollments: "Inscriptions",
-  reference: "Referentiel",
+  reference: "Référentiel",
   finance: "Finance",
   payments: "Paiements",
   grades: "Notes",
   reportCards: "Bulletins",
   attendance: "Absences",
   attendanceAttachment: "Justificatifs",
-  attendanceValidation: "Validation absences",
+  attendanceValidation: "Validation des absences",
   timetable: "Emploi du temps",
   notifications: "Notifications",
-  mosquee: "Mosquee",
+  mosquee: "Mosquée",
   analytics: "Analytique",
   audit: "Audit"
 };
@@ -138,7 +138,7 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   STAFF: "Staff interne",
   TEACHER: "Enseignant",
   PARENT: "Parent",
-  STUDENT: "Eleve"
+  STUDENT: "Élève"
 };
 export const ACCOUNT_TYPE_ROLE_OPTIONS: Record<AccountType, Role[]> = {
   STAFF: ["ADMIN", "SCOLARITE", "COMPTABLE"],
@@ -147,8 +147,8 @@ export const ACCOUNT_TYPE_ROLE_OPTIONS: Record<AccountType, Role[]> = {
   STUDENT: ["STUDENT"]
 };
 export const PASSWORD_MODE_LABELS: Record<PasswordMode, string> = {
-  AUTO: "Mot de passe temporaire auto",
-  MANUAL: "Saisie manuelle"
+  AUTO: "Mot de passe temporaire automatique",
+  MANUAL: "Définir manuellement"
 };
 export const PERMISSION_RESOURCE_VALUES: PermissionResource[] = [
   "students",

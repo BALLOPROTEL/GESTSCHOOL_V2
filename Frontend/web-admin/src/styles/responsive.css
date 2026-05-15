@@ -68,7 +68,6 @@ textarea {
 .table-actions,
 .actions,
 .context-actions,
-.dashboard-hero-actions,
 .students-table-toolbar,
 .messages-compose-actions {
   min-width: 0;
@@ -331,10 +330,8 @@ textarea {
     flex: 1 1 10rem;
   }
 
-  .dashboard-hero-flex,
   .dashboard-main-grid,
   .dashboard-side,
-  .dashboard-hero-aside,
   .messages-layout,
   .messages-side,
   .reference-workflow-shell,
@@ -352,7 +349,6 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  .dashboard-hero-shell,
   .dashboard-panel-shell,
   .table-panel,
   .module-modern,
@@ -383,8 +379,7 @@ textarea {
   .students-search-field,
   .iam-permissions-actions,
   .iam-permissions-target,
-  .messages-compose-actions,
-  .dashboard-hero-actions {
+  .messages-compose-actions {
     width: 100% !important;
     min-width: 0 !important;
   }
@@ -491,7 +486,6 @@ textarea {
 
   .module-inline-strip,
   .module-inline-stack,
-  .dashboard-hero-foot,
   .messages-thread-summary,
   .messages-conversation-meta {
     overflow-x: auto;
@@ -502,7 +496,6 @@ textarea {
 
   .module-inline-strip::-webkit-scrollbar,
   .module-inline-stack::-webkit-scrollbar,
-  .dashboard-hero-foot::-webkit-scrollbar,
   .messages-thread-summary::-webkit-scrollbar,
   .messages-conversation-meta::-webkit-scrollbar {
     display: none;
@@ -549,7 +542,6 @@ textarea {
     grid-template-columns: 1fr !important;
   }
 
-  .dashboard-hero-actions,
   .context-actions,
   .actions,
   .students-table-toolbar,
@@ -558,7 +550,6 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-hero-actions > *,
   .context-actions > *,
   .actions > *,
   .students-table-toolbar > *,
@@ -613,7 +604,6 @@ textarea {
     height: 2rem;
   }
 
-  .dashboard-hero h2,
   .context-bar h2,
   .table-header h2,
   .table-header h3 {
@@ -624,8 +614,7 @@ textarea {
   .panel,
   .module-modern,
   .table-panel,
-  .dashboard-panel-shell,
-  .dashboard-hero-shell {
+  .dashboard-panel-shell {
     padding: 0.72rem !important;
   }
 }
@@ -1044,7 +1033,6 @@ textarea {
     gap: clamp(0.74rem, 1vw, 0.94rem);
   }
 
-  .dashboard-hero-shell,
   .dashboard-panel-shell,
   .table-panel,
   .editor-panel,

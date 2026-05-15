@@ -21,6 +21,25 @@ export type TeacherFilters = {
 
 export type TeacherPayload = Record<string, string | number | boolean | undefined>;
 
+export type TeacherDocumentUploadDescriptor = {
+  driver: string;
+  tenantId: string;
+  fileName: string;
+  mimeType: string;
+  key: string;
+  uploadUrl: string;
+  fileUrl: string;
+  expiresAt: string;
+  bucket?: string;
+  token?: string;
+};
+
+export type TeacherDocumentUploadPayload = {
+  fileName: string;
+  mimeType: string;
+  size: number;
+};
+
 export type TeachersModuleData = {
   teachers: TeacherRecord[];
   skills: TeacherSkillRecord[];
@@ -118,6 +137,33 @@ export const createTeacherDocument = async (
       body: JSON.stringify(payload)
     })
   );
+
+export const createTeacherDocumentUploadDescriptor = async (
+  api: ApiClient,
+  teacherId: string,
+  payload: TeacherDocumentUploadPayload
+): Promise<TeacherDocumentUploadDescriptor> =>
+  readJson<TeacherDocumentUploadDescriptor>(
+    await api(`/teachers/${teacherId}/documents/upload-descriptor`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+  );
+
+export const uploadTeacherDocumentFile = async (
+  descriptor: TeacherDocumentUploadDescriptor,
+  file: File
+): Promise<void> => {
+  const response = await fetch(descriptor.uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type || descriptor.mimeType || "application/octet-stream" },
+    body: file
+  });
+  if (!response.ok) {
+    throw new Error("L'envoi du document a échoué.");
+  }
+};
 
 export const deleteTeacherResource = async (api: ApiClient, path: string): Promise<void> => {
   const response = await api(path, { method: "DELETE" });

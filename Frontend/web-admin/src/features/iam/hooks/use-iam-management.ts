@@ -38,6 +38,7 @@ type UseIamManagementOptions = {
   onError: (message: string | null) => void;
   onNotice: (message: string | null) => void;
   onUsersChange?: (users: UserAccount[]) => void;
+  translate?: (source: string) => string;
 };
 
 const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).length > 0;
@@ -148,7 +149,8 @@ export const useIamManagement = ({
   strongPasswordHint,
   onError,
   onNotice,
-  onUsersChange
+  onUsersChange,
+  translate = (source) => source
 }: UseIamManagementOptions) => {
   const [users, setUsers] = useState<UserAccount[]>(initialUsers);
   const [accountTeachers, setAccountTeachers] = useState<TeacherRecord[]>([]);
@@ -315,17 +317,17 @@ export const useIamManagement = ({
     event.preventDefault();
     onError(null);
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : les comptes ne sont pas persistes.");
+      onNotice(translate("Mode aperçu local : les comptes ne sont pas persistés."));
       return;
     }
 
     const errors: FieldErrors = {};
-    if (!userForm.username.trim()) errors.username = "Nom utilisateur requis.";
+    if (!userForm.username.trim()) errors.username = "Identifiant obligatoire.";
     if (!compatibleUserRoles.includes(userForm.roleId)) {
-      errors.roleId = "Role incompatible avec la nature du compte.";
+      errors.roleId = "Rôle incompatible avec le type de personne.";
     }
     if (userForm.accountType === "STAFF" && !userForm.staffDisplayName.trim()) {
-      errors.staffDisplayName = "Nom affiche staff requis.";
+      errors.staffDisplayName = "Nom complet requis.";
     }
     if (userForm.accountType === "TEACHER" && !userForm.teacherId) {
       errors.teacherId = "Fiche enseignant requise.";
@@ -334,13 +336,13 @@ export const useIamManagement = ({
       errors.parentId = "Fiche parent requise.";
     }
     if (userForm.accountType === "STUDENT" && !userForm.studentId) {
-      errors.studentId = "Fiche eleve requise.";
+      errors.studentId = "Fiche élève requise.";
     }
     if (selectedBusinessAlreadyLinked) {
-      errors.businessProfile = "Cette fiche metier est deja rattachee a un autre compte.";
+      errors.businessProfile = "Cette fiche métier est déjà rattachée à un autre compte.";
     }
     if (selectedBusinessIsInactive) {
-      errors.businessProfile = "La fiche metier doit etre active pour creer un compte actif.";
+      errors.businessProfile = "La fiche métier doit être active pour créer un compte actif.";
     }
     if (!editingUserId && userForm.passwordMode === "MANUAL" && !isStrongPassword(userForm.password.trim())) {
       errors.password = strongPasswordHint;
@@ -390,7 +392,7 @@ export const useIamManagement = ({
       const savedUser = await upsertIamUser(api, editingUserId, payload);
       setUserErrors({});
       setLastTemporaryPassword(savedUser.temporaryPassword || "");
-      onNotice(editingUserId ? "Utilisateur mis a jour." : "Utilisateur cree.");
+      onNotice(translate(editingUserId ? "Utilisateur mis à jour." : "Utilisateur créé."));
       setIamWorkflowStep("accounts");
       if (!savedUser.temporaryPassword) {
         resetUserForm();
@@ -442,9 +444,9 @@ export const useIamManagement = ({
   };
 
   const deleteUserAccount = async (id: string): Promise<void> => {
-    if (!window.confirm("Supprimer cet utilisateur ?")) return;
+    if (!window.confirm(translate("Supprimer ce compte utilisateur ? Cette action désactive le compte et le retire de la liste active."))) return;
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : suppression non persistee.");
+      onNotice(translate("Mode aperçu local : suppression non persistée."));
       return;
     }
     try {
@@ -452,7 +454,7 @@ export const useIamManagement = ({
       if (editingUserId === id) {
         resetUserForm();
       }
-      onNotice("Utilisateur supprime.");
+      onNotice(translate("Utilisateur supprimé."));
       await loadUsers();
       await loadIamAccountReferences();
     } catch (error) {
@@ -460,10 +462,33 @@ export const useIamManagement = ({
     }
   };
 
+  const toggleUserAccountStatus = async (item: UserAccount, isActive: boolean): Promise<void> => {
+    const confirmation = isActive
+      ? "Réactiver ce compte utilisateur ?"
+      : "Désactiver ce compte utilisateur ?";
+    if (!window.confirm(translate(confirmation))) return;
+    if (!remoteEnabled) {
+      onNotice(translate(isActive ? "Mode aperçu local : réactivation non persistée." : "Mode aperçu local : désactivation non persistée."));
+      return;
+    }
+
+    try {
+      const updatedUser = await upsertIamUser(api, item.id, { isActive });
+      setUsersAndNotify(users.map((user) => (user.id === updatedUser.id ? updatedUser : user)));
+      if (editingUserId === updatedUser.id) {
+        setUserForm((previous) => ({ ...previous, isActive: updatedUser.isActive }));
+      }
+      onNotice(translate(isActive ? "Compte réactivé." : "Compte désactivé."));
+      await loadUsers();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Erreur de mise à jour du statut utilisateur.");
+    }
+  };
+
   const saveCurrentRolePermissions = async (): Promise<void> => {
     onError(null);
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : droits non persistes.");
+      onNotice(translate("Mode aperçu local : droits non persistés."));
       setIamWorkflowStep("permissions");
       return;
     }
@@ -478,7 +503,7 @@ export const useIamManagement = ({
 
     try {
       setRolePermissions(await saveRolePermissions(api, rolePermissionTarget, permissions));
-      onNotice(`Droits ${formatRoleLabel(rolePermissionTarget)} mis a jour.`);
+      onNotice(translate(`Droits ${formatRoleLabel(rolePermissionTarget)} mis à jour.`));
       setIamWorkflowStep("permissions");
     } catch (error) {
       onError(error instanceof Error ? error.message : "Erreur d'enregistrement des droits.");
@@ -489,14 +514,14 @@ export const useIamManagement = ({
     () => [
       {
         id: "accounts",
-        title: editingUserId ? "Edition compte" : "Comptes utilisateurs",
-        hint: "Creer, modifier et desactiver les comptes.",
+        title: editingUserId ? "Édition compte" : "Comptes utilisateurs",
+        hint: "Créer, modifier et désactiver les comptes.",
         done: users.length > 0
       },
       {
         id: "permissions",
         title: "Droits par profil",
-        hint: "Ajuster les autorisations API par ressource et action.",
+        hint: "Sélectionner les actions autorisées par ressource.",
         done: rolePermissions.some((item) => item.source === "CUSTOM")
       }
     ],
@@ -529,6 +554,7 @@ export const useIamManagement = ({
     setUserForm,
     startEditUser,
     submitUser,
+    toggleUserAccountStatus,
     toggleRolePermission,
     userErrors,
     userForm,

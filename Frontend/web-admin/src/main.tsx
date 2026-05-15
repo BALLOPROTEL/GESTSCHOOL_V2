@@ -21,6 +21,7 @@ import "./styles/forms.css";
 import "./styles/tables.css";
 import "./styles/utilities.css";
 import "./styles/responsive.css";
+import "./styles/erp-refinement.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

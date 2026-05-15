@@ -92,7 +92,7 @@ export function HeaderQuickActionsPanel(props: {
     <div className="header-quick-panel">
       <div className="header-feed-header">
         <div>
-          <strong>Acces rapides</strong>
+          <strong>Accès rapides</strong>
           <span>Raccourcis du poste admin</span>
         </div>
       </div>

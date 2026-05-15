@@ -84,15 +84,49 @@ describe("Teachers + rooms management flows (e2e)", () => {
 
     expect(assignment.body.teacherId).toBe(teacher.body.id);
 
+    const documentUpload = await request(context.app.getHttpServer())
+      .post(`/api/v1/teachers/${teacher.body.id}/documents/upload-descriptor`)
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .send({
+        fileName: "contrat-awa-diallo.pdf",
+        mimeType: "application/pdf",
+        size: 238944
+      })
+      .expect(201);
+
+    expect(documentUpload.body.fileUrl).toContain(`/teachers/${teacher.body.id}/documents/`);
+
+    await request(context.app.getHttpServer())
+      .post(`/api/v1/teachers/${teacher.body.id}/documents/upload-descriptor`)
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .send({
+        fileName: "script.sh",
+        mimeType: "text/x-sh",
+        size: 64
+      })
+      .expect(400);
+
+    await request(context.app.getHttpServer())
+      .post(`/api/v1/teachers/${teacher.body.id}/documents/upload-descriptor`)
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .send({
+        fileName: "contrat-lourd.pdf",
+        mimeType: "application/pdf",
+        size: 10 * 1024 * 1024 + 1
+      })
+      .expect(400);
+
     const document = await request(context.app.getHttpServer())
       .post("/api/v1/teachers/documents")
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
       .send({
         teacherId: teacher.body.id,
         documentType: "CONTRAT",
-        fileUrl: "https://cdn.test.local/contracts/ens-core-001.pdf",
+        documentName: "Contrat Awa Diallo",
+        fileUrl: documentUpload.body.fileUrl,
         originalName: "contrat-awa-diallo.pdf",
         mimeType: "application/pdf",
+        size: 238944,
         status: "ACTIVE"
       })
       .expect(201);

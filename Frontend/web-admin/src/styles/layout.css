@@ -128,7 +128,6 @@
 }
 
 .context-bar,
-.dashboard-hero-shell,
 .dashboard-panel-shell,
 .table-panel,
 .editor-panel,
@@ -150,8 +149,7 @@
 .table-header h2,
 .table-header h3,
 .context-bar h2,
-.reference-card-head h3,
-.dashboard-hero h2 {
+.reference-card-head h3 {
   color: var(--flexadm-surface-copy);
   font-family: "Sora", "Manrope", sans-serif;
 }
@@ -174,8 +172,7 @@
 }
 
 .button-ghost,
-.mini-link,
-.hero-secondary-cta {
+.mini-link {
   border-radius: var(--ui-control-radius);
   border: 1px solid var(--ui-panel-border);
   background: var(--ui-panel-surface-soft);
@@ -183,82 +180,14 @@
 }
 
 .button-ghost:hover:not(:disabled),
-.mini-link:hover:not(:disabled),
-.hero-secondary-cta:hover:not(:disabled) {
+.mini-link:hover:not(:disabled) {
   background: var(--ui-panel-surface-hover);
-}
-
-.hero-primary-cta {
-  border-radius: var(--ui-control-radius);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--flexadm-accent-soft) 26%, #ffffff) 0%, var(--flexadm-accent) 100%);
-  color: #07131b;
-  box-shadow: 0 12px 24px rgba(24, 198, 209, 0.16);
 }
 
 .dashboard-shell-v2 {
   gap: var(--ui-shell-gap);
 }
 
-.dashboard-hero-shell {
-  padding: 1.15rem 1.18rem;
-}
-
-.dashboard-hero-flex {
-  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.86fr);
-  gap: 0.95rem;
-  border-color: var(--ui-panel-border);
-  background:
-    radial-gradient(circle at top right, rgba(25, 195, 207, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(14, 29, 40, 0.98) 0%, rgba(11, 23, 33, 0.99) 100%);
-}
-
-.dashboard-hero-content {
-  gap: 0.85rem;
-  align-content: start;
-}
-
-.dashboard-hero h2 {
-  font-size: clamp(1.5rem, 1.9vw, 2.05rem);
-  line-height: 1.05;
-  letter-spacing: -0.04em;
-}
-
-.dashboard-hero-copy {
-  max-width: 44rem;
-  font-size: 0.94rem;
-  line-height: 1.68;
-}
-
-.dashboard-hero-actions {
-  gap: 0.62rem;
-}
-
-.hero-primary-cta,
-.hero-secondary-cta {
-  min-height: 2.82rem;
-  padding: 0.68rem 0.96rem;
-}
-
-.dashboard-hero-foot {
-  gap: 0.5rem;
-}
-
-.dashboard-hero-foot span {
-  min-height: 1.95rem;
-  padding: 0.28rem 0.66rem;
-  border-radius: var(--ui-pill-radius);
-  border: 1px solid var(--ui-panel-border);
-  background: rgba(255, 255, 255, 0.03);
-  color: color-mix(in srgb, var(--flexadm-surface-copy-soft) 90%, transparent);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.dashboard-hero-aside {
-  gap: 0.75rem;
-}
-
-.dashboard-hero-metric,
 .kpi-card-flex,
 .module-overview-card,
 .metric-card,
@@ -269,12 +198,6 @@
   box-shadow: none;
 }
 
-.dashboard-hero-metric {
-  padding: 0.92rem 0.96rem;
-}
-
-.dashboard-hero-metric span,
-.dashboard-hero-metric small,
 .kpi-card-label,
 .module-overview-card span,
 .metric-card span,
@@ -285,7 +208,6 @@
   text-transform: uppercase;
 }
 
-.dashboard-hero-metric strong,
 .module-overview-card strong,
 .metric-card strong,
 .students-overview-card strong {
@@ -582,17 +504,12 @@ tbody td {
 }
 
 @media (max-width: 980px) {
-  .dashboard-hero-flex {
-    grid-template-columns: 1fr;
-  }
-
   .dashboard-side {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 760px) {
-  .dashboard-hero-shell,
   .dashboard-panel-shell,
   .reference-card {
     padding: 0.92rem 0.96rem;
@@ -857,19 +774,6 @@ tbody td {
   padding: var(--ui-panel-padding);
 }
 
-.dashboard-hero-shell {
-  padding: 1rem 1.02rem;
-}
-
-.dashboard-hero-flex {
-  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.82fr);
-  gap: 0.82rem;
-}
-
-.dashboard-hero-content {
-  gap: 0.78rem;
-}
-
 .dashboard-section-badge {
   display: inline-flex;
   align-items: center;
@@ -882,46 +786,6 @@ tbody td {
   color: var(--flexadm-surface-copy);
   font-size: 0.72rem;
   font-weight: 800;
-}
-
-.dashboard-hero h2 {
-  font-size: clamp(1.45rem, 1.7vw, 1.95rem);
-}
-
-.dashboard-hero-copy {
-  max-width: 42rem;
-  font-size: 0.9rem;
-  line-height: 1.62;
-}
-
-.dashboard-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
-.hero-primary-cta,
-.hero-secondary-cta {
-  min-height: 2.72rem;
-  padding: 0.62rem 0.92rem;
-}
-
-.dashboard-hero-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.dashboard-hero-aside {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.72rem;
-  align-content: start;
-}
-
-.dashboard-hero-metric {
-  min-height: 100%;
-  padding: 0.85rem 0.9rem;
 }
 
 .metric-card,
@@ -1155,8 +1019,7 @@ tbody td {
 
 @media (max-width: 1320px) {
   .dashboard-kpi-grid-flex,
-  .module-overview-grid,
-  .dashboard-hero-aside {
+  .module-overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1213,9 +1076,7 @@ tbody td {
     justify-content: flex-start;
   }
 
-  .dashboard-hero-flex,
-  .dashboard-side,
-  .dashboard-hero-aside {
+  .dashboard-side {
     grid-template-columns: 1fr;
   }
 

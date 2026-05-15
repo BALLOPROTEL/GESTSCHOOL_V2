@@ -341,7 +341,7 @@ export function ClassesSection(): JSX.Element {
                         <td>{item.actualCapacity ?? item.capacity ?? "-"} / {item.capacity ?? "-"}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-ghost" onClick={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}>
+                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}>
                             Supprimer
                           </button>
                         </td>

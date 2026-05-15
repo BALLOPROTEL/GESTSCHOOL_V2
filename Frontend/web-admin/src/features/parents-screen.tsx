@@ -400,7 +400,7 @@ export function ParentsScreen({
             </form>
 
             <div className="table-wrap">
-              <table>
+              <table data-responsive-table="true">
                 <thead>
                   <tr>
                     <th>Parent</th>
@@ -418,15 +418,15 @@ export function ParentsScreen({
                   ) : (
                     relations.map((relation) => (
                       <tr key={relation.id}>
-                        <td>{relation.parentName || relation.parentUsername || "-"}</td>
-                        <td>{relation.studentMatricule} - {relation.studentName}</td>
-                        <td>{roleLabel(relation.relationType)}</td>
-                        <td>
+                        <td data-label="Parent">{relation.parentName || relation.parentUsername || "-"}</td>
+                        <td data-label="Eleve">{relation.studentMatricule} - {relation.studentName}</td>
+                        <td data-label="Relation">{roleLabel(relation.relationType)}</td>
+                        <td data-label="Cursus eleve">
                           {relation.studentTracks.length > 0
                             ? relation.studentTracks.map(trackLabel).join(" + ")
                             : "A regulariser"}
                         </td>
-                        <td>
+                        <td data-label="Roles">
                           {[
                             relation.isPrimaryContact ? "principal" : "",
                             relation.legalGuardian ? "legal" : "",
@@ -434,8 +434,8 @@ export function ParentsScreen({
                             relation.emergencyContact ? "urgence" : ""
                           ].filter(Boolean).join(", ") || "-"}
                         </td>
-                        <td>{relation.status}</td>
-                        <td>
+                        <td data-label="Statut">{relation.status}</td>
+                        <td data-label="Action">
                           <button type="button" className="button-danger" onClick={() => void archiveLink(relation.id)}>
                             Archiver
                           </button>

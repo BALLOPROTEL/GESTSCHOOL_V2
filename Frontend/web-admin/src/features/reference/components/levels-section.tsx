@@ -233,7 +233,7 @@ export function LevelsSection(): JSX.Element {
                         <td>{item.sortOrder}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-ghost" onClick={() => void deleteRef(`/levels/${item.id}`, "Niveau supprime.")}>
+                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/levels/${item.id}`, "Niveau supprime.")}>
                             Supprimer
                           </button>
                         </td>

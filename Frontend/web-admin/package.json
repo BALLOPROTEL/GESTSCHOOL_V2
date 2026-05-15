@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest run",
+    "test:visual": "node scripts/visual-audit.mjs",
     "test:smoke": "node scripts/smoke-tests.mjs"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "eslint": "^9.25.1",
     "eslint-config-prettier": "^10.1.2",
     "jsdom": "^29.0.2",
+    "playwright": "^1.59.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.31.1",
     "vite": "^7.0.0",

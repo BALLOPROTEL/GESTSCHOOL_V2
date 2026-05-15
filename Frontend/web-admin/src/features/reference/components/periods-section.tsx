@@ -285,7 +285,7 @@ export function PeriodsSection(): JSX.Element {
                         <td>{item.startDate} au {item.endDate}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-ghost" onClick={() => void deleteRef(`/academic-periods/${item.id}`, "Periode supprimee.")}>
+                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/academic-periods/${item.id}`, "Periode supprimee.")}>
                             Supprimer
                           </button>
                         </td>

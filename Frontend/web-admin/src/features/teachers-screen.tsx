@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AcademicTrack,
@@ -22,12 +22,14 @@ import { TeachersListSection, TeachersSummarySection } from "./teachers/componen
 import {
   createTeacherAssignment,
   createTeacherDocument,
+  createTeacherDocumentUploadDescriptor,
   createTeacherSkill,
   deleteTeacherResource,
   fetchTeacherDetail,
   fetchTeachers,
   fetchTeachersModule,
-  saveTeacher
+  saveTeacher,
+  uploadTeacherDocumentFile
 } from "./teachers/teachers-service";
 import {
   ASSIGNMENT_STATUSES,
@@ -35,7 +37,13 @@ import {
   SCHOOL_NAME,
   TEACHER_STATUSES,
   TEACHER_TYPES,
+  TEACHER_DOCUMENT_ACCEPT,
+  TEACHER_DOCUMENT_MAX_SIZE_BYTES,
   TRACKS,
+  documentTypeLabel,
+  fileNameWithoutExtension,
+  formatFileSize,
+  isAllowedTeacherDocumentMimeType,
   type SkillForm,
   type TeacherAssignmentForm,
   type TeacherDocumentForm,
@@ -48,9 +56,13 @@ import {
   defaultTeacherForm,
   emptyToUndefined,
   numberOrUndefined,
+  statusPillClass,
+  teacherStatusLabel,
+  teacherTypeLabel,
   today,
   trackLabel
 } from "./teachers/teachers-screen-model";
+import { translateUiString, type UiLanguage } from "../shared/i18n";
 
 type TeachersScreenProps = {
   api: (path: string, init?: RequestInit) => Promise<Response>;
@@ -61,12 +73,13 @@ type TeachersScreenProps = {
   schoolYears: SchoolYear[];
   subjects: Subject[];
   users: UserAccount[];
+  language?: UiLanguage;
   onError: (message: string) => void;
   onNotice: (message: string) => void;
 };
 
 export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
-  const { api, classes, cycles, levels, onError, onNotice, periods, schoolYears, subjects, users } = props;
+  const { api, classes, cycles, language = "fr", levels, onError, onNotice, periods, schoolYears, subjects, users } = props;
   const [activeStep, setActiveStep] = useState("list");
   const [teachers, setTeachers] = useState<TeacherRecord[]>([]);
   const [skills, setSkills] = useState<TeacherSkillRecord[]>([]);
@@ -82,6 +95,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   const [skillForm, setSkillForm] = useState<SkillForm>(defaultSkillForm);
   const [assignmentForm, setAssignmentForm] = useState<TeacherAssignmentForm>(defaultAssignmentForm);
   const [documentForm, setDocumentForm] = useState<TeacherDocumentForm>(defaultDocumentForm);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentFileError, setDocumentFileError] = useState("");
+  const [documentUploading, setDocumentUploading] = useState(false);
+  const documentFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeSchoolYear = useMemo(
     () => schoolYears.find((item) => item.isActive) || schoolYears[0],
@@ -95,12 +112,12 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
   const steps: WorkflowStepDef[] = [
     { id: "list", title: "Liste des enseignants", hint: "Rechercher, filtrer et ouvrir une fiche.", done: teachers.length > 0 },
-    { id: "form", title: editingTeacherId ? "Edition enseignant" : "Ajouter un enseignant", hint: "Identite, contact et statut." },
-    { id: "detail", title: "Detail enseignant", hint: "Fiche complete, competences, affectations et documents." },
-    { id: "skills", title: "Competences", hint: "Matiere, cycle, niveau et qualification.", done: skills.length > 0 },
-    { id: "assignments", title: "Affectations", hint: "Classe, matiere, annee, charge et titulaire.", done: assignments.length > 0 },
-    { id: "workloads", title: "Charges", hint: "Synthese des volumes horaires.", done: workloads.length > 0 },
-    { id: "documents", title: "Documents", hint: "Contrats, diplomes, pieces et attestations.", done: documents.length > 0 }
+    { id: "form", title: editingTeacherId ? "Modifier l'enseignant" : "Ajouter un enseignant", hint: "Identité, contact et statut." },
+    { id: "detail", title: "Détail", hint: "Fiche complète, compétences, affectations et documents." },
+    { id: "skills", title: "Compétences", hint: "Matière, cycle, niveau et qualification.", done: skills.length > 0 },
+    { id: "assignments", title: "Affectations", hint: "Classe, matière, année, charge et titulaire.", done: assignments.length > 0 },
+    { id: "workloads", title: "Charges", hint: "Synthèse des volumes horaires.", done: workloads.length > 0 },
+    { id: "documents", title: "Documents", hint: "Contrats, diplômes, pièces et attestations.", done: documents.length > 0 }
   ];
 
   const loadTeachers = async (): Promise<void> => {
@@ -135,7 +152,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     try {
       setDetail(await fetchTeacherDetail(api, teacherId));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de charger le detail enseignant.");
+      onError(error instanceof Error ? error.message : "Impossible de charger le détail enseignant.");
     }
   };
 
@@ -157,6 +174,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     setDocumentForm((prev) => (prev.teacherId ? prev : { ...prev, teacherId }));
     if (activeStep === "detail") void loadDetail(teacherId);
   }, [activeStep, selectedTeacherId, teachers]);
+
+  const translate = (value: string): string => translateUiString(language, value);
+  const translateDocumentType = (value?: string): string => translate(documentTypeLabel(value));
+  const locale = language === "en" ? "en-US" : language === "ar" ? "ar" : "fr-FR";
 
   const submitTeacher = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -189,7 +210,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     setSelectedTeacherId(saved.id);
     setEditingTeacherId(null);
     setTeacherForm(defaultTeacherForm());
-    onNotice("Fiche enseignant enregistree.");
+    onNotice("Fiche enseignant enregistrée.");
     await loadModule();
     setActiveStep("detail");
   };
@@ -210,10 +231,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
         comment: emptyToUndefined(skillForm.comment)
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'ajouter la competence enseignant.");
+      onError(error instanceof Error ? error.message : "Impossible d'ajouter la compétence enseignant.");
       return;
     }
-    onNotice("Competence enseignant ajoutee.");
+    onNotice("Compétence enseignant ajoutée.");
     setSkillForm((prev) => ({ ...defaultSkillForm(), teacherId: prev.teacherId }));
     await loadModule();
   };
@@ -238,32 +259,77 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
         comment: emptyToUndefined(assignmentForm.comment)
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de creer l'affectation enseignant.");
+      onError(error instanceof Error ? error.message : "Impossible de créer l'affectation enseignant.");
       return;
     }
-    onNotice("Affectation pedagogique creee.");
+    onNotice("Affectation pédagogique créée.");
     setAssignmentForm((prev) => ({ ...defaultAssignmentForm(), teacherId: prev.teacherId, schoolYearId: prev.schoolYearId }));
     await loadModule();
   };
 
+  const validateDocumentFile = (file: File | null): string => {
+    if (!file) return translate("Veuillez sélectionner un fichier.");
+    if (!isAllowedTeacherDocumentMimeType(file.type)) return translate("Ce type de fichier n'est pas autorisé.");
+    if (file.size > TEACHER_DOCUMENT_MAX_SIZE_BYTES) {
+      return translate("Le fichier dépasse la taille maximale autorisée.");
+    }
+    return "";
+  };
+
+  const handleDocumentFileChange = (event: ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0] || null;
+    const validationError = validateDocumentFile(file);
+    setDocumentFile(file);
+    setDocumentFileError(validationError);
+    if (file && !documentForm.documentName.trim()) {
+      setDocumentForm((prev) => ({ ...prev, documentName: fileNameWithoutExtension(file.name) }));
+    }
+  };
+
+  const clearDocumentFile = (): void => {
+    setDocumentFile(null);
+    setDocumentFileError("");
+    if (documentFileInputRef.current) documentFileInputRef.current.value = "";
+  };
+
   const submitDocument = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    const validationError = validateDocumentFile(documentFile);
+    if (validationError) {
+      setDocumentFileError(validationError);
+      onError(validationError);
+      return;
+    }
+    if (!documentFile) return;
+    setDocumentUploading(true);
     try {
+      const descriptor = await createTeacherDocumentUploadDescriptor(api, documentForm.teacherId, {
+        fileName: documentFile.name,
+        mimeType: documentFile.type,
+        size: documentFile.size
+      });
+      await uploadTeacherDocumentFile(descriptor, documentFile);
       await createTeacherDocument(api, {
         teacherId: documentForm.teacherId,
         documentType: documentForm.documentType,
-        fileUrl: documentForm.fileUrl,
-        originalName: documentForm.originalName,
-        mimeType: emptyToUndefined(documentForm.mimeType),
-        size: numberOrUndefined(documentForm.size),
+        documentName: documentForm.documentName,
+        fileUrl: descriptor.fileUrl,
+        originalName: documentFile.name,
+        mimeType: documentFile.type || descriptor.mimeType,
+        size: documentFile.size,
         status: documentForm.status
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de referencer le document enseignant.");
+      onError(error instanceof Error ? error.message : translate("L'envoi du document a échoué."));
+      setDocumentUploading(false);
       return;
     }
-    onNotice("Document enseignant reference.");
+    onNotice(translate("Document ajouté avec succès."));
     setDocumentForm((prev) => ({ ...defaultDocumentForm(), teacherId: prev.teacherId }));
+    setDocumentFile(null);
+    setDocumentFileError("");
+    if (documentFileInputRef.current) documentFileInputRef.current.value = "";
+    setDocumentUploading(false);
     await loadModule();
   };
 
@@ -295,7 +361,8 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     setActiveStep("form");
   };
 
-  const archiveResource = async (path: string, successMessage: string): Promise<void> => {
+  const archiveResource = async (path: string, successMessage: string, confirmMessage?: string): Promise<void> => {
+    if (confirmMessage && !window.confirm(translate(confirmMessage))) return;
     try {
       await deleteTeacherResource(api, path);
     } catch (error) {
@@ -332,6 +399,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       {activeStep === "list" ? (
         <TeachersSummarySection
           assignments={assignments}
+          language={language}
           loading={loading}
           skills={skills}
           teachers={teachers}
@@ -344,12 +412,15 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           filters={filters}
           loading={loading}
           onAddTeacher={() => setActiveStep("form")}
-          onArchiveTeacher={(teacherId) => void archiveResource(`/teachers/${teacherId}`, "Enseignant archive.")}
+          onArchiveTeacher={(teacherId) =>
+            void archiveResource(`/teachers/${teacherId}`, "Enseignant archivé.", "Confirmer l'archivage de cet enseignant ?")
+          }
           onEditTeacher={editTeacher}
           onFilter={() => void loadTeachers()}
           onOpenDetail={openDetail}
           onReload={() => void loadModule()}
           setFilters={setFilters}
+          language={language}
           subjects={subjects}
           teachers={teachers}
         />
@@ -360,36 +431,36 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <div className="table-header">
             <div>
               <p className="section-kicker">Fiche enseignant</p>
-              <h2>{editingTeacherId ? "Modifier enseignant" : "Ajouter un enseignant"}</h2>
+              <h2>{editingTeacherId ? "Modifier l'enseignant" : "Ajouter un enseignant"}</h2>
             </div>
             <span className="module-header-badge">{SCHOOL_NAME}</span>
           </div>
           <form className="form-grid module-form teachers-form-grid" onSubmit={submitTeacher}>
-            <label>Matricule<input value={teacherForm.matricule} onChange={(event) => setTeacherForm((prev) => ({ ...prev, matricule: event.target.value }))} required /></label>
-            <label>Prenom<input value={teacherForm.firstName} onChange={(event) => setTeacherForm((prev) => ({ ...prev, firstName: event.target.value }))} required /></label>
-            <label>Nom<input value={teacherForm.lastName} onChange={(event) => setTeacherForm((prev) => ({ ...prev, lastName: event.target.value }))} required /></label>
-            <label>Sexe<select value={teacherForm.sex} onChange={(event) => setTeacherForm((prev) => ({ ...prev, sex: event.target.value as TeacherForm["sex"] }))}><option value="">Choisir</option><option value="M">M</option><option value="F">F</option></select></label>
-            <label>Date naissance<input type="date" value={teacherForm.birthDate} onChange={(event) => setTeacherForm((prev) => ({ ...prev, birthDate: event.target.value }))} /></label>
-            <label>Telephone principal<input value={teacherForm.primaryPhone} onChange={(event) => setTeacherForm((prev) => ({ ...prev, primaryPhone: event.target.value }))} /></label>
-            <label>Telephone secondaire<input value={teacherForm.secondaryPhone} onChange={(event) => setTeacherForm((prev) => ({ ...prev, secondaryPhone: event.target.value }))} /></label>
+            <label>Matricule *<input value={teacherForm.matricule} onChange={(event) => setTeacherForm((prev) => ({ ...prev, matricule: event.target.value }))} required /></label>
+            <label>Prénom *<input value={teacherForm.firstName} onChange={(event) => setTeacherForm((prev) => ({ ...prev, firstName: event.target.value }))} required /></label>
+            <label>Nom *<input value={teacherForm.lastName} onChange={(event) => setTeacherForm((prev) => ({ ...prev, lastName: event.target.value }))} required /></label>
+            <label>Sexe *<select value={teacherForm.sex} onChange={(event) => setTeacherForm((prev) => ({ ...prev, sex: event.target.value as TeacherForm["sex"] }))} required><option value="">Choisir</option><option value="M">M</option><option value="F">F</option></select></label>
+            <label>Date de naissance<input type="date" value={teacherForm.birthDate} onChange={(event) => setTeacherForm((prev) => ({ ...prev, birthDate: event.target.value }))} /></label>
+            <label>Téléphone principal<input value={teacherForm.primaryPhone} onChange={(event) => setTeacherForm((prev) => ({ ...prev, primaryPhone: event.target.value }))} required={!teacherForm.email} /></label>
+            <label>Téléphone secondaire<input value={teacherForm.secondaryPhone} onChange={(event) => setTeacherForm((prev) => ({ ...prev, secondaryPhone: event.target.value }))} /></label>
             <label>Email<input type="email" value={teacherForm.email} onChange={(event) => setTeacherForm((prev) => ({ ...prev, email: event.target.value }))} /></label>
-            <label>Date embauche<input type="date" value={teacherForm.hireDate} onChange={(event) => setTeacherForm((prev) => ({ ...prev, hireDate: event.target.value }))} /></label>
-            <label>Type<select value={teacherForm.teacherType} onChange={(event) => setTeacherForm((prev) => ({ ...prev, teacherType: event.target.value }))}>{TEACHER_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
-            <label>Specialite<input value={teacherForm.speciality} onChange={(event) => setTeacherForm((prev) => ({ ...prev, speciality: event.target.value }))} /></label>
-            <label>Diplome principal<input value={teacherForm.mainDiploma} onChange={(event) => setTeacherForm((prev) => ({ ...prev, mainDiploma: event.target.value }))} /></label>
-            <label>Langue enseignement<input value={teacherForm.teachingLanguage} onChange={(event) => setTeacherForm((prev) => ({ ...prev, teachingLanguage: event.target.value }))} /></label>
-            <label>Statut<select value={teacherForm.status} onChange={(event) => setTeacherForm((prev) => ({ ...prev, status: event.target.value }))}>{TEACHER_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
-            <label>Etablissement<select value={teacherForm.establishmentId} onChange={(event) => setTeacherForm((prev) => ({ ...prev, establishmentId: event.target.value }))}><option value="">Al Manarat Islamiyat</option></select></label>
-            <label>Compte utilisateur<select value={teacherForm.userId} onChange={(event) => setTeacherForm((prev) => ({ ...prev, userId: event.target.value }))}><option value="">Non lie</option>{teacherUsers.map((user) => <option key={user.id} value={user.id}>{user.username}</option>)}</select></label>
-            <label>Nationalite<input value={teacherForm.nationality} onChange={(event) => setTeacherForm((prev) => ({ ...prev, nationality: event.target.value }))} /></label>
-            <label>Piece type<input value={teacherForm.identityDocumentType} onChange={(event) => setTeacherForm((prev) => ({ ...prev, identityDocumentType: event.target.value }))} /></label>
-            <label>Piece numero<input value={teacherForm.identityDocumentNumber} onChange={(event) => setTeacherForm((prev) => ({ ...prev, identityDocumentNumber: event.target.value }))} /></label>
+            <label>Date d'embauche<input type="date" value={teacherForm.hireDate} onChange={(event) => setTeacherForm((prev) => ({ ...prev, hireDate: event.target.value }))} /></label>
+            <label>Type *<select value={teacherForm.teacherType} onChange={(event) => setTeacherForm((prev) => ({ ...prev, teacherType: event.target.value }))} required>{TEACHER_TYPES.map((type) => <option key={type} value={type}>{teacherTypeLabel(type)}</option>)}</select></label>
+            <label>Spécialité<input value={teacherForm.speciality} onChange={(event) => setTeacherForm((prev) => ({ ...prev, speciality: event.target.value }))} /></label>
+            <label>Diplôme principal<input value={teacherForm.mainDiploma} onChange={(event) => setTeacherForm((prev) => ({ ...prev, mainDiploma: event.target.value }))} /></label>
+            <label>Langue d'enseignement *<select value={teacherForm.teachingLanguage} onChange={(event) => setTeacherForm((prev) => ({ ...prev, teachingLanguage: event.target.value }))} required><option value="Français">Français</option><option value="Arabe">Arabe</option><option value="Français / Arabe">Français / Arabe</option></select></label>
+            <label>Statut *<select value={teacherForm.status} onChange={(event) => setTeacherForm((prev) => ({ ...prev, status: event.target.value }))} required>{TEACHER_STATUSES.map((status) => <option key={status} value={status}>{teacherStatusLabel(status)}</option>)}</select></label>
+            <label>Établissement<select value={teacherForm.establishmentId} onChange={(event) => setTeacherForm((prev) => ({ ...prev, establishmentId: event.target.value }))}><option value="">Al Manarat Islamiyat</option></select></label>
+            <label>Compte utilisateur lié<select value={teacherForm.userId} onChange={(event) => setTeacherForm((prev) => ({ ...prev, userId: event.target.value }))}><option value="">Non lié</option>{teacherUsers.map((user) => <option key={user.id} value={user.id}>{user.username}</option>)}</select></label>
+            <label>Nationalité<input value={teacherForm.nationality} onChange={(event) => setTeacherForm((prev) => ({ ...prev, nationality: event.target.value }))} /></label>
+            <label>Type de pièce<input value={teacherForm.identityDocumentType} onChange={(event) => setTeacherForm((prev) => ({ ...prev, identityDocumentType: event.target.value }))} /></label>
+            <label>Numéro de pièce<input value={teacherForm.identityDocumentNumber} onChange={(event) => setTeacherForm((prev) => ({ ...prev, identityDocumentNumber: event.target.value }))} /></label>
             <label className="form-grid-span-full">Adresse<input value={teacherForm.address} onChange={(event) => setTeacherForm((prev) => ({ ...prev, address: event.target.value }))} /></label>
             <label className="form-grid-span-full">Notes internes<textarea value={teacherForm.internalNotes} onChange={(event) => setTeacherForm((prev) => ({ ...prev, internalNotes: event.target.value }))} /></label>
             <div className="actions">
-              <button type="submit">{editingTeacherId ? "Mettre a jour" : "Creer enseignant"}</button>
-              <button type="button" className="button-ghost" onClick={() => { setEditingTeacherId(null); setTeacherForm(defaultTeacherForm()); }}>Reinitialiser</button>
-              <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>Retour liste</button>
+              <button type="submit">{editingTeacherId ? "Enregistrer les modifications" : "Créer l'enseignant"}</button>
+              <button type="button" className="button-ghost" onClick={() => { setEditingTeacherId(null); setTeacherForm(defaultTeacherForm()); }}>Réinitialiser</button>
+              <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>Retour à la liste</button>
             </div>
           </form>
         </section>
@@ -400,28 +471,33 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <div className="table-header">
             <div>
               <p className="section-kicker">Dossier enseignant</p>
-              <h2>{detail?.fullName || selectedTeacher?.fullName || "Detail enseignant"}</h2>
+              <h2>{detail?.fullName || selectedTeacher?.fullName || "Détail enseignant"}</h2>
             </div>
-            <div className="module-inline-strip">
-              <button type="button" className="button-ghost" onClick={() => selectedTeacher && editTeacher(selectedTeacher)}>Modifier</button>
-              <button type="button" onClick={() => setActiveStep("assignments")}>Affecter</button>
-            </div>
+            {detail || selectedTeacher ? (
+              <div className="module-inline-strip">
+                <button type="button" className="button-ghost" onClick={() => selectedTeacher && editTeacher(selectedTeacher)}>Modifier</button>
+                <button type="button" onClick={() => setActiveStep("assignments")}>Affecter</button>
+              </div>
+            ) : null}
           </div>
           {!detail ? (
-            <p className="section-lead">Selectionnez un enseignant depuis la liste.</p>
+            <div className="empty-state-block">
+              <p className="section-lead">Sélectionnez un enseignant depuis la liste.</p>
+              <p>Choisissez un enseignant dans la liste pour consulter ou modifier sa fiche.</p>
+            </div>
           ) : (
             <div className="teachers-detail-grid">
               <article className="module-overview-card teachers-identity-card">
                 <span>{detail.matricule}</span>
                 <strong>{detail.fullName}</strong>
-                <small>{detail.teacherType} - {detail.status}</small>
-                <small>{detail.primaryPhone || "Telephone non renseigne"} - {detail.email || "Email non renseigne"}</small>
+                <small>{teacherTypeLabel(detail.teacherType)} - {teacherStatusLabel(detail.status)}</small>
+                <small>{detail.primaryPhone || "Téléphone non renseigné"} - {detail.email || "Email non renseigné"}</small>
               </article>
-              <article className="module-overview-card"><span>Competences</span><strong>{detail.skills.length}</strong><small>Perimetres autorises</small></article>
+              <article className="module-overview-card"><span>Compétences</span><strong>{detail.skills.length}</strong><small>Périmètres autorisés</small></article>
               <article className="module-overview-card"><span>Affectations</span><strong>{detail.assignments.length}</strong><small>Historique complet</small></article>
               <article className="module-overview-card"><span>Charge francophone</span><strong>{detail.francophoneWorkloadHoursTotal} h</strong><small>{detail.assignments.filter((item) => item.track === "FRANCOPHONE").length} affectation(s)</small></article>
               <article className="module-overview-card"><span>Charge arabophone</span><strong>{detail.arabophoneWorkloadHoursTotal} h</strong><small>{detail.assignments.filter((item) => item.track === "ARABOPHONE").length} affectation(s)</small></article>
-              <article className="module-overview-card"><span>Documents</span><strong>{detail.documents.length}</strong><small>Pieces rattachees</small></article>
+              <article className="module-overview-card"><span>Documents</span><strong>{detail.documents.length}</strong><small>Pièces rattachées</small></article>
             </div>
           )}
         </section>
@@ -429,24 +505,24 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
       {activeStep === "skills" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Competences pedagogiques</p><h2>Ce que l'enseignant peut enseigner</h2></div></div>
+          <div className="table-header"><div><p className="section-kicker">Compétences pédagogiques</p><h2>Ce que l'enseignant peut enseigner</h2></div></div>
           <form className="form-grid module-form teachers-form-grid" onSubmit={submitSkill}>
-            <label>Enseignant<select value={skillForm.teacherId} onChange={(event) => setSkillForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">Choisir</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
-            <label>Matiere<select value={skillForm.subjectId} onChange={(event) => setSkillForm((prev) => ({ ...prev, subjectId: event.target.value }))} required><option value="">Choisir</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}</select></label>
-            <label>Cursus<select value={skillForm.track} onChange={(event) => setSkillForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))} required>{TRACKS.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</select></label>
+            <label>Enseignant *<select value={skillForm.teacherId} onChange={(event) => setSkillForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">Choisir</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
+            <label>Matière *<select value={skillForm.subjectId} onChange={(event) => setSkillForm((prev) => ({ ...prev, subjectId: event.target.value }))} required><option value="">Choisir</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}</select></label>
+            <label>Cursus *<select value={skillForm.track} onChange={(event) => setSkillForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))} required>{TRACKS.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</select></label>
             <label>Cycle<select value={skillForm.cycleId} onChange={(event) => setSkillForm((prev) => ({ ...prev, cycleId: event.target.value }))}><option value="">Tous</option>{cycles.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.label}</option>)}</select></label>
             <label>Niveau<select value={skillForm.levelId} onChange={(event) => setSkillForm((prev) => ({ ...prev, levelId: event.target.value }))}><option value="">Tous</option>{levels.map((level) => <option key={level.id} value={level.id}>{level.label}</option>)}</select></label>
             <label>Qualification<input value={skillForm.qualification} onChange={(event) => setSkillForm((prev) => ({ ...prev, qualification: event.target.value }))} /></label>
-            <label>Experience<input type="number" min="0" value={skillForm.yearsExperience} onChange={(event) => setSkillForm((prev) => ({ ...prev, yearsExperience: event.target.value }))} /></label>
-            <label>Priorite<input type="number" min="0" value={skillForm.priority} onChange={(event) => setSkillForm((prev) => ({ ...prev, priority: event.target.value }))} /></label>
-            <label>Statut<select value={skillForm.status} onChange={(event) => setSkillForm((prev) => ({ ...prev, status: event.target.value }))}><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select></label>
+            <label>Expérience<input type="number" min="0" value={skillForm.yearsExperience} onChange={(event) => setSkillForm((prev) => ({ ...prev, yearsExperience: event.target.value }))} /></label>
+            <label>Priorité<input type="number" min="0" value={skillForm.priority} onChange={(event) => setSkillForm((prev) => ({ ...prev, priority: event.target.value }))} /></label>
+            <label>Statut *<select value={skillForm.status} onChange={(event) => setSkillForm((prev) => ({ ...prev, status: event.target.value }))} required><option value="ACTIVE">Actif</option><option value="INACTIVE">Inactif</option></select></label>
             <label className="form-grid-span-full">Commentaire<input value={skillForm.comment} onChange={(event) => setSkillForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
-            <div className="actions"><button type="submit">Ajouter competence</button></div>
+            <div className="actions"><button type="submit">Ajouter la compétence</button></div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>Enseignant</th><th>Matiere</th><th>Cursus</th><th>Cycle</th><th>Niveau</th><th>Qualification</th><th>Statut</th><th>Action</th></tr></thead>
-              <tbody>{selectedTeacherSkills.length === 0 ? <tr><td colSpan={8} className="empty-row">Aucune competence.</td></tr> : selectedTeacherSkills.map((skill) => (
-                <tr key={skill.id}><td>{skill.teacherName}</td><td>{skill.subjectLabel}</td><td>{trackLabel(skill.track)}</td><td>{skill.cycleLabel || "Tous"}</td><td>{skill.levelLabel || "Tous"}</td><td>{skill.qualification || "-"}</td><td>{skill.status}</td><td><button type="button" className="button-ghost" onClick={() => void archiveResource(`/teachers/skills/${skill.id}`, "Competence supprimee.")}>Supprimer</button></td></tr>
+            <table><thead><tr><th>Enseignant</th><th>Matière</th><th>Cursus</th><th>Cycle</th><th>Niveau</th><th>Qualification</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody>{selectedTeacherSkills.length === 0 ? <tr><td colSpan={8} className="empty-row">Aucune compétence enregistrée.</td></tr> : selectedTeacherSkills.map((skill) => (
+                <tr key={skill.id}><td>{skill.teacherName}</td><td>{skill.subjectLabel}</td><td>{trackLabel(skill.track)}</td><td>{skill.cycleLabel || "Tous"}</td><td>{skill.levelLabel || "Tous"}</td><td>{skill.qualification || "-"}</td><td><span className={statusPillClass(skill.status)}>{teacherStatusLabel(skill.status)}</span></td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/skills/${skill.id}`, "Compétence supprimée.", "Confirmer la suppression de cette compétence ?")}>Supprimer</button></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -455,28 +531,28 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
       {activeStep === "assignments" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Affectations pedagogiques</p><h2>Ce que l'enseignant enseigne reellement</h2></div></div>
+          <div className="table-header"><div><p className="section-kicker">Affectations pédagogiques</p><h2>Ce que l'enseignant enseigne réellement</h2></div></div>
           <form className="form-grid module-form teachers-form-grid" onSubmit={submitAssignment}>
-            <label>Enseignant<select value={assignmentForm.teacherId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">Choisir</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
-            <label>Annee scolaire<select value={assignmentForm.schoolYearId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))} required><option value="">Choisir</option>{schoolYears.map((year) => <option key={year.id} value={year.id}>{year.label || year.code}</option>)}</select></label>
-            <label>Classe<select value={assignmentForm.classId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, classId: event.target.value }))} required><option value="">Choisir</option>{filteredClasses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-            <label>Matiere<select value={assignmentForm.subjectId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, subjectId: event.target.value }))} required><option value="">Choisir</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}</select></label>
-            <label>Cursus<select value={assignmentForm.track} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))} required>{TRACKS.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</select></label>
-            <label>Periode<select value={assignmentForm.periodId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, periodId: event.target.value }))}><option value="">Optionnelle</option>{filteredPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select></label>
+            <label>Enseignant *<select value={assignmentForm.teacherId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">Choisir</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
+            <label>Année scolaire *<select value={assignmentForm.schoolYearId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))} required><option value="">Choisir</option>{schoolYears.map((year) => <option key={year.id} value={year.id}>{year.label || year.code}</option>)}</select></label>
+            <label>Classe *<select value={assignmentForm.classId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, classId: event.target.value }))} required><option value="">Choisir</option>{filteredClasses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            <label>Matière *<select value={assignmentForm.subjectId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, subjectId: event.target.value }))} required><option value="">Choisir</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}</select></label>
+            <label>Cursus *<select value={assignmentForm.track} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))} required>{TRACKS.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</select></label>
+            <label>Période<select value={assignmentForm.periodId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, periodId: event.target.value }))}><option value="">Optionnelle</option>{filteredPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select></label>
             <label>Volume horaire<input type="number" min="0" step="0.5" value={assignmentForm.workloadHours} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, workloadHours: event.target.value }))} /></label>
             <label>Coefficient<input type="number" min="0" step="0.25" value={assignmentForm.coefficient} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, coefficient: event.target.value }))} /></label>
-            <label>Debut<input type="date" value={assignmentForm.startDate} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, startDate: event.target.value }))} required /></label>
+            <label>Début *<input type="date" value={assignmentForm.startDate} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, startDate: event.target.value }))} required /></label>
             <label>Fin<input type="date" value={assignmentForm.endDate} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, endDate: event.target.value }))} /></label>
-            <label>Statut<select value={assignmentForm.status} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, status: event.target.value }))}>{ASSIGNMENT_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
-            <label>Role<input value={assignmentForm.role} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, role: event.target.value }))} placeholder="Professeur principal, intervenant..." /></label>
+            <label>Statut *<select value={assignmentForm.status} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, status: event.target.value }))} required>{ASSIGNMENT_STATUSES.map((status) => <option key={status} value={status}>{teacherStatusLabel(status)}</option>)}</select></label>
+            <label>Rôle<input value={assignmentForm.role} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, role: event.target.value }))} placeholder="Professeur principal, intervenant..." /></label>
             <label className="check-row"><input type="checkbox" checked={assignmentForm.isHomeroomTeacher} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, isHomeroomTeacher: event.target.checked }))} /> Professeur principal</label>
             <label className="form-grid-span-full">Commentaire<input value={assignmentForm.comment} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
-            <div className="actions"><button type="submit">Creer affectation</button></div>
+            <div className="actions"><button type="submit">Créer l'affectation</button></div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>Enseignant</th><th>Matiere</th><th>Cursus</th><th>Classe</th><th>Annee</th><th>Periode</th><th>Charge</th><th>Titulaire</th><th>Statut</th><th>Action</th></tr></thead>
-              <tbody>{selectedTeacherAssignments.length === 0 ? <tr><td colSpan={10} className="empty-row">Aucune affectation.</td></tr> : selectedTeacherAssignments.map((item) => (
-                <tr key={item.id}><td>{item.teacherName}</td><td>{item.subjectLabel}</td><td>{trackLabel(item.track)}</td><td>{item.classLabel}</td><td>{item.schoolYearCode}</td><td>{item.periodLabel || "-"}</td><td>{item.workloadHours ?? 0} h</td><td>{item.isHomeroomTeacher ? "Oui" : "Non"}</td><td>{item.status}</td><td><button type="button" className="button-ghost" onClick={() => void archiveResource(`/teachers/assignments/${item.id}`, "Affectation archivee.")}>Archiver</button></td></tr>
+            <table><thead><tr><th>Enseignant</th><th>Matière</th><th>Cursus</th><th>Classe</th><th>Année</th><th>Période</th><th>Charge horaire</th><th>Titulaire</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody>{selectedTeacherAssignments.length === 0 ? <tr><td colSpan={10} className="empty-row">Aucune affectation enregistrée.</td></tr> : selectedTeacherAssignments.map((item) => (
+                <tr key={item.id}><td>{item.teacherName}</td><td>{item.subjectLabel}</td><td>{trackLabel(item.track)}</td><td>{item.classLabel}</td><td>{item.schoolYearCode}</td><td>{item.periodLabel || "-"}</td><td>{item.workloadHours ?? 0} h</td><td>{item.isHomeroomTeacher ? "Oui" : "Non"}</td><td><span className={statusPillClass(item.status)}>{teacherStatusLabel(item.status)}</span></td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/assignments/${item.id}`, "Affectation supprimée.", "Confirmer la suppression de cette affectation ?")}>Supprimer</button></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -485,11 +561,11 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
       {activeStep === "workloads" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Charge pedagogique</p><h2>Synthese par enseignant</h2></div></div>
+          <div className="table-header"><div><p className="section-kicker">Charge pédagogique</p><h2>Synthèse par enseignant</h2></div></div>
           <div className="table-wrap">
-            <table><thead><tr><th>Matricule</th><th>Enseignant</th><th>Affectations</th><th>Total horaire</th><th>Francophone</th><th>Arabophone</th><th>Classes</th><th>Matieres</th><th>Statut</th></tr></thead>
-              <tbody>{workloads.length === 0 ? <tr><td colSpan={9} className="empty-row">Aucune charge calculee.</td></tr> : workloads.map((item) => (
-                <tr key={item.teacherId}><td>{item.matricule}</td><td>{item.teacherName}</td><td>{item.assignmentsCount}</td><td>{item.workloadHoursTotal} h</td><td>{item.francophoneHoursTotal} h</td><td>{item.arabophoneHoursTotal} h</td><td>{item.classes.join(", ") || "-"}</td><td>{item.subjects.join(", ") || "-"}</td><td>{item.status}</td></tr>
+            <table><thead><tr><th>Matricule</th><th>Enseignant</th><th>Affectations</th><th>Total horaire</th><th>Francophone</th><th>Arabophone</th><th>Classes</th><th>Matières</th><th>Statut</th></tr></thead>
+              <tbody>{workloads.length === 0 ? <tr><td colSpan={9} className="empty-row"><span>Aucune charge calculée.</span><small>Ajoutez des affectations pour calculer la charge des enseignants.</small></td></tr> : workloads.map((item) => (
+                <tr key={item.teacherId}><td>{item.matricule}</td><td>{item.teacherName}</td><td>{item.assignmentsCount}</td><td>{item.workloadHoursTotal} h</td><td>{item.francophoneHoursTotal} h</td><td>{item.arabophoneHoursTotal} h</td><td>{item.classes.join(", ") || "-"}</td><td>{item.subjects.join(", ") || "-"}</td><td><span className={statusPillClass(item.status)}>{teacherStatusLabel(item.status)}</span></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -498,20 +574,59 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
       {activeStep === "documents" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Dossier administratif</p><h2>Documents enseignant</h2></div></div>
+          <div className="table-header"><div><p className="section-kicker">{translate("Dossier administratif")}</p><h2>{translate("Documents administratifs")}</h2></div></div>
           <form className="form-grid module-form teachers-form-grid" onSubmit={submitDocument}>
-            <label>Enseignant<select value={documentForm.teacherId} onChange={(event) => setDocumentForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">Choisir</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
-            <label>Type document<select value={documentForm.documentType} onChange={(event) => setDocumentForm((prev) => ({ ...prev, documentType: event.target.value }))}>{DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
-            <label>Nom original<input value={documentForm.originalName} onChange={(event) => setDocumentForm((prev) => ({ ...prev, originalName: event.target.value }))} required /></label>
-            <label>URL fichier<input value={documentForm.fileUrl} onChange={(event) => setDocumentForm((prev) => ({ ...prev, fileUrl: event.target.value }))} required /></label>
-            <label>Mime type<input value={documentForm.mimeType} onChange={(event) => setDocumentForm((prev) => ({ ...prev, mimeType: event.target.value }))} /></label>
-            <label>Taille octets<input type="number" min="0" value={documentForm.size} onChange={(event) => setDocumentForm((prev) => ({ ...prev, size: event.target.value }))} /></label>
-            <div className="actions"><button type="submit">Referencer document</button></div>
+            <label>{translate("Enseignant *")}<select value={documentForm.teacherId} onChange={(event) => setDocumentForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">{translate("Choisir")}</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
+            <label>{translate("Type de document *")}<select value={documentForm.documentType} onChange={(event) => setDocumentForm((prev) => ({ ...prev, documentType: event.target.value }))} required>{DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{translateDocumentType(type)}</option>)}</select></label>
+            <label>{translate("Nom du document *")}<input value={documentForm.documentName} onChange={(event) => setDocumentForm((prev) => ({ ...prev, documentName: event.target.value }))} required /></label>
+            <div className="teacher-file-upload form-grid-span-full">
+              <span className="teacher-file-upload__label">{translate("Fichier *")}</span>
+              <input
+                aria-label={translate("Fichier *")}
+                className="teacher-file-upload__input"
+                ref={documentFileInputRef}
+                type="file"
+                accept={TEACHER_DOCUMENT_ACCEPT}
+                onChange={handleDocumentFileChange}
+                required
+              />
+              <div className="teacher-file-upload__body">
+                <button type="button" className="button-ghost teacher-file-upload__button" onClick={() => documentFileInputRef.current?.click()}>
+                  {translate("Choisir un fichier")}
+                </button>
+                {documentFile ? (
+                  <div className="teacher-file-upload__file">
+                    <strong>{documentFile.name}</strong>
+                    <small>{formatFileSize(documentFile.size)} · {documentFile.type || translate("Type de fichier non renseigné")}</small>
+                    <button type="button" className="button-ghost" onClick={clearDocumentFile}>{translate("Retirer le fichier")}</button>
+                  </div>
+                ) : (
+                  <span className="teacher-file-upload__empty">{translate("Aucun fichier sélectionné")}</span>
+                )}
+              </div>
+              <p className="form-help">{translate("Formats acceptés : PDF, images, Word et Excel jusqu'à 10 Mo.")}</p>
+              {documentFileError ? <p className="form-error" role="alert">{documentFileError}</p> : null}
+            </div>
+            <div className="actions">
+              <button
+                type="submit"
+                disabled={
+                  documentUploading ||
+                  !documentForm.teacherId ||
+                  !documentForm.documentType ||
+                  !documentForm.documentName.trim() ||
+                  !documentFile ||
+                  Boolean(documentFileError)
+                }
+              >
+                {documentUploading ? translate("Envoi du document en cours...") : translate("Ajouter le document")}
+              </button>
+            </div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>Enseignant</th><th>Type</th><th>Nom</th><th>Mime</th><th>Ajoute le</th><th>Statut</th><th>Action</th></tr></thead>
-              <tbody>{selectedTeacherDocuments.length === 0 ? <tr><td colSpan={7} className="empty-row">Aucun document.</td></tr> : selectedTeacherDocuments.map((document) => (
-                <tr key={document.id}><td>{document.teacherName}</td><td>{document.documentType}</td><td><a href={document.fileUrl} target="_blank" rel="noreferrer">{document.originalName}</a></td><td>{document.mimeType || "-"}</td><td>{new Date(document.uploadedAt).toLocaleDateString()}</td><td>{document.status}</td><td><button type="button" className="button-ghost" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, "Document archive.")}>Archiver</button></td></tr>
+            <table><thead><tr><th>{translate("Enseignant")}</th><th>{translate("Type")}</th><th>{translate("Nom du document")}</th><th>{translate("Ajouté le")}</th><th>{translate("Statut")}</th><th>{translate("Actions")}</th></tr></thead>
+              <tbody>{selectedTeacherDocuments.length === 0 ? <tr><td colSpan={6} className="empty-row">{translate("Aucun document enregistré.")}</td></tr> : selectedTeacherDocuments.map((document) => (
+                <tr key={document.id}><td>{document.teacherName}</td><td>{translateDocumentType(document.documentType)}</td><td><a href={document.fileUrl} target="_blank" rel="noreferrer">{document.documentName || document.originalName}</a></td><td>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, translate("Document supprimé."), translate("Confirmer la suppression de ce document ?"))}>{translate("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 
 import { AuditModule } from "../audit/audit.module";
 import { DatabaseModule } from "../database/database.module";
+import { StorageModule } from "../storage/storage.module";
 import { TeachersAssignmentsService } from "./teachers-assignments.service";
 import { TeachersController } from "./teachers.controller";
 import { TeachersDirectoryService } from "./teachers-directory.service";
@@ -11,7 +12,7 @@ import { TeachersSkillsService } from "./teachers-skills.service";
 import { TeachersSupportService } from "./teachers-support.service";
 
 @Module({
-  imports: [AuditModule, DatabaseModule],
+  imports: [AuditModule, DatabaseModule, StorageModule],
   controllers: [TeachersController],
   providers: [
     TeachersService,

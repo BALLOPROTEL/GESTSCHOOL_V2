@@ -204,7 +204,7 @@ export function SchoolYearsSection(): JSX.Element {
                         <td>{item.startDate} au {item.endDate}</td>
                         <td>{formatSchoolYearStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-ghost" onClick={() => void deleteRef(`/school-years/${item.id}`, "Annee scolaire supprimee.")}>
+                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/school-years/${item.id}`, "Annee scolaire supprimee.")}>
                             Supprimer
                           </button>
                         </td>

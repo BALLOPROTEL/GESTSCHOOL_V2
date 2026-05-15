@@ -133,6 +133,7 @@ export type TeacherDocumentView = {
   teacherName?: string;
   documentType: string;
   fileUrl: string;
+  documentName?: string;
   originalName: string;
   mimeType?: string;
   size?: number;

@@ -142,8 +142,8 @@ export function HeaderDropdownMenu(props: {
         {preferences.length > 0 ? (
           <div className="header-dropdown-section header-dropdown-preferences">
             <div className="header-dropdown-title">
-              <span>Preferences</span>
-              <small>Langue et theme</small>
+              <span>Préférences</span>
+              <small>Langue et thème</small>
             </div>
             <div className="header-preferences-grid">
               {preferences.map((item) => (

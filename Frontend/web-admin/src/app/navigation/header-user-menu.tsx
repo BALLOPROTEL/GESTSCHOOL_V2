@@ -81,7 +81,7 @@ export function HeaderUserMenu(props: {
           <span className="header-user-link-icon">
             <HeaderGlyph icon="logout" />
           </span>
-          <span>Se deconnecter</span>
+          <span>Se déconnecter</span>
         </button>
       </HeaderFloatingPanel>
     </div>

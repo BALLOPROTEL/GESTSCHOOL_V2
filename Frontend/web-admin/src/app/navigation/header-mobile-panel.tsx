@@ -142,7 +142,7 @@ export function HeaderMobilePanel(props: {
         ))}
 
         <section className="header-mobile-section">
-          <p>Preferences</p>
+          <p>Préférences</p>
           <div className="header-preferences-grid mobile">
             {preferences.map((item) => (
               <button
@@ -164,18 +164,19 @@ export function HeaderMobilePanel(props: {
       </div>
 
       <div className="header-mobile-footer">
-        <button
-          type="button"
-          className={`header-mobile-link ${messages.active ? "is-active" : ""}`.trim()}
-          disabled={messages.disabled}
-          onClick={() => {
-            messages.onSelect();
-            onClose();
-          }}
-        >
-          <span>{messages.label}</span>
-          <small>{messages.disabled ? messages.statusLabel || "Non finalise" : `${messages.count} message(s)`}</small>
-        </button>
+        {!messages.disabled ? (
+          <button
+            type="button"
+            className={`header-mobile-link ${messages.active ? "is-active" : ""}`.trim()}
+            onClick={() => {
+              messages.onSelect();
+              onClose();
+            }}
+          >
+            <span>{messages.label}</span>
+            <small>{`${messages.count} message(s)`}</small>
+          </button>
+        ) : null}
         <button
           type="button"
           className={`header-mobile-link ${notifications.active ? "is-active" : ""}`.trim()}
@@ -200,7 +201,7 @@ export function HeaderMobilePanel(props: {
               user.onLogout();
             }}
           >
-            <span>Deconnexion</span>
+            <span>Déconnexion</span>
           </button>
         </div>
       </div>

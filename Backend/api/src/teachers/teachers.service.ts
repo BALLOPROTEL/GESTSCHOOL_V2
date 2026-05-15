@@ -4,6 +4,7 @@ import { AcademicTrack } from "@prisma/client";
 import {
   CreateTeacherAssignmentDto,
   CreateTeacherDocumentDto,
+  CreateTeacherDocumentUploadDescriptorDto,
   CreateTeacherDto,
   CreateTeacherSkillDto,
   UpdateTeacherAssignmentDto,
@@ -80,6 +81,14 @@ export class TeachersService {
 
   listDocuments(tenantId: string, teacherId?: string) {
     return this.teachersDocumentsService.listDocuments(tenantId, teacherId);
+  }
+
+  createDocumentUploadDescriptor(
+    tenantId: string,
+    teacherId: string,
+    payload: CreateTeacherDocumentUploadDescriptorDto
+  ) {
+    return this.teachersDocumentsService.createUploadDescriptor(tenantId, teacherId, payload);
   }
 
   createDocument(tenantId: string, actorUserId: string, payload: CreateTeacherDocumentDto) {

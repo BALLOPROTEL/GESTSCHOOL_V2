@@ -6,11 +6,6 @@ import { UI_LANGUAGE_META, type UiLanguage } from "../shared/i18n";
 type AuthApiStatus = "unknown" | "checking" | "online" | "offline" | "reconnecting";
 type AuthView = "login" | "forgot" | "first";
 
-const AUTH_LANGUAGE_CODES: Record<UiLanguage, "FR" | "EN" | "AR"> = {
-  fr: "FR",
-  en: "EN",
-  ar: "AR"
-};
 type AuthScreenProps = {
   schoolName: string;
   themeMode: ThemeMode;
@@ -74,7 +69,6 @@ type ToolbarProps = {
   languageBusy: boolean;
   languageMenuOpen: boolean;
   onLanguageMenuRef: (node: HTMLDivElement | null) => void;
-  currentLanguageCode: string;
   currentLanguageMeta: (typeof UI_LANGUAGE_META)[UiLanguage];
   uiLanguage: UiLanguage;
   onToggleLanguageMenu: () => void;
@@ -264,7 +258,6 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
     languageBusy,
     languageMenuOpen,
     onLanguageMenuRef,
-    currentLanguageCode,
     currentLanguageMeta,
     uiLanguage,
     onToggleLanguageMenu,
@@ -296,7 +289,7 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
           <span className="auth-canvas__toolbar-icon auth-canvas__toolbar-icon--language" aria-hidden="true">
             <GlobeIcon />
           </span>
-          <span className="auth-canvas__language-current" data-i18n-skip="true">{currentLanguageCode}</span>
+          <span className="auth-canvas__language-current">{currentLanguageMeta.label}</span>
           <ChevronIcon open={languageMenuOpen} />
         </button>
         {languageMenuOpen ? (
@@ -317,7 +310,7 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
                   aria-checked={active}
                 >
                   <img src={metadata.iconSrc} alt="" aria-hidden="true" />
-                  <span data-i18n-skip="true">{AUTH_LANGUAGE_CODES[language]}</span>
+                  <span>{metadata.label}</span>
                 </button>
               );
             })}
@@ -326,7 +319,7 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
       </div>
 
       <div className="auth-canvas__mode-shell" role="group" aria-label="Selection du theme">
-        <span className="auth-canvas__mode-label">Mode</span>
+        <span className="auth-canvas__mode-label">Theme</span>
         <span className="auth-canvas__mode-sun" aria-hidden="true">
           <SunIcon />
         </span>
@@ -399,7 +392,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
   const currentView: AuthView =
     authAssistMode === "forgot" ? "forgot" : authAssistMode === "first" ? "first" : "login";
   const currentLanguageMeta = UI_LANGUAGE_META[uiLanguage];
-  const currentLanguageCode = AUTH_LANGUAGE_CODES[uiLanguage];
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent): void => {
@@ -676,7 +668,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           languageBusy={languageBusy}
           languageMenuOpen={languageMenuOpen}
           onLanguageMenuRef={(node) => { languageMenuRef.current = node; }}
-          currentLanguageCode={currentLanguageCode}
           currentLanguageMeta={currentLanguageMeta}
           uiLanguage={uiLanguage}
           onToggleLanguageMenu={() => setLanguageMenuOpen((prev) => !prev)}

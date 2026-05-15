@@ -870,6 +870,7 @@ model TeacherDocument {
   teacherId      String    @map("teacher_id") @db.Uuid
   documentType   String    @map("document_type") @db.VarChar(40)
   fileUrl        String    @map("file_url")
+  documentName   String?   @map("document_name") @db.VarChar(180)
   originalName   String    @map("original_name") @db.VarChar(180)
   mimeType       String?   @map("mime_type") @db.VarChar(120)
   size           Int?

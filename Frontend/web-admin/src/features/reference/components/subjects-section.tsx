@@ -267,7 +267,7 @@ export function SubjectsSection(): JSX.Element {
                         <td>{formatSubjectLevels(item.levelIds)}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-ghost" onClick={() => void deleteRef(`/subjects/${item.id}`, "Matiere supprimee.")}>
+                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/subjects/${item.id}`, "Matiere supprimee.")}>
                             Supprimer
                           </button>
                         </td>

@@ -296,22 +296,25 @@ export class CreateTeacherDocumentDto {
   @IsString()
   fileUrl!: string;
 
+  @ApiProperty({ example: "Contrat 2025 - Aminata Diallo" })
+  @IsString()
+  @MaxLength(180)
+  documentName!: string;
+
   @ApiProperty({ example: "contrat-aminata-diallo.pdf" })
   @IsString()
   @MaxLength(180)
   originalName!: string;
 
-  @ApiPropertyOptional({ example: "application/pdf" })
-  @IsOptional()
+  @ApiProperty({ example: "application/pdf" })
   @IsString()
   @MaxLength(120)
-  mimeType?: string;
+  mimeType!: string;
 
-  @ApiPropertyOptional({ example: 238944 })
-  @IsOptional()
+  @ApiProperty({ example: 238944 })
   @IsInt()
-  @Min(0)
-  size?: number;
+  @Min(1)
+  size!: number;
 
   @ApiPropertyOptional({ enum: TEACHER_DOCUMENT_STATUS_VALUES, default: "ACTIVE" })
   @IsOptional()
@@ -320,3 +323,20 @@ export class CreateTeacherDocumentDto {
 }
 
 export class UpdateTeacherDocumentDto extends PartialType(CreateTeacherDocumentDto) {}
+
+export class CreateTeacherDocumentUploadDescriptorDto {
+  @ApiProperty({ example: "contrat-aminata-diallo.pdf" })
+  @IsString()
+  @MaxLength(180)
+  fileName!: string;
+
+  @ApiProperty({ example: "application/pdf" })
+  @IsString()
+  @MaxLength(120)
+  mimeType!: string;
+
+  @ApiProperty({ example: 238944 })
+  @IsInt()
+  @Min(1)
+  size!: number;
+}

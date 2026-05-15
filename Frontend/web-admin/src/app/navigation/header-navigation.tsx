@@ -112,13 +112,13 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     {
       id: "preferences",
       icon: "settings",
-      label: "Preferences",
+      label: "Préférences",
       onSelect: settingsAction.onSelect
     },
     {
       id: "activity",
       icon: "activity",
-      label: "Journal d'activite",
+      label: "Journal d’activité",
       onSelect: activityAction.onSelect
     },
     {
@@ -130,21 +130,23 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
   ];
   const quickActions: HeaderQuickAction[] = [
     { id: "quick-timetable", icon: "calendar", label: "Emploi du temps", onSelect: timetableAction.onSelect },
-    { id: "quick-chat", icon: "messages", label: messagesDisabled ? "Messagerie (apercu)" : "Messagerie", onSelect: messages.onSelect },
+    messagesDisabled
+      ? null
+      : { id: "quick-chat", icon: "messages", label: "Messagerie", onSelect: messages.onSelect },
     { id: "quick-alerts", icon: "email", label: "Notifications", onSelect: notificationCenterAction.onSelect },
     { id: "quick-finance", icon: "billing", label: "Finance", onSelect: billingAction.onSelect },
     { id: "quick-files", icon: "files", label: "Rapports", onSelect: reportsAction.onSelect },
     { id: "quick-support", icon: "support", label: "Support", onSelect: settingsAction.onSelect }
-  ];
+  ].filter((item): item is HeaderQuickAction => item !== null);
   const messageItems: HeaderFeedItem[] = messagesDisabled
     ? [
         {
           id: "message-guardrail",
           icon: "warning",
           tone: "amber",
-          title: "Messagerie en garde-fou",
-          description: "Module UI-only: aucun message n'est lu ni enregistre en base pour le moment.",
-          timeLabel: "Lot 0",
+          title: "Messagerie bientôt disponible",
+          description: "Ce service sera activé après validation du périmètre.",
+          timeLabel: "Bientôt",
           onSelect: messages.onSelect
         }
       ]
@@ -153,7 +155,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
           id: "message-1",
           avatar: "AD",
           title: "Awa Diallo",
-          description: "Peux-tu verifier les dossiers d'inscription de la 6e A aujourd'hui ?",
+          description: "Peux-tu vérifier les dossiers d'inscription de la 6e A aujourd'hui ?",
           timeLabel: "2 min",
           onSelect: messages.onSelect
         },
@@ -161,14 +163,14 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
           id: "message-2",
           avatar: "VP",
           title: "Vie scolaire",
-          description: "Le lot d'absences du jour est pret pour validation.",
+          description: "Le lot d'absences du jour est prêt pour validation.",
           timeLabel: "12 min",
           onSelect: messages.onSelect
         },
         {
           id: "message-3",
           avatar: "SC",
-          title: "Scolarite centrale",
+          title: "Scolarité centrale",
           description: "Le bulletin de AD-204 est en attente de relecture finale.",
           timeLabel: "35 min",
           onSelect: messages.onSelect
@@ -179,7 +181,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
       id: "notification-1",
       icon: "rocket",
       tone: "cyan",
-      title: "Bulletins prets",
+      title: "Bulletins prêts",
       description: "Le lot du trimestre 2 est disponible pour publication.",
       timeLabel: "5 min",
       onSelect: gradesAction.onSelect
@@ -187,8 +189,8 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     {
       id: "notification-2",
       avatar: "MD",
-      title: "Mia a laisse un retour",
-      description: "Une relecture est demandee sur le tableau de bord finance.",
+      title: "Mia a laissé un retour",
+      description: "Une relecture est demandée sur le tableau de bord finance.",
       timeLabel: "21 min",
       onSelect: dashboard.onSelect
     },
@@ -196,8 +198,8 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
       id: "notification-3",
       icon: "warning",
       tone: "amber",
-      title: "Seuil d'impayes atteint",
-      description: "Le niveau 4e B depasse 81% d'encours a recouvrer.",
+      title: "Seuil d'impayés atteint",
+      description: "Le niveau 4e B dépasse 81% d'encours à recouvrer.",
       timeLabel: "58 min",
       onSelect: billingAction.onSelect
     },
@@ -205,8 +207,8 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
       id: "notification-4",
       icon: "check",
       tone: "green",
-      title: "Paiement recu",
-      description: "La facture INV-3921 a ete reglee avec succes.",
+      title: "Paiement reçu",
+      description: "La facture INV-3921 a été réglée avec succès.",
       timeLabel: "2 h",
       onSelect: billingAction.onSelect
     }
@@ -223,9 +225,9 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
   const mobileSections = useMemo(
     () => [
       { id: "dashboard", label: "Tableau de bord", items: [dashboard] },
-      { id: "scolarite", label: "Scolarite", items: scolarite },
+      { id: "scolarite", label: "Scolarité", items: scolarite },
       { id: "school-life", label: "Vie scolaire", items: schoolLife },
-      { id: "settings", label: "Parametres", items: settings, groups: settingsGroups }
+      { id: "settings", label: "Paramètres", items: settings, groups: settingsGroups }
     ],
     [dashboard, schoolLife, scolarite, settings, settingsGroups]
   );
@@ -294,7 +296,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
             active={sidebarCollapsed}
             className="header-workspace-toggle"
             icon="layout"
-            label={sidebarCollapsed ? "Afficher le menu lateral" : "Masquer le menu lateral"}
+            label={sidebarCollapsed ? "Afficher le menu latéral" : "Masquer le menu latéral"}
             onSelect={() => {
               setOpenId(null);
               onToggleSidebar();
@@ -314,7 +316,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
             <HeaderActionButton action={dashboard} />
             <HeaderDropdownMenu
               id="scolarite"
-              label="Scolarite"
+              label="Scolarité"
               items={scolarite}
               openId={openId}
               onOpenChange={handleOpenIdChange}
@@ -328,7 +330,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
             />
             <HeaderDropdownMenu
               id="settings"
-              label="Parametres"
+              label="Paramètres"
               items={settings}
               extraGroups={settingsGroups}
               preferences={preferences}
@@ -351,7 +353,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
               className="header-quick-dropdown"
               id="quick-actions"
               icon="apps"
-              label="Acces rapides"
+              label="Accès rapides"
               openId={openId}
               onOpenChange={handleOpenIdChange}
             >
@@ -364,45 +366,43 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
                 onSelect={themePreference.onSelect}
               />
             ) : null}
-            <HeaderUtilityDropdown
-              active={messages.active}
-              badge={messageUnreadCount}
-              className="header-messages-dropdown"
-              id="messages"
-              icon="messages"
-              label={messages.label}
-              openId={openId}
-              onOpenChange={handleOpenIdChange}
-            >
-              <HeaderFeedPanel
-                title={messagesDisabled ? "Messagerie non branchee" : "Messages"}
-                unreadLabel={
-                  messagesDisabled
-                    ? messages.statusLabel || "Aucune donnee persistante pour le moment"
-                    : `${messageUnreadCount} nouveau(x) message(s)`
-                }
-                actionLabel={messagesDisabled ? "Voir l'apercu gele" : "Ouvrir le chat"}
-                footerLabel={messagesDisabled ? "Ouvrir la page de cadrage" : "Voir tous les messages"}
-                items={messageItems.map((item) => ({
-                  ...item,
-                  onSelect: () => {
-                    item.onSelect();
-                    setMessageUnreadCount((count) => Math.max(0, count - 1));
+            {!messagesDisabled ? (
+              <HeaderUtilityDropdown
+                active={messages.active}
+                badge={messageUnreadCount}
+                className="header-messages-dropdown"
+                id="messages"
+                icon="messages"
+                label={messages.label}
+                openId={openId}
+                onOpenChange={handleOpenIdChange}
+              >
+                <HeaderFeedPanel
+                  title="Messages"
+                  unreadLabel={`${messageUnreadCount} nouveau(x) message(s)`}
+                  actionLabel="Ouvrir le chat"
+                  footerLabel="Voir tous les messages"
+                  items={messageItems.map((item) => ({
+                    ...item,
+                    onSelect: () => {
+                      item.onSelect();
+                      setMessageUnreadCount((count) => Math.max(0, count - 1));
+                      setOpenId(null);
+                    }
+                  }))}
+                  onActionSelect={() => {
+                    setMessageUnreadCount(0);
                     setOpenId(null);
-                  }
-                }))}
-                onActionSelect={() => {
-                  setMessageUnreadCount(0);
-                  setOpenId(null);
-                  messages.onSelect();
-                }}
-                onFooterSelect={() => {
-                  setMessageUnreadCount(0);
-                  setOpenId(null);
-                  messages.onSelect();
-                }}
-              />
-            </HeaderUtilityDropdown>
+                    messages.onSelect();
+                  }}
+                  onFooterSelect={() => {
+                    setMessageUnreadCount(0);
+                    setOpenId(null);
+                    messages.onSelect();
+                  }}
+                />
+              </HeaderUtilityDropdown>
+            ) : null}
             <HeaderUtilityDropdown
               active={notifications.active}
               badge={notificationUnreadCount}

@@ -1,8 +1,6 @@
 import type {
   Enrollment,
-  HeroSlide,
   Invoice,
-  ModuleTile,
   ParentChild,
   ParentOverview,
   PortalNotification,
@@ -15,13 +13,9 @@ import type {
   TeacherOverview
 } from "../shared/types/app";
 import type { MosqueeDashboard } from "../shared/types/app";
-import { ModuleIcon } from "../shared/components/module-icon";
 
 type DashboardScreenProps = {
   currentRole: Role | null;
-  currentSlide: HeroSlide;
-  defaultActionScreen: ScreenId;
-  filteredTiles: ModuleTile[];
   invoices: Invoice[];
   classesCount: number;
   reportCards: ReportCard[];
@@ -38,32 +32,23 @@ type DashboardScreenProps = {
   teacherStudentsCount: number;
   teacherGradesCount: number;
   teacherNotifications: PortalNotification[];
-  moduleQuery: string;
   mobileTasksOpen: boolean;
-  onClearModuleFilter: () => void;
   onSelectScreen: (screen: ScreenId) => void;
   onToggleMobileTasks: () => void;
   formatMoney: (value: number, currency?: string) => string;
   hasScreenAccess: (role: Role, screen: ScreenId) => boolean;
-  currentRoleLabel: string;
 };
 
 export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
   const {
     classesCount,
     currentRole,
-    currentRoleLabel,
-    currentSlide,
-    defaultActionScreen,
     enrollments,
-    filteredTiles,
     formatMoney,
     hasScreenAccess,
     invoices,
     mobileTasksOpen,
-    moduleQuery,
     MosqueeDashboard,
-    onClearModuleFilter,
     onSelectScreen,
     onToggleMobileTasks,
     parentChildren,
@@ -84,21 +69,11 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
     return <></>;
   }
 
-  const activeModules = filteredTiles.slice(0, 8);
-  const primaryModule = filteredTiles[0];
-  const secondaryModule = filteredTiles[1];
   const openInvoices = invoices.filter((item) => item.status !== "PAID").length;
   const pendingReports = Math.max(0, classesCount - reportCards.length);
   const lowRecovery = (recovery?.totals.recoveryRatePercent ?? 0) < 70;
 
-  let heroEyebrow = "Accueil simplifie";
-  let heroTitle = "Tableau de bord clair et actionnable";
-  let heroText = currentSlide.quote;
-  let primaryActionScreen: ScreenId = primaryModule?.screen || defaultActionScreen;
-  let primaryActionLabel = primaryModule
-    ? `Ouvrir ${primaryModule.title}`
-    : "Ouvrir l'espace principal";
-  const priorityTitle = currentRole === "PARENT" ? "Actions utiles" : "Taches prioritaires";
+  const priorityTitle = currentRole === "PARENT" ? "Actions utiles" : "Tâches prioritaires";
 
   let dashboardCards: Array<{ label: string; value: string | number; hint: string }> = [];
   let dashboardTasks: Array<{ id: string; title: string; text: string; screen: ScreenId }> = [];
@@ -110,12 +85,6 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
   }> = [];
 
   if (currentRole === "PARENT") {
-    heroEyebrow = "Espace parent";
-    heroTitle = "Suivi famille strictement limite a vos enfants";
-    heroText =
-      "Accedez uniquement aux absences, bulletins, emplois du temps et paiements qui concernent votre famille.";
-    primaryActionScreen = "parentPortal";
-    primaryActionLabel = "Ouvrir le portail parent";
     dashboardCards = [
       {
         label: "Enfants",
@@ -127,17 +96,17 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         value:
           parentOverview?.openInvoicesCount ??
           parentInvoices.filter((item) => item.status !== "PAID").length,
-        hint: "A regler"
+        hint: "À régler"
       },
       {
-        label: "Reste a payer",
+        label: "Reste à payer",
         value: formatMoney(parentOverview?.remainingAmount ?? 0),
         hint: "Situation famille"
       },
       {
         label: "Notifications",
         value: parentOverview?.notificationsCount ?? parentNotifications.length,
-        hint: "Messages recus"
+        hint: "Messages reçus"
       }
     ];
     dashboardTasks = [
@@ -149,8 +118,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
       },
       {
         id: "family-payments",
-        title: "Verifier les paiements",
-        text: "Consulter les factures ouvertes et les reglements deja recus.",
+        title: "Vérifier les paiements",
+        text: "Consulter les factures ouvertes et les règlements déjà reçus.",
         screen: "parentPortal"
       },
       {
@@ -165,8 +134,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         ? {
             id: "parent-remaining",
             tone: "warning",
-            title: "Paiements a suivre",
-            text: `Reste a payer: ${formatMoney(parentOverview?.remainingAmount ?? 0)}`
+            title: "Paiements à suivre",
+            text: `Reste à payer : ${formatMoney(parentOverview?.remainingAmount ?? 0)}`
           }
         : null,
       parentNotifications[0]
@@ -188,12 +157,6 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
       } => item !== null
     );
   } else if (currentRole === "ENSEIGNANT") {
-    heroEyebrow = "Espace enseignant";
-    heroTitle = "Vue enseignant limitee a vos classes";
-    heroText =
-      "Retrouvez vos classes, vos notes, votre emploi du temps et les notifications utiles a votre mission.";
-    primaryActionScreen = "teacherPortal";
-    primaryActionLabel = "Ouvrir le portail enseignant";
     dashboardCards = [
       {
         label: "Classes",
@@ -201,9 +164,9 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         hint: "Affectations"
       },
       {
-        label: "Eleves suivis",
+        label: "Élèves suivis",
         value: teacherOverview?.studentsCount ?? teacherStudentsCount,
-        hint: "Perimetre"
+        hint: "Périmètre"
       },
       {
         label: "Notes",
@@ -220,19 +183,19 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
       {
         id: "teacher-portal",
         title: "Ouvrir le portail enseignant",
-        text: "Acceder aux classes, eleves et notes sous votre responsabilite.",
+        text: "Accéder aux classes, élèves et notes sous votre responsabilité.",
         screen: "teacherPortal"
       },
       {
         id: "teacher-grades",
         title: "Saisir les notes",
-        text: "Renseigner les evaluations de vos classes affectees.",
+        text: "Renseigner les évaluations de vos classes affectées.",
         screen: "teacherPortal"
       },
       {
         id: "teacher-timetable",
         title: "Consulter l'emploi du temps",
-        text: "Verifier rapidement vos creneaux hebdomadaires.",
+        text: "Vérifier rapidement vos créneaux hebdomadaires.",
         screen: "teacherPortal"
       }
     ];
@@ -242,7 +205,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
             id: "teacher-justifications",
             tone: "warning",
             title: "Justificatifs en attente",
-            text: `${teacherOverview?.pendingJustifications ?? 0} justificatif(s) restent a suivre.`
+            text: `${teacherOverview?.pendingJustifications ?? 0} justificatif(s) restent à suivre.`
           }
         : null,
       teacherNotifications[0]
@@ -274,7 +237,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
   } else {
     const backOfficeCards: Array<{ label: string; value: string | number; hint: string } | null> = [
       hasScreenAccess(currentRole, "students")
-        ? { label: "Eleves", value: students.length, hint: "Population" }
+        ? { label: "Élèves", value: students.length, hint: "Population" }
         : null,
       hasScreenAccess(currentRole, "reference") || hasScreenAccess(currentRole, "enrollments")
         ? { label: "Classes", value: classesCount, hint: "Organisation" }
@@ -286,17 +249,17 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         ? {
             label: "Recouvrement",
             value: `${recovery ? recovery.totals.recoveryRatePercent.toFixed(1) : "0.0"}%`,
-            hint: "Sante financiere"
+            hint: "Santé financière"
           }
         : null,
       hasScreenAccess(currentRole, "grades")
-        ? { label: "Bulletins", value: reportCards.length, hint: "Publies" }
+        ? { label: "Bulletins", value: reportCards.length, hint: "Publiés" }
         : null,
       hasScreenAccess(currentRole, "mosquee")
         ? {
-            label: "Dons mosquee",
+            label: "Dons mosquée",
             value: formatMoney(MosqueeDashboard?.totals.donationsTotal ?? 0),
-            hint: "Total cumule"
+            hint: "Total cumulé"
           }
         : null
     ];
@@ -308,8 +271,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
       hasScreenAccess(currentRole, "students")
         ? {
             id: "students",
-            title: "Creer un eleve",
-            text: "Commencer un nouveau dossier eleve.",
+            title: "Créer un élève",
+            text: "Commencer un nouveau dossier élève.",
             screen: "students" as ScreenId
           }
         : null,
@@ -317,7 +280,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         ? {
             id: "enrollments",
             title: "Valider les inscriptions",
-            text: "Relier eleves, classes et annee scolaire.",
+            text: "Relier élèves, classes et année scolaire.",
             screen: "enrollments" as ScreenId
           }
         : null,
@@ -325,7 +288,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         ? {
             id: "finance",
             title: "Suivre les paiements",
-            text: "Verifier factures ouvertes et recouvrement.",
+            text: "Vérifier factures ouvertes et recouvrement.",
             screen: "finance" as ScreenId
           }
         : null,
@@ -333,7 +296,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         ? {
             id: "grades",
             title: "Publier les bulletins",
-            text: "Generer les bulletins PDF de periode.",
+            text: "Générer les bulletins PDF de période.",
             screen: "grades" as ScreenId
           }
         : null,
@@ -341,7 +304,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         ? {
             id: "reports",
             title: "Consulter les rapports",
-            text: "Suivre les indicateurs et les journaux de conformite.",
+            text: "Suivre les indicateurs et les journaux de conformité.",
             screen: "reports" as ScreenId
           }
         : null
@@ -361,8 +324,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         ? {
             id: "recovery",
             tone: "warning",
-            title: "Recouvrement a surveiller",
-            text: `Taux actuel: ${(recovery?.totals.recoveryRatePercent ?? 0).toFixed(1)}%`
+            title: "Recouvrement à surveiller",
+            text: `Taux actuel : ${(recovery?.totals.recoveryRatePercent ?? 0).toFixed(1)}%`
           }
         : null,
       hasScreenAccess(currentRole, "finance") && openInvoices > 0
@@ -370,15 +333,15 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
             id: "invoices",
             tone: "info",
             title: "Factures en attente",
-            text: `${openInvoices} facture(s) restent a suivre.`
+            text: `${openInvoices} facture(s) restent à suivre.`
           }
         : null,
       hasScreenAccess(currentRole, "grades") && pendingReports > 0
         ? {
             id: "reports",
             tone: "info",
-            title: "Bulletins a publier",
-            text: `${pendingReports} classe(s) sans bulletin genere.`
+            title: "Bulletins à publier",
+            text: `${pendingReports} classe(s) sans bulletin généré.`
           }
         : null
     ].filter(
@@ -393,58 +356,10 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
     );
   }
 
-  const heroBadge =
-    currentRole === "PARENT" || currentRole === "ENSEIGNANT"
-      ? heroEyebrow
-      : `${heroEyebrow} · ${currentRoleLabel}`;
-  const heroInsightCards = dashboardCards.slice(0, 2);
   const overviewCards = dashboardCards.slice(0, 4);
 
   return (
     <div className="dashboard-shell-v2">
-      <section className="panel dashboard-hero dashboard-hero-flex dashboard-hero-shell">
-        <div className="dashboard-hero-content">
-          <p className="dashboard-section-badge">{heroBadge}</p>
-          <h2>{heroTitle}</h2>
-          <p className="subtle dashboard-hero-copy">{heroText}</p>
-
-          <div className="dashboard-hero-actions">
-            <button
-              type="button"
-              className="hero-primary-cta"
-              onClick={() => onSelectScreen(primaryActionScreen)}
-            >
-              {primaryActionLabel}
-            </button>
-            {secondaryModule ? (
-              <button
-                type="button"
-                className="hero-secondary-cta"
-                onClick={() => onSelectScreen(secondaryModule.screen)}
-              >
-                Explorer {secondaryModule.title}
-              </button>
-            ) : null}
-          </div>
-
-          <div className="dashboard-hero-foot">
-            <span>{activeModules.length} modules visibles</span>
-            <span>{dashboardNotifications.length} alertes recentes</span>
-            <span>{priorityTitle}</span>
-          </div>
-        </div>
-
-        <div className="dashboard-hero-aside">
-          {heroInsightCards.map((card) => (
-            <article key={`hero-${card.label}`} className="dashboard-hero-metric">
-              <span>{card.label}</span>
-              <strong>{card.value}</strong>
-              <small>{card.hint}</small>
-            </article>
-          ))}
-        </div>
-      </section>
-
       <section className="dashboard-kpi-grid dashboard-kpi-grid-flex">
         {overviewCards.map((card, index) => (
           <article key={card.label} className="panel metric-card kpi-card kpi-card-flex">
@@ -458,121 +373,68 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         ))}
       </section>
 
-      <section className="dashboard-main-grid">
-        <article className="panel dashboard-modules dashboard-panel-shell" aria-label="Modules applicatifs">
-          <div className="table-header dashboard-section-head">
-            <div>
-              <p className="section-kicker">Workspace</p>
-              <h2>Modules</h2>
+      <section className="dashboard-main-grid dashboard-main-grid-summary">
+        <article className="panel priority-panel dashboard-panel-shell dashboard-priority-panel">
+          <div className="priority-panel-head">
+            <div className="table-header dashboard-section-head">
+              <div>
+                <p className="section-kicker">Actions</p>
+                <h3>{priorityTitle}</h3>
+              </div>
             </div>
-            {moduleQuery.trim() ? (
-              <button type="button" className="button-ghost" onClick={onClearModuleFilter}>
-                Effacer filtre
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="mobile-section-toggle"
+              aria-expanded={mobileTasksOpen}
+              onClick={onToggleMobileTasks}
+            >
+              {mobileTasksOpen ? "Masquer" : "Afficher"}
+            </button>
           </div>
 
-          <div className="module-grid">
-            {activeModules.length === 0 ? (
-              <article className="empty-modules">
-                <h3>Aucun module trouve</h3>
-                <p className="subtle">Essaie un mot-cle plus simple.</p>
-              </article>
+          <div className={`priority-collapsible ${mobileTasksOpen ? "is-open" : ""}`.trim()}>
+            <div className="priority-list">
+              {dashboardTasks.length === 0 ? (
+                <p className="subtle">Aucune action prioritaire pour ce profil.</p>
+              ) : (
+                dashboardTasks.map((task, index) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    className="priority-item"
+                    onClick={() => onSelectScreen(task.screen)}
+                  >
+                    <span className="priority-item-index">{String(index + 1).padStart(2, "0")}</span>
+                    <strong>{task.title}</strong>
+                    <small>{task.text}</small>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </article>
+
+        <article className="panel priority-panel dashboard-panel-shell dashboard-followup-panel">
+          <div className="table-header dashboard-section-head">
+            <div>
+              <p className="section-kicker">Suivi</p>
+              <h3>Alertes & suivi</h3>
+            </div>
+          </div>
+
+          <div className="notice-list">
+            {dashboardNotifications.length === 0 ? (
+              <p className="subtle">Aucune alerte à traiter.</p>
             ) : (
-              activeModules.map((tile) => (
-                <button
-                  key={tile.screen}
-                  type="button"
-                  className="module-card"
-                  onClick={() => onSelectScreen(tile.screen)}
-                >
-                  <span className="module-card-topline">
-                    <span className="module-card-arrow" aria-hidden="true">
-                    ↗
-                  </span>
-                  <span className={`module-icon tone-${tile.tone}`}>
-                    <ModuleIcon name={tile.icon} />
-                  </span>
-                  </span>
-                  <span className="module-text">
-                    <strong>{tile.title}</strong>
-                    <small>{tile.subtitle}</small>
-                  </span>
-                </button>
+              dashboardNotifications.map((item) => (
+                <article key={item.id} className={`notice-card notice-${item.tone}`}>
+                  <strong>{item.title}</strong>
+                  <p>{item.text}</p>
+                </article>
               ))
             )}
           </div>
         </article>
-
-        <aside className="dashboard-side">
-          <article className="panel priority-panel dashboard-panel-shell">
-            <div className="priority-panel-head">
-              <div className="table-header dashboard-section-head">
-                <div>
-                  <p className="section-kicker">Execution</p>
-                  <h3>{priorityTitle}</h3>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="mobile-section-toggle"
-                aria-expanded={mobileTasksOpen}
-                onClick={onToggleMobileTasks}
-              >
-                {mobileTasksOpen ? "Masquer" : "Afficher"}
-              </button>
-            </div>
-
-            <div className={`priority-collapsible ${mobileTasksOpen ? "is-open" : ""}`.trim()}>
-              <div className="priority-list">
-                {dashboardTasks.length === 0 ? (
-                  <p className="subtle">Aucune action prioritaire pour ce profil.</p>
-                ) : (
-                  dashboardTasks.map((task, index) => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      className="priority-item"
-                      onClick={() => onSelectScreen(task.screen)}
-                    >
-                      <span className="priority-item-index">{String(index + 1).padStart(2, "0")}</span>
-                      <strong>{task.title}</strong>
-                      <small>{task.text}</small>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </article>
-
-          <article className="panel priority-panel dashboard-panel-shell">
-            <div className="table-header dashboard-section-head">
-              <div>
-                <p className="section-kicker">Monitoring</p>
-                <h3>
-                  {currentRole === "PARENT" ? "Informations recentes" : "Notifications recentes"}
-                </h3>
-              </div>
-            </div>
-
-            <div className="notice-list">
-              {dashboardNotifications.length === 0 ? (
-                <p className="subtle">
-                  {currentRole === "PARENT"
-                    ? "Aucune information sensible ou urgente a signaler."
-                    : "Aucune alerte critique pour le moment."}
-                </p>
-              ) : (
-                dashboardNotifications.map((item) => (
-                  <article key={item.id} className={`notice-card notice-${item.tone}`}>
-                    <strong>{item.title}</strong>
-                    <p>{item.text}</p>
-                  </article>
-                ))
-              )}
-            </div>
-          </article>
-        </aside>
       </section>
     </div>
   );

@@ -7,6 +7,7 @@ export type EnrollmentFilters = {
   classId: string;
   studentId: string;
   track: string;
+  enrollmentStatus: string;
 };
 
 export type EnrollmentForm = {

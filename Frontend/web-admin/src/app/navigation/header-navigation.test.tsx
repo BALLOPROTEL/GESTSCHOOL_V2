@@ -122,10 +122,68 @@ describe("HeaderNavigation", () => {
     expect(floatingPanel).not.toBeNull();
     expect(floatingPanel?.parentElement).toBe(document.body);
     expect(header?.contains(floatingPanel)).toBe(false);
-    expect(floatingPanel?.style.top).toBe("158px");
+    expect(floatingPanel?.dataset.headerFloatingPanel).toBe("true");
+    expect(floatingPanel?.style.position).toBe("fixed");
+    expect(floatingPanel?.style.zIndex).toBe("var(--shell-z-dropdown, 10000)");
+    expect(floatingPanel?.style.top).toBe("148px");
 
     fireEvent.mouseDown(floatingPanel!);
     expect(document.body.querySelector(".header-floating-panel.header-notifications-dropdown")).not.toBeNull();
+
+    fireEvent.mouseDown(document.body);
+    expect(document.body.querySelector(".header-floating-panel.header-notifications-dropdown")).toBeNull();
+
+    rectSpy.mockRestore();
+  });
+
+  it("rend aussi le menu utilisateur hors du header", () => {
+    const rectSpy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      if (this.classList.contains("global-header-shell")) {
+        return domRect({ bottom: 120, height: 70, right: 900, top: 50, width: 860, x: 20, y: 50 });
+      }
+      if (this.classList.contains("header-user-menu")) {
+        return domRect({ bottom: 96, height: 44, left: 760, right: 820, top: 52, width: 60, x: 760, y: 52 });
+      }
+
+      return domRect({});
+    });
+
+    const { container } = render(
+      <HeaderNavigation
+        brandName="Al Manarat"
+        logoAlt="Logo GestSchool"
+        logoSrc="/logo.png"
+        sidebarCollapsed={false}
+        searchPlaceholder="Rechercher"
+        searchValue=""
+        onSearchChange={vi.fn()}
+        onToggleSidebar={vi.fn()}
+        dashboard={action("dashboard", "Tableau de bord")}
+        scolarite={[action("students", "Eleves")]}
+        schoolLife={[action("grades", "Notes")]}
+        settings={[action("reports", "Rapports")]}
+        preferences={preferences}
+        messages={{ count: 0, label: "Messages", onSelect: vi.fn() }}
+        notifications={{ count: 2, label: "Notifications", onSelect: vi.fn() }}
+        user={{
+          avatar: "AD",
+          contextLabel: "GestSchool admin",
+          roleLabel: "Administrateur",
+          username: "preview.admin",
+          onLogout: vi.fn()
+        }}
+      />
+    );
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
+
+    const header = container.querySelector(".global-header-shell");
+    const userPanel = document.body.querySelector<HTMLElement>(".header-floating-panel.header-user-dropdown");
+    expect(userPanel).not.toBeNull();
+    expect(userPanel?.parentElement).toBe(document.body);
+    expect(header?.contains(userPanel)).toBe(false);
+    expect(userPanel?.style.position).toBe("fixed");
+    expect(userPanel?.style.top).toBe("128px");
 
     rectSpy.mockRestore();
   });

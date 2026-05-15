@@ -46,7 +46,7 @@ export function ParentsListSection(props: {
           Un parent est une personne metier. Le compte portail reste un rattachement optionnel.
         </p>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
                 <th>Parent</th>
@@ -67,14 +67,14 @@ export function ParentsListSection(props: {
               ) : (
                 shownParents.map((parent) => (
                   <tr key={parent.id}>
-                    <td>{parent.fullName}</td>
-                    <td>{roleLabel(parent.parentalRole)}</td>
-                    <td>{parent.primaryPhone}</td>
-                    <td>{parent.email || "-"}</td>
-                    <td>{parent.childrenCount}</td>
-                    <td>{parent.userUsername || "Non lie"}</td>
-                    <td>{parent.status}</td>
-                    <td>
+                    <td data-label="Parent">{parent.fullName}</td>
+                    <td data-label="Role">{roleLabel(parent.parentalRole)}</td>
+                    <td data-label="Telephone">{parent.primaryPhone}</td>
+                    <td data-label="Email">{parent.email || "-"}</td>
+                    <td data-label="Enfants">{parent.childrenCount}</td>
+                    <td data-label="Portail">{parent.userUsername || "Non lie"}</td>
+                    <td data-label="Statut">{parent.status}</td>
+                    <td data-label="Actions">
                       <div className="row-actions">
                         <button type="button" className="button-ghost" onClick={() => onSelectParent(parent.id)}>
                           Detail

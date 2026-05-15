@@ -96,21 +96,29 @@ export function ReferenceScreen({
     { id: "subjects", title: "Matieres", hint: "Cataloguer les disciplines.", done: subjects.length > 0 }
   ];
 
-  const scrollToReference = (stepId: string): void => {
+  const selectReferencePage = (stepId: string): void => {
     state.setReferenceWorkflowStep(stepId);
-    const targetByStep: Record<string, string> = {
-      years: "reference-years",
-      cycles: "reference-cycles",
-      levels: "reference-levels",
-      classes: "reference-classes",
-      periods: "reference-periods",
-      subjects: "reference-subjects"
-    };
-    const target = targetByStep[stepId];
-    if (!target) return;
     window.setTimeout(() => {
-      document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("reference-workflow")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
+  };
+
+  const renderReferencePage = (): JSX.Element => {
+    switch (state.referenceWorkflowStep) {
+      case "cycles":
+        return <CyclesSection />;
+      case "levels":
+        return <LevelsSection />;
+      case "classes":
+        return <ClassesSection />;
+      case "periods":
+        return <PeriodsSection />;
+      case "subjects":
+        return <SubjectsSection />;
+      case "years":
+      default:
+        return <SchoolYearsSection />;
+    }
   };
 
   const contextValue: ReferenceScreenContextValue = {
@@ -138,19 +146,14 @@ export function ReferenceScreen({
   return (
     <ReferenceScreenContextProvider value={contextValue}>
       <div className="reference-shell">
-        <div className="reference-workflow-shell">
+        <div id="reference-workflow" className="reference-workflow-shell">
           <WorkflowGuide
             title="Referentiel academique"
             steps={referenceSteps}
             activeStepId={state.referenceWorkflowStep}
-            onStepChange={scrollToReference}
+            onStepChange={selectReferencePage}
           >
-            <SchoolYearsSection />
-            <CyclesSection />
-            <LevelsSection />
-            <ClassesSection />
-            <PeriodsSection />
-            <SubjectsSection />
+            {renderReferencePage()}
           </WorkflowGuide>
         </div>
       </div>

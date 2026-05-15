@@ -26,6 +26,7 @@ import { UserRole } from "../security/roles.enum";
 import {
   CreateTeacherAssignmentDto,
   CreateTeacherDocumentDto,
+  CreateTeacherDocumentUploadDescriptorDto,
   CreateTeacherDto,
   CreateTeacherSkillDto,
   UpdateTeacherAssignmentDto,
@@ -223,6 +224,20 @@ export class TeachersController {
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.teachersService.listDocuments(tenantId, teacherId);
+  }
+
+  @Post(":teacherId/documents/upload-descriptor")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("teachers", "create")
+  @ApiOperation({ summary: "Create teacher document upload descriptor" })
+  async createDocumentUploadDescriptor(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("teacherId", new ParseUUIDPipe()) teacherId: string,
+    @Body() body: CreateTeacherDocumentUploadDescriptorDto,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.teachersService.createDocumentUploadDescriptor(tenantId, teacherId, body);
   }
 
   @Post("documents")

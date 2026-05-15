@@ -27,7 +27,6 @@ canvas {
   .screen-host,
   .app-shell-main,
   .dashboard-shell-v2,
-  .dashboard-hero-shell,
   .dashboard-panel-shell,
   .module-modern,
   .module-overview-shell,
@@ -61,7 +60,6 @@ canvas {
   .notice-card,
   .soft-card,
   .day-card,
-  .dashboard-hero-shell,
   .dashboard-panel-shell,
   .reference-card,
   .messages-side-card,
@@ -73,7 +71,6 @@ canvas {
   .metric-card,
   .kpi-card,
   .kpi-card-flex,
-  .dashboard-hero-metric,
   .module-overview-card,
   .students-overview-card,
   .teachers-identity-card,
@@ -86,7 +83,6 @@ canvas {
 }
 
 :where(
-  .dashboard-hero-shell,
   .dashboard-panel-shell,
   .table-panel,
   .editor-panel,
@@ -108,7 +104,6 @@ canvas {
   .module-overview-grid,
   .students-overview-grid,
   .teachers-detail-grid,
-  .dashboard-hero-aside,
   .messages-side
 ) {
   min-width: 0;
@@ -118,8 +113,7 @@ canvas {
 :where(
   .dashboard-kpi-grid-flex,
   .module-overview-grid,
-  .students-overview-grid,
-  .dashboard-hero-aside
+  .students-overview-grid
 ) {
   grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
 }
@@ -131,8 +125,6 @@ canvas {
   .reference-card-head,
   .messages-conversation-toolbar,
   .iam-permissions-header,
-  .dashboard-hero-flex,
-  .dashboard-hero-content,
   .messages-hero,
   .students-overview,
   .teachers-hero
@@ -145,7 +137,6 @@ canvas {
   .table-header > div,
   .context-bar > div,
   .reference-card-head > div,
-  .dashboard-hero-content,
   .messages-compose-copy,
   .message-thread-copy,
   .module-card .module-text
@@ -154,7 +145,6 @@ canvas {
 }
 
 :where(
-  .dashboard-hero h2,
   .context-bar h2,
   .table-header h2,
   .table-header h3,
@@ -166,13 +156,8 @@ canvas {
   text-wrap: balance;
 }
 
-.dashboard-hero h2 {
-  font-size: var(--responsive-title-lg);
-}
-
 :where(
   .section-lead,
-  .dashboard-hero-copy,
   .message-thread-card p,
   .notice-card p,
   .auth-canvas__description,
@@ -187,8 +172,6 @@ canvas {
   button,
   .button-ghost,
   .button-danger,
-  .hero-primary-cta,
-  .hero-secondary-cta,
   .mobile-section-toggle,
   .workflow-tab,
   .header-nav-button,
@@ -206,7 +189,6 @@ canvas {
 :where(
   .actions,
   .context-actions,
-  .dashboard-hero-actions,
   .module-inline-strip,
   .module-inline-stack,
   .messages-compose-actions,
@@ -224,7 +206,6 @@ canvas {
 :where(
   .module-inline-strip,
   .module-inline-stack,
-  .dashboard-hero-foot,
   .messages-thread-summary,
   .messages-conversation-meta
 ) {
@@ -240,7 +221,6 @@ canvas {
   .status-pill,
   .notification-badge,
   .message-thread-badge,
-  .dashboard-hero-foot span,
   .messages-compose-hints span
 ) {
   min-width: 0;
@@ -300,7 +280,6 @@ canvas {
 
 @media (max-width: 1180px) {
   :where(
-    .dashboard-hero-flex,
     .messages-layout,
     .reference-workflow-shell,
     .workflow-body,
@@ -310,7 +289,6 @@ canvas {
   }
 
   :where(
-    .dashboard-hero-actions,
     .context-actions,
     .iam-permissions-actions,
     .messages-compose-actions
@@ -328,7 +306,6 @@ canvas {
   }
 
   :where(
-    .dashboard-hero-shell,
     .dashboard-panel-shell,
     .table-panel,
     .editor-panel,
@@ -352,7 +329,6 @@ canvas {
     .module-overview-grid,
     .students-overview-grid,
     .teachers-detail-grid,
-    .dashboard-hero-aside,
     .messages-side
   ) {
     grid-template-columns: 1fr !important;
@@ -376,7 +352,6 @@ canvas {
   :where(
     .actions,
     .context-actions,
-    .dashboard-hero-actions,
     .messages-compose-actions,
     .footer-actions,
     .auth-canvas__inline,
@@ -393,7 +368,6 @@ canvas {
   :where(
     .actions,
     .context-actions,
-    .dashboard-hero-actions,
     .messages-compose-actions,
     .footer-actions,
     .auth-canvas__inline,
@@ -408,7 +382,6 @@ canvas {
   :where(
     .module-inline-strip,
     .module-inline-stack,
-    .dashboard-hero-foot,
     .messages-thread-summary,
     .messages-conversation-meta
   ) {
@@ -422,7 +395,6 @@ canvas {
   :where(
     .module-inline-strip,
     .module-inline-stack,
-    .dashboard-hero-foot,
     .messages-thread-summary,
     .messages-conversation-meta
   )::-webkit-scrollbar {
@@ -432,7 +404,6 @@ canvas {
   :where(
     .module-inline-strip,
     .module-inline-stack,
-    .dashboard-hero-foot,
     .messages-thread-summary,
     .messages-conversation-meta
   ) > * {
@@ -468,7 +439,6 @@ canvas {
 
 @media (max-width: 420px) {
   :where(
-    .dashboard-hero-shell,
     .dashboard-panel-shell,
     .table-panel,
     .editor-panel,
@@ -706,7 +676,6 @@ canvas {
   .workflow-tabs,
   .module-inline-strip,
   .module-inline-stack,
-  .dashboard-hero-foot,
   .messages-thread-summary,
   .messages-conversation-meta
 ) {
@@ -729,7 +698,6 @@ canvas {
   .workflow-tabs,
   .module-inline-strip,
   .module-inline-stack,
-  .dashboard-hero-foot,
   .messages-thread-summary,
   .messages-conversation-meta
 )::after {
@@ -744,7 +712,6 @@ canvas {
     .workflow-tabs,
     .module-inline-strip,
     .module-inline-stack,
-    .dashboard-hero-foot,
     .messages-thread-summary,
     .messages-conversation-meta
   ) {
@@ -756,7 +723,6 @@ canvas {
     .workflow-tabs,
     .module-inline-strip,
     .module-inline-stack,
-    .dashboard-hero-foot,
     .messages-thread-summary,
     .messages-conversation-meta
   )::after {

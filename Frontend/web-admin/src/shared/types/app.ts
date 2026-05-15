@@ -500,6 +500,7 @@ export type TeacherDocumentRecord = {
   teacherName?: string;
   documentType: string;
   fileUrl: string;
+  documentName?: string;
   originalName: string;
   mimeType?: string;
   size?: number;
@@ -986,10 +987,4 @@ export type ModuleTile = {
   icon: ModuleIconName;
   tone: ModuleTone;
   tags: string[];
-};
-
-export type HeroSlide = {
-  quote: string;
-  author: string;
-  label: string;
 };

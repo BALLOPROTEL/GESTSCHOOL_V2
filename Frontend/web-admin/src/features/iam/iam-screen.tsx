@@ -12,6 +12,7 @@ import {
   ROLE_VALUES
 } from "../../shared/constants/domain";
 import { WorkflowGuide } from "../../shared/components/workflow-guide";
+import { translateUiString, type UiLanguage } from "../../shared/i18n";
 import type {
   AccountType,
   FieldErrors,
@@ -31,6 +32,7 @@ type IamScreenProps = {
   students: Student[];
   remoteEnabled?: boolean;
   locale: string;
+  language: UiLanguage;
   isStrongPassword: (value: string) => boolean;
   strongPasswordHint: string;
   onError: (message: string | null) => void;
@@ -50,6 +52,25 @@ const formatPermissionActionLabel = (value: PermissionAction): string =>
 const formatPermissionResourceLabel = (value: PermissionResource): string =>
   PERMISSION_RESOURCE_LABELS[value] || value;
 
+const EMPTY_VALUE_LABEL = "Non renseigné";
+
+const formatUserFullName = (item: UserAccount): string => {
+  const fromDisplayName = (item.displayName || "").trim();
+  if (fromDisplayName) return fromDisplayName;
+  const fromParts = [item.firstName, item.lastName].filter(Boolean).join(" ").trim();
+  return fromParts || EMPTY_VALUE_LABEL;
+};
+
+const formatUserAttachment = (item: UserAccount): string => {
+  if (item.teacherId) return "Fiche enseignant";
+  if (item.parentId) return "Fiche parent";
+  if (item.studentId) return "Fiche élève";
+  if (item.staffFunction || item.department) {
+    return [item.staffFunction, item.department].filter(Boolean).join(" - ");
+  }
+  return "Staff interne";
+};
+
 const fieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
   errors[key] ? <span className="field-error">{errors[key]}</span> : null;
 
@@ -59,6 +80,7 @@ export function IamScreen({
   students,
   remoteEnabled,
   locale,
+  language,
   isStrongPassword,
   strongPasswordHint,
   onError,
@@ -90,6 +112,7 @@ export function IamScreen({
     setUserForm,
     startEditUser,
     submitUser,
+    toggleUserAccountStatus,
     toggleRolePermission,
     userErrors,
     userForm,
@@ -103,7 +126,8 @@ export function IamScreen({
     strongPasswordHint,
     onError,
     onNotice,
-    onUsersChange
+    onUsersChange,
+    translate: (source) => translateUiString(language, source)
   });
 
   const goToStep = (stepId: string): void => {
@@ -128,20 +152,20 @@ export function IamScreen({
     >
       <>
         <section id="iam-accounts" data-step-id="accounts" className="panel editor-panel workflow-section">
-          <h2>{editingUserId ? "Modifier utilisateur" : "Creer utilisateur"}</h2>
+          <h2>{editingUserId ? "Modifier l'utilisateur" : "Créer l'utilisateur"}</h2>
           {lastTemporaryPassword ? (
             <div className="notice-card notice-success" role="status">
-              <strong>Mot de passe temporaire genere</strong>
-              <p>Communiquez-le une seule fois a l'utilisateur, puis le compte devra changer son mot de passe a la premiere connexion.</p>
+              <strong>Mot de passe temporaire généré</strong>
+              <p>Communiquez-le une seule fois à l'utilisateur, puis le compte devra changer son mot de passe à la première connexion.</p>
               <code>{lastTemporaryPassword}</code>
             </div>
           ) : null}
           <form className="iam-account-form" onSubmit={(event) => void submitUser(event)}>
             <fieldset className="iam-form-section">
-              <legend>Acces au systeme</legend>
+              <legend>Accès au système</legend>
               <div className="form-grid iam-form-grid">
                 <label>
-                  Nom utilisateur
+                  Identifiant ou email *
                   <input
                     value={userForm.username}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, username: event.target.value }))}
@@ -150,7 +174,7 @@ export function IamScreen({
                   {fieldError(userErrors, "username")}
                 </label>
                 <label>
-                  Email d'acces
+                  Adresse email de contact
                   <input
                     type="email"
                     value={userForm.email}
@@ -158,14 +182,14 @@ export function IamScreen({
                   />
                 </label>
                 <label>
-                  Telephone
+                  Téléphone
                   <input
                     value={userForm.phone}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, phone: event.target.value }))}
                   />
                 </label>
                 <label>
-                  Mode mot de passe
+                  Mode mot de passe *
                   <select
                     value={userForm.passwordMode}
                     onChange={(event) =>
@@ -202,7 +226,7 @@ export function IamScreen({
                   </>
                 ) : (
                   <p className="iam-inline-help">
-                    Un mot de passe temporaire fort sera genere et le changement a la premiere connexion restera actif.
+                    Un mot de passe temporaire fort sera généré et le changement à la première connexion restera actif.
                   </p>
                 )}
                 <label className="check-row iam-check-row">
@@ -213,17 +237,19 @@ export function IamScreen({
                       setUserForm((prev) => ({ ...prev, mustChangePasswordAtFirstLogin: event.target.checked }))
                     }
                   />
-                  Changement obligatoire a la premiere connexion
+                  Changement obligatoire à la première connexion
                 </label>
-                <label className="check-row iam-check-row">
-                  <input
-                    type="checkbox"
-                    checked={userForm.isActive}
+                <label>
+                  Statut du compte *
+                  <select
+                    value={userForm.isActive ? "ACTIVE" : "INACTIVE"}
                     onChange={(event) =>
-                      setUserForm((prev) => ({ ...prev, isActive: event.target.checked }))
+                      setUserForm((prev) => ({ ...prev, isActive: event.target.value === "ACTIVE" }))
                     }
-                  />
-                  Compte actif
+                  >
+                    <option value="ACTIVE">Actif</option>
+                    <option value="INACTIVE">Inactif</option>
+                  </select>
                 </label>
               </div>
             </fieldset>
@@ -243,7 +269,7 @@ export function IamScreen({
                   </select>
                 </label>
                 <label>
-                  Role d'acces
+                  Rôle d'accès *
                   <select
                     value={userForm.roleId}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, roleId: event.target.value as Role }))}
@@ -255,7 +281,7 @@ export function IamScreen({
                   {fieldError(userErrors, "roleId")}
                 </label>
                 <label>
-                  Etablissement
+                  Établissement
                   <select
                     value={userForm.establishmentId}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, establishmentId: event.target.value }))}
@@ -263,22 +289,24 @@ export function IamScreen({
                     <option value="">Al Manarat Islamiyat</option>
                   </select>
                 </label>
-                <label>
-                  Fonction staff
-                  <input
-                    value={userForm.staffFunction}
-                    onChange={(event) => setUserForm((prev) => ({ ...prev, staffFunction: event.target.value }))}
-                    disabled={userForm.accountType !== "STAFF"}
-                  />
-                </label>
-                <label>
-                  Departement
-                  <input
-                    value={userForm.department}
-                    onChange={(event) => setUserForm((prev) => ({ ...prev, department: event.target.value }))}
-                    disabled={userForm.accountType !== "STAFF"}
-                  />
-                </label>
+                {userForm.accountType === "STAFF" ? (
+                  <>
+                    <label>
+                      Fonction
+                      <input
+                        value={userForm.staffFunction}
+                        onChange={(event) => setUserForm((prev) => ({ ...prev, staffFunction: event.target.value }))}
+                      />
+                    </label>
+                    <label>
+                      Département
+                      <input
+                        value={userForm.department}
+                        onChange={(event) => setUserForm((prev) => ({ ...prev, department: event.target.value }))}
+                      />
+                    </label>
+                  </>
+                ) : null}
                 <label className="form-grid-span-full">
                   Notes internes
                   <textarea
@@ -291,7 +319,7 @@ export function IamScreen({
             </fieldset>
 
             <fieldset className="iam-form-section">
-              <legend>Rattachement metier</legend>
+              <legend>Rattachement métier</legend>
               <div className="form-grid iam-form-grid">
                 {userForm.accountType === "TEACHER" ? (
                   <label className="form-grid-span-full">
@@ -307,11 +335,11 @@ export function IamScreen({
                           value={teacher.id}
                           disabled={Boolean((teacher.userId && teacher.userId !== editingUserId) || teacher.status !== "ACTIVE" || teacher.archivedAt)}
                         >
-                          {teacher.matricule} - {teacher.fullName}{teacher.userId && teacher.userId !== editingUserId ? " (deja lie)" : ""}{teacher.status !== "ACTIVE" ? ` (${teacher.status})` : ""}
+                          {teacher.matricule} - {teacher.fullName}{teacher.userId && teacher.userId !== editingUserId ? " (déjà lié)" : ""}{teacher.status !== "ACTIVE" ? ` (${teacher.status})` : ""}
                         </option>
                       ))}
                     </select>
-                    {accountTeachers.length === 0 ? <small>Creer d'abord la fiche enseignant dans le module Enseignants.</small> : null}
+                    {accountTeachers.length === 0 ? <small>Créez d'abord la fiche enseignant dans le module Enseignants.</small> : null}
                     {fieldError(userErrors, "teacherId")}
                   </label>
                 ) : null}
@@ -329,39 +357,39 @@ export function IamScreen({
                           value={parent.id}
                           disabled={Boolean((parent.userId && parent.userId !== editingUserId) || parent.status !== "ACTIVE" || parent.archivedAt)}
                         >
-                          {parent.fullName} - {parent.primaryPhone}{parent.userId && parent.userId !== editingUserId ? " (deja lie)" : ""}{parent.status !== "ACTIVE" ? ` (${parent.status})` : ""}
+                          {parent.fullName} - {parent.primaryPhone}{parent.userId && parent.userId !== editingUserId ? " (déjà lié)" : ""}{parent.status !== "ACTIVE" ? ` (${parent.status})` : ""}
                         </option>
                       ))}
                     </select>
-                    {accountParents.length === 0 ? <small>Creer d'abord la fiche parent dans le module Parents.</small> : null}
+                    {accountParents.length === 0 ? <small>Créez d'abord la fiche parent dans le module Parents.</small> : null}
                     {fieldError(userErrors, "parentId")}
                   </label>
                 ) : null}
                 {userForm.accountType === "STUDENT" ? (
                   <label className="form-grid-span-full">
-                    Fiche eleve
+                    Fiche élève
                     <select
                       value={userForm.studentId}
                       onChange={(event) => setUserForm((prev) => ({ ...prev, studentId: event.target.value }))}
                     >
-                      <option value="">Choisir une fiche eleve</option>
+                      <option value="">Choisir une fiche élève</option>
                       {students.map((student) => (
                         <option
                           key={student.id}
                           value={student.id}
                           disabled={Boolean((student.userId && student.userId !== editingUserId) || student.status !== "ACTIVE" || student.archivedAt)}
                         >
-                          {student.matricule} - {student.fullName || `${student.firstName} ${student.lastName}`}{student.userId && student.userId !== editingUserId ? " (deja lie)" : ""}{student.status && student.status !== "ACTIVE" ? ` (${student.status})` : ""}
+                          {student.matricule} - {student.fullName || `${student.firstName} ${student.lastName}`}{student.userId && student.userId !== editingUserId ? " (déjà lié)" : ""}{student.status && student.status !== "ACTIVE" ? ` (${student.status})` : ""}
                         </option>
                       ))}
                     </select>
-                    {students.length === 0 ? <small>Creer d'abord la fiche eleve dans le module Eleves.</small> : null}
+                    {students.length === 0 ? <small>Créez d'abord la fiche élève dans le module Élèves.</small> : null}
                     {fieldError(userErrors, "studentId")}
                   </label>
                 ) : null}
                 {userForm.accountType === "STAFF" ? (
                   <label className="form-grid-span-full">
-                    Nom affiche staff
+                    Nom complet *
                     <input
                       value={userForm.staffDisplayName}
                       onChange={(event) => setUserForm((prev) => ({ ...prev, staffDisplayName: event.target.value, displayName: event.target.value }))}
@@ -369,32 +397,28 @@ export function IamScreen({
                     {fieldError(userErrors, "staffDisplayName")}
                   </label>
                 ) : null}
-                <label className="check-row iam-check-row form-grid-span-full">
-                  <input
-                    type="checkbox"
-                    checked={userForm.autoFillIdentity}
-                    onChange={(event) => setUserForm((prev) => ({ ...prev, autoFillIdentity: event.target.checked }))}
-                    disabled={userForm.accountType === "STAFF"}
-                  />
-                  Identite issue de la fiche metier
-                </label>
+                {userForm.accountType !== "STAFF" ? (
+                  <p className="iam-inline-help form-grid-span-full">
+                    Identité synchronisée depuis le profil métier.
+                  </p>
+                ) : null}
                 {fieldError(userErrors, "businessProfile")}
               </div>
             </fieldset>
 
             <aside className="iam-account-summary">
-              <p className="section-kicker">Resume identite</p>
-              <h3>{selectedBusinessDisplayName || "Aucune identite selectionnee"}</h3>
+              <p className="section-kicker">Résumé identité</p>
+              <h3>{selectedBusinessDisplayName || "Aucune identité sélectionnée"}</h3>
               <span>{formatAccountTypeLabel(userForm.accountType)} / {formatRoleLabel(userForm.roleId)}</span>
-              <small>{selectedBusinessEmail || "Email non renseigne"} - {selectedBusinessPhone || "Telephone non renseigne"}</small>
-              {selectedBusinessAlreadyLinked ? <strong className="danger-text">Fiche deja rattachee a un autre compte</strong> : null}
-              {selectedBusinessIsInactive ? <strong className="danger-text">Fiche inactive ou archivee</strong> : null}
+              <small>{selectedBusinessEmail || "Email non renseigné"} - {selectedBusinessPhone || "Téléphone non renseigné"}</small>
+              {selectedBusinessAlreadyLinked ? <strong className="danger-text">Fiche déjà rattachée à un autre compte</strong> : null}
+              {selectedBusinessIsInactive ? <strong className="danger-text">Fiche inactive ou archivée</strong> : null}
             </aside>
 
             <div className="actions">
-              <button type="submit">{editingUserId ? "Mettre a jour" : "Creer utilisateur"}</button>
+              <button type="submit">{editingUserId ? "Mettre à jour" : "Créer l'utilisateur"}</button>
               <button type="button" className="button-ghost" onClick={resetUserForm}>
-                {editingUserId ? "Annuler" : "Reinitialiser"}
+                {editingUserId ? "Annuler" : "Réinitialiser"}
               </button>
             </div>
           </form>
@@ -402,19 +426,19 @@ export function IamScreen({
 
         <section data-step-id="accounts" className="panel table-panel workflow-section">
           <div className="table-header">
-            <h2>Utilisateurs du tenant</h2>
+            <h2>Comptes utilisateurs</h2>
           </div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true" data-testid="iam-users-table">
               <thead>
                 <tr>
                   <th>Identifiant</th>
-                  <th>Identite</th>
-                  <th>Type</th>
-                  <th>Role d'acces</th>
+                  <th>Nom complet</th>
+                  <th>Type de personne</th>
+                  <th>Rôle d'accès</th>
                   <th>Rattachement</th>
                   <th>Statut</th>
-                  <th>Maj</th>
+                  <th>Dernière mise à jour</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -428,19 +452,24 @@ export function IamScreen({
                 ) : (
                   users.map((item) => (
                     <tr key={item.id}>
-                      <td>{item.username}</td>
-                      <td>{item.displayName || "-"}</td>
-                      <td>{formatAccountTypeLabel(item.accountType)}</td>
-                      <td>{formatRoleLabel(item.roleId || item.role)}</td>
-                      <td>
-                        {item.teacherId ? "Fiche enseignant" : item.parentId ? "Fiche parent" : item.studentId ? "Fiche eleve" : "Staff"}
+                      <td data-label="Identifiant">{item.username}</td>
+                      <td data-label="Nom complet">{formatUserFullName(item)}</td>
+                      <td data-label="Type de personne">{item.accountType ? formatAccountTypeLabel(item.accountType) : EMPTY_VALUE_LABEL}</td>
+                      <td data-label="Rôle d'accès">{formatRoleLabel(item.roleId || item.role)}</td>
+                      <td data-label="Rattachement">{formatUserAttachment(item)}</td>
+                      <td data-label="Statut">
+                        <span className={`status-pill ${item.isActive ? "is-success" : "is-muted"}`.trim()}>
+                          {item.isActive ? "Actif" : "Inactif"}
+                        </span>
                       </td>
-                      <td>{item.isActive ? "ACTIF" : "INACTIF"}</td>
-                      <td>{new Date(item.updatedAt).toLocaleString(locale)}</td>
-                      <td>
-                        <div className="inline-actions">
+                      <td data-label="Dernière mise à jour">{new Date(item.updatedAt).toLocaleString(locale)}</td>
+                      <td data-label="Actions">
+                        <div className="table-actions iam-user-actions">
                           <button type="button" className="button-ghost" onClick={() => startEditUser(item)}>
                             Modifier
+                          </button>
+                          <button type="button" className="button-ghost" onClick={() => void toggleUserAccountStatus(item, !item.isActive)}>
+                            {item.isActive ? "Désactiver" : "Réactiver"}
                           </button>
                           <button type="button" className="button-danger" onClick={() => void deleteUserAccount(item.id)}>
                             Supprimer
@@ -457,10 +486,10 @@ export function IamScreen({
 
         <section id="iam-permissions" data-step-id="permissions" className="panel table-panel workflow-section iam-permissions-panel">
           <div className="table-header iam-permissions-header">
-            <h2>Droits API par role</h2>
+            <h2>Droits par profil</h2>
             <div className="inline-actions iam-permissions-actions">
               <label className="iam-permissions-target">
-                Role cible
+                Profil à configurer
                 <select
                   value={rolePermissionTarget}
                   onChange={(event) => {
@@ -485,10 +514,10 @@ export function IamScreen({
             </div>
           </div>
           <p className="subtle">
-            Cochez pour autoriser. Les routes restent proteges par les profils d'ecran et d'API.
+            Sélectionnez les actions autorisées pour chaque ressource.
           </p>
-          <div className="table-wrap">
-            <table>
+          <div className="table-wrap iam-permissions-wrap">
+            <table className="iam-permissions-table" data-testid="iam-permissions-table">
               <thead>
                 <tr>
                   <th>Ressource</th>
@@ -505,6 +534,7 @@ export function IamScreen({
                       <td key={`${resource}:${action}`}>
                         <input
                           type="checkbox"
+                          aria-label={`${formatPermissionResourceLabel(resource)} - ${formatPermissionActionLabel(action)}`}
                           checked={getEffectivePermission(resource, action)}
                           onChange={(event) =>
                             toggleRolePermission(resource, action, event.target.checked)

@@ -29,11 +29,14 @@ import type {
   TeacherWorkloadRecord,
   UserAccount
 } from "../shared/types/app";
+import { translateUiString } from "../shared/i18n";
 import { AuthScreen } from "./auth-screen";
+import { DashboardScreen } from "./dashboard-screen";
 import { EnrollmentsScreen } from "./enrollments/enrollments-screen";
 import type { FinanceData } from "./finance/types/finance";
 import { FinanceScreen } from "./finance/finance-screen";
 import { GradesScreen } from "./grades/grades-screen";
+import { IamScreen } from "./iam/iam-screen";
 import { PortalParentScreen } from "./portal/portal-parent-screen";
 import type { ParentPortalData } from "./portal/types/portal-parent";
 import { PortalTeacherScreen } from "./portal/portal-teacher-screen";
@@ -510,6 +513,21 @@ const jsonResponse = (body: unknown): Response =>
 
 const failingApi = vi.fn(async () => jsonResponse({}));
 
+const iamUser: UserAccount = {
+  id: "user-admin",
+  tenantId: "tenant-1",
+  username: "admin.preview",
+  role: "ADMIN",
+  roleId: "ADMIN",
+  accountType: "STAFF",
+  displayName: "Administrateur Preview",
+  staffFunction: "Direction",
+  department: "Administration",
+  isActive: true,
+  createdAt: "2026-05-15T10:00:00.000Z",
+  updatedAt: "2026-05-15T10:30:00.000Z"
+} as UserAccount;
+
 const buildModuleApi = (): ((path: string, init?: RequestInit) => Promise<Response>) =>
   vi.fn(async (path: string) => {
     const pathname = path.split("?")[0];
@@ -675,6 +693,131 @@ describe("critical frontend flows", () => {
     expect(handleForgot).toHaveBeenCalledTimes(1);
   });
 
+  it("conserve le selecteur de langue FR/EN/AR et le basculement de theme", async () => {
+    const user = userEvent.setup();
+    const handleSelectLanguage = vi.fn();
+    const handleSelectTheme = vi.fn();
+
+    render(
+      <AuthScreen
+        apiStatus="online"
+        apiStatusText="API connectee"
+        authAssistLoading={false}
+        authAssistMode="none"
+        firstConnectionForm={{ username: "", temporaryPassword: "", newPassword: "", confirmPassword: "" }}
+        forgotPasswordForm={{ username: "" }}
+        languageBusy={false}
+        loadingAuth={false}
+        loginForm={{ username: "", password: "" }}
+        onEnterPreview={vi.fn()}
+        onFirstConnectionChange={vi.fn()}
+        onForgotPasswordChange={vi.fn()}
+        onLoginFormChange={vi.fn()}
+        onRememberMeChange={vi.fn()}
+        onResetPasswordChange={vi.fn()}
+        onSelectLanguage={handleSelectLanguage}
+        onSelectTheme={handleSelectTheme}
+        onShowFirstConnection={vi.fn()}
+        onShowForgotPassword={vi.fn()}
+        onShowLogin={vi.fn()}
+        onSubmitFirstConnection={vi.fn()}
+        onSubmitForgotPassword={vi.fn()}
+        onSubmitLogin={(event) => event.preventDefault()}
+        onSubmitResetPassword={vi.fn()}
+        previewEnabled={false}
+        rememberMe={false}
+        resetPasswordForm={{ token: "", newPassword: "", confirmPassword: "" }}
+        schoolName="Al Manarat Islamiyat"
+        themeBusy={false}
+        themeMode="dark"
+        uiLanguage="fr"
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /selectionner la langue/i }));
+    expect(screen.getByRole("menuitemradio", { name: "Français" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitemradio", { name: "Anglais" }));
+    expect(handleSelectLanguage).toHaveBeenCalledWith("en");
+
+    await user.click(screen.getByRole("button", { name: /activer le mode clair/i }));
+    expect(handleSelectTheme).toHaveBeenCalledWith("light");
+  });
+
+  it("affiche le dashboard sans le hero marketing supprime", () => {
+    render(
+      <DashboardScreen
+        currentRole="ADMIN"
+        invoices={[]}
+        classesCount={2}
+        reportCards={[]}
+        recovery={recovery}
+        students={[student]}
+        enrollments={[]}
+        MosqueeDashboard={null}
+        parentOverview={null}
+        parentChildren={[]}
+        parentInvoices={[]}
+        parentNotifications={[]}
+        teacherOverview={null}
+        teacherClasses={[]}
+        teacherStudentsCount={0}
+        teacherGradesCount={0}
+        teacherNotifications={[]}
+        mobileTasksOpen
+        onSelectScreen={vi.fn()}
+        onToggleMobileTasks={vi.fn()}
+        formatMoney={(value) => `${value} CFA`}
+        hasScreenAccess={() => true}
+      />
+    );
+
+    expect(screen.queryByText(/Accueil simplifie/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tableau de bord clair et actionnable/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Un ecran clair, des workflows simples/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Modules" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Tâches prioritaires" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Alertes & suivi" })).toBeInTheDocument();
+    expect(screen.getAllByText("Élèves").length).toBeGreaterThan(0);
+  });
+
+  it("traduit les libelles visibles critiques du dashboard et du header", () => {
+    const criticalSources = [
+      "Actions utiles",
+      "Tâches prioritaires",
+      "Factures ouvertes",
+      "Ouvrir le portail parent",
+      "Ouvrir le portail enseignant",
+      "Aucune alerte à traiter.",
+      "Messagerie en aperçu",
+      "Service indisponible pour le moment",
+      "Notifications en temps reel",
+      "Tout marquer lu",
+      "Langue et thème",
+      "Activer le mode clair",
+      "Mode aperçu local",
+      "Les données affichées sont des données de démonstration chargées dans le navigateur.",
+      "Elles ne sont pas persistées dans l’API ni dans PostgreSQL.",
+      "Rechercher un module, un écran, une action...",
+      "Salles",
+      "Dossiers, cursus et responsables",
+      "Responsables et liens eleves",
+      "Fiches, competences et affectations",
+      "Espaces, capacites et occupations",
+      "Passer de Français à Anglais",
+      "Créer un élève",
+      "Santé financière",
+      "Rapports & conformité"
+    ];
+
+    for (const source of criticalSources) {
+      expect(translateUiString("fr", source)).toBe(source);
+      expect(translateUiString("en", source)).not.toBe(source);
+      expect(translateUiString("ar", source)).not.toBe(source);
+    }
+
+    expect(translateUiString("ar", "Classes")).not.toBe("Classes");
+  });
+
   it("monte les flux eleves, inscriptions et bulletins avec des donnees bi-cursus", async () => {
     const user = userEvent.setup();
 
@@ -708,8 +851,14 @@ describe("critical frontend flows", () => {
       />
     );
 
-    expect(screen.getByText("Pilotage des inscriptions")).toBeInTheDocument();
+    expect(screen.getByText("Suivi des inscriptions")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Nouvelle inscription" })).toBeInTheDocument();
+    expect(screen.getAllByText("Type de placement").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("tab", { name: "Suivi" }));
+    expect(screen.getByRole("button", { name: "Voir" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Supprimer" })).toBeInTheDocument();
+    expect(screen.queryByText(/FlexAdmin/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Vue v2/i)).not.toBeInTheDocument();
     expect(screen.getAllByText("Awa Diallo").length).toBeGreaterThan(0);
     unmount();
 
@@ -789,6 +938,79 @@ describe("critical frontend flows", () => {
     await waitFor(() => {
       expect(api).toHaveBeenCalledWith("/rooms");
     });
+  });
+
+  it("remplace la saisie URL des documents enseignants par un vrai champ fichier", async () => {
+    const user = userEvent.setup();
+    const api = buildModuleApi();
+
+    render(
+      <TeachersScreen
+        api={api}
+        classes={[classroom]}
+        cycles={[cycle]}
+        levels={[level]}
+        onError={vi.fn()}
+        onNotice={vi.fn()}
+        periods={[period]}
+        schoolYears={[schoolYear]}
+        subjects={[subject]}
+        users={[] satisfies UserAccount[]}
+      />
+    );
+
+    expect(await screen.findByText("Mamadou Ndiaye")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Documents" }));
+
+    expect(screen.getByText("Fichier *")).toBeInTheDocument();
+    expect(screen.getByText("Aucun fichier sélectionné")).toBeInTheDocument();
+    expect(screen.queryByText("Lien du document *")).not.toBeInTheDocument();
+    expect(screen.queryByText("URL fichier")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mime type")).not.toBeInTheDocument();
+    expect(screen.queryByText("Taille octets")).not.toBeInTheDocument();
+
+    const file = new File(["document"], "contrat-test.pdf", { type: "application/pdf" });
+    await user.upload(screen.getByLabelText("Fichier *"), file);
+
+    expect(screen.getByText("contrat-test.pdf")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("contrat test")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ajouter le document" })).not.toBeDisabled();
+  });
+
+  it("présente Utilisateurs & droits avec un vocabulaire métier et une matrice lisible", async () => {
+    render(
+      <IamScreen
+        api={failingApi}
+        initialUsers={[iamUser]}
+        students={[]}
+        remoteEnabled={false}
+        locale="fr-FR"
+        language="fr"
+        isStrongPassword={() => true}
+        strongPasswordHint="Mot de passe fort requis."
+        onError={vi.fn()}
+        onNotice={vi.fn()}
+        onUsersChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "Créer l'utilisateur" })).toBeInTheDocument();
+    expect(screen.getAllByText("Comptes utilisateurs").length).toBeGreaterThan(0);
+    expect(screen.getByText("Rôle d'accès *")).toBeInTheDocument();
+    expect(screen.getByText("Rattachement métier")).toBeInTheDocument();
+    expect(screen.queryByText(/tenant/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Droits API/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/routes/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Droits par profil" }));
+
+    expect(screen.getByRole("heading", { name: "Droits par profil" })).toBeInTheDocument();
+    expect(screen.getByText("Sélectionnez les actions autorisées pour chaque ressource.")).toBeInTheDocument();
+    expect(screen.getByText("Référentiel")).toBeInTheDocument();
+    expect(screen.getByText("Validation des absences")).toBeInTheDocument();
+    expect(screen.getByTestId("iam-permissions-table")).toBeInTheDocument();
+    expect(translateUiString("en", "Droits par profil")).toBe("Permissions by profile");
+    expect(translateUiString("ar", "Comptes utilisateurs")).toBe("حسابات المستخدمين");
   });
 
   it("monte les portails parent et enseignant avec placements, notes et emploi du temps", () => {

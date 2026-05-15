@@ -216,7 +216,7 @@ export function CyclesSection(): JSX.Element {
                         <td>{item.sortOrder}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-ghost" onClick={() => void deleteRef(`/cycles/${item.id}`, "Cycle supprime.")}>
+                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/cycles/${item.id}`, "Cycle supprime.")}>
                             Supprimer
                           </button>
                         </td>

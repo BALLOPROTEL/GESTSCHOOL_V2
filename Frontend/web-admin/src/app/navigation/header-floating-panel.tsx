@@ -21,28 +21,34 @@ type HeaderFloatingPanelProps = {
 type FloatingStyle = CSSProperties;
 
 const MIN_PANEL_HEIGHT = 180;
-const OVERLAY_GAP = 18;
+const OVERLAY_GAP = 8;
 const VIEWPORT_MARGIN = 12;
 
 function computeFloatingStyle(anchor: Element, align: "start" | "end"): FloatingStyle {
-  const rect = anchor.getBoundingClientRect();
+  const trigger = anchor.querySelector("button") ?? anchor;
+  const rect = trigger.getBoundingClientRect();
   const headerRect = anchor.closest(".global-header-shell")?.getBoundingClientRect();
-  const lowerEdge = Math.max(rect.bottom, headerRect?.bottom ?? 0);
-  const top = Math.max(VIEWPORT_MARGIN, Math.min(lowerEdge + OVERLAY_GAP, window.innerHeight - VIEWPORT_MARGIN));
+  const rawTop = Math.max(rect.bottom + OVERLAY_GAP, (headerRect?.bottom ?? 0) + OVERLAY_GAP, VIEWPORT_MARGIN);
+  const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - VIEWPORT_MARGIN - MIN_PANEL_HEIGHT);
+  const top = Math.min(rawTop, maxTop);
   const maxHeight = Math.max(MIN_PANEL_HEIGHT, window.innerHeight - top - VIEWPORT_MARGIN);
+  const baseStyle = {
+    maxHeight: `${maxHeight}px`,
+    position: "fixed",
+    top: `${top}px`,
+    zIndex: "var(--shell-z-dropdown, 10000)"
+  } satisfies FloatingStyle;
 
   if (align === "end") {
     return {
-      maxHeight: `${maxHeight}px`,
-      right: `${Math.max(VIEWPORT_MARGIN, window.innerWidth - rect.right)}px`,
-      top: `${top}px`
+      ...baseStyle,
+      right: `${Math.max(VIEWPORT_MARGIN, window.innerWidth - rect.right)}px`
     };
   }
 
   return {
+    ...baseStyle,
     left: `${Math.min(Math.max(VIEWPORT_MARGIN, rect.left), window.innerWidth - VIEWPORT_MARGIN)}px`,
-    maxHeight: `${maxHeight}px`,
-    top: `${top}px`
   };
 }
 

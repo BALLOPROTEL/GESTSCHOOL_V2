@@ -42,7 +42,6 @@ import {
   type HeaderPreferenceAction
 } from "./navigation/header-navigation";
 import {
-  HERO_SLIDES,
   MODULE_TILES,
   ROLE_CONTEXT_LABELS,
   ROLE_HOME_SCREEN,
@@ -51,8 +50,9 @@ import {
 } from "./navigation/screen-registry";
 import { ROLE_LABELS } from "../shared/constants/domain";
 import { decorateResponsiveTables } from "./shell/responsive-tables";
+import { GlobalToastLayer } from "./shell/global-toast-layer";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
-import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, useDomTranslation } from "../shared/i18n";
+import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, translateUiString, useDomTranslation } from "../shared/i18n";
 import { fetchReferenceData } from "../features/reference/services/reference-service";
 import type { ReferenceData } from "../features/reference/types/reference";
 import { createPreviewAppData, PREVIEW_ACCESS_TOKEN } from "./preview/preview-data";
@@ -315,7 +315,6 @@ export function App(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [moduleQueryInput, setModuleQueryInput] = useState("");
-  const [moduleQuery, setModuleQuery] = useState("");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
 
   const [loginErrors, setLoginErrors] = useState<FieldErrors>({});
@@ -362,7 +361,6 @@ export function App(): JSX.Element {
     setHeaderNotificationCount(0);
     setLastSyncAt(null);
     setModuleQueryInput("");
-    setModuleQuery("");
   }, []);
   const handleAuthClearData = useCallback(() => {
     clearData();
@@ -412,7 +410,7 @@ export function App(): JSX.Element {
 
   const enterPreview = useCallback(() => {
     if (!PREVIEW_MODE_ENABLED) {
-      setError("Le mode apercu local est desactive en production.");
+      setError("Le mode aperçu local est désactivé en production.");
       return;
     }
 
@@ -438,7 +436,7 @@ export function App(): JSX.Element {
     saveSession(preview.session);
     setTab("dashboard");
     setError(null);
-    setNotice("Mode apercu local active : donnees de demonstration non persistees.");
+    setNotice(null);
   }, [clearData, saveSession]);
   const currentRole = (session?.user.role as Role | undefined) || null;
   const isPreviewSession = PREVIEW_MODE_ENABLED && session?.accessToken === PREVIEW_ACCESS_TOKEN;
@@ -446,9 +444,9 @@ export function App(): JSX.Element {
   const apiAvailable = apiConnection.status === "online";
   const apiStatusText =
     isPreviewSession
-      ? "Mode apercu local - donnees demo non persistees"
+      ? "Mode aperçu local - données de démonstration non persistées"
       : apiConnection.status === "checking"
-      ? "Connexion a l'API..."
+      ? "Connexion à l'API..."
       : apiConnection.status === "online"
         ? "API disponible"
         : apiConnection.status === "reconnecting"
@@ -477,18 +475,6 @@ export function App(): JSX.Element {
 
     return MODULE_TILES.filter((tile) => hasScreenAccess(currentRole, tile.screen));
   }, [currentRole]);
-
-  const filteredTiles = useMemo(() => {
-    const query = moduleQuery.trim().toLowerCase();
-    if (!query) return homeTiles;
-
-    return homeTiles.filter((tile) => {
-      const haystack = [tile.title, tile.subtitle, ...tile.tags].join(" ").toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [homeTiles, moduleQuery]);
-
-  const currentSlide = HERO_SLIDES[2];
 
   useEffect(() => {
     if (!PREVIEW_MODE_ENABLED || session || window.location.hash !== "#preview-admin") {
@@ -522,14 +508,6 @@ export function App(): JSX.Element {
 
     return () => window.clearTimeout(timer);
   }, [apiConnection.nextRetryAt, apiConnection.status, ensureApiAvailable, isPreviewSession]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setModuleQuery(moduleQueryInput);
-    }, 180);
-
-    return () => window.clearTimeout(timer);
-  }, [moduleQueryInput]);
 
   useEffect(() => {
     if (!notice) {
@@ -1300,9 +1278,6 @@ export function App(): JSX.Element {
     return (
       <DashboardScreen
         currentRole={currentRole}
-        currentSlide={currentSlide}
-        defaultActionScreen={ROLE_HOME_SCREEN[currentRole || "ADMIN"] || "dashboard"}
-        filteredTiles={filteredTiles}
         invoices={invoices}
         classesCount={classes.length}
         reportCards={reportCards}
@@ -1319,17 +1294,11 @@ export function App(): JSX.Element {
         teacherStudentsCount={teacherStudents.length}
         teacherGradesCount={teacherGrades.length}
         teacherNotifications={teacherNotifications}
-        moduleQuery={moduleQuery}
         mobileTasksOpen={mobileTasksOpen}
-        onClearModuleFilter={() => {
-          setModuleQueryInput("");
-          setModuleQuery("");
-        }}
         onSelectScreen={setTab}
         onToggleMobileTasks={() => setMobileTasksOpen((prev) => !prev)}
         formatMoney={formatMoney}
         hasScreenAccess={hasScreenAccess}
-        currentRoleLabel={currentRoleLabel}
       />
     );
   };
@@ -1367,6 +1336,7 @@ export function App(): JSX.Element {
       students={students}
       remoteEnabled={!isPreviewSession}
       locale={currentLanguageMeta.locale}
+      language={uiLanguage}
       isStrongPassword={isStrongPassword}
       strongPasswordHint={STRONG_PASSWORD_HINT}
       onError={setError}
@@ -1437,6 +1407,7 @@ export function App(): JSX.Element {
           schoolYears={schoolYears}
           subjects={subjects}
           users={users}
+          language={uiLanguage}
           onError={setError}
           onNotice={setNotice}
         />
@@ -1481,6 +1452,8 @@ export function App(): JSX.Element {
           classes={classes}
           students={students}
           remoteEnabled={!isPreviewSession}
+          language={uiLanguage}
+          locale={currentLanguageMeta.locale}
           onEnrollmentsChange={setEnrollments}
           onError={setError}
           onNotice={setNotice}
@@ -1559,6 +1532,7 @@ export function App(): JSX.Element {
   };
 
   const activeScreen = SCREEN_DEFS.find((entry) => entry.id === tab) ?? SCREEN_DEFS[0];
+  const isEnrollmentsContext = tab === "enrollments";
   const profileInitial = session?.user.username?.charAt(0)?.toUpperCase() || "U";
   const profileContextLabel = currentRole ? ROLE_CONTEXT_LABELS[currentRole] : "Session";
   const quickLinks = homeTiles.filter((tile) => tile.screen !== tab).slice(0, 4);
@@ -1580,7 +1554,7 @@ export function App(): JSX.Element {
       label,
       active: tab === screen,
       disabled: !allowed,
-      helperText: allowed ? undefined : "Acces restreint",
+      helperText: allowed ? undefined : "Accès restreint",
       onSelect: () => {
         if (!allowed) return;
         setTab(screen);
@@ -1594,49 +1568,52 @@ export function App(): JSX.Element {
     disabled: !currentRole,
     onSelect: () => setTab(dashboardTarget)
   };
+  const messagingEnabled = false;
   const scolariteActions: HeaderNavigationAction[] = [
     buildHeaderAction("enrollments", "Inscriptions"),
     buildHeaderAction("iam", "Utilisateurs & droits"),
     buildHeaderAction("teachers", "Enseignants"),
     buildHeaderAction("rooms", "Salles"),
-    buildHeaderAction("students", "Eleves"),
+    buildHeaderAction("students", "Élèves"),
     buildHeaderAction("parents", "Parents"),
-    buildHeaderAction("finance", "Comptabilite")
+    buildHeaderAction("finance", "Comptabilité")
   ];
   const schoolLifeActions: HeaderNavigationAction[] = [
     buildHeaderAction("grades", "Notes & bulletins"),
-    buildHeaderAction("messages", "Messagerie"),
+    messagingEnabled ? buildHeaderAction("messages", "Messagerie") : null,
     buildHeaderAction("schoolLifeOverview", "Pilotage"),
     buildHeaderAction("schoolLifeAttendance", "Absences"),
     buildHeaderAction("schoolLifeTimetable", "Emploi du temps"),
     buildHeaderAction("schoolLifeNotifications", "Notifications")
-  ];
+  ].filter((item): item is HeaderNavigationAction => item !== null);
   const settingsActions: HeaderNavigationAction[] = [
-    buildHeaderAction("reference", "Referentiel"),
-    buildHeaderAction("reports", "Rapports & conformite")
+    buildHeaderAction("reference", "Référentiel"),
+    buildHeaderAction("reports", "Rapports & conformité")
   ];
   const settingsGroups: HeaderNavigationGroup[] = [
     {
       id: "mosquee-management",
-      label: "Gestion mosquee",
-      items: [buildHeaderAction("mosquee", "Mosquee")]
+      label: "Gestion mosquée",
+      items: [buildHeaderAction("mosquee", "Mosquée")]
     }
   ];
   const portalActions: HeaderNavigationAction[] = [
     currentRole === "ENSEIGNANT" ? buildHeaderAction("teacherPortal", "Portail enseignant") : null,
     currentRole === "PARENT" ? buildHeaderAction("parentPortal", "Portail parent") : null,
-    currentRole === "STUDENT" ? buildHeaderAction("studentPortal", "Portail eleve") : null
+    currentRole === "STUDENT" ? buildHeaderAction("studentPortal", "Portail élève") : null
   ].filter((item): item is HeaderNavigationAction => item !== null);
+  const isIamContext = tab === "iam";
+  const isTeachersContext = tab === "teachers";
   const sidebarGroups =
     currentRole === "ENSEIGNANT" || currentRole === "PARENT" || currentRole === "STUDENT"
-      ? [{ id: "portal", title: "Acces rapide", items: portalActions }]
+      ? [{ id: "portal", title: "Accès rapide", items: portalActions }]
       : [
           { id: "pilotage", title: "Pilotage", items: [dashboardAction] },
-          { id: "scolarite", title: "Scolarite", items: scolariteActions },
+          { id: "scolarite", title: "Scolarité", items: scolariteActions },
           { id: "school-life", title: "Vie scolaire", items: schoolLifeActions },
           {
             id: "settings",
-            title: "Parametres",
+            title: "Paramètres",
             items: [...settingsActions, ...settingsGroups.flatMap((group) => group.items)]
           }
         ];
@@ -1644,7 +1621,7 @@ export function App(): JSX.Element {
     {
       id: "language",
       label: "Changer la langue",
-      helperText: `${currentLanguageMeta.label} -> ${nextLanguageMeta.label}`,
+      helperText: `Passer de ${currentLanguageMeta.label} à ${nextLanguageMeta.label}`,
       iconSrc: currentLanguageMeta.iconSrc,
       onSelect: cycleLanguage
     },
@@ -1742,7 +1719,7 @@ export function App(): JSX.Element {
             logoAlt={`Logo ${SCHOOL_NAME}`}
             logoSrc="/logo.png"
             sidebarCollapsed={sidebarCollapsed}
-            searchPlaceholder="Rechercher un module, un ecran, une action..."
+            searchPlaceholder="Rechercher un module, un écran, une action..."
             searchValue={moduleQueryInput}
             onSearchChange={setModuleQueryInput}
             onSearchSubmit={headerSearchSubmit}
@@ -1757,8 +1734,8 @@ export function App(): JSX.Element {
               active: messageActive,
               count: headerMessageCount,
               disabled: true,
-              label: "Messagerie en apercu",
-              statusLabel: "Module UI-only, backend messagerie non branche",
+              label: "Messagerie en aperçu",
+              statusLabel: "Service indisponible pour le moment",
               onSelect: () => setTab(messageTarget)
             }}
             notifications={{
@@ -1771,7 +1748,7 @@ export function App(): JSX.Element {
               avatar: profileInitial,
               contextLabel: profileContextLabel,
               roleLabel: currentRoleLabel,
-              secondaryLabel: `Annee: ${schoolYearLabel}`,
+              secondaryLabel: `Année : ${schoolYearLabel}`,
               username: session.user.username,
               onLogout: () => void logout()
             }}
@@ -1785,11 +1762,14 @@ export function App(): JSX.Element {
             />
             <div className="app-shell-main">
               {isPreviewSession ? (
-                <section className="notice-card notice-warning" role="status">
-                  <strong>Mode apercu local</strong>
+                <section className="notice-card notice-warning preview-local-notice" role="status">
+                  <strong>{translateUiString(uiLanguage, "Mode aperçu local")}</strong>
                   <p>
-                    Les donnees affichees sont des donnees de demonstration chargees dans le navigateur.
-                    Elles ne sont pas persistees dans l'API ni dans PostgreSQL.
+                    {translateUiString(
+                      uiLanguage,
+                      "Les données affichées sont des données de démonstration chargées dans le navigateur."
+                    )}{" "}
+                    {translateUiString(uiLanguage, "Elles ne sont pas persistées dans l’API ni dans PostgreSQL.")}
                   </p>
                 </section>
               ) : null}
@@ -1799,21 +1779,31 @@ export function App(): JSX.Element {
                   <div className="context-copy">
                     <p className="eyebrow">Module actif</p>
                     <h2>{activeScreen.label}</h2>
+                    {isEnrollmentsContext ? (
+                      <p className="section-lead">Gérez les inscriptions et placements académiques des élèves.</p>
+                    ) : null}
+                    {isTeachersContext ? (
+                      <p className="section-lead">
+                        Gérez les fiches enseignants, leurs compétences, leurs affectations, leur charge horaire et leurs documents administratifs.
+                      </p>
+                    ) : null}
                   </div>
                   <div className="context-actions">
                     <button type="button" className="button-ghost" onClick={() => setTab("dashboard")}>
-                      Retour accueil
+                      {isEnrollmentsContext || isIamContext || isTeachersContext ? "Retour tableau de bord" : "Retour accueil"}
                     </button>
-                    {quickLinks.slice(0, 2).map((tile) => (
-                      <button
-                        key={`shortcut-${tile.screen}`}
-                        type="button"
-                        className="mini-link"
-                        onClick={() => setTab(tile.screen)}
-                      >
-                        {tile.title}
-                      </button>
-                    ))}
+                    {isEnrollmentsContext || isIamContext || isTeachersContext
+                      ? null
+                      : quickLinks.slice(0, 2).map((tile) => (
+                          <button
+                            key={`shortcut-${tile.screen}`}
+                            type="button"
+                            className="mini-link"
+                            onClick={() => setTab(tile.screen)}
+                          >
+                            {tile.title}
+                          </button>
+                        ))}
                   </div>
                 </section>
               ) : null}
@@ -1826,8 +1816,8 @@ export function App(): JSX.Element {
                 <div className="footer-head">
                   <strong>{SCHOOL_NAME}</strong>
                   <div className="footer-meta">
-                    <span>Annee: {schoolYearLabel}</span>
-                    <span>Derniere sync: {lastSyncLabel}</span>
+                    <span>Année : {schoolYearLabel}</span>
+                    <span>Dernière sync : {lastSyncLabel}</span>
                     {apiConnection.status !== "online" ? <span>{apiStatusText}</span> : null}
                   </div>
                 </div>
@@ -1837,32 +1827,13 @@ export function App(): JSX.Element {
         </section>
       )}
 
-      {error || notice ? (
-        <div className="toast-stack" aria-live="polite" aria-atomic="true">
-          {error ? (
-            <div className="toast-pop toast-pop-error" role="alert">
-              <div>
-                <strong>Attention</strong>
-                <p>{error}</p>
-              </div>
-              <button type="button" aria-label="Fermer la notification d'erreur" onClick={() => setError(null)}>
-                Fermer
-              </button>
-            </div>
-          ) : null}
-          {notice ? (
-            <div className="toast-pop toast-pop-success" role="status">
-              <div>
-                <strong>Information</strong>
-                <p>{notice}</p>
-              </div>
-              <button type="button" aria-label="Fermer la notification" onClick={() => setNotice(null)}>
-                Fermer
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      <GlobalToastLayer
+        error={error}
+        language={uiLanguage}
+        notice={notice}
+        onDismissError={() => setError(null)}
+        onDismissNotice={() => setNotice(null)}
+      />
     </main>
   );
 }

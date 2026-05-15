@@ -1,5 +1,4 @@
 import type {
-  HeroSlide,
   ModuleTile,
   Role,
   ScreenDef,
@@ -10,14 +9,14 @@ export const SCREEN_DEFS: ScreenDef[] = [
   { id: "iam", label: "Utilisateurs & droits", group: "principal", roles: ["ADMIN"] },
   { id: "teachers", label: "Enseignants", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
   { id: "rooms", label: "Salles", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
-  { id: "students", label: "Eleves", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
+  { id: "students", label: "Élèves", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
   { id: "parents", label: "Parents", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
-  { id: "messages", label: "Messagerie (apercu)", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
-  { id: "reference", label: "Referentiel", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
+  { id: "messages", label: "Messagerie (aperçu)", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
+  { id: "reference", label: "Référentiel", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
   { id: "enrollments", label: "Inscriptions", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
-  { id: "finance", label: "Comptabilite", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
-  { id: "reports", label: "Rapports & conformite", group: "principal", roles: ["ADMIN"] },
-  { id: "mosquee", label: "Mosquee", group: "principal", roles: ["ADMIN", "COMPTABLE"] },
+  { id: "finance", label: "Comptabilité", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
+  { id: "reports", label: "Rapports & conformité", group: "principal", roles: ["ADMIN"] },
+  { id: "mosquee", label: "Mosquée", group: "principal", roles: ["ADMIN", "COMPTABLE"] },
   { id: "grades", label: "Notes & bulletins", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
   { id: "schoolLifeOverview", label: "Pilotage", group: "vie", roles: ["ADMIN", "SCOLARITE"] },
   { id: "schoolLifeAttendance", label: "Absences", group: "vie", roles: ["ADMIN", "SCOLARITE"] },
@@ -25,7 +24,7 @@ export const SCREEN_DEFS: ScreenDef[] = [
   { id: "schoolLifeNotifications", label: "Notifications", group: "vie", roles: ["ADMIN", "SCOLARITE"] },
   { id: "teacherPortal", label: "Portail enseignant", group: "portail", roles: ["ENSEIGNANT"] },
   { id: "parentPortal", label: "Portail parent", group: "portail", roles: ["PARENT"] },
-  { id: "studentPortal", label: "Portail eleve", group: "portail", roles: ["STUDENT"] }
+  { id: "studentPortal", label: "Portail élève", group: "portail", roles: ["STUDENT"] }
 ];
 
 export const ROLE_HOME_SCREEN: Record<Role, ScreenId> = {
@@ -39,11 +38,11 @@ export const ROLE_HOME_SCREEN: Record<Role, ScreenId> = {
 
 export const ROLE_CONTEXT_LABELS: Record<Role, string> = {
   ADMIN: "Administration",
-  SCOLARITE: "Scolarite",
+  SCOLARITE: "Scolarité",
   ENSEIGNANT: "Espace enseignant",
   COMPTABLE: "Espace comptable",
   PARENT: "Espace parent",
-  STUDENT: "Espace eleve"
+  STUDENT: "Espace élève"
 };
 
 export const hasScreenAccess = (role: Role, screen: ScreenId): boolean =>
@@ -53,23 +52,23 @@ export const MODULE_TILES: ModuleTile[] = [
   {
     screen: "iam",
     title: "Utilisateurs & droits",
-    subtitle: "Comptes, roles et permissions",
+    subtitle: "Gérez les comptes, les rôles et les accès des utilisateurs.",
     icon: "shield",
     tone: "indigo",
     tags: ["users", "roles", "permissions", "iam"]
   },
   {
     screen: "students",
-    title: "Eleves",
+    title: "Élèves",
     subtitle: "Dossiers, cursus et responsables",
     icon: "users",
     tone: "blue",
-    tags: ["eleves", "matricule", "profil", "cursus"]
+    tags: ["élèves", "matricule", "profil", "cursus"]
   },
   {
     screen: "parents",
     title: "Parents",
-    subtitle: "Responsables et liens eleves",
+    subtitle: "Responsables et liens élèves",
     icon: "parent",
     tone: "violet",
     tags: ["parents", "tuteurs", "responsables", "famille"]
@@ -77,23 +76,23 @@ export const MODULE_TILES: ModuleTile[] = [
   {
     screen: "teachers",
     title: "Enseignants",
-    subtitle: "Fiches, competences et affectations",
+    subtitle: "Fiches, compétences et affectations",
     icon: "teacher",
     tone: "indigo",
-    tags: ["enseignants", "professeurs", "competences", "affectations", "charge"]
+    tags: ["enseignants", "professeurs", "compétences", "affectations", "charge"]
   },
   {
     screen: "rooms",
     title: "Salles",
-    subtitle: "Espaces, capacites et occupations",
+    subtitle: "Espaces, capacités et occupations",
     icon: "room",
     tone: "teal",
-    tags: ["salles", "locaux", "capacite", "occupation", "cursus"]
+    tags: ["salles", "locaux", "capacité", "occupation", "cursus"]
   },
   {
     screen: "enrollments",
     title: "Inscriptions",
-    subtitle: "Affectation classe/annee",
+    subtitle: "Affectation classe/année",
     icon: "clipboard",
     tone: "orange",
     tags: ["inscriptions", "admission", "classe"]
@@ -125,7 +124,7 @@ export const MODULE_TILES: ModuleTile[] = [
   {
     screen: "messages",
     title: "Messagerie",
-    subtitle: "Conversations internes et priorites",
+    subtitle: "Conversations internes et priorités",
     icon: "messages",
     tone: "teal",
     tags: ["messagerie", "chat", "conversation", "communication"]
@@ -148,40 +147,40 @@ export const MODULE_TILES: ModuleTile[] = [
   },
   {
     screen: "reports",
-    title: "Rapports & conformite",
-    subtitle: "Indicateurs executifs et journal d'audit",
+    title: "Rapports & conformité",
+    subtitle: "Indicateurs exécutifs et journal d'audit",
     icon: "chart",
     tone: "orange",
-    tags: ["reporting", "audit", "conformite", "kpi"]
+    tags: ["reporting", "audit", "conformité", "kpi"]
   },
   {
     screen: "mosquee",
-    title: "Mosquee",
-    subtitle: "Membres, activites et dons",
+    title: "Mosquée",
+    subtitle: "Membres, activités et dons",
     icon: "moon",
     tone: "teal",
-    tags: ["mosquee", "dons", "activites", "membres"]
+    tags: ["mosquée", "dons", "activités", "membres"]
   },
   {
     screen: "grades",
     title: "Notes & bulletins",
-    subtitle: "Evaluations et bulletins PDF",
+    subtitle: "Évaluations et bulletins PDF",
     icon: "book",
     tone: "blue",
     tags: ["notes", "bulletin", "moyenne"]
   },
   {
     screen: "reference",
-    title: "Parametres",
-    subtitle: "Referentiel academique",
+    title: "Paramètres",
+    subtitle: "Référentiel académique",
     icon: "settings",
     tone: "slate",
-    tags: ["parametres", "referentiel", "configuration"]
+    tags: ["paramètres", "référentiel", "configuration"]
   },
   {
     screen: "teacherPortal",
     title: "Portail enseignant",
-    subtitle: "Espace pedagogique",
+    subtitle: "Espace pédagogique",
     icon: "teacher",
     tone: "orange",
     tags: ["enseignant", "portail", "pedagogie"]
@@ -196,28 +195,10 @@ export const MODULE_TILES: ModuleTile[] = [
   },
   {
     screen: "studentPortal",
-    title: "Portail eleve",
-    subtitle: "Acces eleve securise",
+    title: "Portail élève",
+    subtitle: "Accès élève sécurisé",
     icon: "graduation",
     tone: "blue",
-    tags: ["eleve", "portail", "scolarite"]
-  }
-];
-
-export const HERO_SLIDES: HeroSlide[] = [
-  {
-    quote: "Ouvrez des ecoles, vous fermerez des prisons.",
-    author: "Victor Hugo",
-    label: "Citation"
-  },
-  {
-    quote: "Bienvenue sur GestSchool: suivi unifie de la vie academique et financiere.",
-    author: "Annonce Systeme",
-    label: "Annonce"
-  },
-  {
-    quote: "Un ecran clair, des workflows simples, une equipe plus efficace.",
-    author: "Equipe Produit",
-    label: "Vision"
+    tags: ["élève", "portail", "scolarité"]
   }
 ];

@@ -3,18 +3,6 @@
   gap: clamp(1rem, 1.5vw, 1.35rem);
 }
 
-.dashboard-hero-shell {
-  overflow: hidden;
-}
-
-.dashboard-hero-content {
-  max-width: 54rem;
-}
-
-.dashboard-hero-actions {
-  margin-top: 0.15rem;
-}
-
 .dashboard-kpi-grid-flex {
   align-items: stretch;
 }

@@ -7,6 +7,7 @@ import type {
   SchoolYear,
   Student
 } from "../../../shared/types/app";
+import { translateUiString, type UiLanguage } from "../../../shared/i18n";
 import {
   createEnrollment,
   fetchEnrollments,
@@ -25,6 +26,7 @@ type UseEnrollmentsDataOptions = {
   classes: ClassItem[];
   students: Student[];
   remoteEnabled?: boolean;
+  language?: UiLanguage;
   onEnrollmentsChange?: (enrollments: Enrollment[]) => void;
   onError: (message: string | null) => void;
   onNotice: (message: string | null) => void;
@@ -56,7 +58,8 @@ const buildInitialFilters = (): EnrollmentFilters => ({
   schoolYearId: "",
   classId: "",
   studentId: "",
-  track: ""
+  track: "",
+  enrollmentStatus: ""
 });
 
 const buildInitialForm = (): EnrollmentForm => ({
@@ -75,6 +78,7 @@ export const useEnrollmentsData = ({
   classes,
   students,
   remoteEnabled = true,
+  language = "fr",
   onEnrollmentsChange,
   onError,
   onNotice
@@ -151,19 +155,33 @@ export const useEnrollmentsData = ({
     onError(null);
 
     const errors: FieldErrors = {};
-    if (!enrollmentForm.schoolYearId) errors.schoolYearId = "Annee scolaire requise.";
+    if (!enrollmentForm.schoolYearId) errors.schoolYearId = "Année scolaire requise.";
     if (!enrollmentForm.classId) errors.classId = "Classe requise.";
-    if (!enrollmentForm.studentId) errors.studentId = "Eleve requis.";
+    if (!enrollmentForm.studentId) errors.studentId = "Élève requis.";
     if (!enrollmentForm.track) errors.track = "Cursus requis.";
     if (!enrollmentForm.enrollmentDate) errors.enrollmentDate = "Date d'inscription requise.";
     if (!enrollmentForm.enrollmentStatus.trim()) errors.enrollmentStatus = "Statut requis.";
 
     const selectedClass = classes.find((item) => item.id === enrollmentForm.classId);
     if (selectedClass && selectedClass.schoolYearId !== enrollmentForm.schoolYearId) {
-      errors.classId = "La classe doit appartenir a l'annee selectionnee.";
+      errors.classId = "La classe doit appartenir à l'année sélectionnée.";
     }
     if (selectedClass && selectedClass.track !== enrollmentForm.track) {
-      errors.track = "Le cursus doit correspondre a la classe selectionnee.";
+      errors.track = "Le cursus doit correspondre à la classe sélectionnée.";
+    }
+
+    const duplicateEnrollment = enrollments.some((item) => {
+      const status = item.enrollmentStatus.trim().toUpperCase();
+      return (
+        item.studentId === enrollmentForm.studentId &&
+        item.schoolYearId === enrollmentForm.schoolYearId &&
+        item.classId === enrollmentForm.classId &&
+        item.track === enrollmentForm.track &&
+        !["CANCELLED", "COMPLETED"].includes(status)
+      );
+    });
+    if (duplicateEnrollment) {
+      errors.studentId = "Cet élève possède déjà un placement actif sur cette année, cette classe et ce cursus.";
     }
 
     setEnrollmentErrors(errors);
@@ -172,7 +190,7 @@ export const useEnrollmentsData = ({
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : inscription non persistee.");
+      onNotice(translateUiString(language, "Mode aperçu local : inscription non persistée."));
       return;
     }
 
@@ -185,11 +203,11 @@ export const useEnrollmentsData = ({
         enrollmentDate: enrollmentForm.enrollmentDate || today(),
         enrollmentStatus: enrollmentForm.enrollmentStatus.trim().toUpperCase() || "ENROLLED"
       });
-      setNoticeAndStep("Inscription creee.", "list");
+      setNoticeAndStep(translateUiString(language, "Inscription créée."), "list");
       setEnrollmentErrors({});
       await loadEnrollments(enrollmentFilters);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de creation d'inscription.");
+      onError(error instanceof Error ? error.message : "Erreur de création d'inscription.");
     }
   };
 
@@ -199,14 +217,14 @@ export const useEnrollmentsData = ({
   };
 
   const deleteEnrollment = async (id: string): Promise<void> => {
-    if (!window.confirm("Supprimer cette inscription ?")) return;
+    if (!window.confirm(translateUiString(language, "Supprimer cette inscription ?"))) return;
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : suppression non persistee.");
+      onNotice(translateUiString(language, "Mode aperçu local : suppression non persistée."));
       return;
     }
     try {
       await removeEnrollment(api, id);
-      onNotice("Inscription supprimee.");
+      onNotice(translateUiString(language, "Inscription supprimée."));
       await loadEnrollments(enrollmentFilters);
     } catch (error) {
       onError(error instanceof Error ? error.message : "Erreur de suppression d'inscription.");
@@ -221,8 +239,8 @@ export const useEnrollmentsData = ({
 
   const enrollmentSteps = useMemo(
     () => [
-      { id: "create", title: "Creation", hint: "Lier eleve, classe et annee." },
-      { id: "list", title: "Suivi", hint: "Filtrer et gerer les inscriptions.", done: enrollments.length > 0 }
+      { id: "create", title: "Création", hint: "Lier élève, classe et année." },
+      { id: "list", title: "Suivi", hint: "Filtrer et gérer les inscriptions.", done: enrollments.length > 0 }
     ],
     [enrollments.length]
   );
