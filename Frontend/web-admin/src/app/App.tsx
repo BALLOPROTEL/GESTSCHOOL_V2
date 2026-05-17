@@ -12,7 +12,6 @@ import type {
   GradeEntry,
   Invoice,
   Level,
-  ModuleTile,
   MosqueeDashboard,
   ParentChild,
   ParentOverview,
@@ -42,7 +41,6 @@ import {
   type HeaderPreferenceAction
 } from "./navigation/header-navigation";
 import {
-  MODULE_TILES,
   ROLE_CONTEXT_LABELS,
   ROLE_HOME_SCREEN,
   SCREEN_DEFS,
@@ -469,12 +467,6 @@ export function App(): JSX.Element {
     const activeYear = schoolYears.find((item) => item.isActive) || schoolYears[0];
     return activeYear?.label || activeYear?.code || "2025-2026";
   }, [currentRole, parentChildren, parentTimetable, schoolYears, teacherClasses]);
-
-  const homeTiles = useMemo(() => {
-    if (!currentRole) return [] as ModuleTile[];
-
-    return MODULE_TILES.filter((tile) => hasScreenAccess(currentRole, tile.screen));
-  }, [currentRole]);
 
   useEffect(() => {
     if (!PREVIEW_MODE_ENABLED || session || window.location.hash !== "#preview-admin") {
@@ -1535,7 +1527,6 @@ export function App(): JSX.Element {
   const isEnrollmentsContext = tab === "enrollments";
   const profileInitial = session?.user.username?.charAt(0)?.toUpperCase() || "U";
   const profileContextLabel = currentRole ? ROLE_CONTEXT_LABELS[currentRole] : "Session";
-  const quickLinks = homeTiles.filter((tile) => tile.screen !== tab).slice(0, 4);
   const nextLanguage = languageFlipTarget || getNextUiLanguage(uiLanguage);
   const nextLanguageMeta = UI_LANGUAGE_META[nextLanguage];
   const lastSyncLabel = lastSyncAt
@@ -1602,7 +1593,6 @@ export function App(): JSX.Element {
     currentRole === "PARENT" ? buildHeaderAction("parentPortal", "Portail parent") : null,
     currentRole === "STUDENT" ? buildHeaderAction("studentPortal", "Portail élève") : null
   ].filter((item): item is HeaderNavigationAction => item !== null);
-  const isIamContext = tab === "iam";
   const isTeachersContext = tab === "teachers";
   const sidebarGroups =
     currentRole === "ENSEIGNANT" || currentRole === "PARENT" || currentRole === "STUDENT"
@@ -1790,20 +1780,8 @@ export function App(): JSX.Element {
                   </div>
                   <div className="context-actions">
                     <button type="button" className="button-ghost" onClick={() => setTab("dashboard")}>
-                      {isEnrollmentsContext || isIamContext || isTeachersContext ? "Retour tableau de bord" : "Retour accueil"}
+                      Retour tableau de bord
                     </button>
-                    {isEnrollmentsContext || isIamContext || isTeachersContext
-                      ? null
-                      : quickLinks.slice(0, 2).map((tile) => (
-                          <button
-                            key={`shortcut-${tile.screen}`}
-                            type="button"
-                            className="mini-link"
-                            onClick={() => setTab(tile.screen)}
-                          >
-                            {tile.title}
-                          </button>
-                        ))}
                   </div>
                 </section>
               ) : null}

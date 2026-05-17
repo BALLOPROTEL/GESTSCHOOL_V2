@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { FormEvent } from "react";
+import type { ComponentProps, FormEvent } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -636,6 +636,46 @@ const buildModuleApi = (): ((path: string, init?: RequestInit) => Promise<Respon
     return jsonResponse(responses[pathname] ?? []);
   });
 
+type AuthScreenTestProps = ComponentProps<typeof AuthScreen>;
+
+function renderAuthScreen(overrides: Partial<AuthScreenTestProps> = {}) {
+  const defaultProps: AuthScreenTestProps = {
+    apiStatus: "online",
+    apiStatusText: "API connectée",
+    authAssistLoading: false,
+    authAssistMode: "none",
+    firstConnectionForm: { username: "", temporaryPassword: "", newPassword: "", confirmPassword: "" },
+    forgotPasswordForm: { username: "" },
+    languageBusy: false,
+    loadingAuth: false,
+    loginForm: { username: "", password: "" },
+    onEnterPreview: vi.fn(),
+    onFirstConnectionChange: vi.fn(),
+    onForgotPasswordChange: vi.fn(),
+    onLoginFormChange: vi.fn(),
+    onRememberMeChange: vi.fn(),
+    onResetPasswordChange: vi.fn(),
+    onSelectLanguage: vi.fn(),
+    onSelectTheme: vi.fn(),
+    onShowFirstConnection: vi.fn(),
+    onShowForgotPassword: vi.fn(),
+    onShowLogin: vi.fn(),
+    onSubmitFirstConnection: vi.fn((event: FormEvent<HTMLFormElement>) => event.preventDefault()),
+    onSubmitForgotPassword: vi.fn((event: FormEvent<HTMLFormElement>) => event.preventDefault()),
+    onSubmitLogin: vi.fn((event: FormEvent<HTMLFormElement>) => event.preventDefault()),
+    onSubmitResetPassword: vi.fn((event: FormEvent<HTMLFormElement>) => event.preventDefault()),
+    previewEnabled: false,
+    rememberMe: false,
+    resetPasswordForm: { token: "", newPassword: "", confirmPassword: "" },
+    schoolName: "Al Manarat Islamiyat",
+    themeBusy: false,
+    themeMode: "dark",
+    uiLanguage: "fr"
+  };
+
+  return render(<AuthScreen {...defaultProps} {...overrides} />);
+}
+
 describe("critical frontend flows", () => {
   it("couvre l'ecran login avec statut API et actions d'assistance", () => {
     const handleLoginChange = vi.fn();
@@ -680,12 +720,14 @@ describe("critical frontend flows", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Connexion" })).toBeInTheDocument();
+    expect(screen.getByTestId("auth-brand-title")).toHaveTextContent("Al Manarat Islamiyat");
+    expect(screen.queryByRole("heading", { name: "GestSchool" })).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("API indisponible");
 
-    expect(screen.getByPlaceholderText("Email ou Identifiant")).toHaveValue("admin@gestschool.local");
+    expect(screen.getByPlaceholderText("Email ou identifiant")).toHaveValue("admin@gestschool.local");
     fireEvent.click(screen.getByLabelText(/se souvenir de moi/i));
     fireEvent.click(screen.getByRole("button", { name: /^Connexion$/ }));
-    fireEvent.click(screen.getByRole("button", { name: /mot de passe oublie/i }));
+    fireEvent.click(screen.getByRole("button", { name: /mot de passe oublié/i }));
 
     expect(handleLoginChange).not.toHaveBeenCalled();
     expect(handleRemember).toHaveBeenCalledWith(true);
@@ -734,13 +776,68 @@ describe("critical frontend flows", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: /selectionner la langue/i }));
+    expect(screen.queryByText(/^Theme$/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("auth-theme-toggle")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /sélectionner la langue/i }));
     expect(screen.getByRole("menuitemradio", { name: "Français" })).toBeInTheDocument();
     await user.click(screen.getByRole("menuitemradio", { name: "Anglais" }));
     expect(handleSelectLanguage).toHaveBeenCalledWith("en");
 
     await user.click(screen.getByRole("button", { name: /activer le mode clair/i }));
     expect(handleSelectTheme).toHaveBeenCalledWith("light");
+  });
+
+  it("affiche un parcours activation compte lisible et accessible", () => {
+    renderAuthScreen({
+      authAssistMode: "first",
+      firstConnectionForm: {
+        username: "admin@gestschool.local",
+        temporaryPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      }
+    });
+
+    expect(screen.getByTestId("auth-brand-title")).toHaveTextContent("Al Manarat Islamiyat");
+    expect(screen.getByRole("heading", { name: "Activer mon compte" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Identifiant")).toHaveValue("admin@gestschool.local");
+    expect(screen.getByLabelText("Mot de passe temporaire")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nouveau mot de passe")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirmation du mot de passe")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Afficher le mot de passe" })).toHaveLength(3);
+    expect(screen.getByRole("button", { name: /^Activer mon compte$/ })).toBeInTheDocument();
+  });
+
+  it("affiche la recuperation et la reinitialisation en deux sections", () => {
+    renderAuthScreen({
+      authAssistMode: "forgot",
+      forgotPasswordForm: { username: "admin@gestschool.local" },
+      resetPasswordForm: { token: "", newPassword: "", confirmPassword: "" }
+    });
+
+    expect(screen.getByRole("heading", { name: "Mot de passe oublié ?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Recevoir les instructions" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Valider la réinitialisation" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Identifiant")).toHaveValue("admin@gestschool.local");
+    expect(screen.getByLabelText("Code de réinitialisation")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Afficher le mot de passe" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Envoyer les instructions" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Valider la réinitialisation" })).toBeInTheDocument();
+  });
+
+  it("traduit l'ecran auth sans verrouiller l'interface en francais", () => {
+    renderAuthScreen({ uiLanguage: "en" });
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByText("School management platform")).toBeInTheDocument();
+    expect(screen.queryByText("Connexion")).not.toBeInTheDocument();
+
+    cleanup();
+
+    renderAuthScreen({ uiLanguage: "ar" });
+    expect(screen.getByRole("heading", { name: "تسجيل الدخول" })).toBeInTheDocument();
+    expect(screen.getByText("منصة إدارة مدرسية")).toBeInTheDocument();
+    expect(screen.queryByText("Connexion")).not.toBeInTheDocument();
   });
 
   it("affiche le dashboard sans le hero marketing supprime", () => {
@@ -831,8 +928,8 @@ describe("critical frontend flows", () => {
       />
     );
 
-    await user.click(screen.getByRole("tab", { name: "Base eleves" }));
-    expect(screen.getByRole("heading", { name: "Base eleves" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Base élèves" }));
+    expect(screen.getAllByRole("heading", { name: "Base élèves" }).length).toBeGreaterThan(0);
     expect(screen.getByText("Francophone + Arabophone")).toBeInTheDocument();
     expect(screen.getByText("Aminata Diallo")).toBeInTheDocument();
   });
@@ -900,6 +997,7 @@ describe("critical frontend flows", () => {
   });
 
   it("charge les modules enseignants et salles depuis un client API mocke", async () => {
+    const user = userEvent.setup();
     const api = buildModuleApi();
     const commonProps = {
       classes: [classroom],
@@ -934,7 +1032,28 @@ describe("critical frontend flows", () => {
     );
 
     expect(await screen.findByText("Salle 101")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Salles, capacites et usages" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Salles, capacités et usages" })).toBeInTheDocument();
+    expect(screen.getAllByText("Actif").length).toBeGreaterThan(0);
+    expect(screen.queryByText("ACTIVE")).not.toBeInTheDocument();
+    expect(screen.queryByText("AVAILABLE")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Ajouter une salle" }));
+    expect(screen.getByLabelText("Code *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nom *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Capacité *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Usage de la salle *")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Créer la salle" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Détail salle" }));
+    expect(screen.getByRole("heading", { name: "Aucune salle sélectionnée" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Affecter" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Typologie des salles" }));
+    expect(screen.getByRole("heading", { name: "Typologie des salles" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Code *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nom *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Statut *")).toBeInTheDocument();
+
     await waitFor(() => {
       expect(api).toHaveBeenCalledWith("/rooms");
     });

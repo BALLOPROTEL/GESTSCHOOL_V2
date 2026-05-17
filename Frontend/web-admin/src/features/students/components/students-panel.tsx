@@ -30,7 +30,7 @@ const formatTrackLabel = (track?: AcademicTrack): string =>
 
 const formatStudentTracks = (student: Student): string => {
   const tracks = student.tracks || [];
-  if (tracks.length === 0) return "A regulariser via inscription";
+  if (tracks.length === 0) return "À régulariser via inscription";
   if (tracks.length > 1) return "Francophone + Arabophone";
   return formatTrackLabel(tracks[0]);
 };
@@ -38,10 +38,29 @@ const formatStudentTracks = (student: Student): string => {
 const formatPrimaryClass = (student: Student): string => {
   const placements = student.placements || [];
   const primary = placements.find((placement) => placement.isPrimary) || placements[0];
-  if (!primary) return "-";
+  if (!primary) return "À régulariser via inscription";
   return [primary.classLabel || primary.levelLabel, formatTrackLabel(primary.track)]
     .filter(Boolean)
     .join(" / ");
+};
+
+const formatStudentStatus = (status?: string): string => {
+  switch ((status || "ACTIVE").toUpperCase()) {
+    case "ACTIVE":
+      return "Actif";
+    case "INACTIVE":
+      return "Inactif";
+    case "ARCHIVED":
+      return "Archivé";
+    case "PENDING":
+      return "En attente";
+    case "DRAFT":
+      return "Brouillon";
+    case "SUSPENDED":
+      return "Suspendu";
+    default:
+      return status || "Actif";
+  }
 };
 
 const formatParentSummary = (student: Student): string => {
@@ -72,25 +91,24 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
   const activeStudents = students.filter((student) => (student.status || "ACTIVE") === "ACTIVE").length;
   const bicursusCount = students.filter((student) => (student.tracks || []).length > 1).length;
   const studentsWithParents = students.filter((student) => (student.parents || []).length > 0).length;
-  const latestStudents = shownStudents.slice(0, 3);
 
   const studentSteps: WorkflowStepDef[] = [
     {
       id: "entry",
-      title: editingStudentId ? "Edition du dossier" : "Nouveau dossier",
-      hint: "Identite, administratif leger et statut du dossier eleve."
+      title: editingStudentId ? "Modifier le dossier" : "Ajouter un élève",
+      hint: "Dossier administratif, statut et informations utiles."
     },
     {
       id: "list",
-      title: "Base eleves",
-      hint: "Suivre les dossiers, cursus et responsables rattaches.",
+      title: "Base élèves",
+      hint: "Lire les dossiers, responsables et placements issus des inscriptions.",
       done: students.length > 0
     }
   ];
 
   return (
     <WorkflowGuide
-      title="Eleves"
+      title="Élèves"
       steps={studentSteps}
       activeStepId={studentWorkflowStep}
       onStepChange={onStudentWorkflowStepChange}
@@ -99,70 +117,57 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
         <section data-step-id="list" className="panel table-panel workflow-section module-modern students-overview">
           <div className="table-header">
             <div>
-              <p className="section-kicker">Dossier eleve</p>
-              <h2>Base eleves</h2>
+              <p className="section-kicker">Dossier administratif</p>
+              <h2>Base élèves</h2>
             </div>
             <span className="students-overview-status">
               {studentsLoading ? "Synchronisation en cours" : `${students.length} dossier(s)`}
             </span>
           </div>
           <p className="section-lead">
-            Le cursus n'est pas un champ decoratif du dossier: la source de verite reste l'inscription par
-            placement francophone/arabophone, affichee ici pour lecture rapide.
+            Les classes et cursus affichés ici proviennent des inscriptions validées.
           </p>
           <div className="students-overview-grid">
             <article className="students-overview-card">
-              <span>Actifs</span>
+              <span>Dossiers actifs</span>
               <strong>{activeStudents}</strong>
-              <small>Dossiers exploitables</small>
+              <small>dossiers de la base élèves</small>
             </article>
             <article className="students-overview-card">
-              <span>Bi-cursus</span>
+              <span>Élèves bi-cursus</span>
               <strong>{bicursusCount}</strong>
-              <small>Francophone + arabophone</small>
+              <small>parcours multiples</small>
             </article>
             <article className="students-overview-card">
-              <span>Responsables</span>
+              <span>Responsables liés</span>
               <strong>{studentsWithParents}</strong>
-              <small>Eleves avec parent lie</small>
+              <small>responsables rattachés</small>
             </article>
             <article className="students-overview-card">
-              <span>Resultat filtre</span>
+              <span>Dossiers affichés</span>
               <strong>{shownStudents.length}</strong>
-              <small>Liste actuellement affichee</small>
+              <small>résultat filtré</small>
             </article>
           </div>
-          {latestStudents.length > 0 ? (
-            <div className="students-overview-foot">
-              <span>Derniers dossiers visibles</span>
-              <div className="students-overview-chips">
-                {latestStudents.map((student) => (
-                  <span key={student.id}>
-                    {student.matricule} - {student.firstName} {student.lastName}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </section>
 
         {studentWorkflowStep === "entry" ? (
           <section data-step-id="entry" className="panel editor-panel workflow-section module-modern">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Formulaire eleve</p>
-                <h2>{editingStudentId ? "Modifier un eleve" : "Ajouter un eleve"}</h2>
+                <p className="section-kicker">Dossier administratif</p>
+                <h2>{editingStudentId ? "Modifier le dossier" : "Ajouter un élève"}</h2>
               </div>
               <span className="students-overview-status">
-                {editingStudentId ? "Mode edition" : "Nouvelle creation"}
+                {editingStudentId ? "Mode édition" : "Nouveau dossier"}
               </span>
             </div>
             <p className="section-lead">
-              Le formulaire gere le dossier administratif. Les classes/cursus sont consolides via les inscriptions.
+              Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.
             </p>
             <form className="form-grid module-form students-form-grid" onSubmit={onSubmitStudent}>
               <label>
-                Matricule
+                Matricule *
                 <input
                   value={studentForm.matricule}
                   onChange={(event) =>
@@ -173,7 +178,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 {fieldError(studentErrors, "matricule")}
               </label>
               <label>
-                Prenom
+                Prénom *
                 <input
                   value={studentForm.firstName}
                   onChange={(event) =>
@@ -184,7 +189,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 {fieldError(studentErrors, "firstName")}
               </label>
               <label>
-                Nom
+                Nom *
                 <input
                   value={studentForm.lastName}
                   onChange={(event) =>
@@ -195,7 +200,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 {fieldError(studentErrors, "lastName")}
               </label>
               <label>
-                Sexe
+                Sexe *
                 <select
                   value={studentForm.sex}
                   onChange={(event) =>
@@ -211,13 +216,14 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 {fieldError(studentErrors, "sex")}
               </label>
               <label>
-                Date de naissance
+                Date de naissance *
                 <input
                   type="date"
                   value={studentForm.birthDate}
                   onChange={(event) =>
                     onStudentFormChange((prev) => ({ ...prev, birthDate: event.target.value }))
                   }
+                  required
                 />
                 {fieldError(studentErrors, "birthDate")}
               </label>
@@ -231,7 +237,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 />
               </label>
               <label>
-                Nationalite
+                Nationalité
                 <input
                   value={studentForm.nationality}
                   onChange={(event) =>
@@ -240,7 +246,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 />
               </label>
               <label>
-                Etablissement
+                Établissement *
                 <select
                   value={studentForm.establishmentId}
                   onChange={(event) =>
@@ -251,7 +257,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 </select>
               </label>
               <label>
-                Telephone famille
+                Téléphone principal du responsable
                 <input
                   value={studentForm.phone}
                   onChange={(event) =>
@@ -271,7 +277,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 {fieldError(studentErrors, "email")}
               </label>
               <label>
-                Date admission
+                Date d’admission
                 <input
                   type="date"
                   value={studentForm.admissionDate}
@@ -279,9 +285,10 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     onStudentFormChange((prev) => ({ ...prev, admissionDate: event.target.value }))
                   }
                 />
+                {fieldError(studentErrors, "admissionDate")}
               </label>
               <label>
-                Statut
+                Statut *
                 <select
                   value={studentForm.status}
                   onChange={(event) =>
@@ -291,26 +298,9 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   <option value="ACTIVE">Actif</option>
                   <option value="INACTIVE">Inactif</option>
                   <option value="SUSPENDED">Suspendu</option>
-                  <option value="ARCHIVED">Archive</option>
+                  <option value="ARCHIVED">Archivé</option>
                 </select>
-              </label>
-              <label>
-                Identifiant interne
-                <input
-                  value={studentForm.internalId}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, internalId: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                Acte de naissance
-                <input
-                  value={studentForm.birthCertificateNo}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, birthCertificateNo: event.target.value }))
-                  }
-                />
+                {fieldError(studentErrors, "status")}
               </label>
               <label>
                 Langue principale
@@ -351,16 +341,16 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 />
               </label>
               <div className="actions span-2">
-                <button type="submit">{editingStudentId ? "Mettre a jour" : "Ajouter"}</button>
+                <button type="submit">{editingStudentId ? "Enregistrer le dossier" : "Créer le dossier"}</button>
                 <button type="button" className="button-ghost" onClick={onResetStudentForm}>
-                  Reinitialiser
+                  Réinitialiser
                 </button>
                 <button
                   type="button"
                   className="button-ghost"
                   onClick={() => onStudentWorkflowStepChange("list")}
                 >
-                  Aller a la liste
+                  Voir la base élèves
                 </button>
               </div>
             </form>
@@ -371,8 +361,8 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
           <section data-step-id="list" className="panel table-panel workflow-section module-modern students-list-panel">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Registre eleves</p>
-                <h2>Liste des eleves</h2>
+                <p className="section-kicker">Base élèves</p>
+                <h2>Base élèves</h2>
               </div>
               <div className="students-table-toolbar">
                 <label className="students-search-field">
@@ -387,34 +377,33 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
               </div>
             </div>
             <p className="section-lead">
-              Lecture metier: statut du dossier, cursus actifs via placements et responsables rattaches.
+              Lecture métier : statut du dossier, responsables et placements issus des inscriptions validées.
             </p>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>Matricule</th>
-                    <th>Nom</th>
-                    <th>Sexe</th>
-                    <th>Naissance</th>
+                    <th>Nom complet</th>
+                    <th>Date de naissance</th>
                     <th>Statut</th>
                     <th>Cursus</th>
-                    <th>Classe</th>
-                    <th>Parents</th>
+                    <th>Classe principale</th>
+                    <th>Responsables</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {studentsLoading ? (
                     <tr>
-                      <td colSpan={9} className="empty-row">
+                      <td colSpan={8} className="empty-row">
                         Chargement...
                       </td>
                     </tr>
                   ) : shownStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="empty-row">
-                        Aucun eleve.
+                      <td colSpan={8} className="empty-row">
+                        Aucun élève enregistré.
                       </td>
                     </tr>
                   ) : (
@@ -422,9 +411,8 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                       <tr key={item.id}>
                         <td>{item.matricule}</td>
                         <td>{item.fullName || `${item.firstName} ${item.lastName}`}</td>
-                        <td>{item.sex}</td>
                         <td>{item.birthDate || "-"}</td>
-                        <td>{item.status || "ACTIVE"}</td>
+                        <td>{formatStudentStatus(item.status)}</td>
                         <td>{formatStudentTracks(item)}</td>
                         <td>{formatPrimaryClass(item)}</td>
                         <td>{formatParentSummary(item)}</td>

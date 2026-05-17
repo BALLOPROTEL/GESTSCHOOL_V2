@@ -108,8 +108,7 @@
 .teachers-form-grid label:not(.check-row),
 .teachers-filter-grid label:not(.check-row),
 .reference-grid-strict.form-grid label:not(.check-row),
-.iam-form-grid label:not(.check-row),
-.auth-canvas__stacked-field {
+.iam-form-grid label:not(.check-row) {
   display: grid;
   align-content: start;
   gap: var(--form-label-gap);
@@ -137,8 +136,7 @@
 .reference-grid-strict.form-grid textarea,
 .iam-form-grid input,
 .iam-form-grid select,
-.iam-form-grid textarea,
-.auth-canvas__stacked-field input {
+.iam-form-grid textarea {
   width: 100%;
   min-width: 0;
   min-height: var(--form-control-height);
@@ -258,11 +256,6 @@
   gap: 0.78rem;
 }
 
-.auth-canvas__grid-form {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.auth-canvas__grid-form > .auth-canvas__stacked-field,
 .auth-canvas__grid-form > button,
 .auth-canvas__grid-form > .auth-api-banner,
 .auth-canvas__form > button,
@@ -376,8 +369,7 @@
   .iam-form-grid input,
   .iam-form-grid select,
   .iam-form-grid textarea,
-  .auth-canvas__field input,
-  .auth-canvas__stacked-field input {
+  .auth-canvas__field input {
     min-height: var(--form-touch-height);
     font-size: 16px;
   }
@@ -419,6 +411,14 @@
 }
 
 @media (max-width: 420px) {
+  .auth-canvas__field-icon {
+    display: none;
+  }
+
+  .auth-canvas__field input {
+    padding-left: 1rem;
+  }
+
   .module-form.form-grid,
   .filter-grid.module-filter,
   .students-form-grid,

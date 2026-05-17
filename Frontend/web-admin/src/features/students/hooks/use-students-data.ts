@@ -96,7 +96,7 @@ export const useStudentsData = ({
       setStudentsLoading(true);
       setStudentsAndNotify(await fetchStudents(api));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de chargement des eleves.");
+      onError(error instanceof Error ? error.message : "Erreur de chargement des élèves.");
     } finally {
       setStudentsLoading(false);
     }
@@ -141,14 +141,17 @@ export const useStudentsData = ({
 
     const errors: FieldErrors = {};
     if (!studentForm.matricule.trim()) errors.matricule = "Matricule requis.";
-    if (!studentForm.firstName.trim()) errors.firstName = "Prenom requis.";
+    if (!studentForm.firstName.trim()) errors.firstName = "Prénom requis.";
     if (!studentForm.lastName.trim()) errors.lastName = "Nom requis.";
     if (!studentForm.sex) errors.sex = "Sexe requis.";
-    if (studentForm.birthDate && studentForm.birthDate > today()) {
+    if (!studentForm.birthDate) {
+      errors.birthDate = "Date de naissance requise.";
+    } else if (studentForm.birthDate > today()) {
       errors.birthDate = "Date de naissance invalide.";
     }
+    if (!studentForm.status) errors.status = "Statut requis.";
     if (studentForm.admissionDate && studentForm.admissionDate > today()) {
-      errors.admissionDate = "Date d'admission invalide.";
+      errors.admissionDate = "Date d’admission invalide.";
     }
     if (studentForm.email && !studentForm.email.includes("@")) {
       errors.email = "Email invalide.";
@@ -161,7 +164,7 @@ export const useStudentsData = ({
     }
 
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : eleve non persiste.");
+      onNotice("Mode aperçu local : dossier élève non persisté.");
       return;
     }
 
@@ -169,30 +172,30 @@ export const useStudentsData = ({
       await saveStudent(api, studentForm, editingStudentId);
       setStudentErrors({});
       resetStudentForm();
-      onNotice(editingStudentId ? "Eleve modifie." : "Eleve ajoute.");
+      onNotice(editingStudentId ? "Dossier élève modifié." : "Dossier élève créé.");
       setStudentWorkflowStep("list");
       await loadStudents();
       await onReloadEnrollments?.();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de sauvegarde de l'eleve.");
+      onError(error instanceof Error ? error.message : "Erreur de sauvegarde de l’élève.");
     }
   };
 
   const deleteStudent = async (studentId: string): Promise<void> => {
-    if (!window.confirm("Supprimer cet eleve ?")) return;
+    if (!window.confirm("Archiver ce dossier élève ?")) return;
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : suppression non persistee.");
+      onNotice("Mode aperçu local : archivage non persisté.");
       return;
     }
 
     try {
       await removeStudent(api, studentId);
       if (editingStudentId === studentId) resetStudentForm();
-      onNotice("Eleve supprime.");
+      onNotice("Dossier élève archivé.");
       await loadStudents();
       await onReloadEnrollments?.();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de suppression de l'eleve.");
+      onError(error instanceof Error ? error.message : "Erreur d’archivage de l’élève.");
     }
   };
 

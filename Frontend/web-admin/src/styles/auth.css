@@ -7,7 +7,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(24rem, 31rem);
+  grid-template-columns: minmax(0, 1fr) minmax(31rem, 39rem);
   gap: clamp(1.4rem, 2vw, 2.6rem);
   align-items: stretch;
   min-height: calc(100dvh - 2rem);
@@ -71,7 +71,7 @@
 .auth-canvas__hero-copy {
   display: grid;
   gap: 1rem;
-  max-width: 31rem;
+  max-width: 44rem;
 }
 
 .auth-canvas__brand {
@@ -81,10 +81,12 @@
 
 .auth-canvas__brand h1 {
   margin: 0;
-  font-size: clamp(2.6rem, 4vw, 4.6rem);
-  line-height: 0.96;
-  letter-spacing: -0.05em;
+  max-width: 42rem;
+  font-size: clamp(3.2rem, 4.8vw, 6.2rem);
+  line-height: 0.94;
+  letter-spacing: 0;
   color: #f8fafc;
+  text-wrap: balance;
 }
 
 :root[data-theme="light"] .auth-canvas__brand h1 {
@@ -93,8 +95,10 @@
 
 .auth-canvas__subtitle {
   margin: 0;
-  font-size: clamp(1.12rem, 1.75vw, 1.7rem);
-  font-weight: 700;
+  font-size: clamp(0.92rem, 1vw, 1rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
   color: #ffd598;
 }
 
@@ -104,9 +108,9 @@
 
 .auth-canvas__description {
   margin: 0.65rem 0 0;
-  max-width: 30rem;
+  max-width: 34rem;
   color: rgba(226, 232, 240, 0.94);
-  font-size: 0.98rem;
+  font-size: 1.05rem;
   line-height: 1.65;
 }
 
@@ -192,8 +196,7 @@
   color: rgba(15, 23, 42, 0.74);
 }
 
-.auth-canvas__toolbar-icon,
-.auth-canvas__mode-sun {
+.auth-canvas__toolbar-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -221,11 +224,12 @@
 }
 
 .auth-canvas__toolbar-icon svg,
-.auth-canvas__mode-sun svg,
 .auth-canvas__theme-thumb svg,
+.auth-canvas__theme-track-icon svg,
 .auth-canvas__field-icon svg,
 .auth-canvas__visibility-button svg,
 .auth-canvas__submit svg,
+.auth-canvas__secondary-submit svg,
 .auth-canvas__back-link svg {
   width: 1.1rem;
   height: 1.1rem;
@@ -235,7 +239,7 @@
   margin-right: auto;
   font-size: 0.98rem;
   font-weight: 800;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
 }
 
 .auth-canvas__language-menu {
@@ -283,34 +287,9 @@
 }
 
 .auth-canvas__mode-shell {
-  min-width: 12.15rem;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.24rem 0.28rem 0.24rem 0.82rem;
-}
-
-.auth-canvas__mode-label {
-  color: rgba(241, 245, 249, 0.94);
-  font-size: 0.98rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-:root[data-theme="light"] .auth-canvas__mode-label {
-  color: rgba(15, 23, 42, 0.82);
-}
-
-.auth-canvas__mode-sun {
-  width: 1.22rem;
-  height: 1.22rem;
-  flex: 0 0 auto;
-  color: #f7d48d;
-  filter: drop-shadow(0 0 7px rgba(253, 224, 71, 0.24));
-}
-
-:root[data-theme="light"] .auth-canvas__mode-sun {
-  color: #d48a16;
-  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.16));
+  min-width: 5.4rem;
+  justify-content: center;
+  padding: 0.24rem;
 }
 
 .auth-canvas__theme-toggle {
@@ -347,10 +326,35 @@
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.8) 100%);
 }
 
+.auth-canvas__theme-track-icon {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.82;
+}
+
+.auth-canvas__theme-track-icon--sun {
+  left: 0.68rem;
+  color: #f59e0b;
+}
+
+.auth-canvas__theme-track-icon--moon {
+  right: 0.68rem;
+  color: #bfdbfe;
+}
+
 .auth-canvas__theme-thumb {
   position: absolute;
   top: var(--auth-switch-pad);
   left: var(--auth-switch-pad);
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -398,7 +402,7 @@
 }
 
 :root[data-theme="light"] .auth-canvas__card {
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.88);
   border-color: rgba(148, 163, 184, 0.28);
 }
 
@@ -415,9 +419,9 @@
 
 .auth-canvas__card-header h2 {
   margin: 0;
-  font-size: clamp(2.4rem, 3.4vw, 3.8rem);
+  font-size: clamp(2.35rem, 3vw, 3.35rem);
   line-height: 0.96;
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
   color: var(--auth-heading);
 }
 
@@ -442,17 +446,41 @@
 .auth-canvas__form,
 .auth-canvas__grid-form {
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .auth-canvas__form--compact {
-  gap: 0.5rem;
+  gap: 0.8rem;
+}
+
+.auth-canvas__grid-form {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.auth-canvas__grid-form > .auth-canvas__submit,
+.auth-canvas__grid-form > .auth-canvas__secondary-submit {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.auth-canvas__field-group {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.auth-canvas__field-label {
+  color: var(--auth-copy-soft);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .auth-canvas__field {
   display: flex;
   align-items: center;
-  min-height: 4.15rem;
+  min-height: 4.45rem;
   border-radius: 1.4rem;
   background: rgba(9, 18, 43, 0.74);
   border: 1px solid rgba(111, 148, 214, 0.2);
@@ -482,8 +510,7 @@
   flex: 0 0 auto;
 }
 
-.auth-canvas__field input,
-.auth-canvas__stacked-field input {
+.auth-canvas__field input {
   width: 100%;
   border: 0;
   background: transparent;
@@ -492,21 +519,24 @@
 }
 
 .auth-canvas__field input {
-  min-height: 4rem;
+  min-height: 4.3rem;
   padding: 0 0.85rem 0 0;
-  font-size: 0.98rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
-.auth-canvas__field input::placeholder,
-.auth-canvas__stacked-field input::placeholder {
+.auth-canvas__field input::placeholder {
   color: var(--auth-copy-soft);
 }
 
 .auth-canvas__visibility-button {
   margin-right: 0.35rem;
-  width: 2.7rem;
-  height: 2.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  min-width: 3rem;
   border-radius: 999px;
   border: 1px solid rgba(111, 148, 214, 0.2);
   background: rgba(9, 18, 43, 0.82);
@@ -535,7 +565,12 @@
 .auth-canvas__check {
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.9rem;
+  background: rgba(9, 18, 43, 0.42);
+  border: 1px solid rgba(111, 148, 214, 0.16);
   color: rgba(241, 245, 249, 0.94);
   font-size: 0.93rem;
   font-weight: 700;
@@ -545,8 +580,8 @@
 .auth-canvas__check input {
   appearance: none;
   -webkit-appearance: none;
-  width: 0.76rem;
-  height: 0.76rem;
+  width: 1.05rem;
+  height: 1.05rem;
   min-height: 0;
   padding: 0;
   margin: 0;
@@ -581,6 +616,8 @@
 }
 
 :root[data-theme="light"] .auth-canvas__check {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(148, 163, 184, 0.24);
   color: rgba(15, 23, 42, 0.88);
 }
 
@@ -592,8 +629,7 @@
 .auth-canvas__link,
 .auth-canvas__security-note,
 .auth-canvas__footer-block p,
-.auth-canvas__panel-copy p,
-.auth-canvas__stacked-field span {
+.auth-canvas__panel-copy p {
   color: var(--auth-copy-soft);
 }
 
@@ -622,6 +658,11 @@
   color: #93c5fd;
 }
 
+:root[data-theme="light"] .auth-canvas__link,
+:root[data-theme="light"] .auth-canvas__back-link {
+  color: #075985;
+}
+
 .auth-canvas__link:hover,
 .auth-canvas__back-link:hover,
 .auth-canvas__language-trigger:hover,
@@ -643,28 +684,33 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 4.1rem;
+  min-height: 4.25rem;
   border-radius: 999px;
-  border: 0;
+  border: 1px solid rgba(3, 103, 112, 0.2);
   font-weight: 800;
 }
 
 .auth-canvas__submit {
-  background: linear-gradient(90deg, #2f66e7 0%, #4a84ff 52%, #346ce6 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, #6de0e7 0%, #51ced8 100%);
+  color: #020617;
   box-shadow:
-    0 18px 34px rgba(39, 96, 222, 0.3),
-    0 0 24px rgba(96, 165, 250, 0.22);
+    0 18px 34px rgba(20, 184, 196, 0.24),
+    0 0 22px rgba(81, 206, 216, 0.16);
 }
 
 .auth-canvas__secondary-submit {
-  background: rgba(59, 130, 246, 0.14);
-  border: 1px solid rgba(96, 165, 250, 0.24);
-  color: #dbeafe;
+  background: linear-gradient(180deg, #6de0e7 0%, #51ced8 100%);
+  color: #020617;
+  box-shadow: 0 14px 26px rgba(20, 184, 196, 0.18);
 }
 
 :root[data-theme="light"] .auth-canvas__secondary-submit {
-  color: #1d4ed8;
+  color: #020617;
+}
+
+.auth-canvas__submit:hover,
+.auth-canvas__secondary-submit:hover {
+  background: linear-gradient(180deg, #56d3dc 0%, #39bcc8 100%);
 }
 
 .auth-canvas__footer-block {
@@ -686,15 +732,15 @@
 
 .auth-canvas__panel {
   display: grid;
-  gap: 0.9rem;
-  padding: 1.1rem;
+  gap: 1rem;
+  padding: 1.15rem;
   border-radius: 1.35rem;
   border: 1px solid rgba(111, 148, 214, 0.16);
   background: rgba(8, 17, 42, 0.3);
 }
 
 :root[data-theme="light"] .auth-canvas__panel {
-  background: rgba(255, 255, 255, 0.46);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .auth-canvas__panel--muted {
@@ -716,26 +762,14 @@
   font-size: 0.98rem;
 }
 
-.auth-canvas__stacked-field {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.auth-canvas__stacked-field span {
-  font-size: 0.92rem;
-  font-weight: 700;
-}
-
-.auth-canvas__stacked-field input {
-  min-height: 3.5rem;
-  padding: 0 1rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(111, 148, 214, 0.2);
-  background: rgba(9, 18, 43, 0.74);
-}
-
-:root[data-theme="light"] .auth-canvas__stacked-field input {
-  background: rgba(255, 255, 255, 0.82);
+.auth-canvas__submit:focus-visible,
+.auth-canvas__secondary-submit:focus-visible,
+.auth-canvas__link:focus-visible,
+.auth-canvas__back-link:focus-visible,
+.auth-canvas__visibility-button:focus-visible,
+.auth-canvas__check input:focus-visible {
+  outline: 3px solid rgba(81, 206, 216, 0.42);
+  outline-offset: 3px;
 }
 
 .auth-canvas__security-note {
@@ -847,6 +881,10 @@
     padding: 1.35rem;
   }
 
+  .auth-canvas__grid-form {
+    grid-template-columns: 1fr;
+  }
+
   .auth-canvas__inline,
   .auth-canvas__footer-links {
     align-items: flex-start;
@@ -874,12 +912,12 @@
   }
 
   .auth-canvas__mode-shell {
-    min-width: 10.9rem;
+    min-width: 5.2rem;
   }
 
   .auth-canvas__brand h1,
   .auth-canvas__card-header h2 {
-    font-size: clamp(2rem, 10vw, 2.8rem);
+    font-size: clamp(2.15rem, 10vw, 3rem);
   }
 
   .auth-canvas__description {
@@ -889,11 +927,11 @@
   .auth-canvas__field,
   .auth-canvas__submit,
   .auth-canvas__secondary-submit {
-    min-height: 3.8rem;
+    min-height: 4rem;
   }
 
   .auth-canvas__field input {
-    min-height: 3.65rem;
+    min-height: 3.85rem;
   }
 }
 

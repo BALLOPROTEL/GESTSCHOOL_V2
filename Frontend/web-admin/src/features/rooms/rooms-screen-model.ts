@@ -75,19 +75,36 @@ export const TRACKS: AcademicTrack[] = ["FRANCOPHONE", "ARABOPHONE"];
 export const SCHOOL_NAME = "Al Manarat Islamiyat";
 
 export const trackLabel = (track?: AcademicTrack): string => {
-  if (!track) return "Partage";
+  if (!track) return "Partagé";
   return track === "ARABOPHONE" ? "Arabophone" : "Francophone";
 };
 
 export const assignmentTypeLabel = (value: string): string =>
   ({
     CLASS_HOME_ROOM: "Salle principale",
-    SUBJECT_ROOM: "Salle matiere",
-    CURRICULUM_DEDICATED: "Dediee cursus",
-    EXAM_ROOM: "Salle examen",
-    SHARED_ROOM: "Salle partagee",
+    SUBJECT_ROOM: "Salle spécialisée",
+    CURRICULUM_DEDICATED: "Réservée à un cursus",
+    EXAM_ROOM: "Salle d'examen",
+    SHARED_ROOM: "Salle partagée",
     TEMPORARY_ASSIGNMENT: "Affectation temporaire"
   })[value] || value;
+
+export const statusLabel = (value?: string): string =>
+  ({
+    ACTIVE: "Actif",
+    INACTIVE: "Inactif",
+    MAINTENANCE: "Maintenance",
+    ARCHIVED: "Archivé",
+    COMPLETED: "Terminé"
+  })[value || ""] || value || "-";
+
+export const availabilityTypeLabel = (value?: string): string =>
+  ({
+    AVAILABLE: "Disponible",
+    UNAVAILABLE: "Indisponible",
+    MAINTENANCE: "Maintenance",
+    RESERVED: "Réservée"
+  })[value || ""] || value || "-";
 
 export const dayLabel = (day?: number): string =>
   day ? ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"][day] || String(day) : "Tous";
@@ -150,7 +167,7 @@ export const defaultAvailabilityForm = (): RoomAvailabilityForm => ({
   dayOfWeek: "",
   startTime: "",
   endTime: "",
-  availabilityType: "AVAILABLE",
+  availabilityType: "UNAVAILABLE",
   schoolYearId: "",
   periodId: "",
   comment: ""

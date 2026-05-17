@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import type { ThemeMode } from "../shared/types/app";
-import { UI_LANGUAGE_META, type UiLanguage } from "../shared/i18n";
+import { UI_LANGUAGE_META, translateUiString, type UiLanguage } from "../shared/i18n";
 
 type AuthApiStatus = "unknown" | "checking" | "online" | "offline" | "reconnecting";
 type AuthView = "login" | "forgot" | "first";
@@ -77,6 +77,7 @@ type ToolbarProps = {
   themeMode: ThemeMode;
   themeBusy: boolean;
   onSelectTheme: (mode: ThemeMode) => void;
+  translate: (source: string) => string;
 };
 
 type TextFieldProps = {
@@ -100,6 +101,8 @@ type PasswordFieldProps = {
   onToggle: () => void;
   label: string;
   autoComplete?: string;
+  showPasswordLabel: string;
+  hidePasswordLabel: string;
 };
 
 function MailIcon(): JSX.Element {
@@ -206,49 +209,66 @@ function renderFieldError(message?: string): JSX.Element | null {
 function TextField(props: TextFieldProps): JSX.Element {
   const { value, onChange, placeholder, required = false, minLength, label, icon, autoComplete } = props;
   return (
-    <label className="auth-canvas__field">
-      <span className="visually-hidden">{label}</span>
-      <span className="auth-canvas__field-icon" aria-hidden="true">
-        {icon === "mail" ? <MailIcon /> : <LockIcon />}
+    <label className="auth-canvas__field-group">
+      <span className="auth-canvas__field-label">{label}</span>
+      <span className="auth-canvas__field">
+        <span className="auth-canvas__field-icon" aria-hidden="true">
+          {icon === "mail" ? <MailIcon /> : <LockIcon />}
+        </span>
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          required={required}
+          minLength={minLength}
+          autoComplete={autoComplete}
+        />
       </span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        required={required}
-        minLength={minLength}
-        autoComplete={autoComplete}
-      />
     </label>
   );
 }
 
 function PasswordField(props: PasswordFieldProps): JSX.Element {
-  const { value, onChange, placeholder, required = false, minLength, visible, onToggle, label, autoComplete } = props;
+  const {
+    value,
+    onChange,
+    placeholder,
+    required = false,
+    minLength,
+    visible,
+    onToggle,
+    label,
+    autoComplete,
+    showPasswordLabel,
+    hidePasswordLabel
+  } = props;
+  const visibilityLabel = visible ? hidePasswordLabel : showPasswordLabel;
   return (
-    <label className="auth-canvas__field auth-canvas__field--password">
-      <span className="visually-hidden">{label}</span>
-      <span className="auth-canvas__field-icon" aria-hidden="true">
-        <LockIcon />
+    <label className="auth-canvas__field-group">
+      <span className="auth-canvas__field-label">{label}</span>
+      <span className="auth-canvas__field auth-canvas__field--password">
+        <span className="auth-canvas__field-icon" aria-hidden="true">
+          <LockIcon />
+        </span>
+        <input
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          required={required}
+          minLength={minLength}
+          autoComplete={autoComplete}
+        />
+        <button
+          type="button"
+          className="auth-canvas__visibility-button"
+          onClick={onToggle}
+          aria-label={visibilityLabel}
+          title={visibilityLabel}
+        >
+          <EyeIcon open={visible} />
+        </button>
       </span>
-      <input
-        type={visible ? "text" : "password"}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        required={required}
-        minLength={minLength}
-        autoComplete={autoComplete}
-      />
-      <button
-        type="button"
-        className="auth-canvas__visibility-button"
-        onClick={onToggle}
-        aria-label={visible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-        title={visible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-      >
-        <EyeIcon open={visible} />
-      </button>
     </label>
   );
 }
@@ -265,13 +285,17 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
     onCloseLanguageMenu,
     themeMode,
     themeBusy,
-    onSelectTheme
+    onSelectTheme,
+    translate
   } = props;
 
   const isDarkTheme = themeMode === "dark";
+  const nextThemeMode = isDarkTheme ? "light" : "dark";
+  const themeButtonLabel = translate(isDarkTheme ? "Activer le mode clair" : "Activer le mode sombre");
+  const themeButtonTitle = translate(isDarkTheme ? "Passer en mode clair" : "Passer en mode sombre");
 
   return (
-    <div className="auth-canvas__toolbar">
+    <div className="auth-canvas__toolbar" data-testid="auth-toolbar">
       <div
         ref={onLanguageMenuRef}
         className={`auth-canvas__language ${languageMenuOpen ? "is-open" : ""}`.trim()}
@@ -283,13 +307,14 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
           disabled={languageBusy}
           aria-expanded={languageMenuOpen}
           aria-haspopup="menu"
-          aria-label="Selectionner la langue"
-          title={currentLanguageMeta.label}
+          aria-label={translate("Sélectionner la langue")}
+          title={translate(currentLanguageMeta.label)}
+          data-testid="auth-language-trigger"
         >
           <span className="auth-canvas__toolbar-icon auth-canvas__toolbar-icon--language" aria-hidden="true">
             <GlobeIcon />
           </span>
-          <span className="auth-canvas__language-current">{currentLanguageMeta.label}</span>
+          <span className="auth-canvas__language-current">{translate(currentLanguageMeta.label)}</span>
           <ChevronIcon open={languageMenuOpen} />
         </button>
         {languageMenuOpen ? (
@@ -310,7 +335,7 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
                   aria-checked={active}
                 >
                   <img src={metadata.iconSrc} alt="" aria-hidden="true" />
-                  <span>{metadata.label}</span>
+                  <span>{translate(metadata.label)}</span>
                 </button>
               );
             })}
@@ -318,21 +343,24 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
         ) : null}
       </div>
 
-      <div className="auth-canvas__mode-shell" role="group" aria-label="Selection du theme">
-        <span className="auth-canvas__mode-label">Theme</span>
-        <span className="auth-canvas__mode-sun" aria-hidden="true">
-          <SunIcon />
-        </span>
+      <div className="auth-canvas__mode-shell" role="group" aria-label={translate("Choix du thème")}>
         <button
           type="button"
           className={`auth-canvas__theme-toggle ${isDarkTheme ? "is-dark" : "is-light"}`.trim()}
-          onClick={() => onSelectTheme(isDarkTheme ? "light" : "dark")}
+          onClick={() => onSelectTheme(nextThemeMode)}
           disabled={themeBusy}
           aria-pressed={isDarkTheme}
-          aria-label={isDarkTheme ? "Activer le mode clair" : "Activer le mode sombre"}
-          title={isDarkTheme ? "Passer en mode clair" : "Passer en mode sombre"}
+          aria-label={themeButtonLabel}
+          title={themeButtonTitle}
+          data-testid="auth-theme-toggle"
         >
           <span className="auth-canvas__theme-track" aria-hidden="true">
+            <span className="auth-canvas__theme-track-icon auth-canvas__theme-track-icon--sun">
+              <SunIcon />
+            </span>
+            <span className="auth-canvas__theme-track-icon auth-canvas__theme-track-icon--moon">
+              <MoonIcon />
+            </span>
             <span className="auth-canvas__theme-thumb">
               {isDarkTheme ? <MoonIcon /> : <SunIcon />}
             </span>
@@ -392,6 +420,11 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
   const currentView: AuthView =
     authAssistMode === "forgot" ? "forgot" : authAssistMode === "first" ? "first" : "login";
   const currentLanguageMeta = UI_LANGUAGE_META[uiLanguage];
+  const t = (source: string): string => translateUiString(uiLanguage, source);
+  const passwordToggleLabels = {
+    showPasswordLabel: t("Afficher le mot de passe"),
+    hidePasswordLabel: t("Masquer le mot de passe")
+  };
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent): void => {
@@ -407,8 +440,8 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
   const renderLoginView = (): JSX.Element => (
     <>
       <header className="auth-canvas__card-header">
-        <h2>Connexion</h2>
-        <p>Connectez-vous a votre compte</p>
+        <h2>{t("Connexion")}</h2>
+        <p>{t("Connectez-vous à votre compte")}</p>
       </header>
 
       {apiStatus !== "online" ? (
@@ -421,9 +454,9 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
         <TextField
           value={loginForm.username}
           onChange={(value) => onLoginFormChange({ username: value })}
-          placeholder="Email ou Identifiant"
+          placeholder={t("Email ou identifiant")}
           required
-          label="Email ou identifiant"
+          label={t("Email ou identifiant")}
           icon="mail"
           autoComplete="username"
         />
@@ -432,13 +465,14 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
         <PasswordField
           value={loginForm.password}
           onChange={(value) => onLoginFormChange({ password: value })}
-          placeholder="Mot de passe"
+          placeholder={t("Mot de passe")}
           required
           minLength={8}
           visible={passwordVisible}
           onToggle={() => setPasswordVisible((prev) => !prev)}
-          label="Mot de passe"
+          label={t("Mot de passe")}
           autoComplete="current-password"
+          {...passwordToggleLabels}
         />
         {renderFieldError(loginPasswordError)}
 
@@ -449,28 +483,28 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
               checked={rememberMe}
               onChange={(event) => onRememberMeChange(event.target.checked)}
             />
-            <span>Se souvenir de moi</span>
+            <span>{t("Se souvenir de moi")}</span>
           </label>
           <button type="button" className="auth-canvas__link" onClick={onShowForgotPassword}>
-            Mot de passe oublie?
+            {t("Mot de passe oublié ?")}
           </button>
         </div>
 
         <button type="submit" className="auth-canvas__submit" disabled={loadingAuth}>
-          <span>{loadingAuth ? "Connexion..." : "Connexion"}</span>
+          <span>{loadingAuth ? t("Connexion...") : t("Connexion")}</span>
           <ArrowIcon />
         </button>
       </form>
 
       <div className="auth-canvas__footer-block">
         <span className="auth-canvas__divider" aria-hidden="true" />
-        <p>Premiere connexion ?</p>
+        <p>{t("Première connexion ?")}</p>
         <button type="button" className="auth-canvas__link auth-canvas__link--cta" onClick={onShowFirstConnection}>
-          Activer mon compte
+          {t("Activer mon compte")}
         </button>
         {previewEnabled ? (
           <button type="button" className="auth-canvas__secondary-submit" onClick={onEnterPreview}>
-            <span>Voir la v2 sans connexion</span>
+            <span>{t("Voir la plateforme sans connexion")}</span>
             <ArrowIcon />
           </button>
         ) : null}
@@ -483,10 +517,10 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
       <header className="auth-canvas__card-header">
         <button type="button" className="auth-canvas__back-link" onClick={onShowLogin}>
           <BackIcon />
-          Retour connexion
+          {t("Retour à la connexion")}
         </button>
-        <h2>Mot de passe oublie?</h2>
-        <p>Recuperez l'acces a votre compte</p>
+        <h2>{t("Mot de passe oublié ?")}</h2>
+        <p>{t("Récupérez l’accès à votre compte")}</p>
       </header>
 
       {apiStatus !== "online" ? (
@@ -497,73 +531,76 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
 
       <section className="auth-canvas__panel auth-canvas__panel--soft">
         <div className="auth-canvas__panel-copy">
-          <h3>Recevoir les instructions</h3>
-          <p>Entrez votre identifiant pour demander un code de reinitialisation.</p>
+          <h3>{t("Recevoir les instructions")}</h3>
+          <p>{t("Entrez votre identifiant pour demander un code de réinitialisation.")}</p>
         </div>
         <form className="auth-canvas__form auth-canvas__form--compact" onSubmit={onSubmitForgotPassword}>
           <TextField
             value={forgotPasswordForm.username}
             onChange={(value) => onForgotPasswordChange({ username: value })}
-            placeholder="Identifiant"
+            placeholder={t("Identifiant")}
             required
-            label="Identifiant"
+            label={t("Identifiant")}
             icon="mail"
             autoComplete="username"
           />
           <button type="submit" className="auth-canvas__secondary-submit" disabled={authAssistLoading}>
-            {authAssistLoading ? "Envoi..." : "Envoyer les instructions"}
+            {authAssistLoading ? t("Envoi...") : t("Envoyer les instructions")}
           </button>
         </form>
       </section>
 
       <section className="auth-canvas__panel auth-canvas__panel--muted">
         <div className="auth-canvas__panel-copy">
-          <h3>Valider la reinitialisation</h3>
-          <p>Saisissez le code recu et choisissez un nouveau mot de passe securise.</p>
+          <h3>{t("Valider la réinitialisation")}</h3>
+          <p>{t("Saisissez le code reçu et choisissez un nouveau mot de passe sécurisé.")}</p>
         </div>
         <form className="auth-canvas__grid-form" onSubmit={onSubmitResetPassword}>
-          <label className="auth-canvas__stacked-field">
-            <span>Code de reinitialisation</span>
-            <input
-              value={resetPasswordForm.token}
-              onChange={(event) => onResetPasswordChange({ token: event.target.value })}
-              required
-            />
-          </label>
+          <TextField
+            value={resetPasswordForm.token}
+            onChange={(value) => onResetPasswordChange({ token: value })}
+            placeholder={t("Code de réinitialisation")}
+            required
+            label={t("Code de réinitialisation")}
+            icon="lock"
+            autoComplete="one-time-code"
+          />
           <PasswordField
             value={resetPasswordForm.newPassword}
             onChange={(value) => onResetPasswordChange({ newPassword: value })}
-            placeholder="Nouveau mot de passe"
+            placeholder={t("Nouveau mot de passe")}
             required
             minLength={12}
             visible={resetPasswordVisible}
             onToggle={() => setResetPasswordVisible((prev) => !prev)}
-            label="Nouveau mot de passe"
+            label={t("Nouveau mot de passe")}
             autoComplete="new-password"
+            {...passwordToggleLabels}
           />
           <PasswordField
             value={resetPasswordForm.confirmPassword}
             onChange={(value) => onResetPasswordChange({ confirmPassword: value })}
-            placeholder="Confirmation"
+            placeholder={t("Confirmation")}
             required
             minLength={12}
             visible={resetConfirmVisible}
             onToggle={() => setResetConfirmVisible((prev) => !prev)}
-            label="Confirmation"
+            label={t("Confirmation du mot de passe")}
             autoComplete="new-password"
+            {...passwordToggleLabels}
           />
           <button type="submit" className="auth-canvas__secondary-submit" disabled={authAssistLoading}>
-            {authAssistLoading ? "Validation..." : "Valider la reinitialisation"}
+            {authAssistLoading ? t("Validation...") : t("Valider la réinitialisation")}
           </button>
         </form>
       </section>
 
       <div className="auth-canvas__footer-links">
         <button type="button" className="auth-canvas__link" onClick={onShowLogin}>
-          Retour connexion
+          {t("Retour à la connexion")}
         </button>
         <button type="button" className="auth-canvas__link" onClick={onShowFirstConnection}>
-          Activer mon compte
+          {t("Activer mon compte")}
         </button>
       </div>
     </>
@@ -574,10 +611,10 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
       <header className="auth-canvas__card-header">
         <button type="button" className="auth-canvas__back-link" onClick={onShowLogin}>
           <BackIcon />
-          Retour connexion
+          {t("Retour à la connexion")}
         </button>
-        <h2>Activer mon compte</h2>
-        <p>Finalisez votre premiere connexion avec le mot de passe temporaire recu.</p>
+        <h2>{t("Activer mon compte")}</h2>
+        <p>{t("Finalisez votre première connexion avec le mot de passe temporaire reçu.")}</p>
       </header>
 
       {apiStatus !== "online" ? (
@@ -588,49 +625,53 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
 
       <section className="auth-canvas__panel auth-canvas__panel--soft auth-canvas__panel--wide">
         <form className="auth-canvas__grid-form" onSubmit={onSubmitFirstConnection}>
-          <label className="auth-canvas__stacked-field">
-            <span>Identifiant</span>
-            <input
-              value={firstConnectionForm.username}
-              onChange={(event) => onFirstConnectionChange({ username: event.target.value })}
-              required
-              autoComplete="username"
-            />
-          </label>
+          <TextField
+            value={firstConnectionForm.username}
+            onChange={(value) => onFirstConnectionChange({ username: value })}
+            placeholder={t("Identifiant")}
+            required
+            label={t("Identifiant")}
+            icon="mail"
+            autoComplete="username"
+          />
           <PasswordField
             value={firstConnectionForm.temporaryPassword}
             onChange={(value) => onFirstConnectionChange({ temporaryPassword: value })}
-            placeholder="Mot de passe temporaire"
+            placeholder={t("Mot de passe temporaire")}
             required
             minLength={8}
             visible={temporaryPasswordVisible}
             onToggle={() => setTemporaryPasswordVisible((prev) => !prev)}
-            label="Mot de passe temporaire"
+            label={t("Mot de passe temporaire")}
+            autoComplete="current-password"
+            {...passwordToggleLabels}
           />
           <PasswordField
             value={firstConnectionForm.newPassword}
             onChange={(value) => onFirstConnectionChange({ newPassword: value })}
-            placeholder="Nouveau mot de passe"
+            placeholder={t("Nouveau mot de passe")}
             required
             minLength={12}
             visible={firstPasswordVisible}
             onToggle={() => setFirstPasswordVisible((prev) => !prev)}
-            label="Nouveau mot de passe"
+            label={t("Nouveau mot de passe")}
             autoComplete="new-password"
+            {...passwordToggleLabels}
           />
           <PasswordField
             value={firstConnectionForm.confirmPassword}
             onChange={(value) => onFirstConnectionChange({ confirmPassword: value })}
-            placeholder="Confirmation"
+            placeholder={t("Confirmation")}
             required
             minLength={12}
             visible={firstConfirmVisible}
             onToggle={() => setFirstConfirmVisible((prev) => !prev)}
-            label="Confirmation"
+            label={t("Confirmation du mot de passe")}
             autoComplete="new-password"
+            {...passwordToggleLabels}
           />
           <button type="submit" className="auth-canvas__submit" disabled={authAssistLoading}>
-            <span>{authAssistLoading ? "Activation..." : "Activer mon compte"}</span>
+            <span>{authAssistLoading ? t("Activation...") : t("Activer mon compte")}</span>
             <ArrowIcon />
           </button>
         </form>
@@ -638,25 +679,25 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
 
       <div className="auth-canvas__footer-links">
         <button type="button" className="auth-canvas__link" onClick={onShowLogin}>
-          Retour connexion
+          {t("Retour à la connexion")}
         </button>
         <button type="button" className="auth-canvas__link" onClick={onShowForgotPassword}>
-          Mot de passe oublie?
+          {t("Mot de passe oublié ?")}
         </button>
       </div>
     </>
   );
 
   return (
-    <section className="auth-canvas fade-up" data-auth-view={currentView} key={currentView}>
+    <section className="auth-canvas fade-up" data-auth-view={currentView} data-testid="auth-screen" key={currentView}>
       <article className="auth-canvas__hero">
         <div className="auth-canvas__hero-stack">
           <div className="auth-canvas__hero-copy">
             <div className="auth-canvas__brand">
-              <h1>GestSchool</h1>
-              <p className="auth-canvas__subtitle">{schoolName}</p>
+              <p className="auth-canvas__subtitle">{t("Plateforme de gestion scolaire")}</p>
+              <h1 data-testid="auth-brand-title">{schoolName}</h1>
               <p className="auth-canvas__description">
-                Acces centralise pour administrer les eleves, les enseignants et les parents d'eleves.
+                {t("Accès centralisé pour administrer les élèves, les enseignants et les parents d’élèves.")}
               </p>
             </div>
           </div>
@@ -676,6 +717,7 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           themeMode={themeMode}
           themeBusy={themeBusy}
           onSelectTheme={onSelectTheme}
+          translate={t}
         />
 
         <section className="auth-canvas__card">
@@ -688,7 +730,7 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           </div>
         </section>
 
-        <p className="auth-canvas__security-note">Connexion securisee - GestSchool 2026</p>
+        <p className="auth-canvas__security-note">{t("Connexion sécurisée")}</p>
       </section>
     </section>
   );
