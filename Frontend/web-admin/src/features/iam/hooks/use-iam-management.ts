@@ -24,6 +24,7 @@ import {
   fetchRolePermissions,
   removeIamUser,
   saveRolePermissions,
+  sendIamUserActivation,
   upsertIamUser
 } from "../services/iam-service";
 import type { IamApiClient, IamUserForm } from "../types/iam";
@@ -33,8 +34,6 @@ type UseIamManagementOptions = {
   initialUsers?: UserAccount[];
   students: Student[];
   remoteEnabled?: boolean;
-  isStrongPassword: (value: string) => boolean;
-  strongPasswordHint: string;
   onError: (message: string | null) => void;
   onNotice: (message: string | null) => void;
   onUsersChange?: (users: UserAccount[]) => void;
@@ -88,7 +87,9 @@ const buildDefaultUserForm = (): IamUserForm => ({
   establishmentId: "",
   notes: "",
   mustChangePasswordAtFirstLogin: true,
-  isActive: true
+  status: "PENDING_ACTIVATION",
+  sendActivationEmail: true,
+  isActive: false
 });
 
 const PREVIEW_ROLE_PERMISSIONS: RolePermissionView[] = [
@@ -145,8 +146,6 @@ export const useIamManagement = ({
   initialUsers = [],
   students,
   remoteEnabled = true,
-  isStrongPassword,
-  strongPasswordHint,
   onError,
   onNotice,
   onUsersChange,
@@ -157,7 +156,6 @@ export const useIamManagement = ({
   const [accountParents, setAccountParents] = useState<ParentRecord[]>([]);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [userForm, setUserForm] = useState<IamUserForm>(() => buildDefaultUserForm());
-  const [lastTemporaryPassword, setLastTemporaryPassword] = useState("");
   const [rolePermissionTarget, setRolePermissionTarget] = useState<Role>("ADMIN");
   const [rolePermissions, setRolePermissions] = useState<RolePermissionView[]>(
     remoteEnabled ? [] : PREVIEW_ROLE_PERMISSIONS
@@ -260,13 +258,11 @@ export const useIamManagement = ({
       autoFillIdentity: true
     }));
     setUserErrors({});
-    setLastTemporaryPassword("");
   };
 
   const resetUserForm = (): void => {
     setEditingUserId(null);
     setUserForm(buildDefaultUserForm());
-    setLastTemporaryPassword("");
     setUserErrors({});
   };
 
@@ -344,16 +340,6 @@ export const useIamManagement = ({
     if (selectedBusinessIsInactive) {
       errors.businessProfile = "La fiche métier doit être active pour créer un compte actif.";
     }
-    if (!editingUserId && userForm.passwordMode === "MANUAL" && !isStrongPassword(userForm.password.trim())) {
-      errors.password = strongPasswordHint;
-    }
-    if (userForm.password.trim() && !isStrongPassword(userForm.password.trim())) {
-      errors.password = strongPasswordHint;
-    }
-    if (userForm.passwordMode === "MANUAL" && userForm.password !== userForm.confirmPassword) {
-      errors.confirmPassword = "La confirmation ne correspond pas.";
-    }
-
     setUserErrors(errors);
     if (hasFieldErrors(errors)) {
       focusFirstInlineErrorField("accounts");
@@ -377,26 +363,26 @@ export const useIamManagement = ({
       avatarUrl: userForm.avatarUrl.trim() || undefined,
       establishmentId: userForm.establishmentId || undefined,
       notes: userForm.notes.trim() || undefined,
-      mustChangePasswordAtFirstLogin: userForm.mustChangePasswordAtFirstLogin,
-      isActive: userForm.isActive
+      mustChangePasswordAtFirstLogin: false,
+      status: userForm.status,
+      sendActivationEmail: !editingUserId ? userForm.sendActivationEmail : undefined,
+      isActive: userForm.status === "ACTIVE"
     };
-    if (!editingUserId) {
-      payload.passwordMode = userForm.passwordMode;
-    }
-    if (userForm.passwordMode === "MANUAL" && userForm.password.trim()) {
-      payload.password = userForm.password.trim();
-      payload.confirmPassword = userForm.confirmPassword.trim();
-    }
 
     try {
       const savedUser = await upsertIamUser(api, editingUserId, payload);
       setUserErrors({});
-      setLastTemporaryPassword(savedUser.temporaryPassword || "");
-      onNotice(translate(editingUserId ? "Utilisateur mis à jour." : "Utilisateur créé."));
-      setIamWorkflowStep("accounts");
-      if (!savedUser.temporaryPassword) {
-        resetUserForm();
+      if (editingUserId) {
+        onNotice(translate("Utilisateur mis à jour."));
+      } else if (savedUser.activationEmailSent) {
+        onNotice(translate("Utilisateur créé. Un email d’activation a été envoyé."));
+      } else if (savedUser.activationEmailError) {
+        onNotice(translate("Utilisateur créé, mais l’email d’activation n’a pas pu être envoyé. Vous pouvez le renvoyer."));
+      } else {
+        onNotice(translate("Utilisateur créé."));
       }
+      setIamWorkflowStep("accounts");
+      resetUserForm();
       await loadUsers();
       await loadIamAccountReferences();
     } catch (error) {
@@ -436,9 +422,10 @@ export const useIamManagement = ({
       establishmentId: item.establishmentId || "",
       notes: item.notes || "",
       mustChangePasswordAtFirstLogin: item.mustChangePasswordAtFirstLogin ?? false,
+      status: (item.status as typeof userForm.status) || (item.isActive ? "ACTIVE" : "INACTIVE"),
+      sendActivationEmail: false,
       isActive: item.isActive
     });
-    setLastTemporaryPassword("");
     setUserErrors({});
     setIamWorkflowStep("accounts");
   };
@@ -482,6 +469,22 @@ export const useIamManagement = ({
       await loadUsers();
     } catch (error) {
       onError(error instanceof Error ? error.message : "Erreur de mise à jour du statut utilisateur.");
+    }
+  };
+
+  const resendUserActivation = async (item: UserAccount): Promise<void> => {
+    if (!window.confirm(translate("Renvoyer l’email d’activation à cet utilisateur ?"))) return;
+    if (!remoteEnabled) {
+      onNotice(translate("Mode aperçu local : activation non envoyée."));
+      return;
+    }
+
+    try {
+      const delivery = await sendIamUserActivation(api, item.id);
+      onNotice(translate(delivery.message || "Email d’activation envoyé."));
+      await loadUsers();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Erreur d’envoi de l’activation.");
     }
   };
 
@@ -537,9 +540,9 @@ export const useIamManagement = ({
     getEffectivePermission,
     iamSteps,
     iamWorkflowStep,
-    lastTemporaryPassword,
     loadRolePermissions,
     resetUserForm,
+    resendUserActivation,
     rolePermissionTarget,
     rolePermissions,
     saveCurrentRolePermissions,

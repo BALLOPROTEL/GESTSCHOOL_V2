@@ -350,6 +350,7 @@ export type AuthMessageResponse = {
 export type Role = "ADMIN" | "SCOLARITE" | "ENSEIGNANT" | "COMPTABLE" | "PARENT" | "STUDENT";
 export type AccountType = "STAFF" | "TEACHER" | "PARENT" | "STUDENT";
 export type PasswordMode = "AUTO" | "MANUAL";
+export type UserStatus = "PENDING_ACTIVATION" | "ACTIVE" | "INACTIVE" | "ARCHIVED";
 
 export type UserAccount = {
   id: string;
@@ -373,6 +374,11 @@ export type UserAccount = {
   parentId?: string;
   studentId?: string;
   temporaryPassword?: string;
+  status?: UserStatus | string;
+  activatedAt?: string;
+  disabledAt?: string;
+  activationEmailSent?: boolean;
+  activationEmailError?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

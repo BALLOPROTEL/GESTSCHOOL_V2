@@ -1,19 +1,21 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { Prisma, type User } from "@prisma/client";
+import { Prisma, type User, type UserSecurityToken } from "@prisma/client";
 import { compare, hash } from "bcryptjs";
 
 import { AuditService } from "../audit/audit.service";
 import { findPasswordPolicyViolation } from "../common/password-policy";
 import { PrismaService } from "../database/prisma.service";
-import { getJwtSecret } from "../security/jwt-config.util";
+import { NotificationGatewayService } from "../notifications/notification-gateway.service";
 import { UserRole } from "../security/roles.enum";
+import { ActivateAccountDto } from "./dto/activate-account.dto";
 import { FirstConnectionDto } from "./dto/first-connection.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
+import { ResendActivationDto } from "./dto/resend-activation.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 export type AuthTokensResponse = {
@@ -31,13 +33,23 @@ export type AuthTokensResponse = {
 
 export type ForgotPasswordResponse = {
   message: string;
-  debugResetToken?: string;
-  debugExpiresAt?: string;
 };
 
 export type MessageResponse = {
   message: string;
 };
+
+export type TokenStatusResponse = {
+  valid: boolean;
+  expiresAt?: string;
+};
+
+export type ActivationDeliveryResponse = {
+  sent: boolean;
+  message: string;
+};
+
+type SecurityTokenType = "ACTIVATION" | "PASSWORD_RESET";
 
 @Injectable()
 export class AuthService {
@@ -45,23 +57,37 @@ export class AuthService {
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
+    private readonly notificationGateway: NotificationGatewayService,
     private readonly prisma: PrismaService
   ) {}
 
   async login(payload: LoginDto): Promise<AuthTokensResponse> {
     const tenantId = payload.tenantId || this.getDefaultTenantId();
+    const identifier = payload.username.trim();
 
     const user = await this.prisma.user.findFirst({
       where: {
         tenantId,
-        username: payload.username,
-        isActive: true,
-        deletedAt: null
+        deletedAt: null,
+        OR: [
+          { username: identifier },
+          { email: identifier }
+        ]
       }
     });
 
     if (!user) {
       throw new UnauthorizedException("Invalid username or password.");
+    }
+
+    const status = this.userStatus(user);
+    if (status === "PENDING_ACTIVATION") {
+      throw new UnauthorizedException(
+        "Votre compte n’est pas encore activé. Consultez votre email ou demandez un nouveau lien."
+      );
+    }
+    if (!user.isActive || status === "INACTIVE" || status === "ARCHIVED" || status === "DISABLED") {
+      throw new UnauthorizedException("Compte désactivé. Contactez l’administration.");
     }
 
     const isPasswordValid = await compare(payload.password, user.passwordHash);
@@ -73,6 +99,11 @@ export class AuthService {
     await this.logAuthAudit(user.tenantId, user.id, "AUTH_LOGIN_SUCCESS", {
       username: user.username,
       role: user.role
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { updatedAt: new Date() }
     });
     return tokens;
   }
@@ -92,7 +123,12 @@ export class AuthService {
       }
     });
 
-    if (!refreshRecord || !refreshRecord.user.isActive || refreshRecord.user.deletedAt) {
+    if (
+      !refreshRecord ||
+      !refreshRecord.user.isActive ||
+      refreshRecord.user.deletedAt ||
+      this.userStatus(refreshRecord.user) !== "ACTIVE"
+    ) {
       throw new UnauthorizedException("Invalid refresh token.");
     }
 
@@ -140,103 +176,170 @@ export class AuthService {
 
   async forgotPassword(payload: ForgotPasswordDto): Promise<ForgotPasswordResponse> {
     const tenantId = payload.tenantId || this.getDefaultTenantId();
+    const identifier = payload.username.trim();
     const user = await this.prisma.user.findFirst({
       where: {
         tenantId,
-        username: payload.username,
-        isActive: true,
-        deletedAt: null
+        deletedAt: null,
+        OR: [
+          { username: identifier },
+          { email: identifier }
+        ]
       }
     });
 
     const genericMessage =
-      "Si le compte existe, la demande de reinitialisation a ete enregistree.";
-    if (!user) {
+      "Si un compte correspond à ces informations, un email de réinitialisation a été envoyé.";
+    if (!user || !this.isEligibleForPasswordReset(user)) {
       return { message: genericMessage };
     }
 
-    const expiresIn = this.configService.get<string>("PASSWORD_RESET_EXPIRES_IN", "20m");
-    const expiresInSeconds = this.resolveExpirationSeconds(expiresIn);
-    const resetToken = await this.jwtService.signAsync(
-      {
-        sub: user.id,
-        tenantId: user.tenantId,
-        username: user.username,
-        purpose: "PASSWORD_RESET"
-      },
-      {
-        secret: this.getPasswordResetSecret(),
-        expiresIn: expiresInSeconds,
-        issuer: this.getJwtIssuer(),
-        audience: this.getPasswordResetAudience()
-      }
-    );
-
-    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
-    await this.logAuthAudit(user.tenantId, user.id, "AUTH_FORGOT_PASSWORD_REQUESTED", {
-      username: user.username
-    });
-
-    if (this.shouldExposePasswordResetToken()) {
-      return {
-        message: genericMessage,
-        debugResetToken: resetToken,
-        debugExpiresAt: expiresAt.toISOString()
-      };
+    try {
+      const { rawToken, expiresAt } = await this.createSecurityToken(user, "PASSWORD_RESET");
+      await this.sendPasswordResetEmail(user, rawToken, expiresAt);
+      await this.logAuthAudit(user.tenantId, user.id, "AUTH_FORGOT_PASSWORD_REQUESTED", {
+        username: user.username
+      });
+    } catch {
+      await this.logAuthAudit(user.tenantId, user.id, "AUTH_FORGOT_PASSWORD_EMAIL_FAILED", {
+        username: user.username
+      });
     }
 
     return { message: genericMessage };
   }
 
   async resetPassword(payload: ResetPasswordDto): Promise<MessageResponse> {
-    type ResetTokenPayload = {
-      sub: string;
-      tenantId: string;
-      username: string;
-      purpose: string;
-    };
+    const tokenRecord = await this.requireUsableSecurityToken(payload.token, "PASSWORD_RESET");
+    const user = tokenRecord.user;
 
-    let tokenPayload: ResetTokenPayload;
-    try {
-      tokenPayload = await this.jwtService.verifyAsync<ResetTokenPayload>(payload.token, {
-        secret: this.getPasswordResetSecret(),
-        issuer: this.getJwtIssuer(),
-        audience: this.getPasswordResetAudience()
-      });
-    } catch {
-      throw new UnauthorizedException("Token de reinitialisation invalide ou expire.");
-    }
-
-    if (tokenPayload.purpose !== "PASSWORD_RESET") {
-      throw new UnauthorizedException("Token de reinitialisation invalide.");
-    }
-
-    const user = await this.prisma.user.findFirst({
-      where: {
-        id: tokenPayload.sub,
-        tenantId: tokenPayload.tenantId,
-        username: tokenPayload.username,
-        isActive: true,
-        deletedAt: null
-      }
-    });
-
-    if (!user) {
-      throw new UnauthorizedException("Compte introuvable pour ce token de reinitialisation.");
+    if (!this.isEligibleForPasswordReset(user)) {
+      throw new UnauthorizedException("Token de réinitialisation invalide ou expiré.");
     }
 
     this.assertPasswordPolicy(payload.newPassword, user.username);
 
     const samePassword = await compare(payload.newPassword, user.passwordHash);
     if (samePassword) {
-      throw new BadRequestException("Le nouveau mot de passe doit etre different de l'ancien.");
+      throw new BadRequestException("Le nouveau mot de passe doit être différent de l’ancien.");
     }
 
-    await this.replaceUserPassword(user, payload.newPassword);
+    await this.replaceUserPassword(user, payload.newPassword, tokenRecord.id);
     await this.logAuthAudit(user.tenantId, user.id, "AUTH_PASSWORD_RESET_SUCCESS", {
       username: user.username
     });
-    return { message: "Mot de passe reinitialise avec succes." };
+    return { message: "Mot de passe réinitialisé avec succès." };
+  }
+
+  async activateAccount(payload: ActivateAccountDto): Promise<MessageResponse> {
+    const tokenRecord = await this.requireUsableSecurityToken(payload.token, "ACTIVATION");
+    const user = tokenRecord.user;
+
+    if (user.deletedAt || this.userStatus(user) === "ARCHIVED") {
+      throw new UnauthorizedException("Lien d’activation invalide ou expiré.");
+    }
+
+    this.assertPasswordPolicy(payload.newPassword, user.username);
+
+    const passwordHash = await hash(payload.newPassword, 10);
+    const now = new Date();
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          status: "ACTIVE",
+          isActive: true,
+          mustChangePasswordAtFirstLogin: false,
+          activatedAt: now,
+          disabledAt: null,
+          updatedAt: now
+        }
+      });
+
+      await transaction.userSecurityToken.update({
+        where: { id: tokenRecord.id },
+        data: { usedAt: now }
+      });
+
+      await transaction.refreshToken.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null
+        },
+        data: { revokedAt: now }
+      });
+    });
+
+    await this.logAuthAudit(user.tenantId, user.id, "AUTH_ACCOUNT_ACTIVATED", {
+      username: user.username
+    });
+    return { message: "Compte activé. Vous pouvez maintenant vous connecter." };
+  }
+
+  async resendActivation(payload: ResendActivationDto): Promise<ForgotPasswordResponse> {
+    const tenantId = payload.tenantId || this.getDefaultTenantId();
+    const identifier = payload.username.trim();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        deletedAt: null,
+        OR: [
+          { username: identifier },
+          { email: identifier }
+        ]
+      }
+    });
+
+    const genericMessage =
+      "Si un compte en attente correspond à ces informations, un email d’activation a été envoyé.";
+    if (!user || this.userStatus(user) !== "PENDING_ACTIVATION") {
+      return { message: genericMessage };
+    }
+
+    try {
+      const { rawToken, expiresAt } = await this.createSecurityToken(user, "ACTIVATION");
+      await this.sendActivationEmail(user, rawToken, expiresAt);
+      await this.logAuthAudit(user.tenantId, user.id, "AUTH_ACTIVATION_RESENT", {
+        username: user.username
+      });
+    } catch {
+      await this.logAuthAudit(user.tenantId, user.id, "AUTH_ACTIVATION_EMAIL_FAILED", {
+        username: user.username
+      });
+    }
+    return { message: genericMessage };
+  }
+
+  async activationStatus(token: string): Promise<TokenStatusResponse> {
+    return this.securityTokenStatus(token, "ACTIVATION");
+  }
+
+  async resetStatus(token: string): Promise<TokenStatusResponse> {
+    return this.securityTokenStatus(token, "PASSWORD_RESET");
+  }
+
+  async createActivationForUser(userId: string): Promise<ActivationDeliveryResponse> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.deletedAt) {
+      throw new UnauthorizedException("Utilisateur introuvable.");
+    }
+    if (this.userStatus(user) !== "PENDING_ACTIVATION") {
+      return {
+        sent: false,
+        message: "Le compte n’est pas en attente d’activation."
+      };
+    }
+
+    const { rawToken, expiresAt } = await this.createSecurityToken(user, "ACTIVATION");
+    await this.sendActivationEmail(user, rawToken, expiresAt);
+    await this.logAuthAudit(user.tenantId, user.id, "AUTH_ACTIVATION_SENT", {
+      username: user.username
+    });
+    return {
+      sent: true,
+      message: "Email d’activation envoyé."
+    };
   }
 
   async completeFirstConnection(payload: FirstConnectionDto): Promise<MessageResponse> {
@@ -272,6 +375,216 @@ export class AuthService {
       username: user.username
     });
     return { message: "Premiere connexion finalisee. Vous pouvez maintenant vous connecter." };
+  }
+
+  private async createSecurityToken(
+    user: Pick<User, "id" | "tenantId">,
+    type: SecurityTokenType
+  ): Promise<{ rawToken: string; expiresAt: Date }> {
+    const rawToken = randomBytes(48).toString("base64url");
+    const tokenHash = this.hashToken(rawToken);
+    const expiresIn =
+      type === "ACTIVATION"
+        ? this.configService.get<string>("ACCOUNT_ACTIVATION_EXPIRES_IN", "48h")
+        : this.configService.get<string>("PASSWORD_RESET_EXPIRES_IN", "30m");
+    const expiresAt = new Date(Date.now() + this.resolveExpirationSeconds(expiresIn) * 1000);
+    const now = new Date();
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.userSecurityToken.updateMany({
+        where: {
+          userId: user.id,
+          type,
+          usedAt: null
+        },
+        data: {
+          usedAt: now
+        }
+      });
+
+      await transaction.userSecurityToken.create({
+        data: {
+          tenantId: user.tenantId,
+          userId: user.id,
+          type,
+          tokenHash,
+          expiresAt
+        }
+      });
+    });
+
+    return { rawToken, expiresAt };
+  }
+
+  private async requireUsableSecurityToken(
+    rawToken: string,
+    type: SecurityTokenType
+  ): Promise<UserSecurityToken & { user: User }> {
+    const tokenHash = this.hashToken(rawToken.trim());
+    const token = await this.prisma.userSecurityToken.findFirst({
+      where: {
+        tokenHash,
+        type,
+        usedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      include: { user: true }
+    });
+
+    if (!token || token.user.deletedAt) {
+      throw new UnauthorizedException(
+        type === "ACTIVATION"
+          ? "Lien d’activation invalide ou expiré."
+          : "Token de réinitialisation invalide ou expiré."
+      );
+    }
+
+    return token;
+  }
+
+  private async securityTokenStatus(
+    rawToken: string,
+    type: SecurityTokenType
+  ): Promise<TokenStatusResponse> {
+    if (!rawToken.trim()) return { valid: false };
+
+    const token = await this.prisma.userSecurityToken.findFirst({
+      where: {
+        tokenHash: this.hashToken(rawToken.trim()),
+        type,
+        usedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      select: {
+        expiresAt: true,
+        user: {
+          select: {
+            deletedAt: true,
+            isActive: true,
+            status: true
+          }
+        }
+      }
+    });
+
+    if (!token || token.user.deletedAt) return { valid: false };
+    if (type === "ACTIVATION" && token.user.status !== "PENDING_ACTIVATION") {
+      return { valid: false };
+    }
+    if (type === "PASSWORD_RESET" && !this.isEligibleForPasswordReset(token.user)) {
+      return { valid: false };
+    }
+
+    return { valid: true, expiresAt: token.expiresAt.toISOString() };
+  }
+
+  private async sendActivationEmail(user: User, token: string, expiresAt: Date): Promise<void> {
+    const targetAddress = this.userEmailAddress(user);
+    if (!targetAddress) {
+      throw new BadRequestException("Aucune adresse email disponible pour envoyer l’activation.");
+    }
+
+    const activationUrl = this.buildPublicUrl("/activate", token);
+    const displayName = user.displayName || user.username;
+    const expirationDate = new Intl.DateTimeFormat("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: this.configService.get<string>("APP_TIMEZONE", "Europe/Paris")
+    }).format(expiresAt);
+
+    await this.notificationGateway.dispatch({
+      notificationId: randomUUID(),
+      tenantId: user.tenantId,
+      channel: "EMAIL",
+      targetAddress,
+      title: "Activation de votre compte GestSchool",
+      message: [
+        `Bonjour ${displayName},`,
+        "",
+        "Un compte a été créé pour vous sur GestSchool - Al Manarat Islamiyat.",
+        "",
+        "Pour finaliser votre première connexion, cliquez sur le lien ci-dessous :",
+        activationUrl,
+        "",
+        `Ce lien expire le ${expirationDate}.`,
+        "",
+        "Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.",
+        "",
+        "Al Manarat Islamiyat"
+      ].join("\n")
+    });
+  }
+
+  private async sendPasswordResetEmail(user: User, token: string, expiresAt: Date): Promise<void> {
+    const targetAddress = this.userEmailAddress(user);
+    if (!targetAddress) {
+      return;
+    }
+
+    const resetUrl = this.buildPublicUrl("/reset-password", token);
+    const displayName = user.displayName || user.username;
+    const expirationDate = new Intl.DateTimeFormat("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: this.configService.get<string>("APP_TIMEZONE", "Europe/Paris")
+    }).format(expiresAt);
+
+    await this.notificationGateway.dispatch({
+      notificationId: randomUUID(),
+      tenantId: user.tenantId,
+      channel: "EMAIL",
+      targetAddress,
+      title: "Réinitialisation de votre mot de passe GestSchool",
+      message: [
+        `Bonjour ${displayName},`,
+        "",
+        "Vous avez demandé la réinitialisation de votre mot de passe GestSchool.",
+        "",
+        "Cliquez sur le lien ci-dessous pour choisir un nouveau mot de passe :",
+        resetUrl,
+        "",
+        `Ce lien expire le ${expirationDate}.`,
+        "",
+        "Si vous n’avez pas demandé cette opération, ignorez cet email.",
+        "",
+        "Al Manarat Islamiyat"
+      ].join("\n")
+    });
+  }
+
+  private buildPublicUrl(path: "/activate" | "/reset-password", token: string): string {
+    const baseUrl = this.configService
+      .get<string>(
+        "AUTH_PUBLIC_BASE_URL",
+        this.configService.get<string>(
+          "FRONTEND_APP_URL",
+          this.configService.get<string>("APP_PUBLIC_URL", "http://localhost:5173")
+        )
+      )
+      .trim()
+      .replace(/\/+$/, "");
+    return `${baseUrl}${path}?token=${encodeURIComponent(token)}`;
+  }
+
+  private userEmailAddress(user: Pick<User, "email" | "username">): string | null {
+    const candidates = [user.email, user.username];
+    for (const candidate of candidates) {
+      const value = candidate?.trim();
+      if (value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return value;
+    }
+    return null;
+  }
+
+  private isEligibleForPasswordReset(
+    user: Pick<User, "isActive" | "status" | "deletedAt">
+  ): boolean {
+    if (user.deletedAt) return false;
+    const status = this.userStatus(user);
+    return user.isActive && status === "ACTIVE";
+  }
+
+  private userStatus(user: Pick<User, "status">): string {
+    return (user.status || "ACTIVE").trim().toUpperCase();
   }
 
   private async issueTokens(user: User): Promise<AuthTokensResponse> {
@@ -335,39 +648,12 @@ export class AuthService {
     );
   }
 
-  private getPasswordResetSecret(): string {
-    return this.configService.get<string>(
-      "PASSWORD_RESET_SECRET",
-      getJwtSecret(this.configService)
-    );
-  }
-
   private getJwtIssuer(): string {
     return this.configService.get<string>("JWT_ISSUER", "gestschool");
   }
 
   private getJwtAudience(): string {
     return this.configService.get<string>("JWT_AUDIENCE", "gestschool-clients");
-  }
-
-  private getPasswordResetAudience(): string {
-    return this.configService.get<string>(
-      "PASSWORD_RESET_AUDIENCE",
-      `${this.getJwtAudience()}-password-reset`
-    );
-  }
-
-  private shouldExposePasswordResetToken(): boolean {
-    const nodeEnv = this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
-    if (nodeEnv === "production") {
-      return false;
-    }
-
-    const raw = this.configService
-      .get<string>("PASSWORD_RESET_DEV_EXPOSE_TOKEN", "false")
-      .trim()
-      .toLowerCase();
-    return raw === "1" || raw === "true" || raw === "yes";
   }
 
   private assertPasswordPolicy(password: string, username?: string): void {
@@ -379,7 +665,8 @@ export class AuthService {
 
   private async replaceUserPassword(
     user: Pick<User, "id" | "tenantId">,
-    nextPassword: string
+    nextPassword: string,
+    consumedTokenId?: string
   ): Promise<void> {
     const now = new Date();
     const passwordHash = await hash(nextPassword, 10);
@@ -388,9 +675,17 @@ export class AuthService {
         where: { id: user.id },
         data: {
           passwordHash,
+          mustChangePasswordAtFirstLogin: false,
           updatedAt: now
         }
       });
+
+      if (consumedTokenId) {
+        await transaction.userSecurityToken.update({
+          where: { id: consumedTokenId },
+          data: { usedAt: now }
+        });
+      }
 
       await transaction.refreshToken.updateMany({
         where: {

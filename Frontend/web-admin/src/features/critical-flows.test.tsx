@@ -523,9 +523,22 @@ const iamUser: UserAccount = {
   displayName: "Administrateur Preview",
   staffFunction: "Direction",
   department: "Administration",
+  status: "ACTIVE",
   isActive: true,
   createdAt: "2026-05-15T10:00:00.000Z",
   updatedAt: "2026-05-15T10:30:00.000Z"
+} as UserAccount;
+
+const iamPendingUser: UserAccount = {
+  ...iamUser,
+  id: "user-pending",
+  username: "parent.pending",
+  role: "PARENT",
+  roleId: "PARENT",
+  accountType: "PARENT",
+  displayName: "Parent en attente",
+  status: "PENDING_ACTIVATION",
+  isActive: false
 } as UserAccount;
 
 const buildModuleApi = (): ((path: string, init?: RequestInit) => Promise<Response>) =>
@@ -788,7 +801,7 @@ describe("critical frontend flows", () => {
     expect(handleSelectTheme).toHaveBeenCalledWith("light");
   });
 
-  it("affiche un parcours activation compte lisible et accessible", () => {
+  it("affiche la demande de renvoi d'activation sans mot de passe temporaire", () => {
     renderAuthScreen({
       authAssistMode: "first",
       firstConnectionForm: {
@@ -801,15 +814,34 @@ describe("critical frontend flows", () => {
 
     expect(screen.getByTestId("auth-brand-title")).toHaveTextContent("Al Manarat Islamiyat");
     expect(screen.getByRole("heading", { name: "Activer mon compte" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Identifiant")).toHaveValue("admin@gestschool.local");
-    expect(screen.getByLabelText("Mot de passe temporaire")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email ou identifiant")).toHaveValue("admin@gestschool.local");
+    expect(screen.queryByLabelText("Mot de passe temporaire")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Nouveau mot de passe")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Confirmation du mot de passe")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Renvoyer le lien d’activation$/ })).toBeInTheDocument();
+  });
+
+  it("affiche le formulaire d'activation lorsque le token est present", () => {
+    renderAuthScreen({
+      authAssistMode: "first",
+      firstConnectionForm: {
+        username: "",
+        temporaryPassword: "activation-token",
+        newPassword: "",
+        confirmPassword: ""
+      }
+    });
+
+    expect(screen.getByRole("heading", { name: "Activer mon compte" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Email ou identifiant")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Mot de passe temporaire")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Nouveau mot de passe")).toBeInTheDocument();
     expect(screen.getByLabelText("Confirmation du mot de passe")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Afficher le mot de passe" })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: "Afficher le mot de passe" })).toHaveLength(2);
     expect(screen.getByRole("button", { name: /^Activer mon compte$/ })).toBeInTheDocument();
   });
 
-  it("affiche la recuperation et la reinitialisation en deux sections", () => {
+  it("affiche seulement la demande d'instructions sans token de reset", () => {
     renderAuthScreen({
       authAssistMode: "forgot",
       forgotPasswordForm: { username: "admin@gestschool.local" },
@@ -818,12 +850,29 @@ describe("critical frontend flows", () => {
 
     expect(screen.getByRole("heading", { name: "Mot de passe oublié ?" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recevoir les instructions" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Valider la réinitialisation" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Réinitialiser le mot de passe" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Identifiant")).toHaveValue("admin@gestschool.local");
-    expect(screen.getByLabelText("Code de réinitialisation")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Afficher le mot de passe" })).toHaveLength(2);
+    expect(screen.queryByLabelText("Code de réinitialisation")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Nouveau mot de passe")).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("button", { name: "Afficher le mot de passe" })).toHaveLength(0);
     expect(screen.getByRole("button", { name: "Envoyer les instructions" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Valider la réinitialisation" })).toBeInTheDocument();
+  });
+
+  it("affiche seulement la reinitialisation lorsque le token de reset est present", () => {
+    renderAuthScreen({
+      authAssistMode: "forgot",
+      forgotPasswordForm: { username: "" },
+      resetPasswordForm: { token: "reset-token", newPassword: "", confirmPassword: "" }
+    });
+
+    expect(screen.getByRole("heading", { name: "Mot de passe oublié ?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Recevoir les instructions" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Réinitialiser le mot de passe" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Code de réinitialisation")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nouveau mot de passe")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirmation du mot de passe")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Afficher le mot de passe" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Réinitialiser le mot de passe" })).toBeInTheDocument();
   });
 
   it("traduit l'ecran auth sans verrouiller l'interface en francais", () => {
@@ -1100,7 +1149,7 @@ describe("critical frontend flows", () => {
     render(
       <IamScreen
         api={failingApi}
-        initialUsers={[iamUser]}
+        initialUsers={[iamUser, iamPendingUser]}
         students={[]}
         remoteEnabled={false}
         locale="fr-FR"
@@ -1117,6 +1166,11 @@ describe("critical frontend flows", () => {
     expect(screen.getAllByText("Comptes utilisateurs").length).toBeGreaterThan(0);
     expect(screen.getByText("Rôle d'accès *")).toBeInTheDocument();
     expect(screen.getByText("Rattachement métier")).toBeInTheDocument();
+    expect(screen.getByText("Envoyer l’email d’activation immédiatement")).toBeInTheDocument();
+    expect(screen.getByText("Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.")).toBeInTheDocument();
+    expect(screen.getAllByText("En attente d’activation").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Renvoyer l’activation" })).toBeInTheDocument();
+    expect(screen.queryByText(/mot de passe temporaire/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/tenant/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Droits API/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/routes/i)).not.toBeInTheDocument();

@@ -1,4 +1,7 @@
+import { createHash, randomBytes } from "node:crypto";
+
 import * as request from "supertest";
+import { hash } from "bcryptjs";
 
 import { UserRole } from "../src/security/roles.enum";
 import {
@@ -146,5 +149,180 @@ describe("Auth + access guards (e2e)", () => {
       .post("/api/v1/auth/refresh")
       .send({ refreshToken: adminTokens.refreshToken })
       .expect(401);
+  });
+
+  it("POST /auth/login should reject pending activation accounts", async () => {
+    await context.prisma.user.create({
+      data: {
+        tenantId: TENANT_ID,
+        username: "pending-login@gestschool.local",
+        email: "pending-login@gestschool.local",
+        displayName: "Compte en attente",
+        accountType: "STAFF",
+        passwordHash: await hash("PendingLogin123!", 10),
+        role: UserRole.SCOLARITE,
+        status: "PENDING_ACTIVATION",
+        isActive: false
+      }
+    });
+
+    const response = await request(context.app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({
+        username: "pending-login@gestschool.local",
+        password: "PendingLogin123!",
+        tenantId: TENANT_ID
+      })
+      .expect(401);
+
+    expect(response.body.message).toContain("pas encore activé");
+  });
+
+  it("POST /auth/forgot-password should be generic and store only a reset token hash", async () => {
+    const before = await context.prisma.userSecurityToken.count({
+      where: { type: "PASSWORD_RESET" }
+    });
+
+    const existing = await request(context.app.getHttpServer())
+      .post("/api/v1/auth/forgot-password")
+      .send({ username: "admin@gestschool.local", tenantId: TENANT_ID })
+      .expect(201);
+
+    const missing = await request(context.app.getHttpServer())
+      .post("/api/v1/auth/forgot-password")
+      .send({ username: "missing@gestschool.local", tenantId: TENANT_ID })
+      .expect(201);
+
+    expect(existing.body.message).toBe(missing.body.message);
+    expect(existing.body.debugResetToken).toBeUndefined();
+
+    const rows = await context.prisma.userSecurityToken.findMany({
+      where: { type: "PASSWORD_RESET" },
+      orderBy: { createdAt: "desc" }
+    });
+    expect(rows).toHaveLength(before + 1);
+    expect(rows[0].tokenHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("POST /auth/reset-password should consume a reset token once", async () => {
+    const user = await context.prisma.user.create({
+      data: {
+        tenantId: TENANT_ID,
+        username: "reset-user@gestschool.local",
+        email: "reset-user@gestschool.local",
+        displayName: "Reset User",
+        accountType: "STAFF",
+        passwordHash: await hash("ResetOld123!", 10),
+        role: UserRole.SCOLARITE,
+        status: "ACTIVE",
+        isActive: true,
+        activatedAt: new Date()
+      }
+    });
+    const rawToken = randomBytes(48).toString("base64url");
+    await context.prisma.userSecurityToken.create({
+      data: {
+        tenantId: TENANT_ID,
+        userId: user.id,
+        type: "PASSWORD_RESET",
+        tokenHash: createHash("sha256").update(rawToken).digest("hex"),
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000)
+      }
+    });
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/reset-password")
+      .send({ token: rawToken, newPassword: "ResetNew123!" })
+      .expect(201);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/reset-password")
+      .send({ token: rawToken, newPassword: "ResetAgain123!" })
+      .expect(401);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({
+        username: "reset-user@gestschool.local",
+        password: "ResetNew123!",
+        tenantId: TENANT_ID
+      })
+      .expect(201);
+  });
+
+  it("POST /auth/activate should activate a pending account and consume the token once", async () => {
+    const user = await context.prisma.user.create({
+      data: {
+        tenantId: TENANT_ID,
+        username: "activate-user@gestschool.local",
+        email: "activate-user@gestschool.local",
+        displayName: "Activate User",
+        accountType: "STAFF",
+        passwordHash: await hash("ActivationPlaceholder123!", 10),
+        role: UserRole.SCOLARITE,
+        status: "PENDING_ACTIVATION",
+        isActive: false
+      }
+    });
+    const rawToken = randomBytes(48).toString("base64url");
+    await context.prisma.userSecurityToken.create({
+      data: {
+        tenantId: TENANT_ID,
+        userId: user.id,
+        type: "ACTIVATION",
+        tokenHash: createHash("sha256").update(rawToken).digest("hex"),
+        expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000)
+      }
+    });
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/activate")
+      .send({ token: rawToken, newPassword: "ActivationNew123!" })
+      .expect(201);
+
+    const activated = await context.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(activated.status).toBe("ACTIVE");
+    expect(activated.isActive).toBe(true);
+    expect(activated.activatedAt).toBeTruthy();
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/activate")
+      .send({ token: rawToken, newPassword: "ActivationNew456!" })
+      .expect(401);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({
+        username: "activate-user@gestschool.local",
+        password: "ActivationNew123!",
+        tenantId: TENANT_ID
+      })
+      .expect(201);
+  });
+
+  it("POST /users should create a pending user and queue an activation token", async () => {
+    const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+
+    const response = await request(context.app.getHttpServer())
+      .post("/api/v1/users")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .send({
+        username: "new-account@gestschool.local",
+        email: "new-account@gestschool.local",
+        accountType: "STAFF",
+        roleId: UserRole.SCOLARITE,
+        staffDisplayName: "Nouvel utilisateur",
+        sendActivationEmail: true
+      })
+      .expect(201);
+
+    expect(response.body.temporaryPassword).toBeUndefined();
+    expect(response.body.status).toBe("PENDING_ACTIVATION");
+    expect(response.body.activationEmailSent).toBe(true);
+
+    const token = await context.prisma.userSecurityToken.findFirst({
+      where: { userId: response.body.id, type: "ACTIVATION" }
+    });
+    expect(token?.tokenHash).toMatch(/^[a-f0-9]{64}$/);
   });
 });

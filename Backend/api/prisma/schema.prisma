@@ -104,11 +104,15 @@ model User {
   department    String?        @db.VarChar(120)
   notes         String?        @db.VarChar(1000)
   mustChangePasswordAtFirstLogin Boolean @default(false) @map("must_change_password_at_first_login")
+  status        String         @default("ACTIVE") @db.VarChar(30)
   isActive      Boolean        @default(true) @map("is_active")
+  activatedAt   DateTime?      @map("activated_at") @db.Timestamptz(6)
+  disabledAt    DateTime?      @map("disabled_at") @db.Timestamptz(6)
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
   deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)
   refreshTokens RefreshToken[]
+  securityTokens UserSecurityToken[]
   iamAuditLogs  IamAuditLog[]
   teacherAssignments TeacherClassAssignment[] @relation("TeacherAssignments")
   teacherProfile Teacher? @relation("TeacherUser")
@@ -120,7 +124,28 @@ model User {
   @@unique([tenantId, username], map: "users_tenant_id_username_key")
   @@unique([tenantId, email], map: "users_tenant_id_email_key")
   @@index([tenantId, accountType], map: "idx_users_tenant_account_type")
+  @@index([tenantId, status], map: "idx_users_tenant_status")
   @@map("users")
+}
+
+model UserSecurityToken {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  type              String    @db.VarChar(30)
+  tokenHash         String    @map("token_hash")
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt            DateTime? @map("used_at") @db.Timestamptz(6)
+  consumedIp        String?   @map("consumed_ip") @db.VarChar(80)
+  consumedUserAgent String?   @map("consumed_user_agent") @db.VarChar(500)
+  metadata          Json?
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenHash], map: "user_security_tokens_token_hash_key")
+  @@index([userId], map: "idx_user_security_tokens_user_id")
+  @@index([tenantId, type, expiresAt], map: "idx_user_security_tokens_tenant_type_expires")
+  @@map("user_security_tokens")
 }
 
 model RefreshToken {

@@ -68,8 +68,11 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Retour à la connexion": "Back to sign in",
     "Retour connexion": "Back to sign in",
     "Récupérez l’accès à votre compte": "Recover access to your account",
+    "Choisissez un nouveau mot de passe sécurisé.": "Choose a secure new password.",
     "Recuperez l'acces a votre compte": "Recover access to your account",
     "Recevoir les instructions": "Receive instructions",
+    "Entrez votre identifiant pour recevoir un lien de réinitialisation.":
+      "Enter your username to receive a reset link.",
     "Entrez votre identifiant pour demander un code de réinitialisation.":
       "Enter your username to request a reset code.",
     "Entrez votre identifiant pour demander un code de reinitialisation.":
@@ -92,9 +95,13 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Confirmation du mot de passe": "Confirm password",
     "Valider la réinitialisation": "Confirm reset",
     "Valider la reinitialisation": "Confirm reset",
+    "Réinitialiser le mot de passe": "Reset password",
     "Activation premiere connexion": "First login activation",
     "Mot de passe temporaire": "Temporary password",
     "Activer le compte": "Activate account",
+    "Définissez votre mot de passe définitif.": "Set your definitive password.",
+    "Demandez un nouveau lien d’activation sécurisé.": "Request a new secure activation link.",
+    "Renvoyer le lien d’activation": "Resend activation link",
     "Envoi...": "Sending...",
     "Validation...": "Validating...",
     "Activation...": "Activating...",
@@ -308,6 +315,19 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "La fiche métier doit être active pour créer un compte actif.": "The business profile must be active to create an active account.",
     "Utilisateur mis à jour.": "User updated.",
     "Utilisateur créé.": "User created.",
+    "Utilisateur créé. Un email d’activation a été envoyé.":
+      "User created. An activation email has been sent.",
+    "Utilisateur créé, mais l’email d’activation n’a pas pu être envoyé. Vous pouvez le renvoyer.":
+      "User created, but the activation email could not be sent. You can resend it.",
+    "En attente d’activation": "Pending activation",
+    "Envoyer l’email d’activation immédiatement": "Send activation email immediately",
+    "Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.":
+      "The definitive password is chosen by the user from the secure activation link.",
+    "Renvoyer l’activation": "Resend activation",
+    "Renvoyer l’email d’activation à cet utilisateur ?": "Resend the activation email to this user?",
+    "Email d’activation envoyé.": "Activation email sent.",
+    "Mode aperçu local : activation non envoyée.": "Local preview mode: activation not sent.",
+    "Erreur d’envoi de l’activation.": "Unable to send activation.",
     "Mode aperçu local : les comptes ne sont pas persistés.": "Local preview mode: accounts are not persisted.",
     "Mode aperçu local : droits non persistés.": "Local preview mode: permissions are not persisted.",
     "Mode aperçu local : réactivation non persistée.": "Local preview mode: reactivation is not persisted.",
@@ -971,17 +991,36 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Aucune alerte critique pour le moment.": "No critical alert for now.",
     "Renseigner votre identifiant pour demander un token de reinitialisation.":
       "Enter your username to request a reset token.",
+    "Renseignez votre identifiant pour recevoir le lien de réinitialisation.":
+      "Enter your username to receive the reset link.",
     "Demande de reinitialisation enregistree.": "Reset request recorded.",
+    "Si un compte correspond à ces informations, un email de réinitialisation a été envoyé.":
+      "If an account matches this information, a reset email has been sent.",
     "Connexion API impossible pendant la demande de reinitialisation.":
       "Unable to reach the API during the reset request.",
     "Token de reinitialisation requis.": "Reset token required.",
+    "Lien de réinitialisation invalide ou expiré.": "Invalid or expired reset link.",
     "La confirmation du mot de passe ne correspond pas.": "Password confirmation does not match.",
     "Mot de passe reinitialise.": "Password reset.",
+    "Mot de passe réinitialisé.": "Password reset.",
     "Connexion API impossible pendant la reinitialisation du mot de passe.":
       "Unable to reach the API during password reset.",
     "Identifiant requis.": "Username required.",
+    "Identifiant requis pour renvoyer le lien d’activation.":
+      "Username is required to resend the activation link.",
+    "Identifiant ou mot de passe incorrect.": "Invalid username or password.",
+    "Session expirée. Reconnectez-vous.": "Session expired. Please sign in again.",
+    "Votre compte n’est pas encore activé. Consultez votre email ou demandez un nouveau lien.":
+      "Your account is not activated yet. Check your email or request a new link.",
+    "Compte désactivé. Contactez l’administration.": "Account disabled. Contact administration.",
     "Mot de passe temporaire invalide.": "Invalid temporary password.",
     "Premiere connexion finalisee.": "First login completed.",
+    "Compte activé. Vous pouvez maintenant vous connecter.": "Account activated. You can now sign in.",
+    "Lien d’activation invalide ou expiré.": "Invalid or expired activation link.",
+    "Si un compte en attente correspond à ces informations, un email d’activation a été envoyé.":
+      "If a pending account matches this information, an activation email has been sent.",
+    "Le mot de passe doit contenir au moins 12 caractères, avec majuscule, minuscule, chiffre et caractère spécial.":
+      "The password must contain at least 12 characters, with uppercase, lowercase, number, and special character.",
     "Connexion API impossible pendant l'activation du compte.":
       "Unable to reach the API during account activation.",
     "Connexion à l'API...": "Connecting to API...",
@@ -1326,7 +1365,10 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Activer mon compte": "تفعيل حسابي",
     "Retour à la connexion": "العودة إلى تسجيل الدخول",
     "Récupérez l’accès à votre compte": "استعد الوصول إلى حسابك",
+    "Choisissez un nouveau mot de passe sécurisé.": "اختر كلمة مرور جديدة آمنة.",
     "Recevoir les instructions": "استلام التعليمات",
+    "Entrez votre identifiant pour recevoir un lien de réinitialisation.":
+      "أدخل اسم المستخدم لتلقي رابط إعادة التعيين.",
     "Entrez votre identifiant pour demander un code de réinitialisation.":
       "أدخل اسم المستخدم لطلب رمز إعادة التعيين.",
     "Saisissez le code reçu et choisissez un nouveau mot de passe sécurisé.":
@@ -1343,9 +1385,13 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Confirmation du mot de passe": "تأكيد كلمة المرور",
     "Valider la réinitialisation": "تأكيد إعادة التعيين",
     "Valider la reinitialisation": "تأكيد إعادة التعيين",
+    "Réinitialiser le mot de passe": "إعادة تعيين كلمة المرور",
     "Activation premiere connexion": "تفعيل أول تسجيل دخول",
     "Mot de passe temporaire": "كلمة المرور المؤقتة",
     "Activer le compte": "تفعيل الحساب",
+    "Définissez votre mot de passe définitif.": "عيّن كلمة مرورك النهائية.",
+    "Demandez un nouveau lien d’activation sécurisé.": "اطلب رابط تفعيل آمنًا جديدًا.",
+    "Renvoyer le lien d’activation": "إعادة إرسال رابط التفعيل",
     "Envoi...": "جارٍ الإرسال...",
     "Validation...": "جارٍ التحقق...",
     "Activation...": "جارٍ التفعيل...",
@@ -1548,6 +1594,18 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "La fiche métier doit être active pour créer un compte actif.": "يجب أن يكون الملف المهني نشطاً لإنشاء حساب نشط.",
     "Utilisateur mis à jour.": "تم تحديث المستخدم.",
     "Utilisateur créé.": "تم إنشاء المستخدم.",
+    "Utilisateur créé. Un email d’activation a été envoyé.": "تم إنشاء المستخدم وإرسال بريد التفعيل.",
+    "Utilisateur créé, mais l’email d’activation n’a pas pu être envoyé. Vous pouvez le renvoyer.":
+      "تم إنشاء المستخدم، لكن تعذر إرسال بريد التفعيل. يمكنك إعادة إرساله.",
+    "En attente d’activation": "بانتظار التفعيل",
+    "Envoyer l’email d’activation immédiatement": "إرسال بريد التفعيل فوراً",
+    "Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.":
+      "يختار المستخدم كلمة المرور النهائية من رابط التفعيل الآمن.",
+    "Renvoyer l’activation": "إعادة إرسال التفعيل",
+    "Renvoyer l’email d’activation à cet utilisateur ?": "هل تريد إعادة إرسال بريد التفعيل لهذا المستخدم؟",
+    "Email d’activation envoyé.": "تم إرسال بريد التفعيل.",
+    "Mode aperçu local : activation non envoyée.": "وضع المعاينة المحلية: لم يتم إرسال التفعيل.",
+    "Erreur d’envoi de l’activation.": "تعذر إرسال التفعيل.",
     "Mode aperçu local : les comptes ne sont pas persistés.": "وضع المعاينة المحلية: الحسابات غير محفوظة.",
     "Mode aperçu local : droits non persistés.": "وضع المعاينة المحلية: الصلاحيات غير محفوظة.",
     "Mode aperçu local : réactivation non persistée.": "وضع المعاينة المحلية: إعادة التفعيل غير محفوظة.",
@@ -2200,17 +2258,35 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Aucune alerte critique pour le moment.": "لا يوجد تنبيه حرج حالياً.",
     "Renseigner votre identifiant pour demander un token de reinitialisation.":
       "أدخل اسم المستخدم لطلب رمز إعادة التعيين.",
+    "Renseignez votre identifiant pour recevoir le lien de réinitialisation.":
+      "أدخل اسم المستخدم لتلقي رابط إعادة التعيين.",
     "Demande de reinitialisation enregistree.": "تم تسجيل طلب إعادة التعيين.",
+    "Si un compte correspond à ces informations, un email de réinitialisation a été envoyé.":
+      "إذا كان هناك حساب مطابق لهذه المعلومات، فقد تم إرسال بريد إعادة التعيين.",
     "Connexion API impossible pendant la demande de reinitialisation.":
       "تعذر الوصول إلى الواجهة البرمجية أثناء طلب إعادة التعيين.",
     "Token de reinitialisation requis.": "رمز إعادة التعيين مطلوب.",
+    "Lien de réinitialisation invalide ou expiré.": "رابط إعادة التعيين غير صالح أو منتهي الصلاحية.",
     "La confirmation du mot de passe ne correspond pas.": "تأكيد كلمة المرور غير مطابق.",
     "Mot de passe reinitialise.": "تمت إعادة تعيين كلمة المرور.",
+    "Mot de passe réinitialisé.": "تمت إعادة تعيين كلمة المرور.",
     "Connexion API impossible pendant la reinitialisation du mot de passe.":
       "تعذر الوصول إلى الواجهة البرمجية أثناء إعادة تعيين كلمة المرور.",
     "Identifiant requis.": "اسم المستخدم مطلوب.",
+    "Identifiant requis pour renvoyer le lien d’activation.": "اسم المستخدم مطلوب لإعادة إرسال رابط التفعيل.",
+    "Identifiant ou mot de passe incorrect.": "اسم المستخدم أو كلمة المرور غير صحيحة.",
+    "Session expirée. Reconnectez-vous.": "انتهت الجلسة. يرجى تسجيل الدخول مجدداً.",
+    "Votre compte n’est pas encore activé. Consultez votre email ou demandez un nouveau lien.":
+      "لم يتم تفعيل حسابك بعد. تحقق من بريدك أو اطلب رابطاً جديداً.",
+    "Compte désactivé. Contactez l’administration.": "الحساب معطل. تواصل مع الإدارة.",
     "Mot de passe temporaire invalide.": "كلمة المرور المؤقتة غير صالحة.",
     "Premiere connexion finalisee.": "اكتمل أول تسجيل دخول.",
+    "Compte activé. Vous pouvez maintenant vous connecter.": "تم تفعيل الحساب. يمكنك الآن تسجيل الدخول.",
+    "Lien d’activation invalide ou expiré.": "رابط التفعيل غير صالح أو منتهي الصلاحية.",
+    "Si un compte en attente correspond à ces informations, un email d’activation a été envoyé.":
+      "إذا كان هناك حساب بانتظار التفعيل مطابق لهذه المعلومات، فقد تم إرسال بريد التفعيل.",
+    "Le mot de passe doit contenir au moins 12 caractères, avec majuscule, minuscule, chiffre et caractère spécial.":
+      "يجب أن تحتوي كلمة المرور على 12 محرفاً على الأقل، مع حرف كبير وحرف صغير ورقم ورمز خاص.",
     "Connexion API impossible pendant l'activation du compte.":
       "تعذر الوصول إلى الواجهة البرمجية أثناء تفعيل الحساب.",
     "Connexion à l'API...": "جارٍ الاتصال بالواجهة البرمجية...",

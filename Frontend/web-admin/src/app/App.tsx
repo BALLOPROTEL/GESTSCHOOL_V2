@@ -77,7 +77,7 @@ const ICON_TOGGLE_ANIMATION_MS = 460;
 const STRONG_PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{12,128}$/;
 const STRONG_PASSWORD_HINT =
-  "Le mot de passe doit contenir au moins 12 caracteres, avec majuscule, minuscule, chiffre et caractere special.";
+  "Le mot de passe doit contenir au moins 12 caractères, avec majuscule, minuscule, chiffre et caractère spécial.";
 
 const AuthScreen = lazy(() =>
   import("../features/auth-screen").then((module) => ({ default: module.AuthScreen }))
@@ -218,6 +218,24 @@ export function App(): JSX.Element {
     newPassword: "",
     confirmPassword: ""
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token")?.trim();
+    if (!token) return;
+
+    if (window.location.pathname.includes("reset-password")) {
+      setResetPasswordForm((prev) => ({ ...prev, token }));
+      setAuthAssistMode("forgot");
+      return;
+    }
+
+    if (window.location.pathname.includes("activate")) {
+      setFirstConnectionForm((prev) => ({ ...prev, temporaryPassword: token }));
+      setAuthAssistMode("first");
+    }
+  }, []);
+
   const [students, setStudents] = useState<Student[]>([]);
 
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
@@ -962,7 +980,7 @@ export function App(): JSX.Element {
     setNotice(null);
 
     if (!forgotPasswordForm.username.trim()) {
-      setError("Renseigner votre identifiant pour demander un token de reinitialisation.");
+      setError("Renseignez votre identifiant pour recevoir le lien de réinitialisation.");
       return;
     }
 
@@ -983,7 +1001,7 @@ export function App(): JSX.Element {
       }
 
       const payload = (await response.json()) as ForgotPasswordResponse;
-      setNotice(payload.message || "Demande de reinitialisation enregistree.");
+      setNotice(payload.message || "Si un compte correspond à ces informations, un email de réinitialisation a été envoyé.");
     } finally {
       setAuthAssistLoading(false);
     }
@@ -995,7 +1013,7 @@ export function App(): JSX.Element {
     setNotice(null);
 
     if (!resetPasswordForm.token.trim()) {
-      setError("Token de reinitialisation requis.");
+      setError("Lien de réinitialisation invalide ou expiré.");
       return;
     }
     if (!isStrongPassword(resetPasswordForm.newPassword)) {
@@ -1024,7 +1042,7 @@ export function App(): JSX.Element {
       }
 
       const payload = (await response.json()) as AuthMessageResponse;
-      setNotice(payload.message || "Mot de passe reinitialise.");
+      setNotice(payload.message || "Mot de passe réinitialisé.");
       setLoginForm((prev) => ({
         ...prev,
         username: forgotPasswordForm.username.trim() || prev.username,
@@ -1033,6 +1051,7 @@ export function App(): JSX.Element {
       }));
       setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
       setAuthAssistMode("none");
+      window.history.replaceState({}, "", "/");
     } finally {
       setAuthAssistLoading(false);
     }
@@ -1043,12 +1062,32 @@ export function App(): JSX.Element {
     setError(null);
     setNotice(null);
 
-    if (!firstConnectionForm.username.trim()) {
-      setError("Identifiant requis.");
+    const activationToken = firstConnectionForm.temporaryPassword.trim();
+    if (!activationToken && !firstConnectionForm.username.trim()) {
+      setError("Identifiant requis pour renvoyer le lien d’activation.");
       return;
     }
-    if (!firstConnectionForm.temporaryPassword || firstConnectionForm.temporaryPassword.length < 8) {
-      setError("Mot de passe temporaire invalide.");
+    if (!activationToken) {
+      setAuthAssistLoading(true);
+      try {
+        const response = await performPublicRequest("/auth/resend-activation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: firstConnectionForm.username.trim(),
+            tenantId: DEFAULT_TENANT
+          })
+        });
+        if (!response) return;
+        if (!response.ok) {
+          setError(await parseError(response));
+          return;
+        }
+        const payload = (await response.json()) as AuthMessageResponse;
+        setNotice(payload.message || "Si un compte en attente correspond à ces informations, un email d’activation a été envoyé.");
+      } finally {
+        setAuthAssistLoading(false);
+      }
       return;
     }
     if (!isStrongPassword(firstConnectionForm.newPassword)) {
@@ -1062,13 +1101,11 @@ export function App(): JSX.Element {
 
     setAuthAssistLoading(true);
     try {
-      const response = await performPublicRequest("/auth/first-connection", {
+      const response = await performPublicRequest("/auth/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: firstConnectionForm.username.trim(),
-          tenantId: DEFAULT_TENANT,
-          temporaryPassword: firstConnectionForm.temporaryPassword,
+          token: activationToken,
           newPassword: firstConnectionForm.newPassword
         })
       });
@@ -1079,12 +1116,12 @@ export function App(): JSX.Element {
       }
 
       const payload = (await response.json()) as AuthMessageResponse;
-      setNotice(payload.message || "Premiere connexion finalisee.");
+      setNotice(payload.message || "Compte activé. Vous pouvez maintenant vous connecter.");
       setLoginForm((prev) => ({
         ...prev,
         username: firstConnectionForm.username.trim(),
         tenantId: DEFAULT_TENANT,
-        password: firstConnectionForm.newPassword
+        password: ""
       }));
       setFirstConnectionForm((prev) => ({
         ...prev,
@@ -1093,6 +1130,7 @@ export function App(): JSX.Element {
         confirmPassword: ""
       }));
       setAuthAssistMode("none");
+      window.history.replaceState({}, "", "/");
     } finally {
       setAuthAssistLoading(false);
     }
@@ -1339,8 +1377,6 @@ export function App(): JSX.Element {
       remoteEnabled={!isPreviewSession}
       locale={currentLanguageMeta.locale}
       language={uiLanguage}
-      isStrongPassword={isStrongPassword}
-      strongPasswordHint={STRONG_PASSWORD_HINT}
       onError={setError}
       onNotice={setNotice}
       onUsersChange={setUsers}

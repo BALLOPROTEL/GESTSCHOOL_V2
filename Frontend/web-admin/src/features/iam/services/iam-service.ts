@@ -99,3 +99,14 @@ export const removeIamUser = async (api: IamApiClient, id: string): Promise<void
     throw new Error(await parseIamError(response));
   }
 };
+
+export const sendIamUserActivation = async (
+  api: IamApiClient,
+  id: string
+): Promise<{ message: string; sent: boolean }> => {
+  const response = await api(`/users/${id}/send-activation`, { method: "POST" });
+  if (!response.ok) {
+    throw new Error(await parseIamError(response));
+  }
+  return (await response.json()) as { message: string; sent: boolean };
+};

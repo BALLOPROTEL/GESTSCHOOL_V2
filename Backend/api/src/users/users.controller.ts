@@ -134,6 +134,20 @@ export class UsersController {
     await this.usersService.remove(tenantId, actorUserId, id);
   }
 
+  @Post(":id/send-activation")
+  @Roles(UserRole.ADMIN)
+  @RequirePermission("users", "update")
+  @ApiOperation({ summary: "Resend activation email for a pending user" })
+  async sendActivation(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<{ message: string; sent: boolean }> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    return this.usersService.sendActivation(tenantId, actorUserId, id);
+  }
+
   private parseRole(role: string): UserRole {
     const normalized = role.trim().toUpperCase() as UserRole;
     if (!Object.values(UserRole).includes(normalized)) {

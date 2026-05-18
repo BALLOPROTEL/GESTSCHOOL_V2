@@ -411,7 +411,6 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [resetPasswordVisible, setResetPasswordVisible] = useState(false);
   const [resetConfirmVisible, setResetConfirmVisible] = useState(false);
-  const [temporaryPasswordVisible, setTemporaryPasswordVisible] = useState(false);
   const [firstPasswordVisible, setFirstPasswordVisible] = useState(false);
   const [firstConfirmVisible, setFirstConfirmVisible] = useState(false);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
@@ -425,6 +424,8 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
     showPasswordLabel: t("Afficher le mot de passe"),
     hidePasswordLabel: t("Masquer le mot de passe")
   };
+  const hasResetToken = Boolean(resetPasswordForm.token.trim());
+  const hasActivationToken = Boolean(firstConnectionForm.temporaryPassword.trim());
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent): void => {
@@ -520,7 +521,7 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           {t("Retour à la connexion")}
         </button>
         <h2>{t("Mot de passe oublié ?")}</h2>
-        <p>{t("Récupérez l’accès à votre compte")}</p>
+        <p>{t(hasResetToken ? "Choisissez un nouveau mot de passe sécurisé." : "Récupérez l’accès à votre compte")}</p>
       </header>
 
       {apiStatus !== "online" ? (
@@ -529,10 +530,11 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
         </p>
       ) : null}
 
+      {!hasResetToken ? (
       <section className="auth-canvas__panel auth-canvas__panel--soft">
         <div className="auth-canvas__panel-copy">
           <h3>{t("Recevoir les instructions")}</h3>
-          <p>{t("Entrez votre identifiant pour demander un code de réinitialisation.")}</p>
+          <p>{t("Entrez votre identifiant pour recevoir un lien de réinitialisation.")}</p>
         </div>
         <form className="auth-canvas__form auth-canvas__form--compact" onSubmit={onSubmitForgotPassword}>
           <TextField
@@ -549,22 +551,14 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           </button>
         </form>
       </section>
+      ) : (
 
       <section className="auth-canvas__panel auth-canvas__panel--muted">
         <div className="auth-canvas__panel-copy">
-          <h3>{t("Valider la réinitialisation")}</h3>
-          <p>{t("Saisissez le code reçu et choisissez un nouveau mot de passe sécurisé.")}</p>
+          <h3>{t("Réinitialiser le mot de passe")}</h3>
+          <p>{t("Choisissez un nouveau mot de passe sécurisé.")}</p>
         </div>
         <form className="auth-canvas__grid-form" onSubmit={onSubmitResetPassword}>
-          <TextField
-            value={resetPasswordForm.token}
-            onChange={(value) => onResetPasswordChange({ token: value })}
-            placeholder={t("Code de réinitialisation")}
-            required
-            label={t("Code de réinitialisation")}
-            icon="lock"
-            autoComplete="one-time-code"
-          />
           <PasswordField
             value={resetPasswordForm.newPassword}
             onChange={(value) => onResetPasswordChange({ newPassword: value })}
@@ -590,10 +584,11 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
             {...passwordToggleLabels}
           />
           <button type="submit" className="auth-canvas__secondary-submit" disabled={authAssistLoading}>
-            {authAssistLoading ? t("Validation...") : t("Valider la réinitialisation")}
+            {authAssistLoading ? t("Validation...") : t("Réinitialiser le mot de passe")}
           </button>
         </form>
       </section>
+      )}
 
       <div className="auth-canvas__footer-links">
         <button type="button" className="auth-canvas__link" onClick={onShowLogin}>
@@ -614,7 +609,7 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           {t("Retour à la connexion")}
         </button>
         <h2>{t("Activer mon compte")}</h2>
-        <p>{t("Finalisez votre première connexion avec le mot de passe temporaire reçu.")}</p>
+        <p>{t(hasActivationToken ? "Définissez votre mot de passe définitif." : "Demandez un nouveau lien d’activation sécurisé.")}</p>
       </header>
 
       {apiStatus !== "online" ? (
@@ -625,27 +620,19 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
 
       <section className="auth-canvas__panel auth-canvas__panel--soft auth-canvas__panel--wide">
         <form className="auth-canvas__grid-form" onSubmit={onSubmitFirstConnection}>
+          {!hasActivationToken ? (
           <TextField
             value={firstConnectionForm.username}
             onChange={(value) => onFirstConnectionChange({ username: value })}
-            placeholder={t("Identifiant")}
+            placeholder={t("Email ou identifiant")}
             required
-            label={t("Identifiant")}
+            label={t("Email ou identifiant")}
             icon="mail"
             autoComplete="username"
           />
-          <PasswordField
-            value={firstConnectionForm.temporaryPassword}
-            onChange={(value) => onFirstConnectionChange({ temporaryPassword: value })}
-            placeholder={t("Mot de passe temporaire")}
-            required
-            minLength={8}
-            visible={temporaryPasswordVisible}
-            onToggle={() => setTemporaryPasswordVisible((prev) => !prev)}
-            label={t("Mot de passe temporaire")}
-            autoComplete="current-password"
-            {...passwordToggleLabels}
-          />
+          ) : null}
+          {hasActivationToken ? (
+          <>
           <PasswordField
             value={firstConnectionForm.newPassword}
             onChange={(value) => onFirstConnectionChange({ newPassword: value })}
@@ -670,8 +657,16 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
             autoComplete="new-password"
             {...passwordToggleLabels}
           />
+          </>
+          ) : null}
           <button type="submit" className="auth-canvas__submit" disabled={authAssistLoading}>
-            <span>{authAssistLoading ? t("Activation...") : t("Activer mon compte")}</span>
+            <span>
+              {authAssistLoading
+                ? t("Activation...")
+                : hasActivationToken
+                  ? t("Activer mon compte")
+                  : t("Renvoyer le lien d’activation")}
+            </span>
             <ArrowIcon />
           </button>
         </form>

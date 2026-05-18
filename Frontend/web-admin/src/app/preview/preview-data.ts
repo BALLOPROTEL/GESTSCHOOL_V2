@@ -749,6 +749,9 @@ export const createPreviewAppData = (
         tenantId,
         username: "admin.preview",
         role: "ADMIN",
+        accountType: "STAFF",
+        displayName: "Administrateur Preview",
+        status: "ACTIVE",
         isActive: true,
         createdAt: nowIso,
         updatedAt: nowIso
@@ -758,6 +761,9 @@ export const createPreviewAppData = (
         tenantId,
         username: "scolarite.preview",
         role: "SCOLARITE",
+        accountType: "STAFF",
+        displayName: "Scolarité Preview",
+        status: "ACTIVE",
         isActive: true,
         createdAt: nowIso,
         updatedAt: nowIso
@@ -772,7 +778,22 @@ export const createPreviewAppData = (
         phone: "+221 77 120 45 18",
         displayName: "Mariam Diallo",
         parentId: previewParentAId,
+        status: "ACTIVE",
         isActive: true,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      },
+      {
+        id: "preview-user-parent-pending",
+        tenantId,
+        username: "parent.attente@example.com",
+        role: "PARENT",
+        accountType: "PARENT",
+        email: "parent.attente@example.com",
+        phone: "+221 77 000 00 00",
+        displayName: "Responsable en attente",
+        status: "PENDING_ACTIVATION",
+        isActive: false,
         createdAt: nowIso,
         updatedAt: nowIso
       },
@@ -781,6 +802,9 @@ export const createPreviewAppData = (
         tenantId,
         username: "comptable.preview",
         role: "COMPTABLE",
+        accountType: "STAFF",
+        displayName: "Comptable Preview",
+        status: "ACTIVE",
         isActive: true,
         createdAt: nowIso,
         updatedAt: nowIso

@@ -2,7 +2,8 @@ import type {
   AccountType,
   FieldErrors,
   PasswordMode,
-  Role
+  Role,
+  UserStatus
 } from "../../../shared/types/app";
 
 export type IamApiClient = (path: string, init?: RequestInit) => Promise<Response>;
@@ -28,6 +29,8 @@ export type IamUserForm = {
   establishmentId: string;
   notes: string;
   mustChangePasswordAtFirstLogin: boolean;
+  status: UserStatus;
+  sendActivationEmail: boolean;
   isActive: boolean;
 };
 

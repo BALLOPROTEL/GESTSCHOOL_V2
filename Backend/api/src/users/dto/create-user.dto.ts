@@ -22,9 +22,11 @@ import { UserRole } from "../../security/roles.enum";
 
 export const ACCOUNT_TYPE_VALUES = ["STAFF", "TEACHER", "PARENT", "STUDENT"] as const;
 export const PASSWORD_MODE_VALUES = ["AUTO", "MANUAL"] as const;
+export const USER_STATUS_VALUES = ["PENDING_ACTIVATION", "ACTIVE", "INACTIVE", "ARCHIVED"] as const;
 
 export type AccountType = (typeof ACCOUNT_TYPE_VALUES)[number];
 export type PasswordMode = (typeof PASSWORD_MODE_VALUES)[number];
+export type UserStatus = (typeof USER_STATUS_VALUES)[number];
 
 export class CreateUserDto {
   @ApiProperty({ example: "enseignant@gestschool.local" })
@@ -154,6 +156,16 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   mustChangePasswordAtFirstLogin?: boolean;
+
+  @ApiPropertyOptional({ enum: USER_STATUS_VALUES, default: "PENDING_ACTIVATION" })
+  @IsOptional()
+  @IsIn(USER_STATUS_VALUES)
+  status?: UserStatus;
+
+  @ApiPropertyOptional({ required: false, default: true })
+  @IsOptional()
+  @IsBoolean()
+  sendActivationEmail?: boolean;
 
   @ApiPropertyOptional({ required: false, default: true })
   @IsOptional()

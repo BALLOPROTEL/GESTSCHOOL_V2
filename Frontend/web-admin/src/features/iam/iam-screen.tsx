@@ -3,20 +3,19 @@ import type { JSX } from "react";
 import {
   ACCOUNT_TYPE_LABELS,
   ACCOUNT_TYPE_VALUES,
-  PASSWORD_MODE_LABELS,
   PERMISSION_ACTION_LABELS,
   PERMISSION_ACTION_VALUES,
   PERMISSION_RESOURCE_LABELS,
   PERMISSION_RESOURCE_VALUES,
   ROLE_LABELS,
-  ROLE_VALUES
+  ROLE_VALUES,
+  USER_STATUS_LABELS
 } from "../../shared/constants/domain";
 import { WorkflowGuide } from "../../shared/components/workflow-guide";
 import { translateUiString, type UiLanguage } from "../../shared/i18n";
 import type {
   AccountType,
   FieldErrors,
-  PasswordMode,
   PermissionAction,
   PermissionResource,
   Role,
@@ -33,8 +32,8 @@ type IamScreenProps = {
   remoteEnabled?: boolean;
   locale: string;
   language: UiLanguage;
-  isStrongPassword: (value: string) => boolean;
-  strongPasswordHint: string;
+  isStrongPassword?: (value: string) => boolean;
+  strongPasswordHint?: string;
   onError: (message: string | null) => void;
   onNotice: (message: string | null) => void;
   onUsersChange?: (users: UserAccount[]) => void;
@@ -51,6 +50,10 @@ const formatPermissionActionLabel = (value: PermissionAction): string =>
   PERMISSION_ACTION_LABELS[value] || value;
 const formatPermissionResourceLabel = (value: PermissionResource): string =>
   PERMISSION_RESOURCE_LABELS[value] || value;
+const formatUserStatusLabel = (value?: string): string => {
+  const normalized = (value || "").trim().toUpperCase() as keyof typeof USER_STATUS_LABELS;
+  return USER_STATUS_LABELS[normalized] || (value ? formatLookupLabel({ ACTIVE: "Actif", INACTIVE: "Inactif" }, value) : "-");
+};
 
 const EMPTY_VALUE_LABEL = "Non renseigné";
 
@@ -81,8 +84,6 @@ export function IamScreen({
   remoteEnabled,
   locale,
   language,
-  isStrongPassword,
-  strongPasswordHint,
   onError,
   onNotice,
   onUsersChange
@@ -96,9 +97,9 @@ export function IamScreen({
     getEffectivePermission,
     iamSteps,
     iamWorkflowStep,
-    lastTemporaryPassword,
     loadRolePermissions,
     resetUserForm,
+    resendUserActivation,
     rolePermissionTarget,
     saveCurrentRolePermissions,
     selectedBusinessAlreadyLinked,
@@ -122,8 +123,6 @@ export function IamScreen({
     initialUsers,
     students,
     remoteEnabled,
-    isStrongPassword,
-    strongPasswordHint,
     onError,
     onNotice,
     onUsersChange,
@@ -153,13 +152,6 @@ export function IamScreen({
       <>
         <section id="iam-accounts" data-step-id="accounts" className="panel editor-panel workflow-section">
           <h2>{editingUserId ? "Modifier l'utilisateur" : "Créer l'utilisateur"}</h2>
-          {lastTemporaryPassword ? (
-            <div className="notice-card notice-success" role="status">
-              <strong>Mot de passe temporaire généré</strong>
-              <p>Communiquez-le une seule fois à l'utilisateur, puis le compte devra changer son mot de passe à la première connexion.</p>
-              <code>{lastTemporaryPassword}</code>
-            </div>
-          ) : null}
           <form className="iam-account-form" onSubmit={(event) => void submitUser(event)}>
             <fieldset className="iam-form-section">
               <legend>Accès au système</legend>
@@ -189,68 +181,38 @@ export function IamScreen({
                   />
                 </label>
                 <label>
-                  Mode mot de passe *
-                  <select
-                    value={userForm.passwordMode}
-                    onChange={(event) =>
-                      setUserForm((prev) => ({ ...prev, passwordMode: event.target.value as PasswordMode, password: "", confirmPassword: "" }))
-                    }
-                    disabled={Boolean(editingUserId)}
-                  >
-                    {(["AUTO", "MANUAL"] as PasswordMode[]).map((mode) => (
-                      <option key={mode} value={mode}>{PASSWORD_MODE_LABELS[mode]}</option>
-                    ))}
-                  </select>
-                </label>
-                {userForm.passwordMode === "MANUAL" ? (
-                  <>
-                    <label>
-                      Mot de passe {editingUserId ? "(laisser vide pour conserver)" : ""}
-                      <input
-                        type="password"
-                        value={userForm.password}
-                        onChange={(event) => setUserForm((prev) => ({ ...prev, password: event.target.value }))}
-                        minLength={12}
-                      />
-                      {fieldError(userErrors, "password")}
-                    </label>
-                    <label>
-                      Confirmation
-                      <input
-                        type="password"
-                        value={userForm.confirmPassword}
-                        onChange={(event) => setUserForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
-                      />
-                      {fieldError(userErrors, "confirmPassword")}
-                    </label>
-                  </>
-                ) : (
-                  <p className="iam-inline-help">
-                    Un mot de passe temporaire fort sera généré et le changement à la première connexion restera actif.
-                  </p>
-                )}
-                <label className="check-row iam-check-row">
-                  <input
-                    type="checkbox"
-                    checked={userForm.mustChangePasswordAtFirstLogin}
-                    onChange={(event) =>
-                      setUserForm((prev) => ({ ...prev, mustChangePasswordAtFirstLogin: event.target.checked }))
-                    }
-                  />
-                  Changement obligatoire à la première connexion
-                </label>
-                <label>
                   Statut du compte *
                   <select
-                    value={userForm.isActive ? "ACTIVE" : "INACTIVE"}
+                    value={userForm.status}
                     onChange={(event) =>
-                      setUserForm((prev) => ({ ...prev, isActive: event.target.value === "ACTIVE" }))
+                      setUserForm((prev) => ({
+                        ...prev,
+                        status: event.target.value as typeof userForm.status,
+                        isActive: event.target.value === "ACTIVE"
+                      }))
                     }
                   >
+                    <option value="PENDING_ACTIVATION">En attente d’activation</option>
                     <option value="ACTIVE">Actif</option>
                     <option value="INACTIVE">Inactif</option>
                   </select>
                 </label>
+                {!editingUserId ? (
+                  <label className="check-row iam-check-row">
+                    <input
+                      type="checkbox"
+                      checked={userForm.sendActivationEmail}
+                      onChange={(event) =>
+                        setUserForm((prev) => ({ ...prev, sendActivationEmail: event.target.checked }))
+                      }
+                      disabled={userForm.status !== "PENDING_ACTIVATION"}
+                    />
+                    Envoyer l’email d’activation immédiatement
+                  </label>
+                ) : null}
+                <p className="iam-inline-help">
+                  Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.
+                </p>
               </div>
             </fieldset>
 
@@ -458,8 +420,8 @@ export function IamScreen({
                       <td data-label="Rôle d'accès">{formatRoleLabel(item.roleId || item.role)}</td>
                       <td data-label="Rattachement">{formatUserAttachment(item)}</td>
                       <td data-label="Statut">
-                        <span className={`status-pill ${item.isActive ? "is-success" : "is-muted"}`.trim()}>
-                          {item.isActive ? "Actif" : "Inactif"}
+                        <span className={`status-pill ${item.status === "PENDING_ACTIVATION" ? "is-warning" : item.isActive ? "is-success" : "is-muted"}`.trim()}>
+                          {formatUserStatusLabel(item.status || (item.isActive ? "ACTIVE" : "INACTIVE"))}
                         </span>
                       </td>
                       <td data-label="Dernière mise à jour">{new Date(item.updatedAt).toLocaleString(locale)}</td>
@@ -468,6 +430,11 @@ export function IamScreen({
                           <button type="button" className="button-ghost" onClick={() => startEditUser(item)}>
                             Modifier
                           </button>
+                          {item.status === "PENDING_ACTIVATION" ? (
+                            <button type="button" className="button-ghost" onClick={() => void resendUserActivation(item)}>
+                              Renvoyer l’activation
+                            </button>
+                          ) : null}
                           <button type="button" className="button-ghost" onClick={() => void toggleUserAccountStatus(item, !item.isActive)}>
                             {item.isActive ? "Désactiver" : "Réactiver"}
                           </button>

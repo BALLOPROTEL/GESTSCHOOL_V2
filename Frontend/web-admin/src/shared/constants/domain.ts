@@ -7,7 +7,8 @@ import type {
   PermissionResource,
   Role,
   SchoolYearStatus,
-  SubjectNature
+  SubjectNature,
+  UserStatus
 } from "../types/app";
 
 export const ACADEMIC_TRACK_OPTIONS: AcademicTrack[] = ["FRANCOPHONE", "ARABOPHONE"];
@@ -149,6 +150,12 @@ export const ACCOUNT_TYPE_ROLE_OPTIONS: Record<AccountType, Role[]> = {
 export const PASSWORD_MODE_LABELS: Record<PasswordMode, string> = {
   AUTO: "Mot de passe temporaire automatique",
   MANUAL: "Définir manuellement"
+};
+export const USER_STATUS_LABELS: Record<UserStatus, string> = {
+  PENDING_ACTIVATION: "En attente d’activation",
+  ACTIVE: "Actif",
+  INACTIVE: "Inactif",
+  ARCHIVED: "Archivé"
 };
 export const PERMISSION_RESOURCE_VALUES: PermissionResource[] = [
   "students",

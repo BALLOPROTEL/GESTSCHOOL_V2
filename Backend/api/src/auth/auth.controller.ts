@@ -1,18 +1,21 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { Public } from "../security/public.decorator";
 import { RateLimit } from "../security/rate-limit.decorator";
+import { ActivateAccountDto } from "./dto/activate-account.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResendActivationDto } from "./dto/resend-activation.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { FirstConnectionDto } from "./dto/first-connection.dto";
 import {
   AuthService,
   type AuthTokensResponse,
   type ForgotPasswordResponse,
-  type MessageResponse
+  type MessageResponse,
+  type TokenStatusResponse
 } from "./auth.service";
 
 @ApiTags("auth")
@@ -59,6 +62,38 @@ export class AuthController {
   @ApiOperation({ summary: "Reset user password with reset token" })
   async resetPassword(@Body() body: ResetPasswordDto): Promise<MessageResponse> {
     return this.authService.resetPassword(body);
+  }
+
+  @Public()
+  @Post("activate")
+  @RateLimit({ bucket: "auth-activate", max: 5, windowMs: 600_000 })
+  @ApiOperation({ summary: "Activate account and set definitive password" })
+  async activate(@Body() body: ActivateAccountDto): Promise<MessageResponse> {
+    return this.authService.activateAccount(body);
+  }
+
+  @Public()
+  @Post("resend-activation")
+  @RateLimit({ bucket: "auth-resend-activation", max: 5, windowMs: 600_000 })
+  @ApiOperation({ summary: "Resend account activation email when eligible" })
+  async resendActivation(@Body() body: ResendActivationDto): Promise<ForgotPasswordResponse> {
+    return this.authService.resendActivation(body);
+  }
+
+  @Public()
+  @Get("activation-status")
+  @RateLimit({ bucket: "auth-activation-status", max: 30, windowMs: 60_000 })
+  @ApiOperation({ summary: "Check account activation token status" })
+  async activationStatus(@Query("token") token = ""): Promise<TokenStatusResponse> {
+    return this.authService.activationStatus(token);
+  }
+
+  @Public()
+  @Get("reset-status")
+  @RateLimit({ bucket: "auth-reset-status", max: 30, windowMs: 60_000 })
+  @ApiOperation({ summary: "Check password reset token status" })
+  async resetStatus(@Query("token") token = ""): Promise<TokenStatusResponse> {
+    return this.authService.resetStatus(token);
   }
 
   @Public()

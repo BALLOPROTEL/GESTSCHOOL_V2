@@ -56,6 +56,8 @@ export function configureE2eEnvironment(): void {
   process.env.REDIS_URL = "";
   process.env.NOTIFICATIONS_WORKER_ENABLED = "false";
   process.env.OUTBOX_IN_PROCESS_ENABLED = "false";
+  process.env.NOTIFICATIONS_EMAIL_PROVIDER = process.env.NOTIFICATIONS_EMAIL_PROVIDER || "MOCK";
+  process.env.NOTIFICATIONS_SMS_PROVIDER = process.env.NOTIFICATIONS_SMS_PROVIDER || "MOCK";
   process.env.NOTIFY_EMAIL_PROVIDER = process.env.NOTIFY_EMAIL_PROVIDER || "MOCK";
   process.env.NOTIFY_SMS_PROVIDER = process.env.NOTIFY_SMS_PROVIDER || "MOCK";
   process.env.NOTIFICATION_WEBHOOK_SECRET = process.env.NOTIFICATION_WEBHOOK_SECRET || "test-webhook-secret";
@@ -347,6 +349,7 @@ export async function ensureCanonicalTimetableResources(
 }
 
 export async function cleanDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.userSecurityToken.deleteMany({});
   await prisma.refreshToken.deleteMany({});
   await prisma.iamAuditLog.deleteMany({});
   await prisma.outboxEvent.deleteMany({});

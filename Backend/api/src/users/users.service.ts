@@ -5,6 +5,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma, type User } from "@prisma/client";
 
 import { AuditService } from "../audit/audit.service";
+import { AuthService } from "../auth/auth.service";
 import { findPasswordPolicyViolation } from "../common/password-policy";
 import { PrismaService } from "../database/prisma.service";
 import {
@@ -15,7 +16,7 @@ import {
   type PermissionResource
 } from "../security/permissions.types";
 import { UserRole } from "../security/roles.enum";
-import { type AccountType, CreateUserDto } from "./dto/create-user.dto";
+import { type AccountType, CreateUserDto, type UserStatus } from "./dto/create-user.dto";
 import {
   type RolePermissionItemDto,
   UpdateRolePermissionsDto
@@ -52,6 +53,11 @@ export type UserView = {
   parentId?: string;
   studentId?: string;
   temporaryPassword?: string;
+  status: UserStatus | string;
+  activatedAt?: string;
+  disabledAt?: string;
+  activationEmailSent?: boolean;
+  activationEmailError?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -69,6 +75,7 @@ export type RolePermissionView = {
 export class UsersService {
   constructor(
     private readonly auditService: AuditService,
+    private readonly authService: AuthService,
     private readonly prisma: PrismaService
   ) {}
 
@@ -99,6 +106,7 @@ export class UsersService {
       throw new BadRequestException("La confirmation du mot de passe ne correspond pas.");
     }
 
+    const status = this.resolveInitialUserStatus(payload);
     const password = passwordMode === "AUTO" ? this.generateTemporaryPassword() : payload.password;
     if (!password) {
       throw new BadRequestException("Mot de passe requis en mode manuel.");
@@ -107,7 +115,10 @@ export class UsersService {
     const passwordHash = await hash(password, 10);
     const identity = await this.resolveIdentityForCreate(tenantId, payload, accountType);
     const mustChangePasswordAtFirstLogin =
-      payload.mustChangePasswordAtFirstLogin ?? passwordMode === "AUTO";
+      status === "PENDING_ACTIVATION"
+        ? false
+        : payload.mustChangePasswordAtFirstLogin ?? passwordMode === "AUTO";
+    const isActive = status === "ACTIVE";
 
     try {
       const created = await this.prisma.$transaction(async (transaction) => {
@@ -129,7 +140,10 @@ export class UsersService {
             department: this.emptyToNull(payload.department),
             notes: this.emptyToNull(payload.notes),
             mustChangePasswordAtFirstLogin,
-            isActive: payload.isActive ?? true,
+            status,
+            isActive,
+            activatedAt: status === "ACTIVE" ? new Date() : null,
+            disabledAt: status === "INACTIVE" || status === "ARCHIVED" ? new Date() : null,
             updatedAt: new Date()
           }
         });
@@ -151,6 +165,7 @@ export class UsersService {
               username: user.username,
               role: user.role,
               accountType: user.accountType,
+              status: user.status,
               isActive: user.isActive,
               teacherId: payload.teacherId,
               parentId: payload.parentId,
@@ -166,9 +181,22 @@ export class UsersService {
         });
       });
 
+      let activationEmailSent = false;
+      let activationEmailError: string | undefined;
+      if (status === "PENDING_ACTIVATION" && payload.sendActivationEmail !== false) {
+        try {
+          const delivery = await this.authService.createActivationForUser(created.id);
+          activationEmailSent = delivery.sent;
+        } catch (error) {
+          activationEmailError =
+            error instanceof Error ? error.message : "Email d’activation non envoyé.";
+        }
+      }
+
       return {
         ...this.toView(created),
-        temporaryPassword: passwordMode === "AUTO" ? password : undefined
+        activationEmailSent,
+        activationEmailError
       };
     } catch (error: unknown) {
       this.handleKnownPrismaConflict(error, "Username, email or business profile already linked for this tenant.");
@@ -220,6 +248,8 @@ export class UsersService {
           roleId: nextRole
         })
       : undefined;
+    const statusPatch = this.resolveUpdatedUserStatus(existing, payload);
+    const now = new Date();
 
     const data: Prisma.UserUpdateInput = {
       username: payload.username?.trim(),
@@ -236,8 +266,16 @@ export class UsersService {
       department: this.optionalEmptyToNull(payload.department),
       notes: this.optionalEmptyToNull(payload.notes),
       mustChangePasswordAtFirstLogin: payload.mustChangePasswordAtFirstLogin,
-      isActive: payload.isActive,
-      updatedAt: new Date()
+      status: statusPatch,
+      isActive: statusPatch ? statusPatch === "ACTIVE" : payload.isActive,
+      activatedAt: statusPatch === "ACTIVE" && !existing.activatedAt ? now : undefined,
+      disabledAt:
+        statusPatch === "INACTIVE" || statusPatch === "ARCHIVED"
+          ? now
+          : statusPatch === "ACTIVE"
+            ? null
+            : undefined,
+      updatedAt: now
     };
 
     if (payload.password) {
@@ -265,7 +303,7 @@ export class UsersService {
           });
         }
 
-        if (payload.isActive === false || payload.password) {
+        if (payload.isActive === false || statusPatch === "INACTIVE" || statusPatch === "ARCHIVED" || payload.password) {
           await transaction.refreshToken.updateMany({
             where: {
               userId: existing.id,
@@ -287,6 +325,7 @@ export class UsersService {
         username: updated.username,
         role: updated.role,
         accountType: updated.accountType,
+        status: updated.status,
         isActive: updated.isActive
       });
 
@@ -310,6 +349,8 @@ export class UsersService {
         where: { id: existing.id },
         data: {
           isActive: false,
+          status: "ARCHIVED",
+          disabledAt: now,
           deletedAt: now,
           updatedAt: now
         }
@@ -339,6 +380,23 @@ export class UsersService {
         transaction
       );
     });
+  }
+
+  async sendActivation(
+    tenantId: string,
+    actorUserId: string,
+    id: string
+  ): Promise<{ message: string; sent: boolean }> {
+    const existing = await this.requireUser(tenantId, id);
+    if (existing.status !== "PENDING_ACTIVATION") {
+      throw new ConflictException("Ce compte n’est pas en attente d’activation.");
+    }
+
+    const delivery = await this.authService.createActivationForUser(existing.id);
+    await this.logAudit(tenantId, actorUserId, "USER_ACTIVATION_SENT", "users", existing.id, {
+      username: existing.username
+    });
+    return delivery;
   }
 
   async listRolePermissions(
@@ -469,6 +527,22 @@ export class UsersService {
       throw new BadRequestException("Role d'acces requis.");
     }
     return role;
+  }
+
+  private resolveInitialUserStatus(payload: CreateUserDto): UserStatus {
+    if (payload.status) return payload.status;
+    if (payload.isActive === false) return "INACTIVE";
+    return "PENDING_ACTIVATION";
+  }
+
+  private resolveUpdatedUserStatus(
+    existing: Pick<User, "status">,
+    payload: UpdateUserDto
+  ): UserStatus | undefined {
+    if (payload.status) return payload.status as UserStatus;
+    if (payload.isActive === true) return "ACTIVE";
+    if (payload.isActive === false) return "INACTIVE";
+    return existing.status as UserStatus | undefined;
   }
 
   private inferAccountType(role: UserRole, storedAccountType?: string | null): AccountType {
@@ -813,6 +887,9 @@ export class UsersService {
       teacherId: row.teacherProfile?.id,
       parentId: row.parentProfile?.id,
       studentId: row.studentProfile?.id,
+      status: row.status,
+      activatedAt: row.activatedAt?.toISOString(),
+      disabledAt: row.disabledAt?.toISOString(),
       isActive: row.isActive,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString()
