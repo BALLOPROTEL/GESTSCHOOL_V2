@@ -18,6 +18,7 @@ import {
 } from "./parents/parents-service";
 import {
   PARENT_ROLES,
+  PARENT_RELATIONS,
   PARENT_STATUSES,
   type ParentForm,
   type ParentLinkForm,
@@ -25,11 +26,16 @@ import {
   defaultLinkForm,
   defaultParentForm,
   roleLabel,
+  statusLabel,
+  statusPillClassName,
   trackLabel
 } from "./parents/parents-screen-model";
 
 type ParentsScreenProps = {
   api: (path: string, init?: RequestInit) => Promise<Response>;
+  initialParents?: ParentRecord[];
+  initialRelations?: ParentStudentRelation[];
+  remoteEnabled?: boolean;
   students: Student[];
   users: UserAccount[];
   onError: (message: string) => void;
@@ -37,17 +43,48 @@ type ParentsScreenProps = {
   onParentsChanged?: () => Promise<void> | void;
 };
 
+const normalizeParentsError = (error: unknown, fallback: string): string => {
+  const message = error instanceof Error ? error.message : fallback;
+  return /invalid or expired token|session expiree|session expirée/i.test(message)
+    ? "Session expirée. Merci de vous reconnecter."
+    : message;
+};
+
+const formatRelationRoles = (relation: ParentStudentRelation): string => {
+  const roles = [
+    relation.isPrimaryContact ? "Contact principal" : "",
+    relation.legalGuardian ? "Tuteur légal" : "",
+    relation.financialResponsible ? "Responsable financier" : "",
+    relation.emergencyContact ? "Contact d’urgence" : "",
+    relation.pickupAuthorized ? "Autorisé à récupérer l’élève" : "",
+    relation.livesWithStudent ? "Vit avec l’élève" : ""
+  ].filter(Boolean);
+  return roles.join(", ") || "-";
+};
+
+const formatStudentTracks = (relation: ParentStudentRelation): string => {
+  const tracks =
+    relation.studentTracks.length > 0
+      ? relation.studentTracks
+      : relation.studentPlacements.map((placement) => placement.track);
+  const uniqueTracks = tracks.filter((track, index, allTracks) => allTracks.indexOf(track) === index);
+  return uniqueTracks.length > 0 ? uniqueTracks.map(trackLabel).join(" + ") : "À régulariser via inscription";
+};
+
 export function ParentsScreen({
   api,
+  initialParents = [],
+  initialRelations = [],
   onError,
   onNotice,
   onParentsChanged,
+  remoteEnabled = true,
   students,
   users
 }: ParentsScreenProps): JSX.Element {
   const [activeStep, setActiveStep] = useState("list");
-  const [parents, setParents] = useState<ParentRecord[]>([]);
-  const [relations, setRelations] = useState<ParentStudentRelation[]>([]);
+  const [parents, setParents] = useState<ParentRecord[]>(initialParents);
+  const [relations, setRelations] = useState<ParentStudentRelation[]>(initialRelations);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedParentId, setSelectedParentId] = useState("");
@@ -79,17 +116,23 @@ export function ParentsScreen({
   }, [parents, search]);
 
   const loadData = useCallback(async () => {
+    if (!remoteEnabled) {
+      setParents(initialParents);
+      setRelations(initialRelations);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await fetchParentsModule(api);
       setParents(data.parents);
       setRelations(data.relations);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de charger les parents.");
+      onError(normalizeParentsError(error, "Impossible de charger les responsables."));
     } finally {
       setLoading(false);
     }
-  }, [api, onError]);
+  }, [api, initialParents, initialRelations, onError, remoteEnabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,8 +153,14 @@ export function ParentsScreen({
 
   const submitParent = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (!parentForm.firstName.trim() || !parentForm.lastName.trim() || !parentForm.primaryPhone.trim()) {
-      onError("Nom, prenom et telephone principal sont requis pour creer un parent.");
+    if (
+      !parentForm.parentalRole ||
+      !parentForm.firstName.trim() ||
+      !parentForm.lastName.trim() ||
+      !parentForm.primaryPhone.trim() ||
+      !parentForm.status
+    ) {
+      onError("Rôle parental, prénom, nom, téléphone principal et statut sont requis.");
       return;
     }
 
@@ -133,15 +182,21 @@ export function ParentsScreen({
       notes: parentForm.notes.trim() || undefined
     };
 
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : responsable non persisté.");
+      setActiveStep("list");
+      return;
+    }
+
     try {
       await saveParent(api, editingParentId, payload);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'enregistrer le parent.");
+      onError(normalizeParentsError(error, "Impossible d’enregistrer le responsable."));
       return;
     }
 
     resetParentForm();
-    onNotice(editingParentId ? "Parent modifie." : "Parent cree.");
+    onNotice(editingParentId ? "Responsable modifié." : "Responsable créé.");
     await loadData();
     await onParentsChanged?.();
     setActiveStep("list");
@@ -171,14 +226,18 @@ export function ParentsScreen({
   };
 
   const archiveParent = async (parentId: string): Promise<void> => {
-    if (!window.confirm("Archiver ce parent ?")) return;
+    if (!window.confirm("Archiver ce responsable ?")) return;
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : archivage non persisté.");
+      return;
+    }
     try {
       await archiveParentRecord(api, parentId);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'archiver le parent.");
+      onError(normalizeParentsError(error, "Impossible d’archiver le responsable."));
       return;
     }
-    onNotice("Parent archive.");
+    onNotice("Responsable archivé.");
     if (selectedParentId === parentId) setSelectedParentId("");
     await loadData();
     await onParentsChanged?.();
@@ -186,8 +245,13 @@ export function ParentsScreen({
 
   const submitLink = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (!linkForm.parentId || !linkForm.studentId) {
-      onError("Parent et eleve sont requis pour creer le lien.");
+    if (!linkForm.parentId || !linkForm.studentId || !linkForm.relationType) {
+      onError("Parent, élève et relation sont requis pour créer le lien.");
+      return;
+    }
+
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : lien parent-élève non persisté.");
       return;
     }
 
@@ -205,7 +269,7 @@ export function ParentsScreen({
         comment: linkForm.comment.trim() || undefined
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de creer le lien parent-eleve.");
+      onError(normalizeParentsError(error, "Impossible de créer le lien parent-élève."));
       return;
     }
 
@@ -214,27 +278,47 @@ export function ParentsScreen({
       parentId: previous.parentId,
       studentId: previous.studentId
     }));
-    onNotice("Lien parent-eleve cree.");
+    onNotice("Lien parent-élève créé.");
     await loadData();
     await onParentsChanged?.();
   };
 
   const archiveLink = async (linkId: string): Promise<void> => {
+    if (!window.confirm("Archiver ce lien parent-élève ?")) return;
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : archivage du lien non persisté.");
+      return;
+    }
     try {
       await archiveParentStudentLink(api, linkId);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'archiver le lien parent-eleve.");
+      onError(normalizeParentsError(error, "Impossible d’archiver le lien parent-élève."));
       return;
     }
-    onNotice("Lien parent-eleve archive.");
+    onNotice("Lien parent-élève archivé.");
     await loadData();
     await onParentsChanged?.();
   };
 
   const steps: WorkflowStepDef[] = [
-    { id: "list", title: "Liste parents", hint: "Identifier les responsables metier.", done: parents.length > 0 },
-    { id: "entry", title: editingParentId ? "Edition parent" : "Ajouter parent", hint: "Creer une fiche Parent distincte du compte portail." },
-    { id: "links", title: "Liens parent-eleve", hint: "Declarer les responsables par enfant.", done: relations.length > 0 }
+    {
+      id: "list",
+      title: "Liste des responsables",
+      hint: "Identifier les responsables métier.",
+      done: parents.length > 0
+    },
+    {
+      id: "entry",
+      title: editingParentId ? "Modifier le responsable" : "Ajouter un responsable",
+      hint: "Créer une fiche responsable distincte du compte portail.",
+      done: parents.length > 0
+    },
+    {
+      id: "links",
+      title: "Liens parent-élève",
+      hint: "Déclarer les responsables par élève.",
+      done: relations.length > 0
+    }
   ];
 
   return (
@@ -254,95 +338,166 @@ export function ParentsScreen({
         ) : null}
 
         {activeStep === "entry" ? (
-          <section className="panel editor-panel workflow-section module-modern">
+          <section className="panel editor-panel workflow-section module-modern parents-entry-panel">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Fiche parent</p>
-                <h2>{editingParentId ? "Modifier parent" : "Ajouter parent"}</h2>
+                <p className="section-kicker">Fiche responsable</p>
+                <h2>{editingParentId ? "Modifier le responsable" : "Ajouter un responsable"}</h2>
               </div>
-              <span className="students-overview-status">Metier, pas IAM</span>
+              <span className="students-overview-status">Dossier responsable</span>
             </div>
-            <form className="form-grid module-form students-form-grid" onSubmit={(event) => void submitParent(event)}>
-              <label>
-                Role parental
-                <select
-                  value={parentForm.parentalRole}
-                  onChange={(event) => setParentForm((prev) => ({ ...prev, parentalRole: event.target.value }))}
-                >
-                  {PARENT_ROLES.map((role) => (
-                    <option key={role} value={role}>{roleLabel(role)}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Prenom
-                <input value={parentForm.firstName} onChange={(event) => setParentForm((prev) => ({ ...prev, firstName: event.target.value }))} required />
-              </label>
-              <label>
-                Nom
-                <input value={parentForm.lastName} onChange={(event) => setParentForm((prev) => ({ ...prev, lastName: event.target.value }))} required />
-              </label>
-              <label>
-                Sexe
-                <select value={parentForm.sex} onChange={(event) => setParentForm((prev) => ({ ...prev, sex: event.target.value as "" | "M" | "F" }))}>
-                  <option value="">Non renseigne</option>
-                  <option value="M">M</option>
-                  <option value="F">F</option>
-                </select>
-              </label>
-              <label>
-                Telephone principal
-                <input value={parentForm.primaryPhone} onChange={(event) => setParentForm((prev) => ({ ...prev, primaryPhone: event.target.value }))} required />
-              </label>
-              <label>
-                Telephone secondaire
-                <input value={parentForm.secondaryPhone} onChange={(event) => setParentForm((prev) => ({ ...prev, secondaryPhone: event.target.value }))} />
-              </label>
-              <label>
-                Email
-                <input type="email" value={parentForm.email} onChange={(event) => setParentForm((prev) => ({ ...prev, email: event.target.value }))} />
-              </label>
-              <label>
-                Profession
-                <input value={parentForm.profession} onChange={(event) => setParentForm((prev) => ({ ...prev, profession: event.target.value }))} />
-              </label>
-              <label>
-                Piece identite
-                <input value={parentForm.identityDocumentType} onChange={(event) => setParentForm((prev) => ({ ...prev, identityDocumentType: event.target.value }))} />
-              </label>
-              <label>
-                Numero piece
-                <input value={parentForm.identityDocumentNumber} onChange={(event) => setParentForm((prev) => ({ ...prev, identityDocumentNumber: event.target.value }))} />
-              </label>
-              <label>
-                Statut
-                <select value={parentForm.status} onChange={(event) => setParentForm((prev) => ({ ...prev, status: event.target.value }))}>
-                  {PARENT_STATUSES.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Compte portail optionnel
-                <select value={parentForm.userId} onChange={(event) => setParentForm((prev) => ({ ...prev, userId: event.target.value }))}>
-                  <option value="">Aucun compte portail</option>
-                  {portalParentUsers.map((user) => (
-                    <option key={user.id} value={user.id}>{user.username}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="span-2">
-                Adresse
-                <input value={parentForm.address} onChange={(event) => setParentForm((prev) => ({ ...prev, address: event.target.value }))} />
-              </label>
-              <label className="span-2">
-                Notes
-                <textarea value={parentForm.notes} onChange={(event) => setParentForm((prev) => ({ ...prev, notes: event.target.value }))} rows={3} />
-              </label>
-              <div className="actions span-2">
-                <button type="submit">{editingParentId ? "Mettre a jour" : "Creer parent"}</button>
-                <button type="button" className="button-ghost" onClick={resetParentForm}>Reinitialiser</button>
-                <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>Retour liste</button>
+            <form className="module-form parents-form" onSubmit={(event) => void submitParent(event)}>
+              <fieldset className="students-form-section parents-form-section">
+                <legend>Identité</legend>
+                <div className="form-grid students-form-grid">
+                  <label>
+                    Rôle parental *
+                    <select
+                      required
+                      value={parentForm.parentalRole}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, parentalRole: event.target.value }))}
+                    >
+                      {PARENT_ROLES.map((role) => (
+                        <option key={role} value={role}>{roleLabel(role)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Prénom *
+                    <input
+                      required
+                      value={parentForm.firstName}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, firstName: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Nom *
+                    <input
+                      required
+                      value={parentForm.lastName}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, lastName: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Sexe
+                    <select
+                      value={parentForm.sex}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, sex: event.target.value as "" | "M" | "F" }))}
+                    >
+                      <option value="">Non renseigné</option>
+                      <option value="M">M</option>
+                      <option value="F">F</option>
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset className="students-form-section parents-form-section">
+                <legend>Contact</legend>
+                <div className="form-grid students-form-grid">
+                  <label>
+                    Téléphone principal *
+                    <input
+                      required
+                      value={parentForm.primaryPhone}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, primaryPhone: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Téléphone secondaire
+                    <input
+                      value={parentForm.secondaryPhone}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, secondaryPhone: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      value={parentForm.email}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, email: event.target.value }))}
+                    />
+                  </label>
+                  <label className="span-2">
+                    Adresse
+                    <input
+                      value={parentForm.address}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, address: event.target.value }))}
+                    />
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset className="students-form-section parents-form-section">
+                <legend>Informations complémentaires</legend>
+                <div className="form-grid students-form-grid">
+                  <label>
+                    Profession
+                    <input
+                      value={parentForm.profession}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, profession: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Type de pièce d’identité
+                    <input
+                      value={parentForm.identityDocumentType}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, identityDocumentType: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Numéro de pièce
+                    <input
+                      value={parentForm.identityDocumentNumber}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, identityDocumentNumber: event.target.value }))}
+                    />
+                  </label>
+                  <label className="span-2">
+                    Notes administratives
+                    <textarea
+                      value={parentForm.notes}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, notes: event.target.value }))}
+                      rows={3}
+                    />
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset className="students-form-section parents-form-section">
+                <legend>Portail</legend>
+                <div className="form-grid students-form-grid">
+                  <label>
+                    Statut *
+                    <select
+                      required
+                      value={parentForm.status}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, status: event.target.value }))}
+                    >
+                      {PARENT_STATUSES.map((status) => (
+                        <option key={status} value={status}>{statusLabel(status)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Compte portail optionnel
+                    <select
+                      value={parentForm.userId}
+                      onChange={(event) => setParentForm((prev) => ({ ...prev, userId: event.target.value }))}
+                    >
+                      <option value="">Aucun compte portail</option>
+                      {portalParentUsers.map((user) => (
+                        <option key={user.id} value={user.id}>{user.username}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="form-help span-2">Le compte portail n’est pas créé automatiquement.</p>
+                </div>
+              </fieldset>
+
+              <div className="actions">
+                <button type="submit">{editingParentId ? "Enregistrer le responsable" : "Créer le responsable"}</button>
+                <button type="button" className="button-ghost" onClick={resetParentForm}>Réinitialiser</button>
+                <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>Voir la liste</button>
               </div>
             </form>
           </section>
@@ -352,15 +507,21 @@ export function ParentsScreen({
           <section className="panel table-panel workflow-section module-modern">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Relation parent-enfant</p>
-                <h2>Liens parent-eleve</h2>
+                <p className="section-kicker">Relation parent-élève</p>
+                <h2>Liens parent-élève</h2>
               </div>
-              <span className="students-overview-status">{relations.length} lien(s)</span>
+              <span className="students-overview-status">
+                {relations.length === 1 ? "1 lien" : `${relations.length} liens`}
+              </span>
             </div>
-            <form className="form-grid module-form students-form-grid" onSubmit={(event) => void submitLink(event)}>
+            <form className="form-grid module-form students-form-grid parents-links-form" onSubmit={(event) => void submitLink(event)}>
               <label>
-                Parent
-                <select value={linkForm.parentId} onChange={(event) => setLinkForm((prev) => ({ ...prev, parentId: event.target.value }))}>
+                Parent *
+                <select
+                  required
+                  value={linkForm.parentId}
+                  onChange={(event) => setLinkForm((prev) => ({ ...prev, parentId: event.target.value }))}
+                >
                   <option value="">Choisir</option>
                   {parents.filter((parent) => parent.status === "ACTIVE").map((parent) => (
                     <option key={parent.id} value={parent.id}>{parent.fullName} - {roleLabel(parent.parentalRole)}</option>
@@ -368,8 +529,12 @@ export function ParentsScreen({
                 </select>
               </label>
               <label>
-                Eleve
-                <select value={linkForm.studentId} onChange={(event) => setLinkForm((prev) => ({ ...prev, studentId: event.target.value }))}>
+                Élève *
+                <select
+                  required
+                  value={linkForm.studentId}
+                  onChange={(event) => setLinkForm((prev) => ({ ...prev, studentId: event.target.value }))}
+                >
                   <option value="">Choisir</option>
                   {students.map((student) => (
                     <option key={student.id} value={student.id}>{buildStudentOption(student)}</option>
@@ -377,9 +542,13 @@ export function ParentsScreen({
                 </select>
               </label>
               <label>
-                Relation
-                <select value={linkForm.relationType} onChange={(event) => setLinkForm((prev) => ({ ...prev, relationType: event.target.value }))}>
-                  {PARENT_ROLES.map((role) => (
+                Relation *
+                <select
+                  required
+                  value={linkForm.relationType}
+                  onChange={(event) => setLinkForm((prev) => ({ ...prev, relationType: event.target.value }))}
+                >
+                  {PARENT_RELATIONS.map((role) => (
                     <option key={role} value={role}>{roleLabel(role)}</option>
                   ))}
                 </select>
@@ -389,13 +558,13 @@ export function ParentsScreen({
                 <input value={linkForm.comment} onChange={(event) => setLinkForm((prev) => ({ ...prev, comment: event.target.value }))} />
               </label>
               <label className="check-row"><input type="checkbox" checked={linkForm.isPrimaryContact} onChange={(event) => setLinkForm((prev) => ({ ...prev, isPrimaryContact: event.target.checked }))} /> Contact principal</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.legalGuardian} onChange={(event) => setLinkForm((prev) => ({ ...prev, legalGuardian: event.target.checked }))} /> Tuteur legal</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.legalGuardian} onChange={(event) => setLinkForm((prev) => ({ ...prev, legalGuardian: event.target.checked }))} /> Tuteur légal</label>
               <label className="check-row"><input type="checkbox" checked={linkForm.financialResponsible} onChange={(event) => setLinkForm((prev) => ({ ...prev, financialResponsible: event.target.checked }))} /> Responsable financier</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.emergencyContact} onChange={(event) => setLinkForm((prev) => ({ ...prev, emergencyContact: event.target.checked }))} /> Contact urgence</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.pickupAuthorized} onChange={(event) => setLinkForm((prev) => ({ ...prev, pickupAuthorized: event.target.checked }))} /> Autorise recuperation</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.livesWithStudent} onChange={(event) => setLinkForm((prev) => ({ ...prev, livesWithStudent: event.target.checked }))} /> Vit avec l'eleve</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.emergencyContact} onChange={(event) => setLinkForm((prev) => ({ ...prev, emergencyContact: event.target.checked }))} /> Contact d’urgence</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.pickupAuthorized} onChange={(event) => setLinkForm((prev) => ({ ...prev, pickupAuthorized: event.target.checked }))} /> Autorisé à récupérer l’élève</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.livesWithStudent} onChange={(event) => setLinkForm((prev) => ({ ...prev, livesWithStudent: event.target.checked }))} /> Vit avec l’élève</label>
               <div className="actions span-2">
-                <button type="submit">Creer lien parent-eleve</button>
+                <button type="submit">Créer le lien parent-élève</button>
               </div>
             </form>
 
@@ -403,39 +572,34 @@ export function ParentsScreen({
               <table data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Parent</th>
-                    <th>Eleve</th>
+                    <th>Responsable</th>
+                    <th>Élève</th>
                     <th>Relation</th>
-                    <th>Cursus eleve</th>
-                    <th>Roles</th>
+                    <th>Cursus élève</th>
+                    <th>Rôles</th>
                     <th>Statut</th>
-                    <th>Action</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {relations.length === 0 ? (
-                    <tr><td colSpan={7} className="empty-row">Aucun lien parent-eleve.</td></tr>
+                    <tr><td colSpan={7} className="empty-row">Aucun lien parent-élève enregistré.</td></tr>
                   ) : (
                     relations.map((relation) => (
                       <tr key={relation.id}>
-                        <td data-label="Parent">{relation.parentName || relation.parentUsername || "-"}</td>
-                        <td data-label="Eleve">{relation.studentMatricule} - {relation.studentName}</td>
+                        <td data-label="Responsable">{relation.parentName || relation.parentUsername || "-"}</td>
+                        <td data-label="Élève">{relation.studentMatricule} - {relation.studentName}</td>
                         <td data-label="Relation">{roleLabel(relation.relationType)}</td>
-                        <td data-label="Cursus eleve">
-                          {relation.studentTracks.length > 0
-                            ? relation.studentTracks.map(trackLabel).join(" + ")
-                            : "A regulariser"}
+                        <td data-label="Cursus élève">
+                          {formatStudentTracks(relation)}
                         </td>
-                        <td data-label="Roles">
-                          {[
-                            relation.isPrimaryContact ? "principal" : "",
-                            relation.legalGuardian ? "legal" : "",
-                            relation.financialResponsible ? "finance" : "",
-                            relation.emergencyContact ? "urgence" : ""
-                          ].filter(Boolean).join(", ") || "-"}
+                        <td data-label="Rôles">
+                          {formatRelationRoles(relation)}
                         </td>
-                        <td data-label="Statut">{relation.status}</td>
-                        <td data-label="Action">
+                        <td data-label="Statut">
+                          <span className={statusPillClassName(relation.status)}>{statusLabel(relation.status)}</span>
+                        </td>
+                        <td data-label="Actions">
                           <button type="button" className="button-danger" onClick={() => void archiveLink(relation.id)}>
                             Archiver
                           </button>

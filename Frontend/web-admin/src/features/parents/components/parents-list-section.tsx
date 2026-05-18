@@ -1,5 +1,5 @@
 import type { ParentRecord } from "../../../shared/types/app";
-import { SCHOOL_NAME, roleLabel } from "../parents-screen-model";
+import { SCHOOL_NAME, roleLabel, statusLabel, statusPillClassName } from "../parents-screen-model";
 
 export function ParentsListSection(props: {
   loading: boolean;
@@ -28,14 +28,14 @@ export function ParentsListSection(props: {
         <div className="table-header">
           <div>
             <p className="section-kicker">Responsables</p>
-            <h2>Liste parents</h2>
+            <h2>Liste des responsables</h2>
           </div>
           <div className="students-table-toolbar">
             <label className="students-search-field">
               <span>Recherche rapide</span>
               <input
                 className="search-input"
-                placeholder="Nom, telephone, email"
+                placeholder="Nom, téléphone, email"
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
               />
@@ -43,17 +43,17 @@ export function ParentsListSection(props: {
           </div>
         </div>
         <p className="section-lead">
-          Un parent est une personne metier. Le compte portail reste un rattachement optionnel.
+          Un responsable est une personne rattachée à un ou plusieurs élèves. Le compte portail reste optionnel.
         </p>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Parent</th>
-                <th>Role</th>
-                <th>Telephone</th>
+                <th>Responsable</th>
+                <th>Rôle</th>
+                <th>Téléphone</th>
                 <th>Email</th>
-                <th>Enfants</th>
+                <th>Élèves liés</th>
                 <th>Portail</th>
                 <th>Statut</th>
                 <th>Actions</th>
@@ -63,21 +63,23 @@ export function ParentsListSection(props: {
               {loading ? (
                 <tr><td colSpan={8} className="empty-row">Chargement...</td></tr>
               ) : shownParents.length === 0 ? (
-                <tr><td colSpan={8} className="empty-row">Aucun parent.</td></tr>
+                <tr><td colSpan={8} className="empty-row">Aucun responsable enregistré.</td></tr>
               ) : (
                 shownParents.map((parent) => (
                   <tr key={parent.id}>
-                    <td data-label="Parent">{parent.fullName}</td>
-                    <td data-label="Role">{roleLabel(parent.parentalRole)}</td>
-                    <td data-label="Telephone">{parent.primaryPhone}</td>
+                    <td data-label="Responsable">{parent.fullName}</td>
+                    <td data-label="Rôle">{roleLabel(parent.parentalRole)}</td>
+                    <td data-label="Téléphone">{parent.primaryPhone}</td>
                     <td data-label="Email">{parent.email || "-"}</td>
-                    <td data-label="Enfants">{parent.childrenCount}</td>
-                    <td data-label="Portail">{parent.userUsername || "Non lie"}</td>
-                    <td data-label="Statut">{parent.status}</td>
+                    <td data-label="Élèves liés">{parent.childrenCount}</td>
+                    <td data-label="Portail">{parent.userUsername ? "Lié" : "Non lié"}</td>
+                    <td data-label="Statut">
+                      <span className={statusPillClassName(parent.status)}>{statusLabel(parent.status)}</span>
+                    </td>
                     <td data-label="Actions">
                       <div className="row-actions">
                         <button type="button" className="button-ghost" onClick={() => onSelectParent(parent.id)}>
-                          Detail
+                          Voir
                         </button>
                         <button type="button" className="button-ghost" onClick={() => onEditParent(parent)}>
                           Modifier
@@ -96,34 +98,34 @@ export function ParentsListSection(props: {
       </section>
 
       {selectedParent ? (
-        <section className="panel table-panel workflow-section module-modern">
+        <section className="panel table-panel workflow-section module-modern parents-detail-panel">
           <div className="table-header">
             <div>
-              <p className="section-kicker">Detail parent</p>
+              <p className="section-kicker">Dossier responsable</p>
               <h2>{selectedParent.fullName}</h2>
             </div>
-            <span className="students-overview-status">{selectedParent.status}</span>
+            <span className={statusPillClassName(selectedParent.status)}>{statusLabel(selectedParent.status)}</span>
           </div>
           <div className="students-overview-grid">
             <article className="students-overview-card">
-              <span>Role</span>
+              <span>Rôle</span>
               <strong>{roleLabel(selectedParent.parentalRole)}</strong>
-              <small>{selectedParent.userUsername ? "Compte portail lie" : "Sans compte portail"}</small>
+              <small>{selectedParent.userUsername ? "Compte portail lié" : "Aucun compte portail"}</small>
             </article>
             <article className="students-overview-card">
               <span>Contact</span>
               <strong>{selectedParent.primaryPhone}</strong>
-              <small>{selectedParent.email || "Email non renseigne"}</small>
+              <small>{selectedParent.email || "Email non renseigné"}</small>
             </article>
             <article className="students-overview-card">
-              <span>Enfants lies</span>
+              <span>Élèves liés</span>
               <strong>{selectedParent.childrenCount}</strong>
               <small>{selectedParent.primaryChildrenCount} contact principal</small>
             </article>
             <article className="students-overview-card">
-              <span>Etablissement</span>
+              <span>Établissement</span>
               <strong>{SCHOOL_NAME}</strong>
-              <small>{selectedParent.profession || "Profession non renseignee"}</small>
+              <small>{selectedParent.profession || "Profession non renseignée"}</small>
             </article>
           </div>
         </section>

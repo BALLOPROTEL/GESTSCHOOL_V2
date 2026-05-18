@@ -15,6 +15,8 @@ import type {
   MosqueeDashboard,
   ParentChild,
   ParentOverview,
+  ParentRecord,
+  ParentStudentRelation,
   PaymentRecord,
   Period,
   PortalNotification,
@@ -260,6 +262,8 @@ export function App(): JSX.Element {
   const [teacherNotifications, setTeacherNotifications] = useState<PortalNotification[]>([]);
 
   const [parentOverview, setParentOverview] = useState<ParentOverview | null>(null);
+  const [parentRecords, setParentRecords] = useState<ParentRecord[]>([]);
+  const [parentRelations, setParentRelations] = useState<ParentStudentRelation[]>([]);
   const [parentChildren, setParentChildren] = useState<ParentChild[]>([]);
   const [parentGrades, setParentGrades] = useState<
     Array<
@@ -347,6 +351,8 @@ export function App(): JSX.Element {
     setTeacherTimetable([]);
     setTeacherNotifications([]);
     setParentOverview(null);
+    setParentRecords([]);
+    setParentRelations([]);
     setParentChildren([]);
     setParentGrades([]);
     setParentReportCards([]);
@@ -428,6 +434,8 @@ export function App(): JSX.Element {
     setRecovery(preview.recovery);
     setReportCards(preview.reportCards);
     setUsers(preview.users);
+    setParentRecords(preview.parents);
+    setParentRelations(preview.parentRelations);
     setMosqueeDashboard(preview.mosqueeDashboard);
     setHeaderNotificationCount(preview.headerNotificationCount);
     setLastSyncAt(preview.lastSyncAt);
@@ -704,7 +712,9 @@ export function App(): JSX.Element {
     if (!session || !currentRole) {
       bootstrapSessionKeyRef.current = null;
       bootstrapSessionInFlightRef.current = null;
-      clearData();
+      if (!(PREVIEW_MODE_ENABLED && window.location.hash === "#preview-admin")) {
+        clearData();
+      }
       return;
     }
 
@@ -1400,6 +1410,7 @@ export function App(): JSX.Element {
           subjects={subjects}
           users={users}
           language={uiLanguage}
+          remoteEnabled={!isPreviewSession}
           onError={setError}
           onNotice={setNotice}
         />
@@ -1415,6 +1426,7 @@ export function App(): JSX.Element {
           periods={periods}
           schoolYears={schoolYears}
           subjects={subjects}
+          remoteEnabled={!isPreviewSession}
           onError={setError}
           onNotice={setNotice}
         />
@@ -1425,6 +1437,9 @@ export function App(): JSX.Element {
       return (
         <ParentsScreen
           api={api}
+          initialParents={parentRecords}
+          initialRelations={parentRelations}
+          remoteEnabled={!isPreviewSession}
           students={students}
           users={users}
           onError={setError}

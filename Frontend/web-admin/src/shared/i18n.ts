@@ -18,14 +18,14 @@ export const UI_LANGUAGE_META: Record<UiLanguage, UiLanguageMeta> = {
 };
 
 type TargetLanguage = Exclude<UiLanguage, "fr">;
-type AttributeName = "placeholder" | "title" | "aria-label" | "alt";
+type AttributeName = "placeholder" | "title" | "aria-label" | "alt" | "data-label";
 type ExactTranslations = Record<TargetLanguage, Record<string, string>>;
 type PatternTranslation = {
   pattern: RegExp;
   translate: (match: RegExpExecArray, translate: (value: string) => string) => string;
 };
 
-const TRANSLATABLE_ATTRIBUTES: AttributeName[] = ["placeholder", "title", "aria-label", "alt"];
+const TRANSLATABLE_ATTRIBUTES: AttributeName[] = ["placeholder", "title", "aria-label", "alt", "data-label"];
 const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "TEXTAREA"]);
 
 const textSourceMap = new WeakMap<Text, string>();
@@ -437,6 +437,7 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Diplôme principal": "Main diploma",
     "Langue d'enseignement *": "Teaching language *",
     "Compte utilisateur lié": "Linked user account",
+    Lié: "Linked",
     "Non lié": "Not linked",
     Nationalité: "Nationality",
     "Type de pièce": "ID type",
@@ -513,11 +514,17 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Responsables liés": "Linked guardians",
     "responsables rattachés": "linked guardians",
     "Dossiers affichés": "Displayed files",
+    "dossiers affichés": "displayed files",
     "résultat filtré": "filtered result",
     "Mode édition": "Edit mode",
     "Nouveau dossier": "New file",
     "Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.":
       "This form creates the student's administrative file. Classes and tracks are then managed from enrollments.",
+    Identité: "Identity",
+    "Matricule obligatoire pour enregistrer le dossier.": "Student ID required to save the file.",
+    "Coordonnées utiles": "Useful contact details",
+    "Scolarité administrative": "Administrative schooling",
+    "Informations complémentaires": "Additional information",
     "Matricule *": "Student ID *",
     "Date de naissance *": "Date of birth *",
     "Téléphone principal du responsable": "Guardian primary phone",
@@ -534,10 +541,14 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Matricule, nom, parent, cursus": "Student ID, name, guardian, track",
     "Classe principale": "Main class",
     Responsables: "Guardians",
+    "Aucun responsable": "No guardian",
+    "Dossier consulté": "Viewed file",
     "Aucun élève enregistré.": "No student registered.",
     "À régulariser via inscription": "To be completed through enrollment",
+    "À vérifier": "To review",
     "Prénom requis.": "First name is required.",
     "Date de naissance requise.": "Date of birth is required.",
+    "Établissement requis.": "School is required.",
     "Statut requis.": "Status is required.",
     "Date d’admission invalide.": "Invalid admission date.",
     "Mode aperçu local : dossier élève non persisté.": "Local preview mode: student file not persisted.",
@@ -549,6 +560,70 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Erreur de chargement des élèves.": "Failed to load students.",
     "Erreur de sauvegarde de l’élève.": "Failed to save student.",
     "Erreur d’archivage de l’élève.": "Failed to archive student.",
+    "Liste des responsables": "Guardian list",
+    "Ajouter un responsable": "Add guardian",
+    "Modifier le responsable": "Edit guardian",
+    "Identifier les responsables métier.": "Identify business guardians.",
+    "Créer une fiche responsable distincte du compte portail.": "Create a guardian profile separate from the portal account.",
+    "Déclarer les responsables par élève.": "Declare guardians by student.",
+    Responsable: "Guardian",
+    "Élèves liés": "Linked students",
+    Portail: "Portal",
+    Rôles: "Roles",
+    "Aucun responsable enregistré.": "No guardian registered.",
+    "Un responsable est une personne rattachée à un ou plusieurs élèves. Le compte portail reste optionnel.":
+      "A guardian is a person linked to one or more students. The portal account remains optional.",
+    "Dossier responsable": "Guardian file",
+    "Compte portail lié": "Portal account linked",
+    "Aucun compte portail": "No portal account",
+    "Profession non renseignée": "Profession not provided",
+    "Fiche responsable": "Guardian profile",
+    Sexe: "Gender",
+    "Rôle parental *": "Parental role *",
+    "Téléphone principal *": "Primary phone *",
+    "Type de pièce d’identité": "ID document type",
+    "Compte portail optionnel": "Optional portal account",
+    "Le compte portail n’est pas créé automatiquement.": "The portal account is not created automatically.",
+    "Créer le responsable": "Create guardian",
+    "Enregistrer le responsable": "Save guardian",
+    "Voir la liste": "View list",
+    Père: "Father",
+    Mère: "Mother",
+    Tuteur: "Guardian",
+    "Relation parent-élève": "Guardian-student relationship",
+    "Liens parent-élève": "Guardian-student links",
+    "Parent *": "Guardian *",
+    "Élève *": "Student *",
+    "Relation *": "Relationship *",
+    "Contact principal": "Primary contact",
+    "Tuteur légal": "Legal guardian",
+    "Responsable financier": "Financial guardian",
+    "Contact d’urgence": "Emergency contact",
+    "Autorisé à récupérer l’élève": "Authorized to pick up the student",
+    "Vit avec l’élève": "Lives with the student",
+    "Créer le lien parent-élève": "Create guardian-student link",
+    "Cursus élève": "Student track",
+    "Aucun lien parent-élève enregistré.": "No guardian-student link registered.",
+    "Session expirée. Merci de vous reconnecter.": "Session expired. Please sign in again.",
+    "Impossible de charger les responsables.": "Unable to load guardians.",
+    "Rôle parental, prénom, nom, téléphone principal et statut sont requis.":
+      "Parental role, first name, last name, primary phone, and status are required.",
+    "Mode aperçu local : responsable non persisté.": "Local preview mode: guardian not persisted.",
+    "Impossible d’enregistrer le responsable.": "Unable to save guardian.",
+    "Responsable modifié.": "Guardian updated.",
+    "Responsable créé.": "Guardian created.",
+    "Archiver ce responsable ?": "Archive this guardian?",
+    "Impossible d’archiver le responsable.": "Unable to archive guardian.",
+    "Responsable archivé.": "Guardian archived.",
+    "Parent, élève et relation sont requis pour créer le lien.":
+      "Guardian, student, and relationship are required to create the link.",
+    "Mode aperçu local : lien parent-élève non persisté.": "Local preview mode: guardian-student link not persisted.",
+    "Impossible de créer le lien parent-élève.": "Unable to create guardian-student link.",
+    "Lien parent-élève créé.": "Guardian-student link created.",
+    "Archiver ce lien parent-élève ?": "Archive this guardian-student link?",
+    "Mode aperçu local : archivage du lien non persisté.": "Local preview mode: link archiving not persisted.",
+    "Impossible d’archiver le lien parent-élève.": "Unable to archive guardian-student link.",
+    "Lien parent-élève archivé.": "Guardian-student link archived.",
     "Documents administratifs": "Administrative documents",
     "Type de document *": "Document type *",
     "Nom du document": "Document name",
@@ -1520,6 +1595,7 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Diplôme principal": "الشهادة الرئيسية",
     "Langue d'enseignement *": "لغة التدريس *",
     "Compte utilisateur lié": "حساب مستخدم مرتبط",
+    Lié: "مرتبط",
     "Non lié": "غير مرتبط",
     Nationalité: "الجنسية",
     "Type de pièce": "نوع الوثيقة",
@@ -1594,11 +1670,17 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Responsables liés": "الأولياء المرتبطون",
     "responsables rattachés": "أولياء مرتبطون",
     "Dossiers affichés": "الملفات المعروضة",
+    "dossiers affichés": "ملفات معروضة",
     "résultat filtré": "نتيجة التصفية",
     "Mode édition": "وضع التعديل",
     "Nouveau dossier": "ملف جديد",
     "Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.":
       "ينشئ هذا النموذج الملف الإداري للطالب. تتم إدارة الصفوف والمسارات لاحقاً من التسجيلات.",
+    Identité: "الهوية",
+    "Matricule obligatoire pour enregistrer le dossier.": "رقم الطالب مطلوب لحفظ الملف.",
+    "Coordonnées utiles": "بيانات التواصل المفيدة",
+    "Scolarité administrative": "الشؤون الدراسية الإدارية",
+    "Informations complémentaires": "معلومات إضافية",
     "Matricule *": "رقم الطالب *",
     "Date de naissance *": "تاريخ الميلاد *",
     "Téléphone principal du responsable": "الهاتف الرئيسي للولي",
@@ -1615,10 +1697,14 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Matricule, nom, parent, cursus": "رقم الطالب، الاسم، الولي، المسار",
     "Classe principale": "الصف الرئيسي",
     Responsables: "الأولياء",
+    "Aucun responsable": "لا يوجد ولي",
+    "Dossier consulté": "الملف المعروض",
     "Aucun élève enregistré.": "لا يوجد طالب مسجل.",
     "À régulariser via inscription": "يجب تسويته عبر التسجيل",
+    "À vérifier": "للمراجعة",
     "Prénom requis.": "الاسم الأول مطلوب.",
     "Date de naissance requise.": "تاريخ الميلاد مطلوب.",
+    "Établissement requis.": "المؤسسة مطلوبة.",
     "Statut requis.": "الحالة مطلوبة.",
     "Date d’admission invalide.": "تاريخ القبول غير صالح.",
     "Mode aperçu local : dossier élève non persisté.": "وضع المعاينة المحلي: لم يتم حفظ ملف الطالب.",
@@ -1630,6 +1716,71 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Erreur de chargement des élèves.": "تعذر تحميل الطلاب.",
     "Erreur de sauvegarde de l’élève.": "تعذر حفظ الطالب.",
     "Erreur d’archivage de l’élève.": "تعذر أرشفة الطالب.",
+    "Liste des responsables": "قائمة الأولياء",
+    "Ajouter un responsable": "إضافة ولي",
+    "Modifier le responsable": "تعديل الولي",
+    "Identifier les responsables métier.": "تحديد الأولياء ككيانات مهنية.",
+    "Créer une fiche responsable distincte du compte portail.": "إنشاء ملف ولي منفصل عن حساب البوابة.",
+    "Déclarer les responsables par élève.": "تسجيل الأولياء حسب الطالب.",
+    Responsable: "الولي",
+    "Élèves liés": "الطلاب المرتبطون",
+    Portail: "البوابة",
+    Rôles: "الأدوار",
+    "Aucun responsable enregistré.": "لا يوجد ولي مسجل.",
+    "Un responsable est une personne rattachée à un ou plusieurs élèves. Le compte portail reste optionnel.":
+      "الولي شخص مرتبط بطالب واحد أو أكثر. يبقى حساب البوابة اختيارياً.",
+    "Dossier responsable": "ملف الولي",
+    "Compte portail lié": "حساب بوابة مرتبط",
+    "Aucun compte portail": "لا يوجد حساب بوابة",
+    "Profession non renseignée": "المهنة غير مدخلة",
+    "Fiche responsable": "بطاقة الولي",
+    Sexe: "الجنس",
+    "Rôle parental *": "الدور الأبوي *",
+    "Téléphone principal *": "الهاتف الرئيسي *",
+    "Type de pièce d’identité": "نوع وثيقة الهوية",
+    "Compte portail optionnel": "حساب بوابة اختياري",
+    "Le compte portail n’est pas créé automatiquement.": "لا يتم إنشاء حساب البوابة تلقائياً.",
+    "Créer le responsable": "إنشاء الولي",
+    "Enregistrer le responsable": "حفظ الولي",
+    "Voir la liste": "عرض القائمة",
+    Père: "الأب",
+    Mère: "الأم",
+    Tuteur: "الوصي",
+    "Relation parent-élève": "علاقة ولي الأمر بالطالب",
+    "Liens parent-élève": "روابط ولي الأمر بالطالب",
+    "Parent *": "الولي *",
+    "Élève *": "الطالب *",
+    "Relation *": "العلاقة *",
+    "Contact principal": "جهة الاتصال الرئيسية",
+    "Tuteur légal": "الوصي القانوني",
+    "Responsable financier": "المسؤول المالي",
+    "Contact d’urgence": "جهة اتصال الطوارئ",
+    "Autorisé à récupérer l’élève": "مصرح له باستلام الطالب",
+    "Vit avec l’élève": "يعيش مع الطالب",
+    "Créer le lien parent-élève": "إنشاء رابط ولي الأمر بالطالب",
+    "Cursus élève": "مسار الطالب",
+    "Aucun lien parent-élève enregistré.": "لا يوجد رابط ولي أمر بطالب مسجل.",
+    "Session expirée. Merci de vous reconnecter.": "انتهت الجلسة. يرجى تسجيل الدخول من جديد.",
+    "Impossible de charger les responsables.": "تعذر تحميل الأولياء.",
+    "Rôle parental, prénom, nom, téléphone principal et statut sont requis.":
+      "الدور الأبوي والاسم الأول والاسم والهاتف الرئيسي والحالة مطلوبة.",
+    "Mode aperçu local : responsable non persisté.": "وضع المعاينة المحلية: لم يتم حفظ الولي.",
+    "Impossible d’enregistrer le responsable.": "تعذر حفظ الولي.",
+    "Responsable modifié.": "تم تعديل الولي.",
+    "Responsable créé.": "تم إنشاء الولي.",
+    "Archiver ce responsable ?": "هل تريد أرشفة هذا الولي؟",
+    "Impossible d’archiver le responsable.": "تعذر أرشفة الولي.",
+    "Responsable archivé.": "تمت أرشفة الولي.",
+    "Parent, élève et relation sont requis pour créer le lien.":
+      "الولي والطالب والعلاقة مطلوبة لإنشاء الرابط.",
+    "Mode aperçu local : lien parent-élève non persisté.":
+      "وضع المعاينة المحلية: لم يتم حفظ رابط ولي الأمر بالطالب.",
+    "Impossible de créer le lien parent-élève.": "تعذر إنشاء رابط ولي الأمر بالطالب.",
+    "Lien parent-élève créé.": "تم إنشاء رابط ولي الأمر بالطالب.",
+    "Archiver ce lien parent-élève ?": "هل تريد أرشفة رابط ولي الأمر بالطالب؟",
+    "Mode aperçu local : archivage du lien non persisté.": "وضع المعاينة المحلية: لم يتم حفظ أرشفة الرابط.",
+    "Impossible d’archiver le lien parent-élève.": "تعذر أرشفة رابط ولي الأمر بالطالب.",
+    "Lien parent-élève archivé.": "تمت أرشفة رابط ولي الأمر بالطالب.",
     "Documents administratifs": "الوثائق الإدارية",
     "Type de document *": "نوع الوثيقة *",
     "Nom du document": "اسم الوثيقة",
@@ -2355,6 +2506,26 @@ const PATTERN_TRANSLATIONS: Record<TargetLanguage, PatternTranslation[]> = {
       translate: (match) => `${match[1]} active tracks`
     },
     {
+      pattern: /^(\d+) dossier\(s\)$/u,
+      translate: (match) => `${match[1]} file(s)`
+    },
+    {
+      pattern: /^(\d+) responsable$/u,
+      translate: (match) => `${match[1]} guardian`
+    },
+    {
+      pattern: /^(\d+) responsables$/u,
+      translate: (match) => `${match[1]} guardians`
+    },
+    {
+      pattern: /^(\d+) lien$/u,
+      translate: (match) => `${match[1]} link`
+    },
+    {
+      pattern: /^(\d+) liens$/u,
+      translate: (match) => `${match[1]} links`
+    },
+    {
       pattern: /^(\d+) enseignant\(s\)$/u,
       translate: (match) => `${match[1]} teacher(s)`
     },
@@ -2511,6 +2682,26 @@ const PATTERN_TRANSLATIONS: Record<TargetLanguage, PatternTranslation[]> = {
     {
       pattern: /^(\d+) cursus actifs$/u,
       translate: (match) => `${match[1]} مسارات نشطة`
+    },
+    {
+      pattern: /^(\d+) dossier\(s\)$/u,
+      translate: (match) => `${match[1]} ملف/ملفات`
+    },
+    {
+      pattern: /^(\d+) responsable$/u,
+      translate: (match) => `${match[1]} ولي`
+    },
+    {
+      pattern: /^(\d+) responsables$/u,
+      translate: (match) => `${match[1]} أولياء`
+    },
+    {
+      pattern: /^(\d+) lien$/u,
+      translate: (match) => `${match[1]} رابط`
+    },
+    {
+      pattern: /^(\d+) liens$/u,
+      translate: (match) => `${match[1]} روابط`
     },
     {
       pattern: /^(\d+) enseignant\(s\)$/u,

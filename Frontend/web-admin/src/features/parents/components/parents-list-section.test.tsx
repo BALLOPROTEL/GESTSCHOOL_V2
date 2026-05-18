@@ -23,7 +23,7 @@ const parent: ParentRecord = {
 };
 
 describe("ParentsListSection", () => {
-  it("affiche les parents et expose les actions principales", async () => {
+  it("affiche les responsables et expose les actions principales", async () => {
     const user = userEvent.setup();
     const handleEdit = vi.fn();
     const handleSelect = vi.fn();
@@ -42,9 +42,12 @@ describe("ParentsListSection", () => {
     );
 
     expect(screen.getAllByText("Aminata Diallo")).toHaveLength(2);
-    expect(screen.getByText("Compte portail lie")).toBeInTheDocument();
+    expect(screen.getByText("Liste des responsables")).toBeInTheDocument();
+    expect(screen.getByText("Compte portail lié")).toBeInTheDocument();
+    expect(screen.getAllByText("Actif").length).toBeGreaterThan(0);
+    expect(screen.queryByText("ACTIVE")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /detail/i }));
+    await user.click(screen.getByRole("button", { name: /voir/i }));
     await user.click(screen.getByRole("button", { name: /modifier/i }));
 
     expect(handleSelect).toHaveBeenCalledWith("parent-1");

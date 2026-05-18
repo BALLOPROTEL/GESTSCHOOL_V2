@@ -62,12 +62,13 @@ type RoomsScreenProps = {
   periods: Period[];
   schoolYears: SchoolYear[];
   subjects: Subject[];
+  remoteEnabled?: boolean;
   onError: (message: string) => void;
   onNotice: (message: string) => void;
 };
 
 export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
-  const { api, classes, cycles, levels, onError, onNotice, periods, schoolYears, subjects } = props;
+  const { api, classes, cycles, levels, onError, onNotice, periods, remoteEnabled = true, schoolYears, subjects } = props;
   const [activeStep, setActiveStep] = useState("list");
   const [rooms, setRooms] = useState<RoomRecord[]>([]);
   const [roomTypes, setRoomTypes] = useState<RoomTypeRecord[]>([]);
@@ -102,6 +103,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   ];
 
   const loadModule = async (): Promise<void> => {
+    if (!remoteEnabled) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await fetchRoomsModule(api, activeSchoolYear?.id);
@@ -118,6 +123,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   };
 
   const loadRooms = async (): Promise<void> => {
+    if (!remoteEnabled) return;
     try {
       setRooms(await fetchRooms(api, filters));
     } catch (error) {
@@ -127,6 +133,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
   const loadDetail = async (roomId: string): Promise<void> => {
     if (!roomId) return;
+    if (!remoteEnabled) return;
     try {
       setDetail(await fetchRoomDetail(api, roomId));
     } catch (error) {
@@ -156,6 +163,13 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
   const submitRoom = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : salle non persistée.");
+      setEditingRoomId(null);
+      setRoomForm(defaultRoomForm());
+      setActiveStep("list");
+      return;
+    }
     let saved: RoomRecord;
     try {
       saved = await saveRoom(api, editingRoomId, {
@@ -188,6 +202,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
   const submitAssignment = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : affectation de salle non persistée.");
+      return;
+    }
     try {
       await createRoomAssignment(api, {
         roomId: assignmentForm.roomId,
@@ -215,6 +233,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
   const submitAvailability = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : indisponibilité de salle non persistée.");
+      return;
+    }
     try {
       await createRoomAvailability(api, {
         roomId: availabilityForm.roomId,
@@ -237,6 +259,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
   const submitRoomType = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : type de salle non persisté.");
+      return;
+    }
     try {
       await createRoomType(api, {
         code: roomTypeForm.code,
@@ -275,6 +301,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   };
 
   const archiveResource = async (path: string, successMessage: string): Promise<void> => {
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : suppression salle non persistée.");
+      return;
+    }
     try {
       await deleteRoomResource(api, path);
     } catch (error) {
@@ -288,6 +318,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   const openDetail = (roomId: string): void => {
     setSelectedRoomId(roomId);
     setActiveStep("detail");
+    if (!remoteEnabled) return;
     void loadDetail(roomId);
   };
 

@@ -3,7 +3,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react
 import type { FieldErrors, Student } from "../../../shared/types/app";
 import { focusFirstInlineErrorField, hasFieldErrors, today } from "../../../shared/utils/form-ui";
 import { fetchStudents, removeStudent, saveStudent } from "../services/students-service";
-import type { StudentForm, StudentsApiClient } from "../types/students";
+import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm, type StudentsApiClient } from "../types/students";
 
 type UseStudentsDataOptions = {
   api: StudentsApiClient;
@@ -26,7 +26,7 @@ const buildInitialStudentForm = (): StudentForm => ({
   address: "",
   phone: "",
   email: "",
-  establishmentId: "",
+  establishmentId: DEFAULT_ESTABLISHMENT_VALUE,
   admissionDate: "",
   internalId: "",
   birthCertificateNo: "",
@@ -47,7 +47,7 @@ const buildStudentFormFromRecord = (student: Student): StudentForm => ({
   address: student.address || "",
   phone: student.phone || "",
   email: student.email || "",
-  establishmentId: student.establishmentId || "",
+  establishmentId: student.establishmentId || DEFAULT_ESTABLISHMENT_VALUE,
   admissionDate: student.admissionDate || "",
   internalId: student.internalId || "",
   birthCertificateNo: student.birthCertificateNo || "",
@@ -70,6 +70,7 @@ export const useStudentsData = ({
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentForm, setStudentForm] = useState<StudentForm>(() => buildInitialStudentForm());
   const [studentErrors, setStudentErrors] = useState<FieldErrors>({});
   const [studentWorkflowStep, setStudentWorkflowStep] = useState("entry");
@@ -123,14 +124,25 @@ export const useStudentsData = ({
     );
   }, [studentSearch, students]);
 
+  const selectedStudent = useMemo(
+    () => students.find((student) => student.id === selectedStudentId) || null,
+    [selectedStudentId, students]
+  );
+
   const resetStudentForm = useCallback((): void => {
     setEditingStudentId(null);
     setStudentForm(buildInitialStudentForm());
     setStudentErrors({});
   }, []);
 
+  const viewStudent = useCallback((student: Student): void => {
+    setSelectedStudentId(student.id);
+    setStudentWorkflowStep("list");
+  }, []);
+
   const editStudent = useCallback((student: Student): void => {
     setEditingStudentId(student.id);
+    setSelectedStudentId(student.id);
     setStudentForm(buildStudentFormFromRecord(student));
     setStudentWorkflowStep("entry");
   }, []);
@@ -144,6 +156,7 @@ export const useStudentsData = ({
     if (!studentForm.firstName.trim()) errors.firstName = "Prénom requis.";
     if (!studentForm.lastName.trim()) errors.lastName = "Nom requis.";
     if (!studentForm.sex) errors.sex = "Sexe requis.";
+    if (!studentForm.establishmentId) errors.establishmentId = "Établissement requis.";
     if (!studentForm.birthDate) {
       errors.birthDate = "Date de naissance requise.";
     } else if (studentForm.birthDate > today()) {
@@ -191,6 +204,7 @@ export const useStudentsData = ({
     try {
       await removeStudent(api, studentId);
       if (editingStudentId === studentId) resetStudentForm();
+      if (selectedStudentId === studentId) setSelectedStudentId(null);
       onNotice("Dossier élève archivé.");
       await loadStudents();
       await onReloadEnrollments?.();
@@ -205,6 +219,7 @@ export const useStudentsData = ({
     editingStudentId,
     loadStudents,
     resetStudentForm,
+    selectedStudent,
     setStudentForm,
     setStudentSearch,
     setStudentWorkflowStep,
@@ -215,6 +230,7 @@ export const useStudentsData = ({
     students,
     studentsLoading,
     studentWorkflowStep,
-    submitStudent
+    submitStudent,
+    viewStudent
   };
 };

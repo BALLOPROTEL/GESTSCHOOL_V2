@@ -1,5 +1,5 @@
 import type { Student } from "../../../shared/types/app";
-import type { StudentForm, StudentsApiClient } from "../types/students";
+import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm, type StudentsApiClient } from "../types/students";
 
 export const parseStudentsError = async (response: Response): Promise<string> => {
   try {
@@ -26,6 +26,9 @@ export const saveStudent = async (
   form: StudentForm,
   editingStudentId: string | null
 ): Promise<Student> => {
+  const establishmentId =
+    form.establishmentId === DEFAULT_ESTABLISHMENT_VALUE ? undefined : form.establishmentId || undefined;
+
   const response = await api(editingStudentId ? `/students/${editingStudentId}` : "/students", {
     method: editingStudentId ? "PATCH" : "POST",
     body: JSON.stringify({
@@ -39,7 +42,7 @@ export const saveStudent = async (
       address: form.address.trim() || undefined,
       phone: form.phone.trim() || undefined,
       email: form.email.trim() || undefined,
-      establishmentId: form.establishmentId || undefined,
+      establishmentId,
       admissionDate: form.admissionDate || undefined,
       internalId: form.internalId.trim() || undefined,
       birthCertificateNo: form.birthCertificateNo.trim() || undefined,

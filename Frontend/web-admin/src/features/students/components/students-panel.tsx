@@ -3,13 +3,14 @@ import { type FormEvent } from "react";
 import { WorkflowGuide } from "../../../shared/components/workflow-guide";
 import type { AcademicTrack, FieldErrors, Student, WorkflowStepDef } from "../../../shared/types/app";
 import { fieldError } from "../../../shared/utils/form-ui";
-import type { StudentForm } from "../types/students";
+import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm } from "../types/students";
 
 type StudentsPanelProps = {
   editingStudentId: string | null;
   studentErrors: FieldErrors;
   studentForm: StudentForm;
   studentSearch: string;
+  selectedStudent: Student | null;
   studentWorkflowStep: string;
   students: Student[];
   studentsLoading: boolean;
@@ -21,6 +22,7 @@ type StudentsPanelProps = {
   onStudentFormChange: (updater: (previous: StudentForm) => StudentForm) => void;
   onStudentWorkflowStepChange: (stepId: string) => void;
   onSubmitStudent: (event: FormEvent<HTMLFormElement>) => void;
+  onViewStudent: (student: Student) => void;
 };
 
 const SCHOOL_NAME = "Al Manarat Islamiyat";
@@ -29,7 +31,10 @@ const formatTrackLabel = (track?: AcademicTrack): string =>
   track === "ARABOPHONE" ? "Arabophone" : "Francophone";
 
 const formatStudentTracks = (student: Student): string => {
-  const tracks = student.tracks || [];
+  const placementTracks = (student.placements || []).map((placement) => placement.track);
+  const tracks = (student.tracks && student.tracks.length > 0 ? student.tracks : placementTracks).filter(
+    (track, index, allTracks) => allTracks.indexOf(track) === index
+  );
   if (tracks.length === 0) return "À régulariser via inscription";
   if (tracks.length > 1) return "Francophone + Arabophone";
   return formatTrackLabel(tracks[0]);
@@ -59,15 +64,23 @@ const formatStudentStatus = (status?: string): string => {
     case "SUSPENDED":
       return "Suspendu";
     default:
-      return status || "Actif";
+      return "À vérifier";
   }
 };
+
+const getStudentStatusClassName = (status?: string): string => {
+  const normalized = (status || "ACTIVE").toUpperCase();
+  return normalized === "ACTIVE" ? "status-pill is-success" : "status-pill is-muted";
+};
+
+const getStudentDisplayName = (student: Student): string =>
+  student.fullName || `${student.firstName} ${student.lastName}`.trim();
 
 const formatParentSummary = (student: Student): string => {
   const parents = student.parents || [];
   if (parents.length === 0) return "Aucun responsable";
   const primary = parents.find((parent) => parent.isPrimaryContact) || parents[0];
-  return parents.length > 1 ? `${primary.parentName} +${parents.length - 1}` : primary.parentName;
+  return parents.length > 1 ? `${parents.length} responsables` : primary.parentName;
 };
 
 export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
@@ -80,6 +93,8 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
     onStudentFormChange,
     onStudentWorkflowStepChange,
     onSubmitStudent,
+    onViewStudent,
+    selectedStudent,
     shownStudents,
     studentErrors,
     studentForm,
@@ -88,7 +103,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
     students,
     studentsLoading
   } = props;
-  const activeStudents = students.filter((student) => (student.status || "ACTIVE") === "ACTIVE").length;
+  const activeStudents = students.filter((student) => (student.status || "ACTIVE").toUpperCase() === "ACTIVE").length;
   const bicursusCount = students.filter((student) => (student.tracks || []).length > 1).length;
   const studentsWithParents = students.filter((student) => (student.parents || []).length > 0).length;
 
@@ -146,7 +161,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
             <article className="students-overview-card">
               <span>Dossiers affichés</span>
               <strong>{shownStudents.length}</strong>
-              <small>résultat filtré</small>
+              <small>dossiers affichés</small>
             </article>
           </div>
         </section>
@@ -166,180 +181,207 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
               Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.
             </p>
             <form className="form-grid module-form students-form-grid" onSubmit={onSubmitStudent}>
-              <label>
-                Matricule *
-                <input
-                  value={studentForm.matricule}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, matricule: event.target.value }))
-                  }
-                  required
-                />
-                {fieldError(studentErrors, "matricule")}
-              </label>
-              <label>
-                Prénom *
-                <input
-                  value={studentForm.firstName}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, firstName: event.target.value }))
-                  }
-                  required
-                />
-                {fieldError(studentErrors, "firstName")}
-              </label>
-              <label>
-                Nom *
-                <input
-                  value={studentForm.lastName}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, lastName: event.target.value }))
-                  }
-                  required
-                />
-                {fieldError(studentErrors, "lastName")}
-              </label>
-              <label>
-                Sexe *
-                <select
-                  value={studentForm.sex}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({
-                      ...prev,
-                      sex: event.target.value as "M" | "F"
-                    }))
-                  }
-                >
-                  <option value="M">M</option>
-                  <option value="F">F</option>
-                </select>
-                {fieldError(studentErrors, "sex")}
-              </label>
-              <label>
-                Date de naissance *
-                <input
-                  type="date"
-                  value={studentForm.birthDate}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, birthDate: event.target.value }))
-                  }
-                  required
-                />
-                {fieldError(studentErrors, "birthDate")}
-              </label>
-              <label>
-                Lieu de naissance
-                <input
-                  value={studentForm.birthPlace}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, birthPlace: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                Nationalité
-                <input
-                  value={studentForm.nationality}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, nationality: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                Établissement *
-                <select
-                  value={studentForm.establishmentId}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, establishmentId: event.target.value }))
-                  }
-                >
-                  <option value="">{SCHOOL_NAME}</option>
-                </select>
-              </label>
-              <label>
-                Téléphone principal du responsable
-                <input
-                  value={studentForm.phone}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, phone: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                Email
-                <input
-                  type="email"
-                  value={studentForm.email}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, email: event.target.value }))
-                  }
-                />
-                {fieldError(studentErrors, "email")}
-              </label>
-              <label>
-                Date d’admission
-                <input
-                  type="date"
-                  value={studentForm.admissionDate}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, admissionDate: event.target.value }))
-                  }
-                />
-                {fieldError(studentErrors, "admissionDate")}
-              </label>
-              <label>
-                Statut *
-                <select
-                  value={studentForm.status}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, status: event.target.value }))
-                  }
-                >
-                  <option value="ACTIVE">Actif</option>
-                  <option value="INACTIVE">Inactif</option>
-                  <option value="SUSPENDED">Suspendu</option>
-                  <option value="ARCHIVED">Archivé</option>
-                </select>
-                {fieldError(studentErrors, "status")}
-              </label>
-              <label>
-                Langue principale
-                <input
-                  value={studentForm.primaryLanguage}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, primaryLanguage: event.target.value }))
-                  }
-                />
-              </label>
-              <label className="span-2">
-                Adresse
-                <input
-                  value={studentForm.address}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, address: event.target.value }))
-                  }
-                />
-              </label>
-              <label className="span-2">
-                Besoins particuliers
-                <textarea
-                  value={studentForm.specialNeeds}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, specialNeeds: event.target.value }))
-                  }
-                  rows={3}
-                />
-              </label>
-              <label className="span-2">
-                Notes administratives
-                <textarea
-                  value={studentForm.administrativeNotes}
-                  onChange={(event) =>
-                    onStudentFormChange((prev) => ({ ...prev, administrativeNotes: event.target.value }))
-                  }
-                  rows={3}
-                />
-              </label>
+              <fieldset className="students-form-section">
+                <legend>Identité</legend>
+                <label>
+                  Matricule *
+                  <input
+                    value={studentForm.matricule}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, matricule: event.target.value }))
+                    }
+                    required
+                  />
+                  <small>Matricule obligatoire pour enregistrer le dossier.</small>
+                  {fieldError(studentErrors, "matricule")}
+                </label>
+                <label>
+                  Prénom *
+                  <input
+                    value={studentForm.firstName}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, firstName: event.target.value }))
+                    }
+                    required
+                  />
+                  {fieldError(studentErrors, "firstName")}
+                </label>
+                <label>
+                  Nom *
+                  <input
+                    value={studentForm.lastName}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, lastName: event.target.value }))
+                    }
+                    required
+                  />
+                  {fieldError(studentErrors, "lastName")}
+                </label>
+                <label>
+                  Sexe *
+                  <select
+                    value={studentForm.sex}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({
+                        ...prev,
+                        sex: event.target.value as "M" | "F"
+                      }))
+                    }
+                    required
+                  >
+                    <option value="M">M</option>
+                    <option value="F">F</option>
+                  </select>
+                  {fieldError(studentErrors, "sex")}
+                </label>
+                <label>
+                  Date de naissance *
+                  <input
+                    type="date"
+                    value={studentForm.birthDate}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, birthDate: event.target.value }))
+                    }
+                    required
+                  />
+                  {fieldError(studentErrors, "birthDate")}
+                </label>
+                <label>
+                  Lieu de naissance
+                  <input
+                    value={studentForm.birthPlace}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, birthPlace: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  Nationalité
+                  <input
+                    value={studentForm.nationality}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, nationality: event.target.value }))
+                    }
+                  />
+                </label>
+              </fieldset>
+
+              <fieldset className="students-form-section">
+                <legend>Coordonnées utiles</legend>
+                <label>
+                  Téléphone principal du responsable
+                  <input
+                    value={studentForm.phone}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, phone: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={studentForm.email}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, email: event.target.value }))
+                    }
+                  />
+                  {fieldError(studentErrors, "email")}
+                </label>
+                <label className="span-2">
+                  Adresse
+                  <input
+                    value={studentForm.address}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, address: event.target.value }))
+                    }
+                  />
+                </label>
+              </fieldset>
+
+              <fieldset className="students-form-section">
+                <legend>Scolarité administrative</legend>
+                <label>
+                  Établissement *
+                  <select
+                    value={studentForm.establishmentId}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, establishmentId: event.target.value }))
+                    }
+                    required
+                  >
+                    <option value={DEFAULT_ESTABLISHMENT_VALUE}>{SCHOOL_NAME}</option>
+                    {studentForm.establishmentId &&
+                    studentForm.establishmentId !== DEFAULT_ESTABLISHMENT_VALUE ? (
+                      <option value={studentForm.establishmentId}>{SCHOOL_NAME}</option>
+                    ) : null}
+                  </select>
+                  {fieldError(studentErrors, "establishmentId")}
+                </label>
+                <label>
+                  Date d’admission
+                  <input
+                    type="date"
+                    value={studentForm.admissionDate}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, admissionDate: event.target.value }))
+                    }
+                  />
+                  {fieldError(studentErrors, "admissionDate")}
+                </label>
+                <label>
+                  Statut *
+                  <select
+                    value={studentForm.status}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, status: event.target.value }))
+                    }
+                    required
+                  >
+                    <option value="ACTIVE">Actif</option>
+                    <option value="INACTIVE">Inactif</option>
+                    <option value="PENDING">En attente</option>
+                    <option value="DRAFT">Brouillon</option>
+                    <option value="SUSPENDED">Suspendu</option>
+                    <option value="ARCHIVED">Archivé</option>
+                  </select>
+                  {fieldError(studentErrors, "status")}
+                </label>
+                <label>
+                  Langue principale
+                  <input
+                    value={studentForm.primaryLanguage}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, primaryLanguage: event.target.value }))
+                    }
+                  />
+                </label>
+              </fieldset>
+
+              <fieldset className="students-form-section">
+                <legend>Informations complémentaires</legend>
+                <label className="span-2">
+                  Besoins particuliers
+                  <textarea
+                    value={studentForm.specialNeeds}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, specialNeeds: event.target.value }))
+                    }
+                    rows={3}
+                  />
+                </label>
+                <label className="span-2">
+                  Notes administratives
+                  <textarea
+                    value={studentForm.administrativeNotes}
+                    onChange={(event) =>
+                      onStudentFormChange((prev) => ({ ...prev, administrativeNotes: event.target.value }))
+                    }
+                    rows={3}
+                  />
+                </label>
+              </fieldset>
+
               <div className="actions span-2">
                 <button type="submit">{editingStudentId ? "Enregistrer le dossier" : "Créer le dossier"}</button>
                 <button type="button" className="button-ghost" onClick={onResetStudentForm}>
@@ -380,7 +422,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
               Lecture métier : statut du dossier, responsables et placements issus des inscriptions validées.
             </p>
             <div className="table-wrap">
-              <table>
+              <table data-responsive-table="true">
                 <thead>
                   <tr>
                     <th>Matricule</th>
@@ -409,15 +451,26 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   ) : (
                     shownStudents.map((item) => (
                       <tr key={item.id}>
-                        <td>{item.matricule}</td>
-                        <td>{item.fullName || `${item.firstName} ${item.lastName}`}</td>
-                        <td>{item.birthDate || "-"}</td>
-                        <td>{formatStudentStatus(item.status)}</td>
-                        <td>{formatStudentTracks(item)}</td>
-                        <td>{formatPrimaryClass(item)}</td>
-                        <td>{formatParentSummary(item)}</td>
-                        <td>
+                        <td data-label="Matricule">{item.matricule}</td>
+                        <td data-label="Nom complet">{getStudentDisplayName(item)}</td>
+                        <td data-label="Date de naissance">{item.birthDate || "-"}</td>
+                        <td data-label="Statut">
+                          <span className={getStudentStatusClassName(item.status)}>
+                            {formatStudentStatus(item.status)}
+                          </span>
+                        </td>
+                        <td data-label="Cursus">{formatStudentTracks(item)}</td>
+                        <td data-label="Classe principale">{formatPrimaryClass(item)}</td>
+                        <td data-label="Responsables">{formatParentSummary(item)}</td>
+                        <td data-label="Actions">
                           <div className="row-actions">
+                            <button
+                              type="button"
+                              className="button-ghost"
+                              onClick={() => onViewStudent(item)}
+                            >
+                              Voir
+                            </button>
                             <button
                               type="button"
                               className="button-ghost"
@@ -440,6 +493,41 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 </tbody>
               </table>
             </div>
+            {selectedStudent ? (
+              <aside className="students-detail-panel" aria-label="Dossier consulté">
+                <div className="table-header">
+                  <div>
+                    <p className="section-kicker">Dossier consulté</p>
+                    <h3>{getStudentDisplayName(selectedStudent)}</h3>
+                  </div>
+                  <span className={getStudentStatusClassName(selectedStudent.status)}>
+                    {formatStudentStatus(selectedStudent.status)}
+                  </span>
+                </div>
+                <div className="students-detail-grid">
+                  <div>
+                    <span>Matricule</span>
+                    <strong>{selectedStudent.matricule}</strong>
+                  </div>
+                  <div>
+                    <span>Date de naissance</span>
+                    <strong>{selectedStudent.birthDate || "-"}</strong>
+                  </div>
+                  <div>
+                    <span>Cursus</span>
+                    <strong>{formatStudentTracks(selectedStudent)}</strong>
+                  </div>
+                  <div>
+                    <span>Classe principale</span>
+                    <strong>{formatPrimaryClass(selectedStudent)}</strong>
+                  </div>
+                  <div>
+                    <span>Responsables</span>
+                    <strong>{formatParentSummary(selectedStudent)}</strong>
+                  </div>
+                </div>
+              </aside>
+            ) : null}
           </section>
         ) : null}
       </div>

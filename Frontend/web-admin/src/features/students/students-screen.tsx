@@ -29,6 +29,7 @@ export function StudentsScreen({
     editStudent,
     editingStudentId,
     resetStudentForm,
+    selectedStudent,
     setStudentForm,
     setStudentSearch,
     setStudentWorkflowStep,
@@ -39,7 +40,8 @@ export function StudentsScreen({
     students,
     studentsLoading,
     studentWorkflowStep,
-    submitStudent
+    submitStudent,
+    viewStudent
   } = useStudentsData({
     api,
     initialStudents,
@@ -56,6 +58,7 @@ export function StudentsScreen({
       studentErrors={studentErrors}
       studentForm={studentForm}
       studentSearch={studentSearch}
+      selectedStudent={selectedStudent}
       studentWorkflowStep={studentWorkflowStep}
       students={students}
       studentsLoading={studentsLoading}
@@ -67,6 +70,7 @@ export function StudentsScreen({
       onStudentFormChange={setStudentForm}
       onStudentWorkflowStepChange={setStudentWorkflowStep}
       onSubmitStudent={(event) => void submitStudent(event)}
+      onViewStudent={viewStudent}
     />
   );
 }

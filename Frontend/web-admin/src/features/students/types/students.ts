@@ -1,5 +1,7 @@
 export type StudentsApiClient = (path: string, init?: RequestInit) => Promise<Response>;
 
+export const DEFAULT_ESTABLISHMENT_VALUE = "__gestschool_default_establishment__";
+
 export type StudentForm = {
   matricule: string;
   firstName: string;

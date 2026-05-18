@@ -34,13 +34,32 @@ export type ParentLinkForm = {
 export const SCHOOL_NAME = "Al Manarat Islamiyat";
 export const PARENT_ROLES = ["PERE", "MERE", "TUTEUR", "AUTRE"];
 export const PARENT_STATUSES = ["ACTIVE", "INACTIVE", "ARCHIVED"];
+export const PARENT_RELATIONS = PARENT_ROLES;
 
 export const roleLabel = (role?: string): string => {
-  if (role === "PERE") return "Pere";
-  if (role === "MERE") return "Mere";
+  if (role === "PERE") return "Père";
+  if (role === "MERE") return "Mère";
   if (role === "TUTEUR") return "Tuteur";
   return "Autre";
 };
+
+export const statusLabel = (status?: string): string => {
+  switch ((status || "ACTIVE").toUpperCase()) {
+    case "ACTIVE":
+      return "Actif";
+    case "INACTIVE":
+      return "Inactif";
+    case "ARCHIVED":
+      return "Archivé";
+    case "PENDING":
+      return "En attente";
+    default:
+      return "À vérifier";
+  }
+};
+
+export const statusPillClassName = (status?: string): string =>
+  (status || "ACTIVE").toUpperCase() === "ACTIVE" ? "status-pill is-success" : "status-pill is-muted";
 
 export const trackLabel = (track?: string): string => (track === "ARABOPHONE" ? "Arabophone" : "Francophone");
 

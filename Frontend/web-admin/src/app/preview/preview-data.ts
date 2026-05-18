@@ -8,6 +8,8 @@ import type {
   MosqueeDashboard,
   PaymentRecord,
   Period,
+  ParentRecord,
+  ParentStudentRelation,
   RecoveryDashboard,
   ReportCard,
   SchoolYear,
@@ -28,6 +30,8 @@ export type PreviewAppData = {
   subjects: Subject[];
   periods: Period[];
   students: Student[];
+  parents: ParentRecord[];
+  parentRelations: ParentStudentRelation[];
   enrollments: Enrollment[];
   feePlans: FeePlan[];
   invoices: Invoice[];
@@ -50,11 +54,18 @@ export const createPreviewAppData = (
   const previewCycleSecondaryId = "preview-cycle-secondary";
   const previewLevelPrimaryId = "preview-level-cm2";
   const previewLevelSecondaryId = "preview-level-6e";
+  const previewLevelArabophoneId = "preview-level-ar5";
   const previewClassPrimaryId = "preview-class-cm2a";
   const previewClassSecondaryId = "preview-class-6ea";
+  const previewClassArabophoneId = "preview-class-ar5a";
   const previewPeriodId = "preview-period-t1";
   const previewStudentAId = "preview-student-a";
   const previewStudentBId = "preview-student-b";
+  const previewStudentCId = "preview-student-c";
+  const previewParentAId = "preview-parent-a";
+  const previewParentB1Id = "preview-parent-b1";
+  const previewParentB2Id = "preview-parent-b2";
+  const previewParentUserAId = "preview-user-parent-a";
 
   return {
     session: {
@@ -129,6 +140,18 @@ export const createPreviewAppData = (
         status: "ACTIVE",
         theoreticalAge: 11,
         defaultSection: "College"
+      },
+      {
+        id: previewLevelArabophoneId,
+        cycleId: previewCyclePrimaryId,
+        code: "AR5",
+        label: "Arabe 5",
+        alias: "Arabe 5",
+        track: "ARABOPHONE",
+        sortOrder: 6,
+        status: "ACTIVE",
+        theoreticalAge: 10,
+        defaultSection: "Arabe"
       }
     ],
     classes: [
@@ -160,6 +183,21 @@ export const createPreviewAppData = (
         mainRoom: "Salle C-06",
         actualCapacity: 33,
         description: "Classe d'entree au college",
+        teachingMode: "PRESENTIAL"
+      },
+      {
+        id: previewClassArabophoneId,
+        schoolYearId: previewSchoolYearId,
+        levelId: previewLevelArabophoneId,
+        code: "AR5-A",
+        label: "Arabe 5 A",
+        track: "ARABOPHONE",
+        capacity: 28,
+        status: "ACTIVE",
+        homeroomTeacherName: "Mme Diakite",
+        mainRoom: "Salle A-01",
+        actualCapacity: 24,
+        description: "Groupe arabophone rattache aux inscriptions",
         teachingMode: "PRESENTIAL"
       }
     ],
@@ -235,24 +273,298 @@ export const createPreviewAppData = (
         matricule: "GS-2025-001",
         firstName: "Aicha",
         lastName: "Diallo",
+        fullName: "Aicha Diallo",
         sex: "F",
-        birthDate: "2014-05-12"
+        birthDate: "2014-05-12",
+        status: "ACTIVE",
+        tracks: ["FRANCOPHONE", "ARABOPHONE"],
+        placements: [
+          {
+            placementId: "preview-placement-a-fr",
+            track: "FRANCOPHONE",
+            placementStatus: "ACTIVE",
+            isPrimary: true,
+            schoolYearId: previewSchoolYearId,
+            schoolYearCode: "2025-2026",
+            levelId: previewLevelPrimaryId,
+            levelLabel: "CM2",
+            classId: previewClassPrimaryId,
+            classLabel: "CM2 A"
+          },
+          {
+            placementId: "preview-placement-a-ar",
+            track: "ARABOPHONE",
+            placementStatus: "ACTIVE",
+            isPrimary: false,
+            schoolYearId: previewSchoolYearId,
+            schoolYearCode: "2025-2026",
+            levelId: previewLevelArabophoneId,
+            levelLabel: "Arabe 5",
+            classId: previewClassArabophoneId,
+            classLabel: "Arabe 5 A"
+          }
+        ],
+        parents: [
+          {
+            linkId: "preview-parent-link-a",
+            parentId: previewParentAId,
+            parentName: "Mariam Diallo",
+            relationType: "MERE",
+            isPrimaryContact: true,
+            legalGuardian: true,
+            financialResponsible: true,
+            emergencyContact: true,
+            status: "ACTIVE"
+          }
+        ]
       },
       {
         id: previewStudentBId,
         matricule: "GS-2025-002",
         firstName: "Moussa",
         lastName: "Traore",
+        fullName: "Moussa Traore",
         sex: "M",
-        birthDate: "2013-11-03"
+        birthDate: "2013-11-03",
+        status: "ACTIVE",
+        tracks: ["FRANCOPHONE"],
+        placements: [
+          {
+            placementId: "preview-placement-b-fr",
+            track: "FRANCOPHONE",
+            placementStatus: "ACTIVE",
+            isPrimary: true,
+            schoolYearId: previewSchoolYearId,
+            schoolYearCode: "2025-2026",
+            levelId: previewLevelSecondaryId,
+            levelLabel: "6e",
+            classId: previewClassSecondaryId,
+            classLabel: "6e A"
+          }
+        ],
+        parents: [
+          {
+            linkId: "preview-parent-link-b1",
+            parentId: previewParentB1Id,
+            parentName: "Ousmane Traore",
+            relationType: "PERE",
+            isPrimaryContact: true,
+            legalGuardian: true,
+            financialResponsible: true,
+            emergencyContact: true,
+            status: "ACTIVE"
+          },
+          {
+            linkId: "preview-parent-link-b2",
+            parentId: previewParentB2Id,
+            parentName: "Fatou Traore",
+            relationType: "MERE",
+            isPrimaryContact: false,
+            legalGuardian: true,
+            financialResponsible: false,
+            emergencyContact: true,
+            status: "ACTIVE"
+          }
+        ]
       },
       {
-        id: "preview-student-c",
+        id: previewStudentCId,
         matricule: "GS-2025-003",
         firstName: "Khadija",
         lastName: "Sow",
+        fullName: "Khadija Sow",
         sex: "F",
-        birthDate: "2015-02-21"
+        birthDate: "2015-02-21",
+        status: "PENDING",
+        tracks: [],
+        placements: []
+      }
+    ],
+    parents: [
+      {
+        id: previewParentAId,
+        tenantId,
+        parentalRole: "MERE",
+        firstName: "Mariam",
+        lastName: "Diallo",
+        fullName: "Mariam Diallo",
+        sex: "F",
+        primaryPhone: "+221 77 120 45 18",
+        secondaryPhone: "+221 76 410 11 20",
+        email: "mariam.diallo@example.com",
+        address: "Parcelle 14, Dakar",
+        profession: "Commerçante",
+        identityDocumentType: "CNI",
+        identityDocumentNumber: "SN-AD-001",
+        status: "ACTIVE",
+        establishmentId: "preview-establishment-main",
+        userId: previewParentUserAId,
+        userUsername: "parent.diallo",
+        notes: "Contact prioritaire pour les convocations.",
+        childrenCount: 1,
+        primaryChildrenCount: 1,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      },
+      {
+        id: previewParentB1Id,
+        tenantId,
+        parentalRole: "PERE",
+        firstName: "Ousmane",
+        lastName: "Traore",
+        fullName: "Ousmane Traore",
+        sex: "M",
+        primaryPhone: "+221 78 200 33 44",
+        email: "ousmane.traore@example.com",
+        address: "Sicap Liberté 2, Dakar",
+        profession: "Technicien",
+        identityDocumentType: "Passeport",
+        identityDocumentNumber: "PT-77820",
+        status: "ACTIVE",
+        establishmentId: "preview-establishment-main",
+        notes: "Responsable financier principal.",
+        childrenCount: 1,
+        primaryChildrenCount: 1,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      },
+      {
+        id: previewParentB2Id,
+        tenantId,
+        parentalRole: "MERE",
+        firstName: "Fatou",
+        lastName: "Traore",
+        fullName: "Fatou Traore",
+        sex: "F",
+        primaryPhone: "+221 77 600 22 11",
+        address: "Sicap Liberté 2, Dakar",
+        profession: "Infirmière",
+        status: "ACTIVE",
+        establishmentId: "preview-establishment-main",
+        childrenCount: 1,
+        primaryChildrenCount: 0,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      }
+    ],
+    parentRelations: [
+      {
+        id: "preview-parent-link-a",
+        tenantId,
+        parentId: previewParentAId,
+        studentId: previewStudentAId,
+        relationType: "MERE",
+        isPrimary: true,
+        isPrimaryContact: true,
+        livesWithStudent: true,
+        pickupAuthorized: true,
+        legalGuardian: true,
+        financialResponsible: true,
+        emergencyContact: true,
+        status: "ACTIVE",
+        parentName: "Mariam Diallo",
+        parentUsername: "parent.diallo",
+        studentMatricule: "GS-2025-001",
+        studentName: "Aicha Diallo",
+        studentTracks: ["FRANCOPHONE", "ARABOPHONE"],
+        studentPlacements: [
+          {
+            placementId: "preview-placement-a-fr",
+            track: "FRANCOPHONE",
+            placementStatus: "ACTIVE",
+            isPrimary: true,
+            schoolYearId: previewSchoolYearId,
+            schoolYearCode: "2025-2026",
+            levelId: previewLevelPrimaryId,
+            levelLabel: "CM2",
+            classId: previewClassPrimaryId,
+            classLabel: "CM2 A"
+          },
+          {
+            placementId: "preview-placement-a-ar",
+            track: "ARABOPHONE",
+            placementStatus: "ACTIVE",
+            isPrimary: false,
+            schoolYearId: previewSchoolYearId,
+            schoolYearCode: "2025-2026",
+            levelId: previewLevelArabophoneId,
+            levelLabel: "Arabe 5",
+            classId: previewClassArabophoneId,
+            classLabel: "Arabe 5 A"
+          }
+        ],
+        createdAt: nowIso,
+        updatedAt: nowIso
+      },
+      {
+        id: "preview-parent-link-b1",
+        tenantId,
+        parentId: previewParentB1Id,
+        studentId: previewStudentBId,
+        relationType: "PERE",
+        isPrimary: true,
+        isPrimaryContact: true,
+        livesWithStudent: true,
+        pickupAuthorized: true,
+        legalGuardian: true,
+        financialResponsible: true,
+        emergencyContact: true,
+        status: "ACTIVE",
+        parentName: "Ousmane Traore",
+        studentMatricule: "GS-2025-002",
+        studentName: "Moussa Traore",
+        studentTracks: ["FRANCOPHONE"],
+        studentPlacements: [
+          {
+            placementId: "preview-placement-b-fr",
+            track: "FRANCOPHONE",
+            placementStatus: "ACTIVE",
+            isPrimary: true,
+            schoolYearId: previewSchoolYearId,
+            schoolYearCode: "2025-2026",
+            levelId: previewLevelSecondaryId,
+            levelLabel: "6e",
+            classId: previewClassSecondaryId,
+            classLabel: "6e A"
+          }
+        ],
+        createdAt: nowIso,
+        updatedAt: nowIso
+      },
+      {
+        id: "preview-parent-link-b2",
+        tenantId,
+        parentId: previewParentB2Id,
+        studentId: previewStudentBId,
+        relationType: "MERE",
+        isPrimary: false,
+        isPrimaryContact: false,
+        livesWithStudent: true,
+        pickupAuthorized: true,
+        legalGuardian: true,
+        financialResponsible: false,
+        emergencyContact: true,
+        status: "ACTIVE",
+        parentName: "Fatou Traore",
+        studentMatricule: "GS-2025-002",
+        studentName: "Moussa Traore",
+        studentTracks: ["FRANCOPHONE"],
+        studentPlacements: [
+          {
+            placementId: "preview-placement-b-fr",
+            track: "FRANCOPHONE",
+            placementStatus: "ACTIVE",
+            isPrimary: true,
+            schoolYearId: previewSchoolYearId,
+            schoolYearCode: "2025-2026",
+            levelId: previewLevelSecondaryId,
+            levelLabel: "6e",
+            classId: previewClassSecondaryId,
+            classLabel: "6e A"
+          }
+        ],
+        createdAt: nowIso,
+        updatedAt: nowIso
       }
     ],
     enrollments: [
@@ -262,10 +574,26 @@ export const createPreviewAppData = (
         classId: previewClassPrimaryId,
         studentId: previewStudentAId,
         track: "FRANCOPHONE",
+        placementId: "preview-placement-a-fr",
+        isPrimary: true,
         enrollmentDate: "2025-09-12",
         enrollmentStatus: "ENROLLED",
         studentName: "Aicha Diallo",
         classLabel: "CM2 A",
+        schoolYearCode: "2025-2026"
+      },
+      {
+        id: "preview-enrollment-a-ar",
+        schoolYearId: previewSchoolYearId,
+        classId: previewClassArabophoneId,
+        studentId: previewStudentAId,
+        track: "ARABOPHONE",
+        placementId: "preview-placement-a-ar",
+        isPrimary: false,
+        enrollmentDate: "2025-09-12",
+        enrollmentStatus: "ENROLLED",
+        studentName: "Aicha Diallo",
+        classLabel: "Arabe 5 A",
         schoolYearCode: "2025-2026"
       },
       {
@@ -274,6 +602,8 @@ export const createPreviewAppData = (
         classId: previewClassSecondaryId,
         studentId: previewStudentBId,
         track: "FRANCOPHONE",
+        placementId: "preview-placement-b-fr",
+        isPrimary: true,
         enrollmentDate: "2025-09-12",
         enrollmentStatus: "ENROLLED",
         studentName: "Moussa Traore",
@@ -428,6 +758,20 @@ export const createPreviewAppData = (
         tenantId,
         username: "scolarite.preview",
         role: "SCOLARITE",
+        isActive: true,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      },
+      {
+        id: previewParentUserAId,
+        tenantId,
+        username: "parent.diallo",
+        role: "PARENT",
+        accountType: "PARENT",
+        email: "mariam.diallo@example.com",
+        phone: "+221 77 120 45 18",
+        displayName: "Mariam Diallo",
+        parentId: previewParentAId,
         isActive: true,
         createdAt: nowIso,
         updatedAt: nowIso

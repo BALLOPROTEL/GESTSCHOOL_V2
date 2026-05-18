@@ -21,9 +21,42 @@
   padding-top: 0.9rem;
 }
 
+.parents-screen-shell .parents-form {
+  display: grid;
+  gap: clamp(0.86rem, 1.2vw, 1.05rem);
+}
+
+.parents-screen-shell .parents-form-section > .students-form-grid {
+  grid-column: 1 / -1;
+}
+
+.parents-screen-shell .parents-form .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.58rem;
+  align-items: center;
+}
+
+.parents-screen-shell .form-help {
+  margin: 0;
+  color: color-mix(in srgb, var(--flexadm-surface-copy-soft) 88%, transparent);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+:root:not([data-theme="dark"]) .parents-screen-shell .form-help {
+  color: #475569;
+}
+
 .parents-screen-shell .check-row {
   min-height: 2.85rem;
   align-items: center;
+}
+
+.parents-screen-shell td[data-label="Téléphone"],
+.parents-screen-shell td[data-label="Portail"] {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .parents-screen-shell td:first-child {
@@ -32,4 +65,22 @@
 
 .parents-screen-shell .button-danger {
   min-height: 2.35rem;
+}
+
+@media (max-width: 760px) {
+  :root:not([data-theme="dark"]) .parents-screen-shell .table-wrap table[data-responsive-table="true"] tr {
+    border-color: color-mix(in srgb, var(--flexadm-surface-border) 72%, transparent);
+    background: #ffffff !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  :root:not([data-theme="dark"]) .parents-screen-shell .table-wrap table[data-responsive-table="true"] td,
+  :root:not([data-theme="dark"]) .parents-screen-shell .table-wrap table[data-responsive-table="true"] td:first-child {
+    border-bottom-color: color-mix(in srgb, var(--flexadm-surface-border) 52%, transparent);
+    color: #0f172a !important;
+  }
+
+  :root:not([data-theme="dark"]) .parents-screen-shell .table-wrap table[data-responsive-table="true"] td::before {
+    color: #64748b !important;
+  }
 }

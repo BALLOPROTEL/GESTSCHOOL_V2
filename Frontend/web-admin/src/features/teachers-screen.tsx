@@ -74,12 +74,26 @@ type TeachersScreenProps = {
   subjects: Subject[];
   users: UserAccount[];
   language?: UiLanguage;
+  remoteEnabled?: boolean;
   onError: (message: string) => void;
   onNotice: (message: string) => void;
 };
 
 export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
-  const { api, classes, cycles, language = "fr", levels, onError, onNotice, periods, schoolYears, subjects, users } = props;
+  const {
+    api,
+    classes,
+    cycles,
+    language = "fr",
+    levels,
+    onError,
+    onNotice,
+    periods,
+    remoteEnabled = true,
+    schoolYears,
+    subjects,
+    users
+  } = props;
   const [activeStep, setActiveStep] = useState("list");
   const [teachers, setTeachers] = useState<TeacherRecord[]>([]);
   const [skills, setSkills] = useState<TeacherSkillRecord[]>([]);
@@ -121,6 +135,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   ];
 
   const loadTeachers = async (): Promise<void> => {
+    if (!remoteEnabled) return;
     try {
       const rows = await fetchTeachers(api, filters);
       setTeachers(rows);
@@ -131,6 +146,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   };
 
   const loadModule = async (): Promise<void> => {
+    if (!remoteEnabled) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await fetchTeachersModule(api, activeSchoolYear?.id);
@@ -149,6 +168,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
   const loadDetail = async (teacherId: string): Promise<void> => {
     if (!teacherId) return;
+    if (!remoteEnabled) return;
     try {
       setDetail(await fetchTeacherDetail(api, teacherId));
     } catch (error) {
@@ -200,6 +220,13 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       userId: emptyToUndefined(teacherForm.userId),
       internalNotes: emptyToUndefined(teacherForm.internalNotes)
     };
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : fiche enseignant non persistée.");
+      setEditingTeacherId(null);
+      setTeacherForm(defaultTeacherForm());
+      setActiveStep("list");
+      return;
+    }
     let saved: TeacherRecord;
     try {
       saved = await saveTeacher(api, editingTeacherId, payload);
@@ -217,6 +244,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
   const submitSkill = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : compétence enseignant non persistée.");
+      return;
+    }
     try {
       await createTeacherSkill(api, {
         teacherId: skillForm.teacherId,
@@ -241,6 +272,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
   const submitAssignment = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : affectation enseignant non persistée.");
+      return;
+    }
     try {
       await createTeacherAssignment(api, {
         teacherId: assignmentForm.teacherId,
@@ -301,6 +336,12 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       return;
     }
     if (!documentFile) return;
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : document enseignant non persisté.");
+      clearDocumentFile();
+      setDocumentForm((prev) => ({ ...defaultDocumentForm(), teacherId: prev.teacherId }));
+      return;
+    }
     setDocumentUploading(true);
     try {
       const descriptor = await createTeacherDocumentUploadDescriptor(api, documentForm.teacherId, {
@@ -363,6 +404,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
   const archiveResource = async (path: string, successMessage: string, confirmMessage?: string): Promise<void> => {
     if (confirmMessage && !window.confirm(translate(confirmMessage))) return;
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : suppression enseignant non persistée.");
+      return;
+    }
     try {
       await deleteTeacherResource(api, path);
     } catch (error) {
@@ -376,6 +421,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   const openDetail = (teacherId: string): void => {
     setSelectedTeacherId(teacherId);
     setActiveStep("detail");
+    if (!remoteEnabled) return;
     void loadDetail(teacherId);
   };
 
