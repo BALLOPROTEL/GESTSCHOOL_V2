@@ -286,8 +286,8 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
             <img src={logoSrc} alt={logoAlt} />
           </span>
           <span className="global-brand-copy">
-            <strong>GestSchool</strong>
-            <small>{brandName}</small>
+            <strong>{brandName}</strong>
+            <small>Administration scolaire</small>
           </span>
         </button>
 
@@ -471,7 +471,9 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
 
       <HeaderMobilePanel
         brandLogoSrc={logoSrc}
+        brandName={brandName}
         isOpen={mobileOpen}
+        logoAlt={logoAlt}
         messages={messages}
         notifications={notifications}
         onClose={() => setMobileOpen(false)}

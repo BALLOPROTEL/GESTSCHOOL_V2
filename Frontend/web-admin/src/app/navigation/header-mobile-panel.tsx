@@ -15,6 +15,7 @@ type HeaderMobileSection = {
 
 export function HeaderMobilePanel(props: {
   brandLogoSrc: string;
+  brandName: string;
   isOpen: boolean;
   logoAlt?: string;
   messages: {
@@ -42,6 +43,7 @@ export function HeaderMobilePanel(props: {
 }): JSX.Element {
   const {
     brandLogoSrc,
+    brandName,
     isOpen,
     logoAlt,
     messages,
@@ -63,7 +65,7 @@ export function HeaderMobilePanel(props: {
       role="dialog"
       aria-modal="true"
       aria-hidden={!isOpen}
-      aria-label="Navigation mobile GestSchool"
+      aria-label={`Navigation mobile ${brandName}`}
     >
       <div className="header-mobile-panel-head">
         <div className="header-mobile-brand">
@@ -71,7 +73,7 @@ export function HeaderMobilePanel(props: {
             <img src={brandLogoSrc} alt={logoAlt || ""} aria-hidden={!logoAlt} />
           </span>
           <div>
-            <strong>GestSchool</strong>
+            <strong>{brandName}</strong>
             <small>{user.roleLabel}</small>
           </div>
         </div>

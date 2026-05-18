@@ -521,6 +521,10 @@ body {
 
 .global-brand-copy strong {
   font-size: 0.9rem;
+  max-width: clamp(9rem, 14vw, 13rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .global-brand-copy small {
@@ -1131,6 +1135,93 @@ textarea {
   border-color: var(--erp-border-strong);
   background: #eef3f7;
   color: var(--erp-text-strong);
+}
+
+.finance-screen-shell .metric-card strong,
+.finance-screen-shell .module-overview-card strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.finance-screen-shell .finance-payment-context {
+  grid-column: span 4;
+  width: 100%;
+  min-height: 4.1rem;
+  padding: 0.9rem 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  align-items: center;
+  gap: 0.45rem 0.85rem;
+  justify-self: stretch;
+  border: 1px solid color-mix(in srgb, var(--erp-primary) 34%, var(--erp-border));
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--erp-primary-soft) 58%, var(--erp-surface));
+}
+
+.finance-screen-shell .finance-payment-context strong {
+  color: var(--erp-muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.finance-screen-shell .finance-payment-context span {
+  color: var(--erp-text);
+  font-size: 1.05rem;
+  font-weight: 900;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.finance-screen-shell .finance-safe-note {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.42rem 0.72rem;
+  border: 1px solid color-mix(in srgb, var(--erp-border) 72%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--erp-surface-raised) 78%, transparent);
+  color: var(--erp-text);
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.finance-screen-shell .finance-action-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.72rem;
+}
+
+.finance-screen-shell .status-pill {
+  white-space: nowrap;
+}
+
+:root:not([data-theme="dark"]) .finance-screen-shell .finance-safe-note,
+:root:not([data-theme="dark"]) .finance-screen-shell .finance-payment-context {
+  background: #ffffff;
+  color: var(--erp-text);
+}
+
+@media (max-width: 1180px) {
+  .module-form.form-grid > .finance-payment-context {
+    grid-column: span 6;
+  }
+}
+
+@media (max-width: 760px) {
+  .finance-screen-shell .finance-payment-context {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+
+  .finance-screen-shell .finance-payment-context span {
+    text-align: left;
+  }
 }
 
 .parents-screen-shell .students-form-grid > .check-row {

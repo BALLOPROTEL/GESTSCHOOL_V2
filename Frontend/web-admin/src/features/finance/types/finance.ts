@@ -34,5 +34,19 @@ export type PaymentForm = {
   invoiceId: string;
   paidAmount: string;
   paymentMethod: "CASH" | "MOBILE_MONEY" | "BANK";
+  paidAt: string;
   referenceExternal: string;
+};
+
+export type PaydunyaAttempt = {
+  id: string;
+  invoiceId: string;
+  invoiceNo?: string;
+  provider: string;
+  mode: string;
+  providerStatus: string;
+  amount: number;
+  currency: string;
+  checkoutUrl?: string;
+  failureReason?: string;
 };

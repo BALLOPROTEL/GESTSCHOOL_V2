@@ -4,7 +4,7 @@ import type {
   PaymentRecord,
   RecoveryDashboard
 } from "../../../shared/types/app";
-import type { FinanceApiClient, FinanceData } from "../types/finance";
+import type { FinanceApiClient, FinanceData, PaydunyaAttempt } from "../types/finance";
 
 export const parseFinanceError = async (response: Response): Promise<string> => {
   try {
@@ -55,13 +55,6 @@ export const createFeePlan = async (
   return (await response.json()) as FeePlan;
 };
 
-export const removeFeePlan = async (api: FinanceApiClient, id: string): Promise<void> => {
-  const response = await api(`/fee-plans/${id}`, { method: "DELETE" });
-  if (!response.ok) {
-    throw new Error(await parseFinanceError(response));
-  }
-};
-
 export const createInvoice = async (
   api: FinanceApiClient,
   payload: Record<string, unknown>
@@ -76,11 +69,19 @@ export const createInvoice = async (
   return (await response.json()) as Invoice;
 };
 
-export const removeInvoice = async (api: FinanceApiClient, id: string): Promise<void> => {
-  const response = await api(`/invoices/${id}`, { method: "DELETE" });
+export const updateInvoiceStatus = async (
+  api: FinanceApiClient,
+  id: string,
+  status: "OPEN" | "PARTIAL" | "PAID" | "VOID"
+): Promise<Invoice> => {
+  const response = await api(`/invoices/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status })
+  });
   if (!response.ok) {
     throw new Error(await parseFinanceError(response));
   }
+  return (await response.json()) as Invoice;
 };
 
 export const createPayment = async (
@@ -95,6 +96,20 @@ export const createPayment = async (
     throw new Error(await parseFinanceError(response));
   }
   return (await response.json()) as PaymentRecord;
+};
+
+export const initiatePaydunyaPayment = async (
+  api: FinanceApiClient,
+  invoiceId: string
+): Promise<PaydunyaAttempt> => {
+  const response = await api("/payments/paydunya/initiate", {
+    method: "POST",
+    body: JSON.stringify({ invoiceId })
+  });
+  if (!response.ok) {
+    throw new Error(await parseFinanceError(response));
+  }
+  return (await response.json()) as PaydunyaAttempt;
 };
 
 export const fetchPaymentReceipt = async (
