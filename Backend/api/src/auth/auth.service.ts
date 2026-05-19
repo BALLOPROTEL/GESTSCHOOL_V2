@@ -491,19 +491,23 @@ export class AuthService {
       timeStyle: "short",
       timeZone: this.configService.get<string>("APP_TIMEZONE", "Europe/Paris")
     }).format(expiresAt);
+    const title = "Activation de votre compte GestSchool";
+    const intro = "Un compte a été créé pour vous sur GestSchool - Al Manarat Islamiyat.";
+    const instruction =
+      "Pour finaliser votre première connexion, cliquez sur le bouton ci-dessous.";
 
     await this.notificationGateway.dispatch({
       notificationId: randomUUID(),
       tenantId: user.tenantId,
       channel: "EMAIL",
       targetAddress,
-      title: "Activation de votre compte GestSchool",
+      title,
       message: [
         `Bonjour ${displayName},`,
         "",
-        "Un compte a été créé pour vous sur GestSchool - Al Manarat Islamiyat.",
+        intro,
         "",
-        "Pour finaliser votre première connexion, cliquez sur le lien ci-dessous :",
+        instruction,
         activationUrl,
         "",
         `Ce lien expire le ${expirationDate}.`,
@@ -511,7 +515,16 @@ export class AuthService {
         "Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.",
         "",
         "Al Manarat Islamiyat"
-      ].join("\n")
+      ].join("\n"),
+      htmlMessage: this.buildAuthEmailHtml({
+        buttonLabel: "Activer mon compte",
+        displayName,
+        expirationDate,
+        intro,
+        securityNote: "Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.",
+        title,
+        url: activationUrl
+      })
     });
   }
 
@@ -528,19 +541,23 @@ export class AuthService {
       timeStyle: "short",
       timeZone: this.configService.get<string>("APP_TIMEZONE", "Europe/Paris")
     }).format(expiresAt);
+    const title = "Réinitialisation de votre mot de passe GestSchool";
+    const intro = "Vous avez demandé la réinitialisation de votre mot de passe GestSchool.";
+    const instruction =
+      "Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.";
 
     await this.notificationGateway.dispatch({
       notificationId: randomUUID(),
       tenantId: user.tenantId,
       channel: "EMAIL",
       targetAddress,
-      title: "Réinitialisation de votre mot de passe GestSchool",
+      title,
       message: [
         `Bonjour ${displayName},`,
         "",
-        "Vous avez demandé la réinitialisation de votre mot de passe GestSchool.",
+        intro,
         "",
-        "Cliquez sur le lien ci-dessous pour choisir un nouveau mot de passe :",
+        instruction,
         resetUrl,
         "",
         `Ce lien expire le ${expirationDate}.`,
@@ -548,8 +565,124 @@ export class AuthService {
         "Si vous n’avez pas demandé cette opération, ignorez cet email.",
         "",
         "Al Manarat Islamiyat"
-      ].join("\n")
+      ].join("\n"),
+      htmlMessage: this.buildAuthEmailHtml({
+        buttonLabel: "Réinitialiser mon mot de passe",
+        displayName,
+        expirationDate,
+        intro,
+        securityNote: "Si vous n’avez pas demandé cette opération, ignorez cet email.",
+        title,
+        url: resetUrl
+      })
     });
+  }
+
+  private buildAuthEmailHtml(input: {
+    buttonLabel: string;
+    displayName: string;
+    expirationDate: string;
+    intro: string;
+    securityNote: string;
+    title: string;
+    url: string;
+  }): string {
+    const logoUrl = this.emailLogoUrl();
+    const safeButtonLabel = this.escapeHtml(input.buttonLabel);
+    const safeDisplayName = this.escapeHtml(input.displayName);
+    const safeExpirationDate = this.escapeHtml(input.expirationDate);
+    const safeIntro = this.escapeHtml(input.intro);
+    const safeSecurityNote = this.escapeHtml(input.securityNote);
+    const safeTitle = this.escapeHtml(input.title);
+    const safeUrl = this.escapeHtml(input.url);
+
+    return `<!doctype html>
+<html lang="fr">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f8fb;color:#101828;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:#f4f8fb;margin:0;padding:0;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;border-collapse:collapse;">
+            <tr>
+              <td style="padding:0 0 18px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td style="width:64px;height:64px;border-radius:18px;background:#ffffff;border:1px solid #d8e6f3;box-shadow:0 8px 20px rgba(16,24,40,0.08);text-align:center;vertical-align:middle;">
+                      <img src="${this.escapeHtml(logoUrl)}" width="56" height="56" alt="Al Manarat Islamiyat" style="display:block;width:56px;height:56px;object-fit:contain;margin:4px auto;border:0;" />
+                    </td>
+                    <td style="padding-left:14px;vertical-align:middle;">
+                      <div style="font-size:20px;font-weight:800;line-height:1.2;color:#07111f;">Al Manarat Islamiyat</div>
+                      <div style="font-size:13px;font-weight:600;line-height:1.45;color:#667085;">GestSchool - Espace sécurisé</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#ffffff;border:1px solid #d7e4f2;border-radius:22px;box-shadow:0 20px 44px rgba(16,24,40,0.10);overflow:hidden;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="height:8px;background:#51CED8;font-size:0;line-height:0;">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:34px 34px 28px 34px;">
+                      <p style="margin:0 0 12px 0;color:#00576b;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">Compte sécurisé</p>
+                      <h1 style="margin:0 0 18px 0;color:#07111f;font-size:28px;line-height:1.18;font-weight:800;">${safeTitle}</h1>
+                      <p style="margin:0 0 14px 0;color:#344054;font-size:16px;line-height:1.65;">Bonjour ${safeDisplayName},</p>
+                      <p style="margin:0 0 22px 0;color:#344054;font-size:16px;line-height:1.65;">${safeIntro}</p>
+                      <p style="margin:0 0 26px 0;color:#344054;font-size:16px;line-height:1.65;">Cliquez sur le bouton ci-dessous pour continuer.</p>
+                      <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 0 26px 0;">
+                        <tr>
+                          <td bgcolor="#51CED8" style="border-radius:14px;background:#51CED8;">
+                            <a href="${safeUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:15px 24px;border-radius:14px;background:#51CED8;color:#07111f;font-size:16px;font-weight:800;text-decoration:none;">${safeButtonLabel}</a>
+                          </td>
+                        </tr>
+                      </table>
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:0 0 22px 0;">
+                        <tr>
+                          <td style="padding:16px 18px;border-radius:14px;background:#f7fbfc;border:1px solid #d9edf1;">
+                            <p style="margin:0;color:#475467;font-size:14px;line-height:1.55;">Si le bouton ne s’affiche pas correctement, <a href="${safeUrl}" target="_blank" rel="noopener" style="color:#006b80;font-weight:800;text-decoration:underline;">cliquez ici</a>.</p>
+                          </td>
+                        </tr>
+                      </table>
+                      <p style="margin:0 0 18px 0;color:#667085;font-size:14px;line-height:1.55;">Ce lien expire le <strong style="color:#344054;">${safeExpirationDate}</strong>.</p>
+                      <p style="margin:0;color:#667085;font-size:14px;line-height:1.55;">${safeSecurityNote}</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:18px 10px 0 10px;color:#98a2b3;font-size:12px;line-height:1.55;">
+                © Al Manarat Islamiyat. Email automatique, merci de ne pas répondre.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+  }
+
+  private emailLogoUrl(): string {
+    const configured = this.configService.get<string>("EMAIL_BRAND_LOGO_URL", "").trim();
+    if (configured) return configured;
+    return `${this.resolvePublicBaseUrl()}/logo.png`;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   private buildPublicUrl(path: "/activate" | "/reset-password", token: string): string {

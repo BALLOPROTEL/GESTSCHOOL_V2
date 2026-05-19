@@ -18,6 +18,7 @@ export type DispatchNotificationInput = {
   channel: NotificationChannel;
   title: string;
   message: string;
+  htmlMessage?: string;
   targetAddress?: string;
 };
 
@@ -97,7 +98,7 @@ export class NotificationGatewayService {
           to: [{ email: payload.targetAddress }],
           subject: payload.title,
           textContent: payload.message,
-          htmlContent: this.toBasicHtml(payload.message),
+          htmlContent: payload.htmlMessage || this.toBasicHtml(payload.message),
           tags: ["gestschool", payload.tenantId]
         })
       }
@@ -190,7 +191,8 @@ export class NotificationGatewayService {
           channel,
           to: payload.targetAddress,
           title: payload.title,
-          message: payload.message
+          message: payload.message,
+          htmlMessage: payload.htmlMessage
         })
       });
 

@@ -43,6 +43,7 @@ Backend/runtime:
 - `ACCOUNT_ACTIVATION_EXPIRES_IN=48h`
 - `AUTH_PUBLIC_BASE_URL=https://gestschool.vercel.app`
 - `AUTH_PUBLIC_BASE_URL` must be a public HTTPS frontend URL in production. The API rejects local URLs such as `localhost` for activation and password reset emails.
+- `EMAIL_BRAND_LOGO_URL` optional. Leave empty to use `${AUTH_PUBLIC_BASE_URL}/logo.png` in activation and reset-password emails.
 - `MONITORING_METRICS_TOKEN`
 
 Supabase Storage:

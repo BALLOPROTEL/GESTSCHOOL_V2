@@ -229,6 +229,10 @@ describe("Auth + access guards (e2e)", () => {
 
       expect(lastEmail.message).toContain("https://gestschool.vercel.app/reset-password?token=");
       expect(lastEmail.message).not.toContain("localhost");
+      expect(lastEmail.htmlMessage ?? "").toContain("Al Manarat Islamiyat");
+      expect(lastEmail.htmlMessage ?? "").toContain("Réinitialiser mon mot de passe");
+      expect(lastEmail.htmlMessage ?? "").toContain("cliquez ici");
+      expect(lastEmail.htmlMessage ?? "").toContain("https://gestschool.vercel.app/logo.png");
 
       await context.prisma.user.create({
         data: {
@@ -259,6 +263,10 @@ describe("Auth + access guards (e2e)", () => {
         "https://gestschool.vercel.app/activate?token="
       );
       expect(lastActivationEmail.message).not.toContain("localhost");
+      expect(lastActivationEmail.htmlMessage ?? "").toContain("Al Manarat Islamiyat");
+      expect(lastActivationEmail.htmlMessage ?? "").toContain("Activer mon compte");
+      expect(lastActivationEmail.htmlMessage ?? "").toContain("cliquez ici");
+      expect(lastActivationEmail.htmlMessage ?? "").toContain("https://gestschool.vercel.app/logo.png");
     } finally {
       if (previousNodeEnv === undefined) {
         delete process.env.NODE_ENV;
