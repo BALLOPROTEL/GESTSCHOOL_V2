@@ -37,6 +37,12 @@ services:
         value: 1h
       - key: PASSWORD_RESET_DEV_EXPOSE_TOKEN
         value: "false"
+      - key: PASSWORD_RESET_EXPIRES_IN
+        value: 30m
+      - key: ACCOUNT_ACTIVATION_EXPIRES_IN
+        value: 48h
+      - key: AUTH_PUBLIC_BASE_URL
+        value: https://gestschool.vercel.app
       - key: REFRESH_TOKEN_TTL_DAYS
         value: "30"
       - key: DEFAULT_TENANT_ID

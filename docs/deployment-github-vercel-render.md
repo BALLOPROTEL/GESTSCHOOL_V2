@@ -15,6 +15,7 @@ Le service utilise:
 - `plan: free`
 - `healthCheckPath: /api/v1/health/live`
 - `startCommand: pnpm render:start:api`
+- `buildCommand: pnpm render:build:api`, qui lance `prisma generate`, `prisma migrate deploy`, puis le build API
 
 Le worker separe n'est pas requis dans ce contexte. L'API peut traiter l'outbox en mode in-process leger:
 - `NOTIFICATIONS_WORKER_ENABLED=false`
@@ -38,6 +39,9 @@ Backend/runtime:
 - `CORS_ORIGINS=https://gestschool.vercel.app`
 - `JWT_SECRET`
 - `PASSWORD_RESET_SECRET`
+- `PASSWORD_RESET_EXPIRES_IN=30m`
+- `ACCOUNT_ACTIVATION_EXPIRES_IN=48h`
+- `AUTH_PUBLIC_BASE_URL=https://gestschool.vercel.app`
 - `MONITORING_METRICS_TOKEN`
 
 Supabase Storage:
@@ -94,6 +98,7 @@ The endpoint only returns booleans and enabled/disabled status. It must not retu
 ## Post-Deployment Checklist
 
 API:
+- Render build logs show `prisma migrate deploy` applied or confirmed all migrations
 - `GET https://gestschool-ylik.onrender.com/api/v1/health/live`
 - `GET https://gestschool-ylik.onrender.com/api/v1/health/ready`
 - provider check endpoint returns expected booleans
