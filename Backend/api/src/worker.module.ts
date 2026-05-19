@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 
 import { BackgroundModule } from "./background/background.module";
+import { resolveEnvFilePath } from "./config/env-file-path";
 import { DatabaseModule } from "./database/database.module";
 import { RedisModule } from "./infrastructure/redis/redis.module";
 import { ObservabilityModule } from "./observability/observability.module";
@@ -11,7 +12,7 @@ import { NotificationWorkerService } from "./school-life/notification-worker.ser
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [".env", ".env.example", "../../.env", "../../.env.example"]
+      envFilePath: resolveEnvFilePath()
     }),
     DatabaseModule,
     RedisModule,

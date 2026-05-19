@@ -553,17 +553,74 @@ export class AuthService {
   }
 
   private buildPublicUrl(path: "/activate" | "/reset-password", token: string): string {
-    const baseUrl = this.configService
-      .get<string>(
-        "AUTH_PUBLIC_BASE_URL",
-        this.configService.get<string>(
-          "FRONTEND_APP_URL",
-          this.configService.get<string>("APP_PUBLIC_URL", "http://localhost:5173")
-        )
-      )
-      .trim()
-      .replace(/\/+$/, "");
+    const baseUrl = this.resolvePublicBaseUrl();
     return `${baseUrl}${path}?token=${encodeURIComponent(token)}`;
+  }
+
+  private resolvePublicBaseUrl(): string {
+    const isProduction =
+      this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase() ===
+      "production";
+    const configuredCandidates = [
+      this.configService.get<string>("AUTH_PUBLIC_BASE_URL", ""),
+      this.configService.get<string>("FRONTEND_APP_URL", ""),
+      this.configService.get<string>("APP_PUBLIC_URL", "")
+    ];
+    const corsCandidates = this.configService
+      .get<string>("CORS_ORIGINS", "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const fallbackCandidates = isProduction
+      ? ["https://gestschool.vercel.app"]
+      : ["http://localhost:5173"];
+
+    for (const candidate of [...configuredCandidates, ...corsCandidates, ...fallbackCandidates]) {
+      const normalized = this.normalizePublicBaseUrl(candidate);
+      if (!normalized) continue;
+      if (isProduction && !this.isProductionSafePublicUrl(normalized)) continue;
+      return normalized;
+    }
+
+    throw new Error("AUTH_PUBLIC_BASE_URL must be configured with a public HTTPS URL.");
+  }
+
+  private normalizePublicBaseUrl(rawValue: string): string | null {
+    const value = rawValue.trim();
+    if (!value || value === "*") return null;
+
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+
+      const pathname = parsed.pathname.replace(/\/+$/, "");
+      return `${parsed.origin}${pathname === "/" ? "" : pathname}`.replace(/\/+$/, "");
+    } catch {
+      return null;
+    }
+  }
+
+  private isProductionSafePublicUrl(baseUrl: string): boolean {
+    const parsed = new URL(baseUrl);
+    const hostname = parsed.hostname.toLowerCase();
+
+    if (parsed.protocol !== "https:") return false;
+    if (hostname === "localhost" || hostname === "0.0.0.0" || hostname === "::1") return false;
+    if (hostname.startsWith("127.")) return false;
+    if (hostname.startsWith("10.")) return false;
+    if (hostname.startsWith("192.168.")) return false;
+
+    const secondOctet = Number(hostname.split(".")[1]);
+    if (
+      hostname.startsWith("172.") &&
+      Number.isFinite(secondOctet) &&
+      secondOctet >= 16 &&
+      secondOctet <= 31
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   private userEmailAddress(user: Pick<User, "email" | "username">): string | null {

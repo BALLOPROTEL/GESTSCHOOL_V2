@@ -15,6 +15,7 @@ import {
   TENANT_ID,
   type E2eAppContext
 } from "./support/e2e-harness";
+import { NotificationGatewayService } from "../src/notifications/notification-gateway.service";
 
 configureE2eEnvironment();
 jest.setTimeout(120_000);
@@ -202,6 +203,83 @@ describe("Auth + access guards (e2e)", () => {
     });
     expect(rows).toHaveLength(before + 1);
     expect(rows[0].tokenHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("auth emails should not contain localhost links in production", async () => {
+    const notificationGateway = context.app.get(NotificationGatewayService);
+    const dispatchSpy = jest.spyOn(notificationGateway, "dispatch");
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousAuthPublicBaseUrl = process.env.AUTH_PUBLIC_BASE_URL;
+    const previousCorsOrigins = process.env.CORS_ORIGINS;
+
+    process.env.NODE_ENV = "production";
+    process.env.AUTH_PUBLIC_BASE_URL = "http://localhost:5173";
+    process.env.CORS_ORIGINS = "https://gestschool.vercel.app";
+
+    try {
+      await request(context.app.getHttpServer())
+        .post("/api/v1/auth/forgot-password")
+        .send({ username: "admin@gestschool.local", tenantId: TENANT_ID })
+        .expect(201);
+
+      const emailPayloads = dispatchSpy.mock.calls
+        .map(([payload]) => payload)
+        .filter((payload) => payload.channel === "EMAIL");
+      const lastEmail = emailPayloads[emailPayloads.length - 1];
+
+      expect(lastEmail.message).toContain("https://gestschool.vercel.app/reset-password?token=");
+      expect(lastEmail.message).not.toContain("localhost");
+
+      await context.prisma.user.create({
+        data: {
+          tenantId: TENANT_ID,
+          username: "pending-email-link@gestschool.local",
+          email: "pending-email-link@gestschool.local",
+          displayName: "Lien Activation",
+          accountType: "STAFF",
+          passwordHash: await hash("PendingEmailLink123!", 10),
+          role: UserRole.SCOLARITE,
+          status: "PENDING_ACTIVATION",
+          isActive: false
+        }
+      });
+
+      await request(context.app.getHttpServer())
+        .post("/api/v1/auth/resend-activation")
+        .send({ username: "pending-email-link@gestschool.local", tenantId: TENANT_ID })
+        .expect(201);
+
+      const activationEmailPayloads = dispatchSpy.mock.calls
+        .map(([payload]) => payload)
+        .filter((payload) => payload.channel === "EMAIL");
+      const lastActivationEmail =
+        activationEmailPayloads[activationEmailPayloads.length - 1];
+
+      expect(lastActivationEmail.message).toContain(
+        "https://gestschool.vercel.app/activate?token="
+      );
+      expect(lastActivationEmail.message).not.toContain("localhost");
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+
+      if (previousAuthPublicBaseUrl === undefined) {
+        delete process.env.AUTH_PUBLIC_BASE_URL;
+      } else {
+        process.env.AUTH_PUBLIC_BASE_URL = previousAuthPublicBaseUrl;
+      }
+
+      if (previousCorsOrigins === undefined) {
+        delete process.env.CORS_ORIGINS;
+      } else {
+        process.env.CORS_ORIGINS = previousCorsOrigins;
+      }
+
+      dispatchSpy.mockRestore();
+    }
   });
 
   it("POST /auth/reset-password should consume a reset token once", async () => {

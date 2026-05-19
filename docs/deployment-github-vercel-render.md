@@ -42,6 +42,7 @@ Backend/runtime:
 - `PASSWORD_RESET_EXPIRES_IN=30m`
 - `ACCOUNT_ACTIVATION_EXPIRES_IN=48h`
 - `AUTH_PUBLIC_BASE_URL=https://gestschool.vercel.app`
+- `AUTH_PUBLIC_BASE_URL` must be a public HTTPS frontend URL in production. The API rejects local URLs such as `localhost` for activation and password reset emails.
 - `MONITORING_METRICS_TOKEN`
 
 Supabase Storage:
@@ -99,6 +100,7 @@ The endpoint only returns booleans and enabled/disabled status. It must not retu
 
 API:
 - Render build logs show `prisma migrate deploy` applied or confirmed all migrations
+- Activation and reset-password emails contain `https://gestschool.vercel.app/...`, never `localhost`
 - `GET https://gestschool-ylik.onrender.com/api/v1/health/live`
 - `GET https://gestschool-ylik.onrender.com/api/v1/health/ready`
 - provider check endpoint returns expected booleans

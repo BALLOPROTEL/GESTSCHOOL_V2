@@ -134,6 +134,6 @@ services:
       - key: ANALYTICS_CACHE_TTL_SECONDS
         value: "45"
       - key: CORS_ORIGINS
-        sync: false
+        value: https://gestschool.vercel.app
       - key: SWAGGER_ENABLED
         value: "false"

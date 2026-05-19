@@ -11,6 +11,7 @@ import { AcademicStructureModule } from "./academic-structure/academic-structure
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { BackgroundModule } from "./background/background.module";
+import { resolveEnvFilePath } from "./config/env-file-path";
 import { DatabaseModule } from "./database/database.module";
 import { EnrollmentsModule } from "./enrollments/enrollments.module";
 import { FinanceModule } from "./finance/finance.module";
@@ -38,7 +39,7 @@ import { UsersModule } from "./users/users.module";
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [".env", ".env.example", "../../.env", "../../.env.example"]
+      envFilePath: resolveEnvFilePath()
     }),
     AcademicStructureModule,
     TokenModule,
