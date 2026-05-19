@@ -1054,13 +1054,7 @@ textarea {
 
 @media (min-width: 1451px) {
   .global-header-center {
-    grid-template-columns: auto minmax(20rem, min(32vw, 36rem)) minmax(max-content, auto);
-  }
-
-  .global-header-nav {
-    display: flex;
-    justify-content: flex-start;
-    gap: 0.24rem;
+    grid-template-columns: auto minmax(20rem, min(44vw, 48rem));
   }
 }
 

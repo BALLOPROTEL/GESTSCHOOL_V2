@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { HeaderActionButton, HeaderDropdownMenu } from "./header-dropdown-menu";
 import { HeaderMobilePanel } from "./header-mobile-panel";
 import type {
   HeaderFeedItem,
@@ -312,32 +311,6 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
             />
           </div>
 
-          <nav className="global-header-nav" aria-label="Navigation principale">
-            <HeaderActionButton action={dashboard} />
-            <HeaderDropdownMenu
-              id="scolarite"
-              label="Scolarité"
-              items={scolarite}
-              openId={openId}
-              onOpenChange={handleOpenIdChange}
-            />
-            <HeaderDropdownMenu
-              id="school-life"
-              label="Vie scolaire"
-              items={schoolLife}
-              openId={openId}
-              onOpenChange={handleOpenIdChange}
-            />
-            <HeaderDropdownMenu
-              id="settings"
-              label="Paramètres"
-              items={settings}
-              extraGroups={settingsGroups}
-              preferences={preferences}
-              openId={openId}
-              onOpenChange={handleOpenIdChange}
-            />
-          </nav>
         </div>
 
         <div className="global-header-actions">
