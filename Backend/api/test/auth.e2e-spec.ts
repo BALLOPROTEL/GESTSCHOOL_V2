@@ -232,7 +232,7 @@ describe("Auth + access guards (e2e)", () => {
 
     await request(context.app.getHttpServer())
       .post("/api/v1/auth/reset-password")
-      .send({ token: rawToken, newPassword: "ResetNew123!" })
+      .send({ token: rawToken, newPassword: "SecureNew123!" })
       .expect(201);
 
     await request(context.app.getHttpServer())
@@ -244,7 +244,7 @@ describe("Auth + access guards (e2e)", () => {
       .post("/api/v1/auth/login")
       .send({
         username: "reset-user@gestschool.local",
-        password: "ResetNew123!",
+        password: "SecureNew123!",
         tenantId: TENANT_ID
       })
       .expect(201);
