@@ -256,8 +256,6 @@ label,
   box-shadow: var(--shadow-strong);
 }
 
-.sidebar-head strong,
-.sidebar-head .eyebrow,
 .sidebar-title {
   color: #e0e7ff;
 }

@@ -6,6 +6,10 @@ import type {
 } from "../../shared/types/app";
 export const SCREEN_DEFS: ScreenDef[] = [
   { id: "dashboard", label: "Tableau de bord", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
+  { id: "profile", label: "Mon profil", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE", "PARENT", "STUDENT"] },
+  { id: "preferences", label: "Préférences", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE", "PARENT", "STUDENT"] },
+  { id: "activity", label: "Journal d’activité", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE", "PARENT", "STUDENT"] },
+  { id: "billing", label: "Facturation", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE", "PARENT", "STUDENT"] },
   { id: "iam", label: "Utilisateurs & droits", group: "principal", roles: ["ADMIN"] },
   { id: "teachers", label: "Enseignants", group: "principal", roles: ["ADMIN", "SCOLARITE"] },
   { id: "rooms", label: "Salles", group: "principal", roles: ["ADMIN", "SCOLARITE"] },

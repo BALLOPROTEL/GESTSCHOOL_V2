@@ -656,10 +656,6 @@
   border-color: rgba(51, 65, 85, 0.95);
 }
 
-:root[data-theme="dark"] .sidebar-head strong {
-  color: #f8fafc;
-}
-
 :root[data-theme="dark"] .sidebar-link {
   background: rgba(15, 23, 42, 0.72);
   border-color: rgba(51, 65, 85, 0.92);

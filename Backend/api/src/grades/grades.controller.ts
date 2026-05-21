@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -21,6 +22,7 @@ import { UserRole } from "../security/roles.enum";
 import {
   BulkCreateGradesDto,
   CreateGradeDto,
+  GenerateBulkReportCardsDto,
   GenerateReportCardDto
 } from "./dto/grades.dto";
 import { GradesService } from "./grades.service";
@@ -90,6 +92,19 @@ export class GradesController {
     return this.gradesService.bulkUpsertGrades(tenantId, body);
   }
 
+  @Delete("grades/:id")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("grades", "delete")
+  @ApiOperation({ summary: "Delete one grade after confirmation in the client" })
+  async deleteGrade(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.gradesService.deleteGrade(tenantId, id);
+  }
+
   @Get("grades/class-summary")
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("grades", "read")
@@ -138,6 +153,19 @@ export class GradesController {
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.gradesService.generateReportCard(tenantId, body);
+  }
+
+  @Post("report-cards/generate-bulk")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("reportCards", "create")
+  @ApiOperation({ summary: "Generate report card PDFs for one class and period" })
+  async generateBulkReportCards(
+    @Req() request: { user?: AuthenticatedUser },
+    @Body() body: GenerateBulkReportCardsDto,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.gradesService.generateBulkReportCards(tenantId, body);
   }
 
   @Get("report-cards/:id/pdf")

@@ -33,14 +33,16 @@ import type {
   TeacherOverview,
   TeacherStudent,
   ThemeMode,
-  UserAccount
+  UserAccount,
+  UserSelfProfile
 } from "../shared/types/app";
 import { AppSidebar } from "../shared/components/app-sidebar";
 import {
   HeaderNavigation,
   type HeaderNavigationAction,
   type HeaderNavigationGroup,
-  type HeaderPreferenceAction
+  type HeaderPreferenceAction,
+  type HeaderUserAction
 } from "./navigation/header-navigation";
 import {
   ROLE_CONTEXT_LABELS,
@@ -52,24 +54,20 @@ import { ROLE_LABELS } from "../shared/constants/domain";
 import { decorateResponsiveTables } from "./shell/responsive-tables";
 import { GlobalToastLayer } from "./shell/global-toast-layer";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
-import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, translateUiString, useDomTranslation } from "../shared/i18n";
+import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, useDomTranslation } from "../shared/i18n";
 import { fetchReferenceData } from "../features/reference/services/reference-service";
 import type { ReferenceData } from "../features/reference/types/reference";
 import { createPreviewAppData, PREVIEW_ACCESS_TOKEN } from "./preview/preview-data";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { parseApiError } from "../shared/services/api-errors";
-import {
-  readLanguagePreference,
-  readRememberedLogin,
-  readThemePreference
-} from "../shared/services/session-storage";
+import { readLanguagePreference, readRememberedLogin, readThemePreference } from "../shared/services/session-storage";
 import { focusFirstInlineErrorField, hasFieldErrors } from "../shared/utils/form-ui";
+import { AppContextBar, AppFooter, PreviewLocalNotice } from "./app-shell-panels";
 
 const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
 const DEFAULT_CURRENCY = "CFA";
 const SCHOOL_NAME = "Al Manarat Islamiyat";
-const PREVIEW_MODE_ENABLED =
-  import.meta.env.DEV || import.meta.env.VITE_ENABLE_PREVIEW === "true";
+const PREVIEW_MODE_ENABLED = import.meta.env.DEV || import.meta.env.VITE_ENABLE_PREVIEW === "true";
 const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
 const LANGUAGE_STORAGE_KEY = "gestschool.web-admin.language";
 const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
@@ -118,6 +116,24 @@ const EnrollmentsScreen = lazy(() =>
 );
 const FinanceScreen = lazy(() =>
   import("../features/finance/finance-screen").then((module) => ({ default: module.FinanceScreen }))
+);
+const ProfileScreen = lazy(() =>
+  import("../features/profile/profile-screen").then((module) => ({ default: module.ProfileScreen }))
+);
+const PreferencesScreen = lazy(() =>
+  import("../features/profile/account-destination-screens").then((module) => ({
+    default: module.PreferencesScreen
+  }))
+);
+const ActivityScreen = lazy(() =>
+  import("../features/profile/account-destination-screens").then((module) => ({
+    default: module.ActivityScreen
+  }))
+);
+const BillingScreen = lazy(() =>
+  import("../features/profile/account-destination-screens").then((module) => ({
+    default: module.BillingScreen
+  }))
 );
 const GradesScreen = lazy(() =>
   import("../features/grades/grades-screen").then((module) => ({ default: module.GradesScreen }))
@@ -169,6 +185,22 @@ const formatLookupLabel = (map: Record<string, string>, value?: string): string 
   return map[normalized] || value || "-";
 };
 const formatRoleLabel = (value?: string): string => formatLookupLabel(ROLE_LABELS, value);
+const formatAccountStatusLabel = (value?: string): string =>
+  formatLookupLabel(
+    {
+      ACTIVE: "Actif",
+      ARCHIVED: "Archivé",
+      DISABLED: "Désactivé",
+      INACTIVE: "Inactif",
+      PENDING_ACTIVATION: "En attente d’activation"
+    },
+    value
+  );
+const getInitials = (value?: string): string => {
+  const parts = (value || "").trim().split(/\s+/u).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
+  return (parts[0]?.slice(0, 2) || "U").toUpperCase();
+};
 const parseError = (response: Response): Promise<string> =>
   parseApiError(response, {
     localApiHint: ["localhost", "127.0.0.1"].includes(window.location.hostname)
@@ -254,6 +286,7 @@ export function App(): JSX.Element {
 
   const [reportCards, setReportCards] = useState<ReportCard[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
+  const [currentProfile, setCurrentProfile] = useState<UserSelfProfile | null>(null);
 
   const [teacherOverview, setTeacherOverview] = useState<TeacherOverview | null>(null);
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
@@ -362,6 +395,7 @@ export function App(): JSX.Element {
     setRecovery(null);
     setReportCards([]);
     setUsers([]);
+    setCurrentProfile(null);
     setTeacherOverview(null);
     setTeacherClasses([]);
     setTeacherStudents([]);
@@ -1293,10 +1327,11 @@ export function App(): JSX.Element {
       api={api}
       initialReportCards={reportCards}
       classes={classes}
-      students={students}
-      subjects={subjects}
-      periods={periods}
-      remoteEnabled={!isPreviewSession}
+	      students={students}
+	      subjects={subjects}
+	      periods={periods}
+	      schoolYears={schoolYears}
+	      remoteEnabled={!isPreviewSession}
       onReportCardsChange={setReportCards}
       onError={setError}
       onNotice={setNotice}
@@ -1314,6 +1349,77 @@ export function App(): JSX.Element {
       onNotice={setNotice}
     />
   );
+  const renderProfile = (): JSX.Element => {
+    if (!session) return renderForbidden();
+    return (
+      <ProfileScreen
+        api={api}
+        currentRoleLabel={currentRoleLabel}
+        locale={currentLanguageMeta.locale}
+        onBackToDashboard={() => setTab(dashboardTarget)}
+        onError={setError}
+        onNotice={setNotice}
+        onProfileChange={setCurrentProfile}
+        remoteEnabled={!isPreviewSession}
+        schoolName={SCHOOL_NAME}
+        schoolYears={schoolYears}
+        session={session}
+        uiLanguage={uiLanguage}
+        users={users}
+      />
+    );
+  };
+  const renderPreferences = (): JSX.Element => {
+    if (!session) return renderForbidden();
+    return (
+      <PreferencesScreen
+        api={api}
+        onError={setError}
+        onLanguageChange={selectLanguage}
+        onNotice={setNotice}
+        onThemeChange={selectThemeMode}
+        remoteEnabled={!isPreviewSession}
+        schoolName={SCHOOL_NAME}
+        schoolYears={schoolYears}
+        session={session}
+        themeMode={themeMode}
+        uiLanguage={uiLanguage}
+        users={users}
+      />
+    );
+  };
+  const renderActivity = (): JSX.Element => {
+    if (!session) return renderForbidden();
+    return (
+      <ActivityScreen
+        api={api}
+        onError={setError}
+        onNotice={setNotice}
+        remoteEnabled={!isPreviewSession}
+        schoolName={SCHOOL_NAME}
+        schoolYears={schoolYears}
+        session={session}
+        uiLanguage={uiLanguage}
+        users={users}
+      />
+    );
+  };
+  const renderBilling = (): JSX.Element => {
+    if (!session) return renderForbidden();
+    return (
+      <BillingScreen
+        api={api}
+        onError={setError}
+        onNotice={setNotice}
+        remoteEnabled={!isPreviewSession}
+        schoolName={SCHOOL_NAME}
+        schoolYears={schoolYears}
+        session={session}
+        uiLanguage={uiLanguage}
+        users={users}
+      />
+    );
+  };
   const renderDashboard = (): JSX.Element => {
     return (
       <DashboardScreen
@@ -1504,6 +1610,10 @@ export function App(): JSX.Element {
       );
     }
     if (tab === "finance") return renderFinance();
+    if (tab === "profile") return renderProfile();
+    if (tab === "preferences") return renderPreferences();
+    if (tab === "activity") return renderActivity();
+    if (tab === "billing") return renderBilling();
     if (tab === "messages") return renderMessages();
     if (tab === "reports") return renderReports();
     if (tab === "mosquee") return renderMosquee();
@@ -1576,8 +1686,24 @@ export function App(): JSX.Element {
 
   const activeScreen = SCREEN_DEFS.find((entry) => entry.id === tab) ?? SCREEN_DEFS[0];
   const isEnrollmentsContext = tab === "enrollments";
-  const profileInitial = session?.user.username?.charAt(0)?.toUpperCase() || "U";
+  const sessionUserAccount =
+    users.find((item) => item.id === session?.user.id) ||
+    users.find((item) => item.username === session?.user.username) ||
+    users.find((item) => Boolean(item.email && item.email === session?.user.username));
+  const headerAccount = currentProfile?.user || sessionUserAccount;
+  const headerDisplayName =
+    headerAccount?.displayName ||
+    session?.user.displayName ||
+    session?.user.username ||
+    "Utilisateur";
+  const headerEmail =
+    headerAccount?.email ||
+    session?.user.email ||
+    (session?.user.username?.includes("@") ? session.user.username : undefined);
+  const profileInitial = getInitials(headerDisplayName || headerEmail);
   const profileContextLabel = currentRole ? ROLE_CONTEXT_LABELS[currentRole] : "Session";
+  const headerTenantLabel = currentProfile?.context.tenantName || SCHOOL_NAME;
+  const headerStatusLabel = formatAccountStatusLabel(headerAccount?.status || session?.user.status || "ACTIVE");
   const nextLanguage = languageFlipTarget || getNextUiLanguage(uiLanguage);
   const nextLanguageMeta = UI_LANGUAGE_META[nextLanguage];
   const lastSyncLabel = lastSyncAt
@@ -1672,6 +1798,32 @@ export function App(): JSX.Element {
       helperText: themeMode === "dark" ? "Activer le mode clair" : "Activer le mode sombre",
       iconSrc: themeMode === "light" ? "/mode-clair.png" : "/mode-sombre.png",
       onSelect: toggleThemeMode
+    }
+  ];
+  const headerUserActions: HeaderUserAction[] = [
+    {
+      id: "profile",
+      icon: "profile",
+      label: "Mon profil",
+      onSelect: () => setTab("profile")
+    },
+    {
+      id: "preferences",
+      icon: "settings",
+      label: "Préférences",
+      onSelect: () => setTab("preferences")
+    },
+    {
+      id: "activity",
+      icon: "activity",
+      label: "Journal d’activité",
+      onSelect: () => setTab("activity")
+    },
+    {
+      id: "billing",
+      icon: "billing",
+      label: "Facturation",
+      onSelect: () => setTab("billing")
     }
   ];
   const notificationTarget: ScreenId =
@@ -1771,6 +1923,7 @@ export function App(): JSX.Element {
             settings={settingsActions}
             settingsGroups={settingsGroups}
             preferences={preferenceActions}
+            userActions={headerUserActions}
             messages={{
               active: messageActive,
               count: headerMessageCount,
@@ -1788,69 +1941,43 @@ export function App(): JSX.Element {
             user={{
               avatar: profileInitial,
               contextLabel: profileContextLabel,
+              email: headerEmail,
               roleLabel: currentRoleLabel,
+              schoolYearLabel,
               secondaryLabel: `Année : ${schoolYearLabel}`,
-              username: session.user.username,
+              statusLabel: headerStatusLabel,
+              tenantLabel: headerTenantLabel,
+              username: headerDisplayName,
               onLogout: () => void logout()
             }}
           />
 
           <div className={`app-shell ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`.trim()}>
             <AppSidebar
-              brandName={SCHOOL_NAME}
-              currentRoleLabel={currentRoleLabel}
               groups={sidebarGroups}
             />
             <div className="app-shell-main">
-              {isPreviewSession ? (
-                <section className="notice-card notice-warning preview-local-notice" role="status">
-                  <strong>{translateUiString(uiLanguage, "Mode aperçu local")}</strong>
-                  <p>
-                    {translateUiString(
-                      uiLanguage,
-                      "Les données affichées sont des données de démonstration chargées dans le navigateur."
-                    )}{" "}
-                    {translateUiString(uiLanguage, "Elles ne sont pas persistées dans l’API ni dans PostgreSQL.")}
-                  </p>
-                </section>
-              ) : null}
+              {isPreviewSession ? <PreviewLocalNotice uiLanguage={uiLanguage} /> : null}
 
-              {tab !== "dashboard" ? (
-                <section key={`context-${tab}`} className="panel context-bar">
-                  <div className="context-copy">
-                    <p className="eyebrow">Module actif</p>
-                    <h2>{activeScreen.label}</h2>
-                    {isEnrollmentsContext ? (
-                      <p className="section-lead">Gérez les inscriptions et placements académiques des élèves.</p>
-                    ) : null}
-                    {isTeachersContext ? (
-                      <p className="section-lead">
-                        Gérez les fiches enseignants, leurs compétences, leurs affectations, leur charge horaire et leurs documents administratifs.
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="context-actions">
-                    <button type="button" className="button-ghost" onClick={() => setTab("dashboard")}>
-                      Retour tableau de bord
-                    </button>
-                  </div>
-                </section>
-              ) : null}
+              <AppContextBar
+                activeLabel={activeScreen.label}
+                isEnrollmentsContext={isEnrollmentsContext}
+                isTeachersContext={isTeachersContext}
+                onBackToDashboard={() => setTab("dashboard")}
+                tab={tab}
+              />
 
               <section key={tab} className="screen-host">
                 <Suspense fallback={<ScreenLoadingFallback />}>{renderActiveScreen()}</Suspense>
               </section>
 
-              <footer className="panel app-footer app-footer-minimal">
-                <div className="footer-head">
-                  <strong>{SCHOOL_NAME}</strong>
-                  <div className="footer-meta">
-                    <span>Année : {schoolYearLabel}</span>
-                    <span>Dernière sync : {lastSyncLabel}</span>
-                    {apiConnection.status !== "online" ? <span>{apiStatusText}</span> : null}
-                  </div>
-                </div>
-              </footer>
+              <AppFooter
+                apiConnectionStatus={apiConnection.status}
+                apiStatusText={apiStatusText}
+                lastSyncLabel={lastSyncLabel}
+                schoolName={SCHOOL_NAME}
+                schoolYearLabel={schoolYearLabel}
+              />
             </div>
           </div>
         </section>

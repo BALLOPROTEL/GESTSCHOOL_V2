@@ -17,9 +17,12 @@ export type GradeView = {
   academicPeriodId: string;
   assessmentLabel: string;
   assessmentType: string;
+  assessmentDate?: string;
   score: number;
   scoreMax: number;
+  coefficient: number;
   absent: boolean;
+  exempted: boolean;
   comment?: string;
 };
 
@@ -27,6 +30,7 @@ export type SubjectAverageView = {
   subjectId: string;
   subjectLabel: string;
   average: number;
+  coefficient?: number;
 };
 
 export type StudentClassSummaryView = {
@@ -38,6 +42,7 @@ export type StudentClassSummaryView = {
   averageGeneral: number;
   classRank: number;
   noteCount: number;
+  missingGrades: number;
   appreciation: string;
   subjectAverages: SubjectAverageView[];
 };
@@ -77,6 +82,7 @@ export type ReportCardView = {
   averageGeneral: number;
   classRank?: number;
   appreciation?: string;
+  generatedAt?: string;
   publishedAt?: string;
   pdfDataUrl?: string;
   studentName?: string;

@@ -46,7 +46,6 @@ body {
 .panel h2,
 .panel h3,
 .panel h4,
-.sidebar-head strong,
 .module-text strong,
 .priority-item strong,
 .global-brand-copy strong,
@@ -143,36 +142,10 @@ body {
   box-shadow: 0 22px 48px rgba(15, 23, 42, 0.24);
 }
 
-.sidebar-brand-row {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-}
-
-.sidebar-brand-mark {
-  width: 3.2rem;
-  height: 3.2rem;
-  border-radius: 1rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  background: linear-gradient(135deg, #465fff 0%, #7388ff 100%);
-  color: #ffffff;
-  font-family: "Sora", "Manrope", sans-serif;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  box-shadow: 0 18px 30px rgba(70, 95, 255, 0.3);
-}
-
 .app-sidebar-v2 .eyebrow,
 .app-sidebar-v2 .subtle,
 .sidebar-title {
   color: rgba(203, 213, 225, 0.72);
-}
-
-.app-sidebar-v2 .sidebar-head strong {
-  color: #f8fafc;
 }
 
 .sidebar-link {
@@ -1256,6 +1229,17 @@ textarea {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
 }
 
+input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  min-height: 1rem;
+  padding: 0;
+  border-radius: 0.24rem;
+  box-shadow: none;
+  accent-color: #51ced8;
+  flex: 0 0 auto;
+}
+
 textarea {
   min-height: 7.5rem;
 }
@@ -1300,9 +1284,47 @@ button:hover:not(:disabled) {
   box-shadow: 0 12px 22px rgba(15, 23, 42, 0.08);
 }
 
+.button-ghost.is-active {
+  border-color: color-mix(in srgb, var(--flexadm-accent) 55%, var(--flexadm-card-line));
+  background: color-mix(in srgb, var(--flexadm-accent-soft) 30%, var(--panel));
+}
+
 .button-danger {
   background: linear-gradient(180deg, color-mix(in srgb, var(--flexadm-danger) 76%, #ffffff) 0%, var(--flexadm-danger) 100%);
+  color: #ffffff;
   box-shadow: 0 14px 24px color-mix(in srgb, var(--flexadm-danger) 18%, transparent);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.inline-field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 7rem;
+}
+
+.nested-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--flexadm-border);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--flexadm-surface-raised) 92%, transparent);
+}
+
+.empty-state-block {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
 }
 
 .actions,
@@ -1326,6 +1348,10 @@ button:hover:not(:disabled) {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.96),
     0 12px 24px rgba(12, 25, 38, 0.03);
+}
+
+tr.is-selected-row td {
+  background: color-mix(in srgb, var(--flexadm-accent-soft) 18%, transparent);
 }
 
 .table-wrap::-webkit-scrollbar-track {
@@ -1470,11 +1496,6 @@ tbody tr:hover td {
   color: var(--flexadm-copy);
   font-size: 0.82rem;
   font-weight: 700;
-}
-
-.sidebar-brand-mark {
-  background: linear-gradient(135deg, var(--flexadm-accent) 0%, var(--flexadm-accent-soft) 100%);
-  box-shadow: 0 18px 30px color-mix(in srgb, var(--flexadm-accent) 26%, transparent);
 }
 
 .sidebar-link:hover:not(:disabled),
@@ -2308,25 +2329,9 @@ code {
   box-shadow: 0 24px 44px rgba(2, 10, 17, 0.32);
 }
 
-.sidebar-brand-row {
-  gap: 0.78rem;
-}
-
-.sidebar-brand-mark {
-  width: 3.15rem;
-  height: 3.15rem;
-  border-radius: 1rem;
-  font-size: 1.02rem;
-  font-family: "Sora", "Manrope", sans-serif;
-}
-
 .app-sidebar-v2 .eyebrow,
 .sidebar-title {
   color: color-mix(in srgb, var(--flexadm-surface-copy-soft) 82%, transparent);
-}
-
-.app-sidebar-v2 .sidebar-head strong {
-  color: var(--flexadm-surface-copy);
 }
 
 .sidebar-group {
@@ -2572,6 +2577,17 @@ textarea {
   background: linear-gradient(180deg, rgba(10, 24, 35, 0.98) 0%, rgba(12, 28, 40, 0.98) 100%);
   color: var(--flexadm-surface-copy);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  min-height: 1rem;
+  padding: 0;
+  border-radius: 0.24rem;
+  box-shadow: none;
+  accent-color: #51ced8;
+  flex: 0 0 auto;
 }
 
 select {

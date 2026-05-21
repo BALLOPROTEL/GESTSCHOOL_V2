@@ -3,7 +3,8 @@ import type {
   HeaderNavigationAction,
   HeaderNavigationGroup,
   HeaderNavigationUser,
-  HeaderPreferenceAction
+  HeaderPreferenceAction,
+  HeaderUserAction
 } from "./header-navigation-types";
 
 type HeaderMobileSection = {
@@ -40,6 +41,7 @@ export function HeaderMobilePanel(props: {
   searchValue: string;
   sections: HeaderMobileSection[];
   user: HeaderNavigationUser;
+  userActions?: HeaderUserAction[];
 }): JSX.Element {
   const {
     brandLogoSrc,
@@ -55,7 +57,8 @@ export function HeaderMobilePanel(props: {
     searchPlaceholder,
     searchValue,
     sections,
-    user
+    user,
+    userActions = []
   } = props;
 
   return (
@@ -193,8 +196,28 @@ export function HeaderMobilePanel(props: {
         <div className="header-mobile-user">
           <div>
             <strong>{user.username}</strong>
-            <small>{user.roleLabel}</small>
+            <small>{user.email || user.roleLabel}</small>
           </div>
+        </div>
+        {userActions.length > 0 ? (
+          <div className="header-mobile-links user-actions">
+            {userActions.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="header-mobile-link"
+                aria-label={item.label}
+                onClick={() => {
+                  item.onSelect();
+                  onClose();
+                }}
+              >
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="header-mobile-user logout-row">
           <button
             type="button"
             className="header-logout-button"

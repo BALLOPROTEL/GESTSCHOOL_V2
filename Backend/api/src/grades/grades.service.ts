@@ -4,6 +4,7 @@ import { AcademicTrack } from "@prisma/client";
 import {
   BulkCreateGradesDto,
   CreateGradeDto,
+  GenerateBulkReportCardsDto,
   GenerateReportCardDto
 } from "./dto/grades.dto";
 import { GradesEntryService } from "./grades-entry.service";
@@ -38,12 +39,20 @@ export class GradesService {
     return this.gradesEntryService.bulkUpsertGrades(tenantId, payload);
   }
 
+  deleteGrade(tenantId: string, gradeId: string) {
+    return this.gradesEntryService.deleteGrade(tenantId, gradeId);
+  }
+
   classSummary(tenantId: string, classId: string, academicPeriodId: string) {
     return this.gradesReportCardsService.classSummary(tenantId, classId, academicPeriodId);
   }
 
   generateReportCard(tenantId: string, payload: GenerateReportCardDto) {
     return this.gradesReportCardsService.generateReportCard(tenantId, payload);
+  }
+
+  generateBulkReportCards(tenantId: string, payload: GenerateBulkReportCardsDto) {
+    return this.gradesReportCardsService.generateBulkReportCards(tenantId, payload);
   }
 
   listReportCards(

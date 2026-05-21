@@ -1,7 +1,17 @@
 export type Session = {
   accessToken: string;
   refreshToken: string;
-  user: { username: string; role: string; tenantId: string };
+  user: {
+    id?: string;
+    username: string;
+    role: string;
+    tenantId: string;
+    email?: string;
+    phone?: string;
+    displayName?: string;
+    accountType?: string;
+    status?: string;
+  };
   tenantId: string;
 };
 
@@ -265,9 +275,13 @@ export type GradeEntry = {
   academicPeriodId: string;
   assessmentLabel: string;
   assessmentType: string;
+  assessmentDate?: string;
   score: number;
   scoreMax: number;
+  coefficient?: number;
   absent: boolean;
+  exempted?: boolean;
+  comment?: string;
 };
 
 export type ClassSummaryStudent = {
@@ -279,7 +293,14 @@ export type ClassSummaryStudent = {
   averageGeneral: number;
   classRank: number;
   noteCount: number;
+  missingGrades?: number;
   appreciation: string;
+  subjectAverages?: Array<{
+    subjectId: string;
+    subjectLabel: string;
+    average: number;
+    coefficient?: number;
+  }>;
 };
 
 export type ClassSummary = {
@@ -302,6 +323,8 @@ export type ReportCard = {
   averageGeneral: number;
   classRank?: number;
   appreciation?: string;
+  generatedAt?: string;
+  publishedAt?: string;
   pdfDataUrl?: string;
   studentName?: string;
   classLabel?: string;
@@ -322,6 +345,7 @@ export type ReportCard = {
       subjectId: string;
       subjectLabel: string;
       average: number;
+      coefficient?: number;
     }>;
   }>;
 };
@@ -382,6 +406,37 @@ export type UserAccount = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type UserActivityItem = {
+  id: string;
+  action: string;
+  resource: string;
+  resourceId?: string;
+  createdAt: string;
+};
+
+export type UserSelfProfile = {
+  user: UserAccount;
+  context: {
+    tenantId: string;
+    tenantName: string;
+    activeSchoolYear?: {
+      id: string;
+      code: string;
+      label: string;
+      status: string;
+      isActive: boolean;
+    };
+    timeZone: string;
+  };
+  preferences?: {
+    language?: string;
+    theme?: string;
+    emailNotificationsEnabled?: boolean;
+    systemNotificationsEnabled?: boolean;
+  };
+  permissions: RolePermissionView[];
 };
 
 export type PermissionResource =
@@ -939,6 +994,10 @@ export type AuditLogExportResponse = {
 
 export type ScreenId =
   | "dashboard"
+  | "profile"
+  | "preferences"
+  | "activity"
+  | "billing"
   | "iam"
   | "teachers"
   | "rooms"

@@ -28,6 +28,17 @@ export type UploadDescriptorView = {
   token?: string;
 };
 
+export type StoredFileView = {
+  driver: StorageDriver;
+  tenantId: string;
+  fileName: string;
+  mimeType: string;
+  key: string;
+  fileUrl: string;
+  bucket?: string;
+  size: number;
+};
+
 export interface StorageProvider {
   createUploadDescriptor(
     input: CreateStorageUploadDescriptorInput

@@ -56,6 +56,20 @@ export const createGrade = async (
   return (await response.json()) as GradeEntry;
 };
 
+export const createGradesBulk = async (
+  api: GradesApiClient,
+  payload: Record<string, unknown>
+): Promise<{ upsertedCount: number }> => {
+  const response = await api("/grades/bulk", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(await parseGradesError(response));
+  }
+  return (await response.json()) as { upsertedCount: number };
+};
+
 export const fetchClassSummary = async (
   api: GradesApiClient,
   classId: string,
@@ -70,6 +84,18 @@ export const fetchClassSummary = async (
   return (await response.json()) as ClassSummary;
 };
 
+export const deleteGrade = async (
+  api: GradesApiClient,
+  gradeId: string
+): Promise<void> => {
+  const response = await api(`/grades/${encodeURIComponent(gradeId)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(await parseGradesError(response));
+  }
+};
+
 export const generateReportCard = async (
   api: GradesApiClient,
   payload: Record<string, unknown>
@@ -82,6 +108,20 @@ export const generateReportCard = async (
     throw new Error(await parseGradesError(response));
   }
   return (await response.json()) as ReportCard;
+};
+
+export const generateReportCardsBulk = async (
+  api: GradesApiClient,
+  payload: Record<string, unknown>
+): Promise<ReportCard[]> => {
+  const response = await api("/report-cards/generate-bulk", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(await parseGradesError(response));
+  }
+  return (await response.json()) as ReportCard[];
 };
 
 export const fetchReportCardPdf = async (

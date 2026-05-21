@@ -16,12 +16,14 @@ import {
   type PermissionResource
 } from "../security/permissions.types";
 import { UserRole } from "../security/roles.enum";
+import { StorageService } from "../storage/storage.service";
 import { type AccountType, CreateUserDto, type UserStatus } from "./dto/create-user.dto";
 import {
   type RolePermissionItemDto,
   UpdateRolePermissionsDto
 } from "./dto/update-role-permissions.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
+import { ChangeMyPasswordDto, UpdateMyProfileDto } from "./dto/me-profile.dto";
 
 type UserWithProfiles = Prisma.UserGetPayload<{
   include: {
@@ -71,12 +73,44 @@ export type RolePermissionView = {
   source: "DEFAULT" | "CUSTOM";
 };
 
+export type UserActivityView = {
+  id: string;
+  action: string;
+  resource: string;
+  resourceId?: string;
+  createdAt: string;
+};
+
+export type MyProfileView = {
+  user: UserView;
+  context: {
+    tenantId: string;
+    tenantName: string;
+    activeSchoolYear?: {
+      id: string;
+      code: string;
+      label: string;
+      status: string;
+      isActive: boolean;
+    };
+    timeZone: string;
+  };
+  preferences?: {
+    language?: string;
+    theme?: string;
+    emailNotificationsEnabled?: boolean;
+    systemNotificationsEnabled?: boolean;
+  };
+  permissions: RolePermissionView[];
+};
+
 @Injectable()
 export class UsersService {
   constructor(
     private readonly auditService: AuditService,
     private readonly authService: AuthService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService
   ) {}
 
   async list(tenantId: string): Promise<UserView[]> {
@@ -90,6 +124,230 @@ export class UsersService {
     });
 
     return rows.map((row) => this.toView(row));
+  }
+
+  async getMyProfile(tenantId: string, userId: string): Promise<MyProfileView> {
+    const user = await this.requireUserWithProfiles(tenantId, userId);
+    return this.toMyProfileView(user);
+  }
+
+  async updateMyProfile(
+    tenantId: string,
+    userId: string,
+    payload: UpdateMyProfileDto
+  ): Promise<MyProfileView> {
+    this.assertNoForbiddenProfileMutation(payload as Record<string, unknown>);
+    const existing = await this.requireUser(tenantId, userId);
+    const now = new Date();
+
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: existing.id },
+        data: {
+          displayName: this.optionalEmptyToNull(payload.displayName),
+          firstName: this.optionalEmptyToNull(payload.firstName),
+          lastName: this.optionalEmptyToNull(payload.lastName),
+          phone: this.optionalEmptyToNull(payload.phone),
+          avatarUrl: payload.avatarUrl !== undefined ? this.optionalEmptyToNull(payload.avatarUrl) : undefined,
+          updatedAt: now
+        }
+      });
+
+      await this.auditService.enqueueLog(
+        {
+          tenantId,
+          userId,
+          action: "USER_PROFILE_UPDATED",
+          resource: "users",
+          resourceId: existing.id,
+          payload: {
+            displayNameChanged: payload.displayName !== undefined,
+            firstNameChanged: payload.firstName !== undefined,
+            lastNameChanged: payload.lastName !== undefined,
+            phoneChanged: payload.phone !== undefined,
+            avatarChanged: payload.avatarUrl !== undefined,
+            preferencesChanged:
+              payload.language !== undefined ||
+              payload.theme !== undefined ||
+              payload.emailNotificationsEnabled !== undefined ||
+              payload.systemNotificationsEnabled !== undefined
+          } as unknown as Prisma.InputJsonValue
+        },
+        transaction
+      );
+
+      return transaction.user.findUniqueOrThrow({
+        where: { id: existing.id },
+        include: this.userProfileInclude()
+      });
+    });
+
+    return this.toMyProfileView(updated, {
+      language: payload.language,
+      theme: payload.theme,
+      emailNotificationsEnabled: payload.emailNotificationsEnabled,
+      systemNotificationsEnabled: payload.systemNotificationsEnabled
+    });
+  }
+
+  async uploadMyAvatar(
+    tenantId: string,
+    userId: string,
+    file: { originalname: string; mimetype: string; size: number; buffer: Buffer }
+  ): Promise<MyProfileView> {
+    const maxBytes = Number(process.env.USER_AVATAR_MAX_BYTES || 2 * 1024 * 1024);
+    const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+    if (!allowedMimeTypes.has(file.mimetype)) {
+      throw new BadRequestException("Format d’image non autorisé. Utilisez JPG, PNG ou WebP.");
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0 || file.size > maxBytes) {
+      throw new BadRequestException("L’image doit peser 2 Mo maximum.");
+    }
+
+    const existing = await this.requireUser(tenantId, userId);
+    const stored = await this.storageService.uploadUserAvatar({
+      tenantId,
+      userId,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      buffer: file.buffer
+    });
+
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: existing.id },
+        data: {
+          avatarUrl: stored.fileUrl,
+          updatedAt: new Date()
+        }
+      });
+
+      await this.auditService.enqueueLog(
+        {
+          tenantId,
+          userId,
+          action: "USER_AVATAR_UPDATED",
+          resource: "users",
+          resourceId: existing.id,
+          payload: {
+            driver: stored.driver,
+            bucket: stored.bucket,
+            key: stored.key,
+            mimeType: stored.mimeType,
+            size: stored.size
+          } as unknown as Prisma.InputJsonValue
+        },
+        transaction
+      );
+
+      return transaction.user.findUniqueOrThrow({
+        where: { id: existing.id },
+        include: this.userProfileInclude()
+      });
+    });
+
+    return this.toMyProfileView(updated);
+  }
+
+  async removeMyAvatar(tenantId: string, userId: string): Promise<MyProfileView> {
+    const existing = await this.requireUser(tenantId, userId);
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: existing.id },
+        data: {
+          avatarUrl: null,
+          updatedAt: new Date()
+        }
+      });
+
+      await this.auditService.enqueueLog(
+        {
+          tenantId,
+          userId,
+          action: "USER_AVATAR_REMOVED",
+          resource: "users",
+          resourceId: existing.id,
+          payload: {} as Prisma.InputJsonValue
+        },
+        transaction
+      );
+
+      return transaction.user.findUniqueOrThrow({
+        where: { id: existing.id },
+        include: this.userProfileInclude()
+      });
+    });
+
+    return this.toMyProfileView(updated);
+  }
+
+  async changeMyPassword(
+    tenantId: string,
+    userId: string,
+    payload: ChangeMyPasswordDto
+  ): Promise<{ message: string }> {
+    if (payload.newPassword !== payload.confirmPassword) {
+      throw new BadRequestException("La confirmation du mot de passe ne correspond pas.");
+    }
+
+    const user = await this.requireUser(tenantId, userId);
+    const currentPasswordValid = await compare(payload.currentPassword, user.passwordHash);
+    if (!currentPasswordValid) {
+      throw new BadRequestException("Le mot de passe actuel est incorrect.");
+    }
+
+    this.assertPasswordPolicy(payload.newPassword, user.username);
+    const samePassword = await compare(payload.newPassword, user.passwordHash);
+    if (samePassword) {
+      throw new BadRequestException("Le nouveau mot de passe doit être différent de l’ancien.");
+    }
+
+    const passwordHash = await hash(payload.newPassword, 10);
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          mustChangePasswordAtFirstLogin: false,
+          updatedAt: new Date()
+        }
+      });
+
+      await this.auditService.enqueueLog(
+        {
+          tenantId,
+          userId,
+          action: "USER_PASSWORD_CHANGED",
+          resource: "users",
+          resourceId: user.id,
+          payload: {
+            username: user.username
+          } as unknown as Prisma.InputJsonValue
+        },
+        transaction
+      );
+    });
+
+    return { message: "Mot de passe modifié avec succès." };
+  }
+
+  async listMyActivity(tenantId: string, userId: string): Promise<UserActivityView[]> {
+    const rows = await this.prisma.iamAuditLog.findMany({
+      where: {
+        tenantId,
+        userId
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 10
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      action: row.action,
+      resource: row.resource,
+      resourceId: row.resourceId || undefined,
+      createdAt: row.createdAt.toISOString()
+    }));
   }
 
   async create(
@@ -846,6 +1104,57 @@ export class UsersService {
     return row;
   }
 
+  private async requireUserWithProfiles(tenantId: string, id: string): Promise<UserWithProfiles> {
+    const row = await this.prisma.user.findFirst({
+      where: {
+        id,
+        tenantId,
+        deletedAt: null
+      },
+      include: this.userProfileInclude()
+    });
+
+    if (!row) {
+      throw new NotFoundException("User not found.");
+    }
+
+    return row;
+  }
+
+  private async toMyProfileView(
+    row: UserWithProfiles,
+    preferences?: MyProfileView["preferences"]
+  ): Promise<MyProfileView> {
+    const activeSchoolYear = await this.prisma.schoolYear.findFirst({
+      where: {
+        tenantId: row.tenantId,
+        OR: [{ isActive: true }, { isDefault: true }]
+      },
+      orderBy: [{ isActive: "desc" }, { isDefault: "desc" }, { sortOrder: "asc" }, { startDate: "desc" }]
+    });
+    const role = row.role as UserRole;
+
+    return {
+      user: this.toView(row),
+      context: {
+        tenantId: row.tenantId,
+        tenantName: "Al Manarat Islamiyat",
+        activeSchoolYear: activeSchoolYear
+          ? {
+              id: activeSchoolYear.id,
+              code: activeSchoolYear.code,
+              label: activeSchoolYear.label,
+              status: activeSchoolYear.status,
+              isActive: activeSchoolYear.isActive
+            }
+          : undefined,
+        timeZone: process.env.TZ || "Europe/Paris"
+      },
+      preferences,
+      permissions: await this.listRolePermissions(row.tenantId, role)
+    };
+  }
+
   private async logAudit(
     tenantId: string,
     actorUserId: string,
@@ -915,6 +1224,27 @@ export class UsersService {
   private optionalEmptyToNull(value?: string): string | null | undefined {
     if (value === undefined) return undefined;
     return this.emptyToNull(value);
+  }
+
+  private assertNoForbiddenProfileMutation(payload: Record<string, unknown>): void {
+    const forbiddenFields = [
+      "role",
+      "roleId",
+      "accountType",
+      "status",
+      "tenantId",
+      "permissions",
+      "password",
+      "passwordHash",
+      "createdAt",
+      "lastLoginAt",
+      "isActive",
+      "mustChangePasswordAtFirstLogin"
+    ];
+    const forbidden = forbiddenFields.find((field) => payload[field] !== undefined);
+    if (forbidden) {
+      throw new BadRequestException(`Le champ ${forbidden} ne peut pas être modifié depuis Mon profil.`);
+    }
   }
 
   private handleKnownPrismaConflict(error: unknown, message: string): void {

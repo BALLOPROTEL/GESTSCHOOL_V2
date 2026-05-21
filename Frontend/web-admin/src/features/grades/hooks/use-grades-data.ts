@@ -1,26 +1,31 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import type {
-  ClassSummary,
+  AcademicTrack,
   ClassItem,
+  ClassSummary,
   FieldErrors,
   GradeEntry,
   Period,
   ReportCard,
+  SchoolYear,
   Student,
   Subject
 } from "../../../shared/types/app";
 import {
-  createGrade,
+  createGradesBulk,
+  deleteGrade,
   fetchClassSummary,
   fetchGrades,
   fetchReportCardPdf,
   fetchReportCards,
-  generateReportCard
+  generateReportCard,
+  generateReportCardsBulk
 } from "../services/grades-service";
 import type {
   GradeFilters,
   GradeForm,
+  GradeGridRow,
   GradesApiClient,
   ReportForm
 } from "../types/grades";
@@ -32,6 +37,7 @@ type UseGradesDataOptions = {
   students: Student[];
   subjects: Subject[];
   periods: Period[];
+  schoolYears: SchoolYear[];
   remoteEnabled?: boolean;
   onReportCardsChange?: (reportCards: ReportCard[]) => void;
   onError: (message: string | null) => void;
@@ -39,6 +45,8 @@ type UseGradesDataOptions = {
 };
 
 const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).length > 0;
+
+const today = (): string => new Date().toISOString().slice(0, 10);
 
 const focusFirstInlineErrorField = (stepId?: string): void => {
   window.setTimeout(() => {
@@ -60,28 +68,208 @@ const focusFirstInlineErrorField = (stepId?: string): void => {
 };
 
 const buildGradeFilters = (): GradeFilters => ({
+  schoolYearId: "",
   classId: "",
   subjectId: "",
   academicPeriodId: "",
+  track: "MIXED",
   studentId: ""
 });
 
 const buildGradeForm = (): GradeForm => ({
-  studentId: "",
   classId: "",
   subjectId: "",
   academicPeriodId: "",
+  track: "MIXED",
   assessmentLabel: "Devoir 1",
   assessmentType: "DEVOIR",
-  score: "",
-  scoreMax: "20"
+  assessmentDate: today(),
+  scoreMax: "20",
+  coefficient: "1",
+  comment: ""
 });
 
 const buildReportForm = (): ReportForm => ({
+  schoolYearId: "",
   studentId: "",
   classId: "",
-  academicPeriodId: ""
+  academicPeriodId: "",
+  track: "MIXED",
+  mode: "student",
+  regenerateExisting: false,
+  publish: true
 });
+
+const formatStudentName = (student: Student): string =>
+  student.fullName || `${student.firstName} ${student.lastName}`.trim();
+
+const resolvePlacement = (
+  student: Student,
+  classId: string,
+  track?: AcademicTrack | "MIXED"
+) =>
+  student.placements?.find(
+    (placement) =>
+      placement.classId === classId &&
+      (track === "MIXED" || !track || placement.track === track)
+  );
+
+const studentsForClass = (
+  students: Student[],
+  classId: string,
+  track?: AcademicTrack | "MIXED"
+): Student[] => {
+  if (!classId) return students;
+  const matched = students.filter((student) => resolvePlacement(student, classId, track));
+  return matched.length > 0 ? matched : students;
+};
+
+const buildGridRows = (
+  students: Student[],
+  classId: string,
+  track?: AcademicTrack | "MIXED"
+): GradeGridRow[] =>
+  studentsForClass(students, classId, track).map((student) => ({
+    studentId: student.id,
+    placementId: resolvePlacement(student, classId, track)?.placementId,
+    score: "",
+    absent: false,
+    exempted: false,
+    comment: ""
+  }));
+
+const appendLocalGrades = (
+  current: GradeEntry[],
+  payload: {
+    classId: string;
+    subjectId: string;
+    academicPeriodId: string;
+    assessmentLabel: string;
+    assessmentType: string;
+    assessmentDate: string;
+    scoreMax: number;
+    coefficient: number;
+    grades: Array<{
+      studentId: string;
+      placementId?: string;
+      score: number;
+      absent: boolean;
+      exempted: boolean;
+      comment?: string;
+    }>;
+  },
+  students: Student[],
+  subjects: Subject[]
+): GradeEntry[] => {
+  const subject = subjects.find((item) => item.id === payload.subjectId);
+  const nextRows = payload.grades.map((row) => {
+    const student = students.find((item) => item.id === row.studentId);
+    return {
+      id: `local-grade-${payload.classId}-${payload.subjectId}-${payload.academicPeriodId}-${row.studentId}`,
+      studentId: row.studentId,
+      studentName: student ? formatStudentName(student) : undefined,
+      classId: payload.classId,
+      placementId: row.placementId,
+      track: "FRANCOPHONE" as AcademicTrack,
+      subjectId: payload.subjectId,
+      subjectLabel: subject?.label,
+      academicPeriodId: payload.academicPeriodId,
+      assessmentLabel: payload.assessmentLabel,
+      assessmentType: payload.assessmentType,
+      assessmentDate: payload.assessmentDate,
+      score: row.score,
+      scoreMax: payload.scoreMax,
+      coefficient: payload.coefficient,
+      absent: row.absent,
+      exempted: row.exempted,
+      comment: row.comment
+    } satisfies GradeEntry;
+  });
+  return [...nextRows, ...current];
+};
+
+const buildLocalClassSummary = (
+  grades: GradeEntry[],
+  students: Student[],
+  classId: string,
+  academicPeriodId: string
+): ClassSummary => {
+  const rows = studentsForClass(students, classId).map((student) => {
+    const studentGrades = grades.filter(
+      (grade) =>
+        grade.studentId === student.id &&
+        grade.classId === classId &&
+        grade.academicPeriodId === academicPeriodId &&
+        !grade.exempted
+    );
+
+    const subjectMap = new Map<
+      string,
+      { subjectLabel: string; weightedSum: number; coefficientSum: number; coefficient: number }
+    >();
+    for (const grade of studentGrades) {
+      const coefficient = grade.coefficient ?? 1;
+      const normalized = grade.absent ? 0 : (grade.score / grade.scoreMax) * 20;
+      const current = subjectMap.get(grade.subjectId) || {
+        subjectLabel: grade.subjectLabel || grade.subjectId,
+        weightedSum: 0,
+        coefficientSum: 0,
+        coefficient
+      };
+      current.weightedSum += normalized * coefficient;
+      current.coefficientSum += coefficient;
+      current.coefficient = coefficient;
+      subjectMap.set(grade.subjectId, current);
+    }
+
+    const subjectAverages = Array.from(subjectMap.entries()).map(([subjectId, item]) => ({
+      subjectId,
+      subjectLabel: item.subjectLabel,
+      average: item.coefficientSum > 0 ? item.weightedSum / item.coefficientSum : 0,
+      coefficient: item.coefficient
+    }));
+    const coefficientTotal = subjectAverages.reduce((sum, item) => sum + (item.coefficient ?? 1), 0);
+    const averageGeneral =
+      subjectAverages.length > 0 && coefficientTotal > 0
+        ? subjectAverages.reduce((sum, item) => sum + item.average * (item.coefficient ?? 1), 0) / coefficientTotal
+        : 0;
+
+    return {
+      studentId: student.id,
+      placementId: resolvePlacement(student, classId)?.placementId,
+      track: resolvePlacement(student, classId)?.track || "FRANCOPHONE",
+      matricule: student.matricule,
+      studentName: formatStudentName(student),
+      averageGeneral: Math.round(averageGeneral * 100) / 100,
+      classRank: 0,
+      noteCount: subjectAverages.length,
+      missingGrades: Math.max(0, 1 - subjectAverages.length),
+      appreciation:
+        averageGeneral >= 16 ? "Excellent" : averageGeneral >= 14 ? "Très bien" : averageGeneral >= 10 ? "Passable" : "À renforcer",
+      subjectAverages
+    };
+  });
+
+  const ranked = [...rows].sort((left, right) => right.averageGeneral - left.averageGeneral);
+  ranked.forEach((row, index) => {
+    row.classRank = index + 1;
+  });
+
+  const rankByStudentId = new Map(ranked.map((row) => [row.studentId, row.classRank]));
+  const completedRows = rows.map((row) => ({ ...row, classRank: rankByStudentId.get(row.studentId) || 0 }));
+  const notedRows = completedRows.filter((row) => row.noteCount > 0);
+
+  return {
+    classId,
+    academicPeriodId,
+    track: "FRANCOPHONE",
+    classAverage:
+      notedRows.length > 0
+        ? Math.round((notedRows.reduce((sum, row) => sum + row.averageGeneral, 0) / notedRows.length) * 100) / 100
+        : 0,
+    students: completedRows
+  };
+};
 
 export const useGradesData = ({
   api,
@@ -90,6 +278,7 @@ export const useGradesData = ({
   students,
   subjects,
   periods,
+  schoolYears,
   remoteEnabled = true,
   onReportCardsChange,
   onError,
@@ -98,13 +287,18 @@ export const useGradesData = ({
   const [grades, setGrades] = useState<GradeEntry[]>([]);
   const [gradeFilters, setGradeFilters] = useState<GradeFilters>(() => buildGradeFilters());
   const [gradeForm, setGradeForm] = useState<GradeForm>(() => buildGradeForm());
+  const [gradeRows, setGradeRows] = useState<GradeGridRow[]>(() => buildGridRows(students, ""));
   const [classSummary, setClassSummary] = useState<ClassSummary | null>(null);
   const [reportCards, setReportCards] = useState<ReportCard[]>(initialReportCards);
   const [reportForm, setReportForm] = useState<ReportForm>(() => buildReportForm());
   const [reportPdfUrl, setReportPdfUrl] = useState("");
   const [gradesWorkflowStep, setGradesWorkflowStep] = useState("filters");
   const [gradeErrors, setGradeErrors] = useState<FieldErrors>({});
+  const [gradeRowErrors, setGradeRowErrors] = useState<FieldErrors>({});
   const [reportErrors, setReportErrors] = useState<FieldErrors>({});
+  const [summaryComputedAt, setSummaryComputedAt] = useState<string | null>(null);
+  const [reportsGeneratedAt, setReportsGeneratedAt] = useState<string | null>(null);
+  const [selectedSummaryStudentId, setSelectedSummaryStudentId] = useState("");
 
   const setReportCardsAndNotify = useCallback(
     (nextReportCards: ReportCard[]) => {
@@ -134,83 +328,57 @@ export const useGradesData = ({
   }, [api, onError, remoteEnabled]);
 
   useEffect(() => {
-    if (!gradeForm.studentId && students[0]) setGradeForm((previous) => ({ ...previous, studentId: students[0].id }));
-    if (!gradeForm.classId && classes[0]) setGradeForm((previous) => ({ ...previous, classId: classes[0].id }));
-    if (!gradeForm.subjectId && subjects[0]) setGradeForm((previous) => ({ ...previous, subjectId: subjects[0].id }));
-    const gradeFormSchoolYearId = classes.find((item) => item.id === gradeForm.classId)?.schoolYearId;
-    const compatiblePeriodsForGradeForm = gradeFormSchoolYearId
-      ? periods.filter((item) => item.schoolYearId === gradeFormSchoolYearId)
-      : periods;
-    if (!gradeForm.academicPeriodId && compatiblePeriodsForGradeForm[0]) {
-      setGradeForm((previous) => ({ ...previous, academicPeriodId: compatiblePeriodsForGradeForm[0].id }));
+    const firstYear = schoolYears.find((item) => item.isActive || item.isDefault) || schoolYears[0];
+    const firstClass = classes.find((item) => !firstYear || item.schoolYearId === firstYear.id) || classes[0];
+    const firstSubject = subjects[0];
+    const firstPeriod = firstClass
+      ? periods.find((item) => item.schoolYearId === firstClass.schoolYearId) || periods[0]
+      : periods[0];
+
+    if (!gradeForm.classId && firstClass) setGradeForm((previous) => ({ ...previous, classId: firstClass.id }));
+    if (!gradeForm.subjectId && firstSubject) setGradeForm((previous) => ({ ...previous, subjectId: firstSubject.id }));
+    if (!gradeForm.academicPeriodId && firstPeriod) {
+      setGradeForm((previous) => ({ ...previous, academicPeriodId: firstPeriod.id }));
     }
 
-    if (!reportForm.studentId && students[0]) setReportForm((previous) => ({ ...previous, studentId: students[0].id }));
-    if (!reportForm.classId && classes[0]) setReportForm((previous) => ({ ...previous, classId: classes[0].id }));
-    const reportFormSchoolYearId = classes.find((item) => item.id === reportForm.classId)?.schoolYearId;
-    const compatiblePeriodsForReportForm = reportFormSchoolYearId
-      ? periods.filter((item) => item.schoolYearId === reportFormSchoolYearId)
-      : periods;
-    if (!reportForm.academicPeriodId && compatiblePeriodsForReportForm[0]) {
-      setReportForm((previous) => ({ ...previous, academicPeriodId: compatiblePeriodsForReportForm[0].id }));
+    if (!reportForm.schoolYearId && (firstYear || firstClass)) {
+      setReportForm((previous) => ({
+        ...previous,
+        schoolYearId: firstYear?.id || firstClass?.schoolYearId || previous.schoolYearId
+      }));
+    }
+    if (!reportForm.classId && firstClass) {
+      setReportForm((previous) => ({
+        ...previous,
+        classId: firstClass.id,
+        schoolYearId: previous.schoolYearId || firstClass.schoolYearId,
+        track: firstClass.track || previous.track
+      }));
+    }
+    if (!reportForm.academicPeriodId && firstPeriod) {
+      setReportForm((previous) => ({ ...previous, academicPeriodId: firstPeriod.id }));
+    }
+    if (!reportForm.studentId && students[0]) {
+      setReportForm((previous) => ({ ...previous, studentId: students[0].id }));
     }
   }, [
     classes,
     gradeForm.academicPeriodId,
     gradeForm.classId,
-    gradeForm.studentId,
     gradeForm.subjectId,
     periods,
     reportForm.academicPeriodId,
     reportForm.classId,
+    reportForm.schoolYearId,
     reportForm.studentId,
+    schoolYears,
     students,
     subjects
   ]);
 
   useEffect(() => {
-    const ensureCompatiblePeriod = (
-      classId: string,
-      academicPeriodId: string,
-      setNextPeriodId: (periodId: string) => void
-    ): void => {
-      if (!classId || !academicPeriodId) return;
-      const classroom = classes.find((item) => item.id === classId);
-      const period = periods.find((item) => item.id === academicPeriodId);
-      if (!classroom || !period || classroom.schoolYearId === period.schoolYearId) return;
-      const fallback = periods.find((item) => item.schoolYearId === classroom.schoolYearId);
-      setNextPeriodId(fallback?.id || "");
-    };
-
-    ensureCompatiblePeriod(gradeForm.classId, gradeForm.academicPeriodId, (nextPeriodId) => {
-      if (nextPeriodId !== gradeForm.academicPeriodId) {
-        setGradeForm((previous) => ({ ...previous, academicPeriodId: nextPeriodId }));
-      }
-    });
-
-    ensureCompatiblePeriod(reportForm.classId, reportForm.academicPeriodId, (nextPeriodId) => {
-      if (nextPeriodId !== reportForm.academicPeriodId) {
-        setReportForm((previous) => ({ ...previous, academicPeriodId: nextPeriodId }));
-      }
-    });
-
-    if (gradeFilters.classId && gradeFilters.academicPeriodId) {
-      const classroom = classes.find((item) => item.id === gradeFilters.classId);
-      const period = periods.find((item) => item.id === gradeFilters.academicPeriodId);
-      if (classroom && period && classroom.schoolYearId !== period.schoolYearId) {
-        setGradeFilters((previous) => ({ ...previous, academicPeriodId: "" }));
-      }
-    }
-  }, [
-    classes,
-    gradeFilters.academicPeriodId,
-    gradeFilters.classId,
-    gradeForm.academicPeriodId,
-    gradeForm.classId,
-    periods,
-    reportForm.academicPeriodId,
-    reportForm.classId
-  ]);
+    setGradeRows(buildGridRows(students, gradeForm.classId, gradeForm.track));
+  }, [gradeForm.classId, gradeForm.track, students]);
 
   const hasCompatibleClassPeriod = useCallback(
     (classId: string, academicPeriodId: string): boolean => {
@@ -246,102 +414,205 @@ export const useGradesData = ({
     }
   }, [api, initialReportCards, onError, remoteEnabled, setReportCardsAndNotify]);
 
-  const submitGrade = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+  const resetGradeEntry = (): void => {
+    setGradeForm((previous) => ({
+      ...previous,
+      assessmentLabel: "Devoir 1",
+      assessmentType: "DEVOIR",
+      assessmentDate: today(),
+      scoreMax: "20",
+      coefficient: "1",
+      comment: ""
+    }));
+    setGradeRows(buildGridRows(students, gradeForm.classId, gradeForm.track));
+    setGradeErrors({});
+    setGradeRowErrors({});
+  };
+
+  const submitGradesBulk = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     onError(null);
 
     const errors: FieldErrors = {};
-    if (!gradeForm.studentId) errors.studentId = "Eleve requis.";
+    const rowErrors: FieldErrors = {};
     if (!gradeForm.classId) errors.classId = "Classe requise.";
-    if (!gradeForm.subjectId) errors.subjectId = "Matiere requise.";
-    if (!gradeForm.academicPeriodId) errors.academicPeriodId = "Periode requise.";
-    if (!gradeForm.assessmentLabel.trim()) errors.assessmentLabel = "Evaluation requise.";
+    if (!gradeForm.subjectId) errors.subjectId = "Matière requise.";
+    if (!gradeForm.academicPeriodId) errors.academicPeriodId = "Période requise.";
+    if (!gradeForm.assessmentLabel.trim()) errors.assessmentLabel = "Libellé de l’évaluation requis.";
+    if (!gradeForm.assessmentDate) errors.assessmentDate = "Date d’évaluation requise.";
 
-    const score = Number(gradeForm.score);
     const scoreMax = Number(gradeForm.scoreMax || "20");
-
-    if (!Number.isFinite(score) || score < 0) errors.score = "La note doit etre >= 0.";
-    if (!Number.isFinite(scoreMax) || scoreMax <= 0) errors.scoreMax = "Le bareme doit etre > 0.";
-    if (Number.isFinite(score) && Number.isFinite(scoreMax) && score > scoreMax) {
-      errors.score = "La note ne peut pas depasser le bareme.";
-    }
+    const coefficient = Number(gradeForm.coefficient || "1");
+    if (!Number.isFinite(scoreMax) || scoreMax <= 0) errors.scoreMax = "Le barème doit être supérieur à 0.";
+    if (!Number.isFinite(coefficient) || coefficient <= 0) errors.coefficient = "Le coefficient doit être supérieur à 0.";
     if (!hasCompatibleClassPeriod(gradeForm.classId, gradeForm.academicPeriodId)) {
-      errors.academicPeriodId = "La periode doit appartenir a la meme annee scolaire.";
+      errors.academicPeriodId = "La période doit appartenir à la même année scolaire que la classe.";
+    }
+
+    const payloadRows = gradeRows
+      .map((row) => {
+        const score = Number(row.score);
+        const isNeutralized = row.absent || row.exempted;
+        if (!isNeutralized && row.score.trim() === "") {
+          rowErrors[`score-${row.studentId}`] = "Note requise.";
+        } else if (!isNeutralized && (!Number.isFinite(score) || score < 0)) {
+          rowErrors[`score-${row.studentId}`] = "Note invalide.";
+        } else if (!isNeutralized && Number.isFinite(score) && score > scoreMax) {
+          rowErrors[`score-${row.studentId}`] = "La note dépasse le barème.";
+        }
+        return {
+          studentId: row.studentId,
+          placementId: row.placementId,
+          score: isNeutralized ? 0 : score,
+          absent: row.absent,
+          exempted: row.exempted,
+          comment: row.comment.trim() || undefined
+        };
+      })
+      .filter((row) => row.absent || row.exempted || Number.isFinite(row.score));
+
+    if (payloadRows.length === 0) {
+      errors.grades = "Aucune note à enregistrer.";
     }
 
     setGradeErrors(errors);
-    if (hasFieldErrors(errors)) {
+    setGradeRowErrors(rowErrors);
+    if (hasFieldErrors(errors) || hasFieldErrors(rowErrors)) {
       focusFirstInlineErrorField("entry");
       return;
     }
+
+    const payload = {
+      classId: gradeForm.classId,
+      subjectId: gradeForm.subjectId,
+      academicPeriodId: gradeForm.academicPeriodId,
+      track: gradeForm.track === "MIXED" ? undefined : gradeForm.track,
+      assessmentLabel: gradeForm.assessmentLabel.trim(),
+      assessmentType: gradeForm.assessmentType,
+      assessmentDate: gradeForm.assessmentDate,
+      scoreMax,
+      coefficient,
+      grades: payloadRows
+    };
+
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : note non persistee.");
+      setGrades((current) => appendLocalGrades(current, payload, students, subjects));
+      setGradeErrors({});
+      setGradeRowErrors({});
+      setGradesWorkflowStep("entry");
+      onNotice("Notes enregistrées en aperçu local.");
       return;
     }
 
     try {
-      await createGrade(api, {
-        studentId: gradeForm.studentId,
-        classId: gradeForm.classId,
-        subjectId: gradeForm.subjectId,
-        academicPeriodId: gradeForm.academicPeriodId,
-        assessmentLabel: gradeForm.assessmentLabel.trim(),
-        assessmentType: gradeForm.assessmentType,
-        score,
-        scoreMax
-      });
+      const result = await createGradesBulk(api, payload);
       setGradeErrors({});
-      onNotice("Note enregistree.");
+      setGradeRowErrors({});
       setGradesWorkflowStep("entry");
-      setGradeForm((previous) => ({ ...previous, score: "" }));
+      onNotice(`${result.upsertedCount} note${result.upsertedCount > 1 ? "s" : ""} enregistrée${result.upsertedCount > 1 ? "s" : ""}.`);
+      setGradeRows(buildGridRows(students, gradeForm.classId, gradeForm.track));
       await loadGrades(gradeFilters);
       await loadReportCards();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'enregistrement de la note.");
+      onError(error instanceof Error ? error.message : "Erreur d’enregistrement des notes.");
+    }
+  };
+
+  const updateGradeRow = (studentId: string, patch: Partial<GradeGridRow>): void => {
+    setGradeRows((current) =>
+      current.map((row) => (row.studentId === studentId ? { ...row, ...patch } : row))
+    );
+  };
+
+  const removeGrade = async (gradeId: string): Promise<void> => {
+    const confirmed = window.confirm("Supprimer cette note ? Cette action mettra à jour les moyennes et bulletins liés.");
+    if (!confirmed) return;
+    if (!remoteEnabled || gradeId.startsWith("local-grade-")) {
+      setGrades((current) => current.filter((grade) => grade.id !== gradeId));
+      onNotice("Note supprimée en aperçu local.");
+      return;
+    }
+    try {
+      await deleteGrade(api, gradeId);
+      onNotice("Note supprimée.");
+      await loadGrades(gradeFilters);
+      await loadReportCards();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Erreur de suppression de la note.");
     }
   };
 
   const applyGradeFilters = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     onError(null);
-    if (
-      gradeFilters.classId &&
-      gradeFilters.academicPeriodId &&
-      !hasCompatibleClassPeriod(gradeFilters.classId, gradeFilters.academicPeriodId)
-    ) {
-      onError("La periode filtree doit appartenir a la meme annee scolaire que la classe.");
+    if (!gradeFilters.schoolYearId || !gradeFilters.classId || !gradeFilters.academicPeriodId) {
+      onError("Sélectionnez une année scolaire, une classe et une période pour afficher les données.");
+      return;
+    }
+    const selectedClass = classes.find((item) => item.id === gradeFilters.classId);
+    const selectedPeriod = periods.find((item) => item.id === gradeFilters.academicPeriodId);
+    if (selectedClass?.schoolYearId !== gradeFilters.schoolYearId || selectedPeriod?.schoolYearId !== gradeFilters.schoolYearId) {
+      onError("La classe et la période doivent appartenir à l’année scolaire sélectionnée.");
+      return;
+    }
+    if (!hasCompatibleClassPeriod(gradeFilters.classId, gradeFilters.academicPeriodId)) {
+      onError("La période filtrée doit appartenir à la même année scolaire que la classe.");
       return;
     }
     await loadGrades(gradeFilters);
+    if (
+      classSummary &&
+      (classSummary.classId !== gradeFilters.classId || classSummary.academicPeriodId !== gradeFilters.academicPeriodId)
+    ) {
+      setClassSummary(null);
+      setSummaryComputedAt(null);
+      setSelectedSummaryStudentId("");
+    }
+    onNotice("Données affichées pour le contexte sélectionné.");
   };
 
   const resetGradeFilters = async (): Promise<void> => {
     const next = buildGradeFilters();
     setGradeFilters(next);
     setClassSummary(null);
+    setSummaryComputedAt(null);
     await loadGrades(next);
   };
 
   const computeClassSummary = async (): Promise<void> => {
     if (!gradeFilters.classId || !gradeFilters.academicPeriodId) {
-      onError("Selectionne d'abord une classe et une periode.");
+      onError("Sélectionnez d’abord une classe et une période.");
       return;
     }
     if (!hasCompatibleClassPeriod(gradeFilters.classId, gradeFilters.academicPeriodId)) {
-      onError("La periode doit appartenir a la meme annee scolaire que la classe selectionnee.");
+      onError("La période doit appartenir à la même année scolaire que la classe sélectionnée.");
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : calcul non persiste.");
+      const summary = buildLocalClassSummary(grades, students, gradeFilters.classId, gradeFilters.academicPeriodId);
+      if (summary.students.every((student) => student.noteCount === 0)) {
+        onError("Aucune note disponible pour calculer les moyennes.");
+        return;
+      }
+      setClassSummary(summary);
+      setSummaryComputedAt(new Date().toISOString());
+      setSelectedSummaryStudentId(summary.students[0]?.studentId || "");
+      onNotice("Moyennes et rangs calculés en aperçu local.");
       return;
     }
 
     try {
-      setClassSummary(await fetchClassSummary(api, gradeFilters.classId, gradeFilters.academicPeriodId));
-      setGradesWorkflowStep("summary");
-      onNotice("Synthese de classe calculee.");
+      const summary = await fetchClassSummary(api, gradeFilters.classId, gradeFilters.academicPeriodId);
+      if (summary.students.every((student) => student.noteCount === 0)) {
+        onError("Aucune note disponible pour calculer les moyennes.");
+        return;
+      }
+      setClassSummary(summary);
+      setSummaryComputedAt(new Date().toISOString());
+      setSelectedSummaryStudentId(summary.students[0]?.studentId || "");
+      onNotice("Moyennes et rangs calculés.");
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de calcul de synthese.");
+      onError(error instanceof Error ? error.message : "Erreur de calcul des moyennes.");
     }
   };
 
@@ -350,11 +621,23 @@ export const useGradesData = ({
     onError(null);
 
     const errors: FieldErrors = {};
-    if (!reportForm.studentId) errors.studentId = "Eleve requis.";
+    if (!reportForm.schoolYearId) errors.schoolYearId = "Année scolaire requise.";
     if (!reportForm.classId) errors.classId = "Classe requise.";
-    if (!reportForm.academicPeriodId) errors.academicPeriodId = "Periode requise.";
+    if (!reportForm.academicPeriodId) errors.academicPeriodId = "Période requise.";
+    if (reportForm.mode === "student" && !reportForm.studentId) errors.studentId = "Élève requis.";
+    const selectedClass = classes.find((item) => item.id === reportForm.classId);
+    const selectedPeriod = periods.find((item) => item.id === reportForm.academicPeriodId);
+    if (
+      reportForm.schoolYearId &&
+      (selectedClass?.schoolYearId !== reportForm.schoolYearId || selectedPeriod?.schoolYearId !== reportForm.schoolYearId)
+    ) {
+      errors.schoolYearId = "La classe et la période doivent appartenir à l’année scolaire sélectionnée.";
+    }
     if (!hasCompatibleClassPeriod(reportForm.classId, reportForm.academicPeriodId)) {
-      errors.academicPeriodId = "Classe et periode doivent etre dans la meme annee scolaire.";
+      errors.academicPeriodId = "Classe et période doivent être dans la même année scolaire.";
+    }
+    if (!classSummary || classSummary.classId !== reportForm.classId || classSummary.academicPeriodId !== reportForm.academicPeriodId) {
+      errors.academicPeriodId = "Calculez d’abord les moyennes et rangs avant de générer les bulletins.";
     }
 
     setReportErrors(errors);
@@ -362,34 +645,58 @@ export const useGradesData = ({
       focusFirstInlineErrorField("reports");
       return;
     }
+    const missingGrades = classSummary?.students.reduce((sum, student) => sum + (student.missingGrades ?? 0), 0) || 0;
+    if (
+      missingGrades > 0 &&
+      !window.confirm(
+        `${missingGrades} note${missingGrades > 1 ? "s" : ""} manquante${missingGrades > 1 ? "s" : ""} détectée${missingGrades > 1 ? "s" : ""}. Voulez-vous générer les bulletins malgré cet avertissement ?`
+      )
+    ) {
+      return;
+    }
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : bulletin non persiste.");
+      onNotice("Mode aperçu local : PDF non généré.");
       return;
     }
 
     try {
+      if (reportForm.mode === "class") {
+        const nextCards = await generateReportCardsBulk(api, {
+          classId: reportForm.classId,
+          academicPeriodId: reportForm.academicPeriodId,
+          track: reportForm.track === "MIXED" ? undefined : reportForm.track,
+          publish: reportForm.publish
+        });
+        setReportErrors({});
+        setReportsGeneratedAt(new Date().toISOString());
+        setReportCardsAndNotify(nextCards);
+        onNotice(`${nextCards.length} bulletin${nextCards.length > 1 ? "s" : ""} généré${nextCards.length > 1 ? "s" : ""}.`);
+        return;
+      }
+
       const reportCard = await generateReportCard(api, {
         studentId: reportForm.studentId,
         classId: reportForm.classId,
         academicPeriodId: reportForm.academicPeriodId,
-        publish: true
+        track: reportForm.track === "MIXED" ? undefined : reportForm.track,
+        publish: reportForm.publish
       });
       setReportErrors({});
       setReportPdfUrl(reportCard.pdfDataUrl || "");
       if (reportCard.pdfDataUrl) {
         window.open(reportCard.pdfDataUrl, "_blank", "noopener,noreferrer");
       }
-      onNotice("Bulletin(s) genere(s).");
-      setGradesWorkflowStep("reports");
+      setReportsGeneratedAt(new Date().toISOString());
+      onNotice("Bulletin généré.");
       await loadReportCards();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de generation du bulletin.");
+      onError(error instanceof Error ? error.message : "Erreur de génération du bulletin.");
     }
   };
 
   const openReportCardPdf = async (reportCardId: string): Promise<void> => {
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : PDF indisponible.");
+      onNotice("Mode aperçu local : PDF indisponible.");
       return;
     }
 
@@ -398,16 +705,16 @@ export const useGradesData = ({
       setReportPdfUrl(pdfDataUrl);
       window.open(pdfDataUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'ouverture du bulletin.");
+      onError(error instanceof Error ? error.message : "Erreur d’ouverture du bulletin.");
     }
   };
 
   const gradeSteps = useMemo(
     () => [
-      { id: "filters", title: "Filtres", hint: "Cibler classe, matiere et periode." },
-      { id: "entry", title: "Saisie", hint: "Enregistrer les notes de l'evaluation.", done: grades.length > 0 },
-      { id: "summary", title: "Moyennes", hint: "Calculer moyenne generale et rangs.", done: !!classSummary },
-      { id: "reports", title: "Bulletins", hint: "Generer les bulletins PDF.", done: reportCards.length > 0 }
+      { id: "filters", title: "Vue d’ensemble", hint: "Choisir l’année, la classe et la période." },
+      { id: "entry", title: "Saisie des notes", hint: "Saisir une évaluation en grille.", done: grades.length > 0 },
+      { id: "summary", title: "Moyennes & rangs", hint: "Calculer les moyennes et les rangs.", done: !!classSummary },
+      { id: "reports", title: "Bulletins", hint: "Générer et ouvrir les bulletins PDF.", done: reportCards.length > 0 }
     ],
     [classSummary, grades.length, reportCards.length]
   );
@@ -420,6 +727,8 @@ export const useGradesData = ({
     gradeErrors,
     gradeFilters,
     gradeForm,
+    gradeRowErrors,
+    gradeRows,
     grades,
     gradeSteps,
     gradesWorkflowStep,
@@ -430,11 +739,18 @@ export const useGradesData = ({
     reportErrors,
     reportForm,
     reportPdfUrl,
+    reportsGeneratedAt,
+    resetGradeEntry,
     resetGradeFilters,
+    removeGrade,
+    selectedSummaryStudentId,
     setGradeFilters,
     setGradeForm,
     setGradesWorkflowStep,
     setReportForm,
-    submitGrade
+    setSelectedSummaryStudentId,
+    submitGradesBulk,
+    summaryComputedAt,
+    updateGradeRow
   };
 };

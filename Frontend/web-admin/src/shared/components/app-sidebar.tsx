@@ -9,8 +9,6 @@ type AppSidebarGroup = {
 };
 
 type AppSidebarProps = {
-  brandName: string;
-  currentRoleLabel: string;
   groups: AppSidebarGroup[];
 };
 
@@ -36,7 +34,7 @@ const SIDEBAR_ICON_BY_ACTION: Record<string, ModuleIconName> = {
 };
 
 export function AppSidebar(props: AppSidebarProps): JSX.Element {
-  const { brandName, currentRoleLabel, groups } = props;
+  const { groups } = props;
 
   const visibleGroups = groups
     .map((group) => ({
@@ -50,17 +48,6 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
 
   return (
     <aside className="panel app-sidebar app-sidebar-v2" aria-label="Navigation laterale">
-      <div className="sidebar-brand-row">
-        <span className="sidebar-brand-mark" aria-hidden="true">
-          GS
-        </span>
-        <div className="sidebar-head">
-          <p className="eyebrow">GestSchool Admin</p>
-          <strong>{brandName}</strong>
-          <p className="subtle">{currentRoleLabel}</p>
-        </div>
-      </div>
-
       <div className="sidebar-scroll-region">
         {visibleGroups.map((group) => (
           <div key={group.id} className="sidebar-group">

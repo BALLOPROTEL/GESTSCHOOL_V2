@@ -3,6 +3,7 @@ import { AcademicTrack } from "@prisma/client";
 import {
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsIn,
   IsNumber,
@@ -15,6 +16,19 @@ import {
   ValidateNested
 } from "class-validator";
 import { Type } from "class-transformer";
+
+const ASSESSMENT_TYPES = [
+  "DEVOIR",
+  "INTERROGATION",
+  "COMPOSITION",
+  "EXAMEN",
+  "PROJET",
+  "PARTICIPATION",
+  "ORAL",
+  "TP"
+] as const;
+
+type AssessmentType = (typeof ASSESSMENT_TYPES)[number];
 
 export class CreateGradeDto {
   @ApiProperty()
@@ -48,15 +62,24 @@ export class CreateGradeDto {
   @MaxLength(120)
   assessmentLabel!: string;
 
-  @ApiPropertyOptional({ example: "DEVOIR", enum: ["DEVOIR", "COMPOSITION", "ORAL", "TP"] })
+  @ApiPropertyOptional({
+    example: "DEVOIR",
+    enum: ASSESSMENT_TYPES
+  })
   @IsOptional()
-  @IsIn(["DEVOIR", "COMPOSITION", "ORAL", "TP"])
-  assessmentType?: "DEVOIR" | "COMPOSITION" | "ORAL" | "TP";
+  @IsIn(ASSESSMENT_TYPES)
+  assessmentType?: AssessmentType;
+
+  @ApiPropertyOptional({ example: "2026-05-19" })
+  @IsOptional()
+  @IsDateString()
+  assessmentDate?: string;
 
   @ApiProperty({ example: 15.5 })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  score!: number;
+  score?: number;
 
   @ApiPropertyOptional({ example: 20 })
   @IsOptional()
@@ -64,10 +87,21 @@ export class CreateGradeDto {
   @IsPositive()
   scoreMax?: number;
 
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  coefficient?: number;
+
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   absent?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  exempted?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -86,14 +120,20 @@ export class BulkGradeItemDto {
   placementId?: string;
 
   @ApiProperty({ example: 14 })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  score!: number;
+  score?: number;
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
   absent?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  exempted?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -124,16 +164,30 @@ export class BulkCreateGradesDto {
   @MaxLength(120)
   assessmentLabel!: string;
 
-  @ApiPropertyOptional({ example: "DEVOIR", enum: ["DEVOIR", "COMPOSITION", "ORAL", "TP"] })
+  @ApiPropertyOptional({
+    example: "DEVOIR",
+    enum: ASSESSMENT_TYPES
+  })
   @IsOptional()
-  @IsIn(["DEVOIR", "COMPOSITION", "ORAL", "TP"])
-  assessmentType?: "DEVOIR" | "COMPOSITION" | "ORAL" | "TP";
+  @IsIn(ASSESSMENT_TYPES)
+  assessmentType?: AssessmentType;
+
+  @ApiPropertyOptional({ example: "2026-05-19" })
+  @IsOptional()
+  @IsDateString()
+  assessmentDate?: string;
 
   @ApiPropertyOptional({ example: 20 })
   @IsOptional()
   @IsNumber()
   @IsPositive()
   scoreMax?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  coefficient?: number;
 
   @ApiProperty({ type: [BulkGradeItemDto] })
   @IsArray()
@@ -164,6 +218,26 @@ export class GenerateReportCardDto {
   @IsOptional()
   @IsUUID("all")
   placementId?: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  publish?: boolean;
+}
+
+export class GenerateBulkReportCardsDto {
+  @ApiProperty()
+  @IsUUID("all")
+  classId!: string;
+
+  @ApiProperty()
+  @IsUUID("all")
+  academicPeriodId!: string;
+
+  @ApiPropertyOptional({ enum: AcademicTrack })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

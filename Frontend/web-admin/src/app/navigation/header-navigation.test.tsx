@@ -1,8 +1,8 @@
-import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { HeaderNavigation } from "./header-navigation";
-import type { HeaderNavigationAction, HeaderPreferenceAction } from "./header-navigation-types";
+import type { HeaderNavigationAction, HeaderPreferenceAction, HeaderUserAction } from "./header-navigation-types";
 
 const action = (id: string, label: string): HeaderNavigationAction => ({
   id,
@@ -28,6 +28,11 @@ const domRect = (partial: Partial<DOMRect>): DOMRect =>
     toJSON: () => ({}),
     ...partial
   }) as DOMRect;
+
+afterEach(() => {
+  cleanup();
+  document.body.querySelectorAll("[data-header-floating-panel]").forEach((node) => node.remove());
+});
 
 describe("HeaderNavigation", () => {
   it("ouvre et ferme le panneau mobile sans casser le shell", () => {
@@ -186,5 +191,112 @@ describe("HeaderNavigation", () => {
     expect(userPanel?.style.top).toBe("128px");
 
     rectSpy.mockRestore();
+  });
+
+  it("affiche un email long sans débordement brutal et ouvre chaque destination utilisateur", () => {
+    const profileAction = vi.fn();
+    const preferencesAction = vi.fn();
+    const activityAction = vi.fn();
+    const billingAction = vi.fn();
+    const userActions: HeaderUserAction[] = [
+      { id: "profile", icon: "profile", label: "Mon profil", onSelect: profileAction },
+      { id: "preferences", icon: "settings", label: "Préférences", onSelect: preferencesAction },
+      { id: "activity", icon: "activity", label: "Journal d’activité", onSelect: activityAction },
+      { id: "billing", icon: "billing", label: "Facturation", onSelect: billingAction }
+    ];
+    const longEmail = "administration-super-longue-al-manarat-islamiyat@example-ecole.local";
+    const { container } = render(
+      <HeaderNavigation
+        brandName="Al Manarat"
+        logoAlt="Logo GestSchool"
+        logoSrc="/logo.png"
+        sidebarCollapsed={false}
+        searchPlaceholder="Rechercher"
+        searchValue=""
+        onSearchChange={vi.fn()}
+        onToggleSidebar={vi.fn()}
+        dashboard={action("dashboard", "Tableau de bord")}
+        scolarite={[action("students", "Eleves")]}
+        schoolLife={[action("grades", "Notes")]}
+        settings={[action("reports", "Rapports")]}
+        preferences={preferences}
+        messages={{ count: 0, label: "Messages", onSelect: vi.fn() }}
+        notifications={{ count: 2, label: "Notifications", onSelect: vi.fn() }}
+        user={{
+          avatar: "AM",
+          contextLabel: "GestSchool admin",
+          email: longEmail,
+          roleLabel: "Administrateur",
+          schoolYearLabel: "2025-2026",
+          statusLabel: "Actif",
+          tenantLabel: "Al Manarat Islamiyat",
+          username: "Administration centrale Al Manarat Islamiyat",
+          onLogout: vi.fn()
+        }}
+        userActions={userActions}
+      />
+    );
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
+
+    const userPanel = document.body.querySelector<HTMLElement>(".header-floating-panel.header-user-dropdown");
+    expect(userPanel).not.toBeNull();
+    const emailLine = userPanel!.querySelector(".header-user-summary-copy p");
+    expect(emailLine).toHaveTextContent(longEmail);
+    expect(emailLine).toHaveAttribute("title", longEmail);
+    expect(userPanel).toHaveTextContent("Al Manarat Islamiyat");
+    expect(userPanel).toHaveTextContent("2025-2026");
+
+    fireEvent.click(userPanel!.querySelector<HTMLButtonElement>(".header-user-link")!);
+    expect(profileAction).toHaveBeenCalledTimes(1);
+    expect(document.body.querySelector(".header-floating-panel.header-user-dropdown")).toBeNull();
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
+    fireEvent.click(document.body.querySelector<HTMLButtonElement>('[aria-label="Préférences"]')!);
+    expect(preferencesAction).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
+    fireEvent.click(document.body.querySelector<HTMLButtonElement>('[aria-label="Journal d’activité"]')!);
+    expect(activityAction).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
+    fireEvent.click(document.body.querySelector<HTMLButtonElement>('[aria-label="Facturation"]')!);
+    expect(billingAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("ferme le menu utilisateur avec Escape", () => {
+    const { container } = render(
+      <HeaderNavigation
+        brandName="Al Manarat"
+        logoAlt="Logo GestSchool"
+        logoSrc="/logo.png"
+        sidebarCollapsed={false}
+        searchPlaceholder="Rechercher"
+        searchValue=""
+        onSearchChange={vi.fn()}
+        onToggleSidebar={vi.fn()}
+        dashboard={action("dashboard", "Tableau de bord")}
+        scolarite={[action("students", "Eleves")]}
+        schoolLife={[action("grades", "Notes")]}
+        settings={[action("reports", "Rapports")]}
+        preferences={preferences}
+        messages={{ count: 0, label: "Messages", onSelect: vi.fn() }}
+        notifications={{ count: 2, label: "Notifications", onSelect: vi.fn() }}
+        user={{
+          avatar: "AD",
+          contextLabel: "GestSchool admin",
+          email: "preview.admin@gestschool.local",
+          roleLabel: "Administrateur",
+          username: "preview.admin",
+          onLogout: vi.fn()
+        }}
+      />
+    );
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
+    expect(document.body.querySelector(".header-floating-panel.header-user-dropdown")).not.toBeNull();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(document.body.querySelector(".header-floating-panel.header-user-dropdown")).toBeNull();
   });
 });

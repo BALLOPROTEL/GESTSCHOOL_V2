@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 import {
   type CreateStorageUploadDescriptorInput,
+  type StoredFileView,
   type StorageProvider,
   type UploadDescriptorView
 } from "./storage-provider";
@@ -47,6 +50,31 @@ export class LocalStorageProvider implements StorageProvider {
       uploadUrl,
       fileUrl,
       expiresAt: new Date(now.getTime() + 15 * 60 * 1000).toISOString()
+    };
+  }
+
+  async uploadBuffer(
+    input: CreateStorageUploadDescriptorInput,
+    buffer: Buffer
+  ): Promise<StoredFileView> {
+    this.assertAllowedDriver(input.driver);
+
+    const descriptor = this.createUploadDescriptor(input);
+    const root = this.configService
+      .get<string>("FILE_STORAGE_LOCAL_ROOT", "/tmp/gestschool-storage")
+      .trim();
+    const absolutePath = join(root, descriptor.key);
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, buffer);
+
+    return {
+      driver: descriptor.driver,
+      tenantId: descriptor.tenantId,
+      fileName: descriptor.fileName,
+      mimeType: descriptor.mimeType,
+      key: descriptor.key,
+      fileUrl: descriptor.fileUrl,
+      size: buffer.byteLength
     };
   }
 

@@ -78,7 +78,12 @@ export class GradesEntryService {
     });
 
     const scoreMax = payload.scoreMax ?? 20;
-    if (payload.score > scoreMax) {
+    const isNeutralized = payload.absent === true || payload.exempted === true;
+    const score = this.resolveScore(payload.score, scoreMax, isNeutralized);
+    const coefficient = this.resolveCoefficient(payload.coefficient);
+    const assessmentDate = this.resolveAssessmentDate(payload.assessmentDate);
+
+    if (score > scoreMax) {
       throw new ConflictException("score cannot exceed scoreMax.");
     }
 
@@ -102,17 +107,23 @@ export class GradesEntryService {
         academicPeriodId: payload.academicPeriodId,
         assessmentLabel: payload.assessmentLabel.trim(),
         assessmentType: payload.assessmentType || "DEVOIR",
-        score: payload.score,
+        assessmentDate,
+        score,
         scoreMax,
+        coefficient,
         absent: payload.absent ?? false,
+        exempted: payload.exempted ?? false,
         comment: payload.comment,
         updatedAt: new Date()
       },
       update: {
         assessmentType: payload.assessmentType || "DEVOIR",
-        score: payload.score,
+        assessmentDate,
+        score,
         scoreMax,
+        coefficient,
         absent: payload.absent ?? false,
+        exempted: payload.exempted ?? false,
         placementId: placement.id,
         track: placement.track,
         comment: payload.comment,
@@ -169,9 +180,13 @@ export class GradesEntryService {
     }
 
     const scoreMax = payload.scoreMax ?? 20;
+    const coefficient = this.resolveCoefficient(payload.coefficient);
+    const assessmentDate = this.resolveAssessmentDate(payload.assessmentDate);
     await Promise.all(
       payload.grades.map((item) => {
-        if (item.score > scoreMax) {
+        const isNeutralized = item.absent === true || item.exempted === true;
+        const score = this.resolveScore(item.score, scoreMax, isNeutralized);
+        if (score > scoreMax) {
           throw new ConflictException("score cannot exceed scoreMax.");
         }
         const placement = placementByStudentId.get(item.studentId);
@@ -198,17 +213,23 @@ export class GradesEntryService {
             academicPeriodId: payload.academicPeriodId,
             assessmentLabel: payload.assessmentLabel.trim(),
             assessmentType: payload.assessmentType || "DEVOIR",
-            score: item.score,
+            assessmentDate,
+            score,
             scoreMax,
+            coefficient,
             absent: item.absent ?? false,
+            exempted: item.exempted ?? false,
             comment: item.comment,
             updatedAt: new Date()
           },
           update: {
             assessmentType: payload.assessmentType || "DEVOIR",
-            score: item.score,
+            assessmentDate,
+            score,
             scoreMax,
+            coefficient,
             absent: item.absent ?? false,
+            exempted: item.exempted ?? false,
             placementId: placement.id,
             track: placement.track,
             comment: item.comment,
@@ -225,6 +246,38 @@ export class GradesEntryService {
     );
 
     return { upsertedCount: payload.grades.length };
+  }
+
+  async deleteGrade(tenantId: string, gradeId: string): Promise<{ deleted: true }> {
+    const row = await this.prisma.gradeEntry.findFirst({
+      where: {
+        id: gradeId,
+        tenantId
+      },
+      select: {
+        id: true,
+        classId: true,
+        academicPeriodId: true
+      }
+    });
+
+    if (!row) {
+      throw new NotFoundException("Grade not found.");
+    }
+
+    await this.prisma.gradeEntry.delete({
+      where: {
+        id: row.id
+      }
+    });
+
+    await this.gradesReportCardsService.syncReportCardsForClassPeriod(
+      tenantId,
+      row.classId,
+      row.academicPeriodId
+    );
+
+    return { deleted: true };
   }
 
   private async validateGradeContext(
@@ -343,10 +396,48 @@ export class GradesEntryService {
       academicPeriodId: row.academicPeriodId,
       assessmentLabel: row.assessmentLabel,
       assessmentType: row.assessmentType,
+      assessmentDate: row.assessmentDate?.toISOString().slice(0, 10),
       score: decimalToNumber(row.score),
       scoreMax: decimalToNumber(row.scoreMax),
+      coefficient: decimalToNumber(row.coefficient),
       absent: row.absent,
+      exempted: row.exempted,
       comment: row.comment || undefined
     };
+  }
+
+  private resolveScore(
+    score: number | undefined,
+    scoreMax: number,
+    isNeutralized: boolean
+  ): number {
+    if (isNeutralized) {
+      return 0;
+    }
+    if (score === undefined || score === null || !Number.isFinite(score)) {
+      throw new ConflictException("score is required unless the student is absent or exempted.");
+    }
+    if (score < 0) {
+      throw new ConflictException("score must be greater than or equal to 0.");
+    }
+    if (scoreMax <= 0) {
+      throw new ConflictException("scoreMax must be greater than 0.");
+    }
+    return score;
+  }
+
+  private resolveCoefficient(value?: number): number {
+    const coefficient = value ?? 1;
+    if (!Number.isFinite(coefficient) || coefficient <= 0) {
+      throw new ConflictException("coefficient must be greater than 0.");
+    }
+    return coefficient;
+  }
+
+  private resolveAssessmentDate(value?: string): Date | null {
+    if (!value) {
+      return null;
+    }
+    return new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
   }
 }

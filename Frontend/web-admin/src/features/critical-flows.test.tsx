@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps, FormEvent } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -222,6 +222,7 @@ const reportCard: ReportCard = {
   averageGeneral: 15.75,
   classRank: 2,
   appreciation: "Bon trimestre",
+  generatedAt: "2026-05-19T14:12:32.000Z",
   studentName: student.fullName,
   classLabel: classroom.label,
   periodLabel: period.label
@@ -1015,14 +1016,29 @@ describe("critical frontend flows", () => {
         initialReportCards={[reportCard]}
         onError={vi.fn()}
         onNotice={vi.fn()}
-        periods={[period]}
-        remoteEnabled={false}
-        students={[student]}
-        subjects={[subject]}
+	        periods={[period]}
+	        remoteEnabled={false}
+	        schoolYears={[schoolYear]}
+	        students={[student]}
+	        subjects={[subject]}
       />
     );
-    expect(screen.getByRole("heading", { name: "Console notes & bulletins" })).toBeInTheDocument();
-    expect(screen.getAllByText("Bon trimestre").length).toBeGreaterThan(0);
+	    expect(screen.getByRole("heading", { name: "Vue d’ensemble" })).toBeInTheDocument();
+	    expect(screen.getByRole("button", { name: "Afficher les données" })).toBeInTheDocument();
+	    expect(screen.queryByRole("button", { name: "Filtrer" })).not.toBeInTheDocument();
+	    expect(screen.queryByText(/Passe finale/i)).not.toBeInTheDocument();
+	    fireEvent.click(screen.getByRole("tab", { name: "Saisie des notes" }));
+	    expect(screen.getAllByText("Classe *").length).toBeGreaterThan(0);
+	    expect(screen.getAllByText("Barème *").length).toBeGreaterThan(0);
+	    expect(screen.getByRole("button", { name: "Enregistrer les notes" })).toBeInTheDocument();
+	    expect(screen.queryByText("DEVOIR")).not.toBeInTheDocument();
+	    fireEvent.click(screen.getByRole("tab", { name: "Moyennes & rangs" }));
+	    expect(screen.getByRole("button", { name: "Calculer les moyennes/rangs" })).toBeInTheDocument();
+	    expect(screen.queryByRole("button", { name: "Recharger" })).not.toBeInTheDocument();
+	    fireEvent.click(screen.getByRole("tab", { name: "Bulletins" }));
+	    expect(screen.getByRole("heading", { name: "Génération des bulletins" })).toBeInTheDocument();
+	    expect(screen.getByText("Calculez d’abord les moyennes et rangs avant de générer les bulletins.")).toBeInTheDocument();
+	    expect(screen.getAllByText("Bon trimestre").length).toBeGreaterThan(0);
     grades.unmount();
 
     render(
@@ -1042,10 +1058,71 @@ describe("critical frontend flows", () => {
 
     expect(screen.getByRole("heading", { name: "Console de recouvrement" })).toBeInTheDocument();
     expect(screen.getAllByText("INV-2026-001").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("CM2 A / Francophone").length).toBeGreaterThan(0);
-  });
+	  expect(screen.getAllByText("CM2 A / Francophone").length).toBeGreaterThan(0);
+	});
 
-  it("charge les modules enseignants et salles depuis un client API mocke", async () => {
+	it("cadre le parcours Notes & bulletins sans redirection automatique", async () => {
+	  const onNotice = vi.fn();
+	  const onError = vi.fn();
+
+	  render(
+	    <GradesScreen
+	      api={failingApi}
+	      classes={[classroom]}
+	      initialReportCards={[]}
+	      onError={onError}
+	      onNotice={onNotice}
+	      periods={[period]}
+	      remoteEnabled={false}
+	      schoolYears={[schoolYear]}
+	      students={[student]}
+	      subjects={[subject]}
+	    />
+	  );
+
+	  const getActiveStep = (stepId: string): HTMLElement =>
+	    document.querySelector(`[data-step-id="${stepId}"][data-active-step="true"]`) as HTMLElement;
+
+	  const overview = getActiveStep("filters");
+	  fireEvent.change(within(overview).getByLabelText("Année scolaire *"), { target: { value: schoolYear.id } });
+	  fireEvent.change(within(overview).getByLabelText("Classe *"), { target: { value: classroom.id } });
+	  fireEvent.change(within(overview).getByLabelText("Période *"), { target: { value: period.id } });
+	  fireEvent.click(within(overview).getByRole("button", { name: "Afficher les données" }));
+
+	  expect(screen.getByRole("tab", { name: "Vue d’ensemble" })).toHaveAttribute("aria-selected", "true");
+	  expect(screen.queryByRole("button", { name: "Calculer les moyennes/rangs" })).not.toBeInTheDocument();
+
+	  fireEvent.click(screen.getByRole("tab", { name: "Saisie des notes" }));
+	  const entry = getActiveStep("entry");
+	  fireEvent.change(within(entry).getByLabelText("Classe *"), { target: { value: classroom.id } });
+	  fireEvent.change(within(entry).getByLabelText("Matière *"), { target: { value: subject.id } });
+	  fireEvent.change(within(entry).getByLabelText("Période *"), { target: { value: period.id } });
+	  fireEvent.change(within(entry).getByLabelText(`Note de ${student.fullName}`), { target: { value: "15" } });
+	  fireEvent.click(within(entry).getByRole("button", { name: "Enregistrer les notes" }));
+
+	  await waitFor(() => {
+	    expect(onNotice).toHaveBeenCalledWith("Notes enregistrées en aperçu local.");
+	  });
+
+	  fireEvent.click(screen.getByRole("tab", { name: "Moyennes & rangs" }));
+	  fireEvent.click(screen.getByRole("button", { name: "Calculer les moyennes/rangs" }));
+
+	  await waitFor(() => {
+	    expect(screen.getByText("Calculé")).toBeInTheDocument();
+	  });
+
+	  const closedDetailButton = screen.queryByRole("button", { name: "Voir détail" });
+	  if (closedDetailButton) fireEvent.click(closedDetailButton);
+	  expect(screen.getByText("Détail ouvert")).toBeInTheDocument();
+	  expect(screen.getByText("Nombre de notes")).toBeInTheDocument();
+	  expect(screen.getAllByText("Notes manquantes").length).toBeGreaterThan(0);
+
+	  fireEvent.click(screen.getByRole("tab", { name: "Bulletins" }));
+	  expect(screen.queryByText("Calculez d’abord les moyennes et rangs avant de générer les bulletins.")).not.toBeInTheDocument();
+	  expect(screen.getByRole("button", { name: "Générer le bulletin" })).not.toBeDisabled();
+	});
+
+	it("charge les modules enseignants et salles depuis un client API mocke", async () => {
     const user = userEvent.setup();
     const api = buildModuleApi();
     const commonProps = {

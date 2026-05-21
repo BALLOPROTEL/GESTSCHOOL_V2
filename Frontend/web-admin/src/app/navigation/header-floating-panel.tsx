@@ -39,6 +39,16 @@ function computeFloatingStyle(anchor: Element, align: "start" | "end"): Floating
     zIndex: "var(--shell-z-dropdown, 10000)"
   } satisfies FloatingStyle;
 
+  if (window.innerWidth <= 640) {
+    return {
+      ...baseStyle,
+      left: `${VIEWPORT_MARGIN}px`,
+      right: `${VIEWPORT_MARGIN}px`,
+      width: "auto",
+      maxWidth: "none"
+    };
+  }
+
   if (align === "end") {
     return {
       ...baseStyle,

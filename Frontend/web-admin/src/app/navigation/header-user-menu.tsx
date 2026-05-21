@@ -13,6 +13,7 @@ export function HeaderUserMenu(props: {
   const { actions, openId, onOpenChange, user } = props;
   const isOpen = openId === "user";
   const anchorRef = useRef<HTMLDivElement | null>(null);
+  const identityLabel = user.email || user.username;
 
   return (
     <div ref={anchorRef} className={`header-dropdown header-user-menu ${isOpen ? "is-open" : ""}`.trim()}>
@@ -21,6 +22,7 @@ export function HeaderUserMenu(props: {
         className={`header-user-trigger ${isOpen ? "is-active" : ""}`.trim()}
         aria-expanded={isOpen}
         aria-haspopup="menu"
+        aria-label="Ouvrir le menu utilisateur"
         onClick={() => onOpenChange(isOpen ? null : "user")}
       >
         <span className="header-user-avatar">{user.avatar}</span>
@@ -44,10 +46,10 @@ export function HeaderUserMenu(props: {
       >
         <div className="header-user-summary">
           <span className="header-user-avatar large">{user.avatar}</span>
-          <div>
-            <strong>{user.username}</strong>
-            <p>{user.roleLabel}</p>
-            <small>{user.secondaryLabel || user.contextLabel}</small>
+          <div className="header-user-summary-copy">
+            <strong title={user.username}>{user.username}</strong>
+            <p title={identityLabel}>{identityLabel}</p>
+            <small>{user.roleLabel}</small>
           </div>
         </div>
         <div className="header-user-links">
@@ -57,6 +59,7 @@ export function HeaderUserMenu(props: {
               type="button"
               role="menuitem"
               className="header-user-link"
+              aria-label={item.label}
               onClick={() => {
                 item.onSelect();
                 onOpenChange(null);
@@ -73,6 +76,7 @@ export function HeaderUserMenu(props: {
           type="button"
           role="menuitem"
           className="header-logout-button"
+          aria-label="Se déconnecter"
           onClick={() => {
             user.onLogout();
             onOpenChange(null);

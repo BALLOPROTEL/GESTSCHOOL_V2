@@ -922,17 +922,6 @@ textarea {
     border-radius: 1.24rem;
   }
 
-  .sidebar-brand-row {
-    gap: 0.74rem;
-  }
-
-  .sidebar-brand-mark {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 0.92rem;
-    box-shadow: none;
-  }
-
   .sidebar-link {
     width: 100%;
     min-width: 0;

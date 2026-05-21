@@ -4,7 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { CreateUploadDescriptorDto } from "./dto/storage.dto";
 import { LocalStorageProvider } from "./local-storage.provider";
 import { SupabaseStorageProvider } from "./supabase-storage.provider";
-import { type StorageDriver, type UploadDescriptorView } from "./storage-provider";
+import { type StorageDriver, type StoredFileView, type UploadDescriptorView } from "./storage-provider";
 
 @Injectable()
 export class StorageService {
@@ -37,6 +37,31 @@ export class StorageService {
     }
 
     return this.localStorageProvider.createUploadDescriptor(input);
+  }
+
+  async uploadUserAvatar(input: {
+    tenantId: string;
+    userId: string;
+    fileName: string;
+    mimeType: string;
+    buffer: Buffer;
+  }): Promise<StoredFileView> {
+    const driver = this.resolveDriver();
+    const uploadInput = {
+      driver,
+      tenantId: input.tenantId,
+      userId: input.userId,
+      fileName: input.fileName,
+      mimeType: input.mimeType,
+      bucketKind: "avatars" as const,
+      folder: "avatars"
+    };
+
+    if (driver === "SUPABASE") {
+      return this.supabaseStorageProvider.uploadBuffer(uploadInput, input.buffer);
+    }
+
+    return this.localStorageProvider.uploadBuffer(uploadInput, input.buffer);
   }
 
   private resolveDriver(): StorageDriver {

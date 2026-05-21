@@ -5,6 +5,7 @@ import { ConfigService } from "@nestjs/config";
 
 import {
   type CreateStorageUploadDescriptorInput,
+  type StoredFileView,
   type StorageBucketKind,
   type StorageProvider,
   type UploadDescriptorView
@@ -41,6 +42,40 @@ export class SupabaseStorageProvider implements StorageProvider {
     };
   }
 
+  async uploadBuffer(
+    input: CreateStorageUploadDescriptorInput,
+    buffer: Buffer
+  ): Promise<StoredFileView> {
+    const bucketKind = input.bucketKind || "documents";
+    const bucket = this.bucketName(bucketKind);
+    const fileName = this.sanitizeFileName(input.fileName);
+    const key = this.buildObjectPath(input, bucketKind, fileName);
+    const body = Uint8Array.from(buffer).buffer;
+
+    await this.fetchJson(
+      `${this.storageBaseUrl()}/object/${encodeURIComponent(bucket)}/${this.encodeObjectKey(key)}`,
+      {
+        method: "POST",
+        headers: {
+          ...this.headers(input.mimeType),
+          "x-upsert": "true"
+        },
+        body
+      }
+    );
+
+    return {
+      driver: "SUPABASE",
+      tenantId: input.tenantId,
+      fileName: input.fileName.trim(),
+      mimeType: input.mimeType,
+      key,
+      fileUrl: this.authenticatedObjectUrl(bucket, key),
+      bucket,
+      size: buffer.byteLength
+    };
+  }
+
   private async createSignedUploadUrl(
     bucket: string,
     key: string,
@@ -73,12 +108,12 @@ export class SupabaseStorageProvider implements StorageProvider {
     };
   }
 
-  private headers(): Record<string, string> {
+  private headers(contentType = "application/json"): Record<string, string> {
     const serviceRoleKey = this.requiredConfig("SUPABASE_SERVICE_ROLE_KEY");
     return {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json"
+      "Content-Type": contentType
     };
   }
 

@@ -7,8 +7,6 @@ describe("AppSidebar", () => {
   it("rend tous les items dans une structure de liste uniforme", () => {
     const { container } = render(
       <AppSidebar
-        brandName="Al Manarat Islamiyat"
-        currentRoleLabel="Administrateur"
         groups={[
           {
             id: "pilotage",

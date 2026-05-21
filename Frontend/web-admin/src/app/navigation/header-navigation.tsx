@@ -22,7 +22,8 @@ import {
 export type {
   HeaderNavigationAction,
   HeaderNavigationGroup,
-  HeaderPreferenceAction
+  HeaderPreferenceAction,
+  HeaderUserAction
 } from "./header-navigation-types";
 
 type HeaderNavigationProps = {
@@ -56,6 +57,7 @@ type HeaderNavigationProps = {
     onSelect: () => void;
   };
   user: HeaderNavigationUser;
+  userActions?: HeaderUserAction[];
 };
 
 export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
@@ -77,7 +79,8 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     searchValue,
     settings,
     settingsGroups = [],
-    user
+    user,
+    userActions
   } = props;
   const [openId, setOpenId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -101,7 +104,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
   const initialMessageCount = messagesDisabled ? 0 : messages.count;
   const [messageUnreadCount, setMessageUnreadCount] = useState(initialMessageCount);
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(notifications.count);
-  const userMenuActions: HeaderUserAction[] = [
+  const fallbackUserMenuActions: HeaderUserAction[] = [
     {
       id: "profile",
       icon: "profile",
@@ -127,6 +130,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
       onSelect: billingAction.onSelect
     }
   ];
+  const userMenuActions = userActions ?? fallbackUserMenuActions;
   const quickActions: HeaderQuickAction[] = [
     { id: "quick-timetable", icon: "calendar", label: "Emploi du temps", onSelect: timetableAction.onSelect },
     messagesDisabled
@@ -457,6 +461,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
         searchValue={searchValue}
         sections={mobileSections}
         user={user}
+        userActions={userMenuActions}
       />
     </header>
   );

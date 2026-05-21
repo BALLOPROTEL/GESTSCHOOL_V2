@@ -129,10 +129,42 @@ describe("Academic administration core flows (e2e)", () => {
         academicPeriodId: baseline.academicPeriodId,
         assessmentLabel: "Devoir 1",
         assessmentType: "DEVOIR",
+        assessmentDate: "2026-05-20",
         score: 16,
-        scoreMax: 20
+        scoreMax: 20,
+        coefficient: 2
       })
       .expect(201);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/grades")
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .send({
+        studentId: baseline.studentOneId,
+        classId: baseline.classId,
+        subjectId: baseline.subjectId,
+        academicPeriodId: baseline.academicPeriodId,
+        assessmentLabel: "Note invalide",
+        assessmentType: "DEVOIR",
+        score: 25,
+        scoreMax: 20
+      })
+      .expect(409);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/grades/bulk")
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .send({
+        classId: baseline.classId,
+        subjectId: baseline.subjectId,
+        academicPeriodId: baseline.academicPeriodId,
+        assessmentLabel: "Coefficient invalide",
+        assessmentType: "DEVOIR",
+        scoreMax: 20,
+        coefficient: 0,
+        grades: [{ studentId: baseline.studentOneId, score: 12 }]
+      })
+      .expect(400);
 
     const bulk = await request(context.app.getHttpServer())
       .post("/api/v1/grades/bulk")
@@ -143,7 +175,9 @@ describe("Academic administration core flows (e2e)", () => {
         academicPeriodId: baseline.academicPeriodId,
         assessmentLabel: "Composition",
         assessmentType: "COMPOSITION",
+        assessmentDate: "2026-05-20",
         scoreMax: 20,
+        coefficient: 1,
         grades: [
           {
             studentId: baseline.studentOneId,
@@ -166,6 +200,7 @@ describe("Academic administration core flows (e2e)", () => {
       .expect(200);
 
     expect(summary.body.students).toHaveLength(2);
+    expect(summary.body.students[0].subjectAverages[0].coefficient).toBeGreaterThan(0);
 
     const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
     const report = await request(context.app.getHttpServer())
@@ -181,6 +216,18 @@ describe("Academic administration core flows (e2e)", () => {
 
     reportCardId = report.body.id;
     expect(report.body.pdfDataUrl).toContain("data:application/pdf;base64,");
+
+    const bulkReports = await request(context.app.getHttpServer())
+      .post("/api/v1/report-cards/generate-bulk")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .send({
+        classId: baseline.classId,
+        academicPeriodId: baseline.academicPeriodId,
+        publish: true
+      })
+      .expect(201);
+
+    expect(bulkReports.body.length).toBeGreaterThan(0);
 
     const pdf = await request(context.app.getHttpServer())
       .get(`/api/v1/report-cards/${reportCardId}/pdf`)

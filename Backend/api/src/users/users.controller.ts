@@ -12,24 +12,38 @@ import {
   Patch,
   Post,
   Put,
-  Req
+  Req,
+  UploadedFile,
+  UseInterceptors
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
+import { RateLimit } from "../security/rate-limit.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
 import { CreateUserDto } from "./dto/create-user.dto";
+import { ChangeMyPasswordDto, UpdateMyProfileDto } from "./dto/me-profile.dto";
 import { UpdateRolePermissionsDto } from "./dto/update-role-permissions.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import {
   UsersService,
+  type MyProfileView,
   type RolePermissionView,
+  type UserActivityView,
   type UserView
 } from "./users.service";
+
+type UploadedAvatarFile = {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+  size: number;
+};
 
 @ApiTags("users")
 @ApiBearerAuth("bearer")
@@ -88,6 +102,83 @@ export class UsersController {
   ): Promise<UserView[]> {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.usersService.list(tenantId);
+  }
+
+  @Get("me")
+  @ApiOperation({ summary: "Get the authenticated user profile" })
+  async me(
+    @Req() request: { user?: AuthenticatedUser },
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<MyProfileView> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    return this.usersService.getMyProfile(tenantId, actorUserId);
+  }
+
+  @Patch("me/profile")
+  @RateLimit({ bucket: "users-me-profile", max: 20, windowMs: 60_000 })
+  @ApiOperation({ summary: "Update the authenticated user's personal profile" })
+  async updateMyProfile(
+    @Req() request: { user?: AuthenticatedUser },
+    @Body() body: UpdateMyProfileDto,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<MyProfileView> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    return this.usersService.updateMyProfile(tenantId, actorUserId, body);
+  }
+
+  @Post("me/change-password")
+  @RateLimit({ bucket: "users-me-change-password", max: 5, windowMs: 600_000 })
+  @ApiOperation({ summary: "Change the authenticated user's password" })
+  async changeMyPassword(
+    @Req() request: { user?: AuthenticatedUser },
+    @Body() body: ChangeMyPasswordDto,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<{ message: string }> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    return this.usersService.changeMyPassword(tenantId, actorUserId, body);
+  }
+
+  @Post("me/avatar")
+  @RateLimit({ bucket: "users-me-avatar", max: 10, windowMs: 600_000 })
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
+  @ApiOperation({ summary: "Upload the authenticated user's avatar" })
+  async uploadMyAvatar(
+    @Req() request: { user?: AuthenticatedUser },
+    @UploadedFile() file: UploadedAvatarFile | undefined,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<MyProfileView> {
+    if (!file) {
+      throw new BadRequestException("Fichier image requis.");
+    }
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    return this.usersService.uploadMyAvatar(tenantId, actorUserId, file);
+  }
+
+  @Delete("me/avatar")
+  @RateLimit({ bucket: "users-me-avatar-delete", max: 10, windowMs: 600_000 })
+  @ApiOperation({ summary: "Remove the authenticated user's avatar" })
+  async removeMyAvatar(
+    @Req() request: { user?: AuthenticatedUser },
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<MyProfileView> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    return this.usersService.removeMyAvatar(tenantId, actorUserId);
+  }
+
+  @Get("me/activity")
+  @ApiOperation({ summary: "List recent activity for the authenticated user" })
+  async myActivity(
+    @Req() request: { user?: AuthenticatedUser },
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<UserActivityView[]> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    return this.usersService.listMyActivity(tenantId, actorUserId);
   }
 
   @Post()

@@ -524,9 +524,12 @@ model GradeEntry {
   academicPeriodId String    @map("academic_period_id") @db.Uuid
   assessmentLabel  String    @map("assessment_label") @db.VarChar(120)
   assessmentType   String    @default("DEVOIR") @map("assessment_type") @db.VarChar(30)
+  assessmentDate   DateTime? @map("assessment_date") @db.Date
   score            Decimal   @db.Decimal(5, 2)
   scoreMax         Decimal   @default(20) @map("score_max") @db.Decimal(5, 2)
+  coefficient      Decimal   @default(1) @db.Decimal(5, 2)
   absent           Boolean   @default(false)
+  exempted         Boolean   @default(false)
   comment          String?
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)

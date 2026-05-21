@@ -54,8 +54,12 @@ export type HeaderFeedItem = {
 export type HeaderNavigationUser = {
   avatar: string;
   contextLabel: string;
+  email?: string;
+  schoolYearLabel?: string;
   roleLabel: string;
   secondaryLabel?: string;
+  statusLabel?: string;
+  tenantLabel?: string;
   username: string;
   onLogout: () => void;
 };

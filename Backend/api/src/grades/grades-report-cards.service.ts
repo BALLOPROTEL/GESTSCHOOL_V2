@@ -16,7 +16,10 @@ import { AcademicStructureService } from "../academic-structure/academic-structu
 import { buildSimplePdf, toPdfDataUrl } from "../common/pdf.util";
 import { PrismaService } from "../database/prisma.service";
 import { ReferenceService } from "../reference/reference.service";
-import { GenerateReportCardDto } from "./dto/grades.dto";
+import {
+  GenerateBulkReportCardsDto,
+  GenerateReportCardDto
+} from "./dto/grades.dto";
 import {
   type ClassSummaryView,
   type ReportCardDraft,
@@ -109,6 +112,55 @@ export class GradesReportCardsService {
     }
 
     return preferred;
+  }
+
+  async generateBulkReportCards(
+    tenantId: string,
+    payload: GenerateBulkReportCardsDto
+  ): Promise<ReportCardView[]> {
+    const classroom = await this.referenceService.requireClassroom(tenantId, payload.classId);
+    const period = await this.referenceService.requireAcademicPeriod(
+      tenantId,
+      payload.academicPeriodId
+    );
+
+    if (classroom.schoolYearId !== period.schoolYearId) {
+      throw new ConflictException("Classroom and period must belong to the same school year.");
+    }
+
+    const placements = await this.prisma.studentTrackPlacement.findMany({
+      where: {
+        tenantId,
+        classId: classroom.id,
+        schoolYearId: classroom.schoolYearId,
+        track: payload.track,
+        placementStatus: {
+          in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
+        }
+      },
+      select: {
+        studentId: true
+      },
+      distinct: ["studentId"]
+    });
+
+    if (placements.length === 0) {
+      throw new ConflictException("No students are available for this class and period.");
+    }
+
+    const generated = await Promise.all(
+      placements.map((placement) =>
+        this.syncStudentReportCardsForPeriod(
+          tenantId,
+          placement.studentId,
+          classroom.schoolYearId,
+          payload.academicPeriodId,
+          payload.publish ?? true
+        )
+      )
+    );
+
+    return generated.flat().filter((card) => card.classId === classroom.id);
   }
 
   async listReportCards(
@@ -390,26 +442,33 @@ export class GradesReportCardsService {
 
     const gradeByStudent = new Map<
       string,
-      Map<string, { subjectLabel: string; sum: number; count: number }>
+      Map<string, { subjectLabel: string; weightedSum: number; coefficientSum: number; coefficient: number }>
     >();
 
     for (const grade of gradeRows) {
+      if (grade.exempted) {
+        continue;
+      }
+
       const normalized = grade.absent
         ? 0
         : (decimalToNumber(grade.score) / decimalToNumber(grade.scoreMax)) * 20;
+      const coefficient = decimalToNumber(grade.coefficient);
 
       const studentSubjects =
         gradeByStudent.get(grade.studentId) ||
-        new Map<string, { subjectLabel: string; sum: number; count: number }>();
+        new Map<string, { subjectLabel: string; weightedSum: number; coefficientSum: number; coefficient: number }>();
 
       const current = studentSubjects.get(grade.subjectId) || {
         subjectLabel: grade.subject.label,
-        sum: 0,
-        count: 0
+        weightedSum: 0,
+        coefficientSum: 0,
+        coefficient
       };
 
-      current.sum += normalized;
-      current.count += 1;
+      current.weightedSum += normalized * coefficient;
+      current.coefficientSum += coefficient;
+      current.coefficient = coefficient;
       studentSubjects.set(grade.subjectId, current);
       gradeByStudent.set(grade.studentId, studentSubjects);
     }
@@ -421,14 +480,21 @@ export class GradesReportCardsService {
       const subjectAverages = Array.from(studentMap.entries()).map(([subjectId, value]) => ({
         subjectId,
         subjectLabel: value.subjectLabel,
-        average: round3(value.sum / value.count)
+        average: round3(value.weightedSum / value.coefficientSum),
+        coefficient: value.coefficient
       }));
 
+      const coefficientTotal = subjectAverages.reduce(
+        (sum, value) => sum + (value.coefficient ?? 1),
+        0
+      );
       const averageGeneral =
-        subjectAverages.length > 0
+        subjectAverages.length > 0 && coefficientTotal > 0
           ? round3(
-              subjectAverages.reduce((sum, value) => sum + value.average, 0) /
-                subjectAverages.length
+              subjectAverages.reduce(
+                (sum, value) => sum + value.average * (value.coefficient ?? 1),
+                0
+              ) / coefficientTotal
             )
           : 0;
 
@@ -442,6 +508,7 @@ export class GradesReportCardsService {
         studentName,
         averageGeneral,
         noteCount: subjectAverages.length,
+        missingGrades: 0,
         appreciation: resolveAppreciation(averageGeneral),
         subjectAverages
       };
@@ -534,19 +601,22 @@ export class GradesReportCardsService {
         sections.length;
       const appreciation = resolveAppreciation(averageGeneral);
       const pdf = buildSimplePdf([
-        "GestSchool Primary Report Card",
-        `Student: ${leadSection.studentName}`,
-        `Period: ${leadSection.periodLabel}`,
-        "Combined primary bulletin across active tracks",
+        "Al Manarat Islamiyat",
+        "Bulletin global primaire",
+        `Eleve: ${leadSection.studentName}`,
+        `Periode: ${leadSection.periodLabel}`,
+        "Sections francophone et arabophone",
         ...sections.flatMap((section) => [
           `${section.track} - ${section.classLabel || section.levelLabel || section.classId}`,
-          `Average: ${section.averageGeneral.toFixed(2)}/20`,
-          `Rank: ${section.classRank ?? "-"}`,
+          `Moyenne: ${section.averageGeneral.toFixed(2)}/20`,
+          `Rang: ${section.classRank ?? "-"}`,
           `Appreciation: ${section.appreciation}`,
           ...section.subjectAverages.map(
             (subject) => `${subject.subjectLabel}: ${subject.average.toFixed(2)}/20`
           )
-        ])
+        ]),
+        `Date de generation: ${new Date().toISOString().slice(0, 10)}`,
+        "Signature / cachet"
       ]);
 
       return [
@@ -581,17 +651,20 @@ export class GradesReportCardsService {
           throw new ConflictException("Report card generation requires a canonical placement.");
         }
         const pdf = buildSimplePdf([
-          "GestSchool Report Card",
-          `Class: ${section.classLabel || section.classId}`,
-          `Period: ${section.periodLabel}`,
-          `Student: ${section.studentName}`,
-          `Track: ${section.track}`,
-          `Average: ${section.averageGeneral.toFixed(2)}/20`,
-          `Rank: ${section.classRank ?? "-"}`,
-          `Appreciation: ${section.appreciation}`,
+          "Al Manarat Islamiyat",
+          "Bulletin scolaire",
+          `Classe: ${section.classLabel || section.classId}`,
+          `Periode: ${section.periodLabel}`,
+          `Eleve: ${section.studentName}`,
+          `Cursus: ${section.track}`,
+          `Moyenne generale: ${section.averageGeneral.toFixed(2)}/20`,
+          `Rang: ${section.classRank ?? "-"}`,
+          `Appreciation generale: ${section.appreciation}`,
           ...section.subjectAverages.map(
             (subject) => `${subject.subjectLabel}: ${subject.average.toFixed(2)}/20`
-          )
+          ),
+          `Date de generation: ${new Date().toISOString().slice(0, 10)}`,
+          "Signature / cachet"
         ]);
 
         return {
@@ -648,8 +721,12 @@ export class GradesReportCardsService {
       summary.students.find((item) => item.placementId === placement.id) ||
       summary.students.find((item) => item.studentId === placement.studentId);
 
-    if (!target) {
+      if (!target) {
       throw new NotFoundException("Student has no track placement in this class.");
+    }
+
+    if (target.noteCount === 0) {
+      throw new ConflictException("Report card generation requires at least one grade for this period.");
     }
 
     const period = await this.referenceService.requireAcademicPeriod(
@@ -762,6 +839,7 @@ export class GradesReportCardsService {
       averageGeneral: decimalToNumber(row.averageGeneral),
       classRank: row.classRank === null ? undefined : row.classRank,
       appreciation: row.appreciation || undefined,
+      generatedAt: row.updatedAt.toISOString(),
       publishedAt: row.publishedAt?.toISOString(),
       pdfDataUrl: row.pdfDataUrl || undefined,
       studentName: row.student
