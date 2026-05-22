@@ -267,13 +267,27 @@ export class GradesReportCardsService {
     });
 
     for (const placement of impactedPlacements) {
-      await this.syncStudentReportCardsForPeriod(
-        tenantId,
-        placement.studentId,
-        classroom.schoolYearId,
-        academicPeriodId,
-        false
-      );
+      try {
+        await this.syncStudentReportCardsForPeriod(
+          tenantId,
+          placement.studentId,
+          classroom.schoolYearId,
+          academicPeriodId,
+          false
+        );
+      } catch (error) {
+        if (!this.isSkippableAutoSyncError(error)) {
+          throw error;
+        }
+
+        await this.prisma.reportCard.deleteMany({
+          where: {
+            tenantId,
+            studentId: placement.studentId,
+            academicPeriodId
+          }
+        });
+      }
     }
   }
 
@@ -771,6 +785,23 @@ export class GradesReportCardsService {
         average: subject.average
       }))
     };
+  }
+
+  private isSkippableAutoSyncError(error: unknown): boolean {
+    if (
+      !(error instanceof ConflictException) &&
+      !(error instanceof NotFoundException)
+    ) {
+      return false;
+    }
+
+    const message = error instanceof Error ? error.message : "";
+    return [
+      "Report card generation requires at least one grade for this period.",
+      "Student has no active academic placement for this school year.",
+      "No classroom-bound placement is available for report card generation.",
+      "Student has no track placement in this class."
+    ].includes(message);
   }
 
   private reportCardView(
