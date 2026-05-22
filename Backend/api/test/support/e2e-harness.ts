@@ -1,4 +1,4 @@
-import { type INestApplication } from "@nestjs/common";
+import { type INestApplication, ValidationPipe } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { hash } from "bcryptjs";
@@ -72,6 +72,13 @@ export async function createE2eApp(): Promise<E2eAppContext> {
 
   const app = moduleFixture.createNestApplication();
   app.setGlobalPrefix("api/v1");
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true
+    })
+  );
   await app.init();
 
   return {
