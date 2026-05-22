@@ -227,10 +227,7 @@ describe("HeaderNavigation", () => {
           contextLabel: "GestSchool admin",
           email: longEmail,
           roleLabel: "Administrateur",
-          schoolYearLabel: "2025-2026",
-          statusLabel: "Actif",
-          tenantLabel: "Al Manarat Islamiyat",
-          username: "Administration centrale Al Manarat Islamiyat",
+          username: "Administration centrale",
           onLogout: vi.fn()
         }}
         userActions={userActions}
@@ -244,8 +241,11 @@ describe("HeaderNavigation", () => {
     const emailLine = userPanel!.querySelector(".header-user-summary-copy p");
     expect(emailLine).toHaveTextContent(longEmail);
     expect(emailLine).toHaveAttribute("title", longEmail);
-    expect(userPanel).toHaveTextContent("Al Manarat Islamiyat");
-    expect(userPanel).toHaveTextContent("2025-2026");
+    expect(userPanel).toHaveTextContent("Administration centrale");
+    expect(userPanel).not.toHaveTextContent("Al Manarat Islamiyat");
+    expect(userPanel).not.toHaveTextContent("2025-2026");
+    expect(userPanel).not.toHaveTextContent("Actif");
+    expect(userPanel!.querySelector(".header-user-facts")).toBeNull();
 
     fireEvent.click(userPanel!.querySelector<HTMLButtonElement>(".header-user-link")!);
     expect(profileAction).toHaveBeenCalledTimes(1);
