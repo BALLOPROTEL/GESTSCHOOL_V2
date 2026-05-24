@@ -102,8 +102,11 @@ Global :
 ```bash
 pnpm lint
 pnpm build
+pnpm visual:audit:core
 git diff --check
 ```
+
+La recette visuelle `visual:audit:core` vérifie les écrans Tableau de bord, Mon profil, Notes & bulletins, Comptabilité et Élèves en mode aperçu local. Elle écrit les captures et le rapport JSON dans `/tmp/gestschool-core-visual-audit/<run-id>`.
 
 ## Tests e2e API avec PostgreSQL
 

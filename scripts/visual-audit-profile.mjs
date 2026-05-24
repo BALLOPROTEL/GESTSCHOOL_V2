@@ -144,13 +144,15 @@ async function auditUserPanel(page, label, mode) {
       });
     }
   }
-  if (!text.includes("Al Manarat Islamiyat")) {
-    findings.push({
-      label,
-      priority: "P1",
-      type: "profile-menu-context",
-      message: "Le panneau utilisateur n'affiche pas l'établissement."
-    });
+  for (const forbidden of ["ÉTABLISSEMENT", "ANNÉE SCOLAIRE", "STATUT"]) {
+    if (text.includes(forbidden)) {
+      findings.push({
+        label,
+        priority: "P1",
+        type: "profile-menu-context",
+        message: `Ancienne information de contexte encore visible dans le panneau utilisateur: ${forbidden}.`
+      });
+    }
   }
 }
 
@@ -160,10 +162,12 @@ async function auditProfileScreen(page, label) {
   for (const expected of [
     "Mon profil",
     "Informations personnelles",
-    "Sécurité",
-    "Sessions",
+    "Sécurité du compte",
+    "Préférences",
+    "Activité récente",
+    "Mes rôles et permissions",
     "Changer la photo",
-    "Enregistrer les modifications"
+    "Modifier le profil"
   ]) {
     if (!text.includes(expected)) {
       findings.push({
@@ -174,17 +178,7 @@ async function auditProfileScreen(page, label) {
       });
     }
   }
-  for (const forbidden of ["Activité récente", "Accès et permissions", "Facturation / abonnement"]) {
-    if (text.includes(forbidden)) {
-      findings.push({
-        label,
-        priority: "P1",
-        type: "profile-scope",
-        message: `Section hors périmètre encore visible dans Mon profil: ${forbidden}.`
-      });
-    }
-  }
-  for (const forbidden of ["passwordHash", "refreshToken", "temporaryPassword"]) {
+  for (const forbidden of ["passwordHash", "refreshToken", "temporaryPassword", "Facturation / abonnement"]) {
     if (text.includes(forbidden)) {
       findings.push({
         label,

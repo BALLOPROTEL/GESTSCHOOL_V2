@@ -8,6 +8,7 @@
     "dev:web": "pnpm --filter @gestschool/web-admin dev",
     "build:api": "pnpm --filter @gestschool/api build",
     "build:web": "pnpm --filter @gestschool/web-admin build",
+    "visual:audit:core": "node scripts/visual-audit-core-workflows.mjs",
     "render:build:api": "pnpm --filter @gestschool/api prisma:generate && pnpm --filter @gestschool/api db:migrate:deploy && pnpm --filter @gestschool/api build",
     "render:start:api": "pnpm --filter @gestschool/api start:prod",
     "render:start:worker": "pnpm --filter @gestschool/api start:worker",
