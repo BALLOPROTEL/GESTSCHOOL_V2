@@ -1356,14 +1356,16 @@ export function App(): JSX.Element {
         api={api}
         currentRoleLabel={currentRoleLabel}
         locale={currentLanguageMeta.locale}
-        onBackToDashboard={() => setTab(dashboardTarget)}
         onError={setError}
+        onLanguageChange={selectLanguage}
         onNotice={setNotice}
         onProfileChange={setCurrentProfile}
+        onThemeChange={selectThemeMode}
         remoteEnabled={!isPreviewSession}
         schoolName={SCHOOL_NAME}
         schoolYears={schoolYears}
         session={session}
+        themeMode={themeMode}
         uiLanguage={uiLanguage}
         users={users}
       />
@@ -1940,6 +1942,7 @@ export function App(): JSX.Element {
             }}
             user={{
               avatar: profileInitial,
+              avatarUrl: headerAccount?.avatarUrl,
               contextLabel: profileContextLabel,
               email: headerEmail,
               roleLabel: currentRoleLabel,

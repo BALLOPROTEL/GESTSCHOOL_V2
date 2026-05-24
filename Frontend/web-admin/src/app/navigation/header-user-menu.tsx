@@ -25,7 +25,9 @@ export function HeaderUserMenu(props: {
         aria-label="Ouvrir le menu utilisateur"
         onClick={() => onOpenChange(isOpen ? null : "user")}
       >
-        <span className="header-user-avatar">{user.avatar}</span>
+        <span className="header-user-avatar">
+          {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.avatar}
+        </span>
         <span className="header-user-copy">
           <strong>{user.username}</strong>
           <small>{user.roleLabel}</small>
@@ -45,7 +47,9 @@ export function HeaderUserMenu(props: {
         role="menu"
       >
         <div className="header-user-summary">
-          <span className="header-user-avatar large">{user.avatar}</span>
+          <span className="header-user-avatar large">
+            {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.avatar}
+          </span>
           <div className="header-user-summary-copy">
             <strong title={user.username}>{user.username}</strong>
             <p title={identityLabel}>{identityLabel}</p>

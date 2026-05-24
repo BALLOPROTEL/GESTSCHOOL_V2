@@ -96,6 +96,7 @@ export class AuthService {
     }
 
     const tokens = await this.issueTokens(user);
+    const now = new Date();
     await this.logAuthAudit(user.tenantId, user.id, "AUTH_LOGIN_SUCCESS", {
       username: user.username,
       role: user.role
@@ -103,7 +104,10 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { updatedAt: new Date() }
+      data: {
+        lastLoginAt: now,
+        updatedAt: now
+      }
     });
     return tokens;
   }

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -49,6 +49,7 @@ const user: UserAccount = {
   status: "ACTIVE",
   isActive: true,
   createdAt: "2026-05-01T08:00:00.000Z",
+  lastLoginAt: "2026-05-20T09:30:00.000Z",
   updatedAt: "2026-05-10T08:00:00.000Z"
 };
 
@@ -56,14 +57,16 @@ const baseProfileProps = {
   api: vi.fn(),
   currentRoleLabel: "Administrateur",
   locale: "fr-FR",
-  onBackToDashboard: vi.fn(),
   onError: vi.fn(),
+  onLanguageChange: vi.fn(),
   onNotice: vi.fn(),
   onProfileChange: vi.fn(),
+  onThemeChange: vi.fn(),
   remoteEnabled: false,
   schoolName: "Al Manarat Islamiyat",
   schoolYears: [schoolYear],
   session,
+  themeMode: "light" as const,
   uiLanguage: "fr" as const,
   users: [user]
 };
@@ -72,18 +75,30 @@ const renderProfile = (overrides: Partial<ComponentProps<typeof ProfileScreen>> 
   render(<ProfileScreen {...baseProfileProps} {...overrides} />);
 
 describe("ProfileScreen", () => {
-  it("affiche un profil compact sans mélanger préférences, activité ou facturation", () => {
+  it("affiche une page profil premium avec les sections principales", () => {
     renderProfile();
 
     expect(screen.getByRole("heading", { name: "Mon profil" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Informations personnelles" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Sécurité" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Sessions" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Préférences" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Activité récente" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Facturation / abonnement" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Informations personnelles" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sécurité du compte" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Préférences" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Activité récente" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Mes rôles et permissions" })).toBeInTheDocument();
+    expect(screen.getByText(/20 mai 2026/i)).toBeInTheDocument();
     expect(screen.queryByText(/passwordHash/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/refreshToken/i)).not.toBeInTheDocument();
+  });
+
+  it("ouvre l’édition du profil et expose les champs personnels modifiables", async () => {
+    const browserUser = userEvent.setup();
+    renderProfile();
+
+    await browserUser.click(screen.getByRole("button", { name: "Modifier le profil" }));
+
+    expect(screen.getByLabelText("Nom affiché *")).toHaveValue("Admin GestSchool");
+    expect(screen.getByLabelText("Prénom")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nom")).toBeInTheDocument();
+    expect(screen.getByLabelText("Téléphone")).toHaveValue("+22370000000");
   });
 
   it("refuse un avatar non image et un avatar trop lourd côté frontend", () => {
@@ -106,8 +121,9 @@ describe("ProfileScreen", () => {
     const browserUser = userEvent.setup();
     renderProfile();
 
-    await browserUser.click(screen.getByRole("tab", { name: "Sécurité" }));
-    const securityPanel = screen.getByText("État du compte").closest(".profile-tab-body") as HTMLElement;
+    const securityCard = screen.getByRole("heading", { name: "Sécurité du compte" }).closest(".premium-profile-card") as HTMLElement;
+    await browserUser.click(within(securityCard).getByRole("button", { name: "Modifier" }));
+    const securityPanel = securityCard;
     await browserUser.type(within(securityPanel).getByLabelText("Mot de passe actuel *"), "AncienMot1!");
     await browserUser.type(within(securityPanel).getByLabelText("Nouveau mot de passe *"), "faible");
     await browserUser.type(within(securityPanel).getByLabelText("Confirmation du nouveau mot de passe *"), "different");
@@ -115,6 +131,81 @@ describe("ProfileScreen", () => {
 
     expect(within(securityPanel).getAllByText(/au moins 12 caractères/i).length).toBeGreaterThan(0);
     expect(within(securityPanel).getByText("La confirmation ne correspond pas.")).toBeInTheDocument();
+  });
+
+  it("garde les boutons de visibilité de mot de passe indépendants et stables", async () => {
+    const browserUser = userEvent.setup();
+    renderProfile();
+
+    const securityPanel = screen.getByRole("heading", { name: "Sécurité du compte" }).closest(".premium-profile-card") as HTMLElement;
+    await browserUser.click(within(securityPanel).getByRole("button", { name: "Modifier" }));
+    const currentPassword = within(securityPanel).getByLabelText("Mot de passe actuel *");
+    const newPassword = within(securityPanel).getByLabelText("Nouveau mot de passe *");
+    const confirmation = within(securityPanel).getByLabelText("Confirmation du nouveau mot de passe *");
+    const currentToggle = within(securityPanel).getByLabelText("Afficher le mot de passe actuel");
+    const newToggle = within(securityPanel).getByLabelText("Afficher le nouveau mot de passe");
+
+    expect(currentPassword).toHaveAttribute("type", "password");
+    expect(newPassword).toHaveAttribute("type", "password");
+    expect(confirmation).toHaveAttribute("type", "password");
+
+    await browserUser.click(currentToggle);
+
+    expect(currentPassword).toHaveAttribute("type", "text");
+    expect(newPassword).toHaveAttribute("type", "password");
+    expect(confirmation).toHaveAttribute("type", "password");
+
+    await browserUser.click(newToggle);
+
+    expect(currentPassword).toHaveAttribute("type", "text");
+    expect(newPassword).toHaveAttribute("type", "text");
+    expect(confirmation).toHaveAttribute("type", "password");
+  });
+
+  it("n’injecte pas d’activité fictive quand le profil est chargé depuis l’API", async () => {
+    const api = vi.fn(async (path: string) => {
+      if (path === "/users/me") {
+        return new Response(
+          JSON.stringify({
+            user,
+            context: {
+              tenantId: "tenant-1",
+              tenantName: "Al Manarat Islamiyat",
+              activeSchoolYear: {
+                id: schoolYear.id,
+                code: schoolYear.code,
+                label: schoolYear.label,
+                status: schoolYear.status,
+                isActive: schoolYear.isActive
+              },
+              timeZone: "Europe/Paris"
+            },
+            preferences: {
+              language: "fr",
+              theme: "light",
+              emailNotificationsEnabled: true,
+              systemNotificationsEnabled: true
+            },
+            permissions: []
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      if (path === "/users/me/activity") {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return new Response("{}", { status: 404 });
+    });
+
+    renderProfile({ api, remoteEnabled: true });
+
+    await waitFor(() => expect(api).toHaveBeenCalledWith("/users/me", undefined, true, { background: true }));
+    expect(await screen.findByText("Aucune activité récente disponible.")).toBeInTheDocument();
+    expect(screen.queryByText("Création d’une classe")).not.toBeInTheDocument();
+    expect(screen.queryByText("Export des notes")).not.toBeInTheDocument();
   });
 });
 

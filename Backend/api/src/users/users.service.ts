@@ -58,6 +58,7 @@ export type UserView = {
   status: UserStatus | string;
   activatedAt?: string;
   disabledAt?: string;
+  lastLoginAt?: string;
   activationEmailSent?: boolean;
   activationEmailError?: string;
   isActive: boolean;
@@ -1199,6 +1200,7 @@ export class UsersService {
       status: row.status,
       activatedAt: row.activatedAt?.toISOString(),
       disabledAt: row.disabledAt?.toISOString(),
+      lastLoginAt: row.lastLoginAt?.toISOString(),
       isActive: row.isActive,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString()

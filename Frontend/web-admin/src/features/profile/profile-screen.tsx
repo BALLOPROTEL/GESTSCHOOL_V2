@@ -1,40 +1,51 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { ROLE_LABELS } from "../../shared/constants/domain";
 import { translateUiString, type UiLanguage } from "../../shared/i18n";
 import type {
   FieldErrors,
   SchoolYear,
   Session,
+  ThemeMode,
   UserAccount,
+  UserActivityItem,
   UserSelfProfile
 } from "../../shared/types/app";
 import {
   changeMyPassword,
+  fetchMyActivity,
   fetchMyProfile,
   removeMyAvatar,
   type ProfileApiClient,
   updateMyProfile,
   uploadMyAvatar
 } from "./profile-service";
+import {
+  ProfilePage,
+  type PasswordFieldKey,
+  type PasswordFormState,
+  type PreferenceFormState,
+  type PremiumActivityItem,
+  type ProfileFormState,
+  type ProfileInfoRow
+} from "./ProfilePage";
 
 type ProfileScreenProps = {
   api: ProfileApiClient;
   currentRoleLabel: string;
   locale: string;
   onError: (message: string | null) => void;
-  onBackToDashboard: () => void;
+  onLanguageChange?: (language: UiLanguage) => void;
   onNotice: (message: string | null) => void;
   onProfileChange?: (profile: UserSelfProfile) => void;
+  onThemeChange?: (theme: ThemeMode) => void;
   remoteEnabled?: boolean;
   schoolName: string;
   schoolYears: SchoolYear[];
   session: Session;
+  themeMode: ThemeMode;
   uiLanguage: UiLanguage;
   users: UserAccount[];
 };
-
-type ProfileTab = "identity" | "security" | "sessions";
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   STAFF: "Staff interne",
@@ -73,14 +84,40 @@ const formatDate = (value: string | undefined, locale: string): string => {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString(locale);
+  return date.toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" });
 };
+
+const formatDateTime = (value: string | undefined, locale: string): string => {
+  if (!value) return "Aucune connexion enregistrée";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Aucune connexion enregistrée";
+  return date.toLocaleString(locale, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+};
+
+const formatActivityTime = (value: string | undefined, locale: string): string => {
+  if (!value) return "Aucune date disponible";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Aucune date disponible";
+  return date.toLocaleString(locale, {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+};
+
+const emptyLabel = (value?: string): string => value?.trim() || "À renseigner";
 
 const buildFallbackProfile = (
   session: Session,
   users: UserAccount[],
   schoolYears: SchoolYear[],
-  schoolName: string
+  schoolName: string,
+  uiLanguage: UiLanguage,
+  themeMode: ThemeMode
 ): UserSelfProfile => {
   const matchedUser =
     users.find((item) => item.id === session.user.id) ||
@@ -120,74 +157,135 @@ const buildFallbackProfile = (
         : undefined,
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris"
     },
+    preferences: {
+      language: uiLanguage,
+      theme: themeMode,
+      emailNotificationsEnabled: true,
+      systemNotificationsEnabled: true
+    },
     permissions: []
   };
 };
 
-const renderError = (errors: FieldErrors, key: string): JSX.Element | null =>
-  errors[key] ? (
-    <span className="field-error" role="alert">
-      {errors[key]}
-    </span>
-  ) : null;
+const profileFormFrom = (profile: UserSelfProfile): ProfileFormState => ({
+  displayName: profile.user.displayName || profile.user.username || "",
+  firstName: profile.user.firstName || "",
+  lastName: profile.user.lastName || "",
+  phone: profile.user.phone || ""
+});
+
+const preferencesFrom = (
+  profile: UserSelfProfile,
+  uiLanguage: UiLanguage,
+  themeMode: ThemeMode
+): PreferenceFormState => ({
+  language: (profile.preferences?.language as UiLanguage | undefined) || uiLanguage,
+  theme: (profile.preferences?.theme as ThemeMode | undefined) || themeMode,
+  timeZone: profile.context.timeZone || "Europe/Paris",
+  emailNotificationsEnabled: profile.preferences?.emailNotificationsEnabled ?? true,
+  pushNotificationsEnabled: profile.preferences?.systemNotificationsEnabled ?? true
+});
+
+const buildFullName = (account: UserAccount): string => {
+  const names = [account.firstName, account.lastName].map((item) => item?.trim()).filter(Boolean);
+  return names.join(" ") || account.displayName || account.username;
+};
+
+const mapActivity = (item: UserActivityItem, locale: string): PremiumActivityItem => {
+  const action = `${item.action} ${item.resource}`.toLowerCase();
+  if (action.includes("password")) {
+    return { id: item.id, icon: "lock", tone: "purple", title: "Mot de passe modifié", time: formatActivityTime(item.createdAt, locale) };
+  }
+  if (action.includes("profile") || action.includes("avatar")) {
+    return { id: item.id, icon: "edit", tone: "blue", title: "Modification du profil", time: formatActivityTime(item.createdAt, locale) };
+  }
+  if (action.includes("login") || action.includes("auth")) {
+    return { id: item.id, icon: "shield", tone: "green", title: "Connexion réussie", time: formatActivityTime(item.createdAt, locale) };
+  }
+  return { id: item.id, icon: "activity", tone: "orange", title: item.action, time: formatActivityTime(item.createdAt, locale) };
+};
+
+const buildDefaultActivity = (account: UserAccount, locale: string): PremiumActivityItem[] => [
+  {
+    id: "last-login",
+    icon: "shield",
+    tone: "green",
+    title: "Connexion réussie",
+    time: account.lastLoginAt ? formatActivityTime(account.lastLoginAt, locale) : "Aujourd’hui à 09:42"
+  },
+  {
+    id: "profile-update",
+    icon: "edit",
+    tone: "blue",
+    title: "Modification du profil",
+    time: account.updatedAt ? formatActivityTime(account.updatedAt, locale) : "Hier à 16:30"
+  },
+  { id: "class-created", icon: "school", tone: "orange", title: "Création d’une classe", time: "14 mai à 11:20" },
+  { id: "student-added", icon: "student", tone: "green", title: "Ajout d’un élève", time: "13 mai à 15:45" },
+  { id: "grades-export", icon: "export", tone: "purple", title: "Export des notes", time: "12 mai à 10:15" }
+];
 
 export function ProfileScreen({
   api,
   currentRoleLabel,
   locale,
-  onBackToDashboard,
   onError,
+  onLanguageChange,
   onNotice,
   onProfileChange,
+  onThemeChange,
   remoteEnabled = true,
   schoolName,
   schoolYears,
   session,
+  themeMode,
   uiLanguage,
   users
 }: ProfileScreenProps): JSX.Element {
   const t = (value: string): string => translateUiString(uiLanguage, value);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const fallbackProfile = useMemo(
-    () => buildFallbackProfile(session, users, schoolYears, schoolName),
-    [schoolName, schoolYears, session, users]
+    () => buildFallbackProfile(session, users, schoolYears, schoolName, uiLanguage, themeMode),
+    [schoolName, schoolYears, session, themeMode, uiLanguage, users]
   );
   const [profile, setProfile] = useState<UserSelfProfile>(fallbackProfile);
-  const [activeTab, setActiveTab] = useState<ProfileTab>("identity");
   const [loading, setLoading] = useState(remoteEnabled);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPreferences, setSavingPreferences] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
-  const [showPasswords, setShowPasswords] = useState(false);
-  const [profileForm, setProfileForm] = useState({
-    displayName: fallbackProfile.user.displayName || "",
-    firstName: fallbackProfile.user.firstName || "",
-    lastName: fallbackProfile.user.lastName || "",
-    phone: fallbackProfile.user.phone || ""
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [passwordPanelOpen, setPasswordPanelOpen] = useState(false);
+  const [visiblePasswordFields, setVisiblePasswordFields] = useState<Record<PasswordFieldKey, boolean>>({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false
   });
-  const [passwordForm, setPasswordForm] = useState({
+  const [profileForm, setProfileForm] = useState<ProfileFormState>(profileFormFrom(fallbackProfile));
+  const [preferencesForm, setPreferencesForm] = useState<PreferenceFormState>(
+    preferencesFrom(fallbackProfile, uiLanguage, themeMode)
+  );
+  const [passwordForm, setPasswordForm] = useState<PasswordFormState>({
     currentPassword: "",
     newPassword: "",
     confirmPassword: ""
   });
   const [profileErrors, setProfileErrors] = useState<FieldErrors>({});
   const [passwordErrors, setPasswordErrors] = useState<FieldErrors>({});
+  const [activityRows, setActivityRows] = useState<UserActivityItem[]>([]);
 
   useEffect(() => {
     setProfile(fallbackProfile);
-    setProfileForm({
-      displayName: fallbackProfile.user.displayName || "",
-      firstName: fallbackProfile.user.firstName || "",
-      lastName: fallbackProfile.user.lastName || "",
-      phone: fallbackProfile.user.phone || ""
-    });
-  }, [fallbackProfile]);
+    setProfileForm(profileFormFrom(fallbackProfile));
+    setPreferencesForm(preferencesFrom(fallbackProfile, uiLanguage, themeMode));
+  }, [fallbackProfile, themeMode, uiLanguage]);
 
   useEffect(() => {
     let cancelled = false;
     if (!remoteEnabled) {
       setLoading(false);
+      setActivityRows([]);
       onProfileChange?.(fallbackProfile);
       return () => {
         cancelled = true;
@@ -200,13 +298,14 @@ export function ProfileScreen({
         const nextProfile = await fetchMyProfile(api);
         if (cancelled) return;
         setProfile(nextProfile);
-        setProfileForm({
-          displayName: nextProfile.user.displayName || "",
-          firstName: nextProfile.user.firstName || "",
-          lastName: nextProfile.user.lastName || "",
-          phone: nextProfile.user.phone || ""
-        });
+        setProfileForm(profileFormFrom(nextProfile));
+        setPreferencesForm(preferencesFrom(nextProfile, uiLanguage, themeMode));
         onProfileChange?.(nextProfile);
+        fetchMyActivity(api)
+          .then((items) => {
+            if (!cancelled) setActivityRows(items);
+          })
+          .catch(() => undefined);
       } catch (error) {
         if (!cancelled) onError(error instanceof Error ? error.message : "Profil utilisateur indisponible.");
       } finally {
@@ -218,23 +317,38 @@ export function ProfileScreen({
     return () => {
       cancelled = true;
     };
-  }, [api, fallbackProfile, onError, onProfileChange, remoteEnabled]);
+  }, [api, fallbackProfile, onError, onProfileChange, remoteEnabled, themeMode, uiLanguage]);
 
   const account = profile.user;
-  const displayName = account.displayName || account.username;
+  const fullName = buildFullName(account);
   const email = account.email || (account.username.includes("@") ? account.username : "-");
   const schoolYearLabel =
     profile.context.activeSchoolYear?.label || profile.context.activeSchoolYear?.code || "-";
-  const avatarLabel = initialsFrom(displayName);
+  const avatarInitials = initialsFrom(fullName);
+  const createdAtLabel = formatDate(account.createdAt, locale);
+  const lastLoginLabel = formatDateTime(account.lastLoginAt, locale);
+  const accountTypeLabel = lookup(ACCOUNT_TYPE_LABELS, account.accountType);
+  const statusLabel = lookup(STATUS_LABELS, account.status);
+  const activityItems = useMemo(() => {
+    const mapped = activityRows.map((item) => mapActivity(item, locale));
+    return remoteEnabled ? mapped.slice(0, 5) : [...mapped, ...buildDefaultActivity(account, locale)].slice(0, 5);
+  }, [account, activityRows, locale, remoteEnabled]);
+  const personalInfoRows: ProfileInfoRow[] = [
+    { label: "Nom complet", value: fullName },
+    { label: "Date de naissance", value: "À renseigner" },
+    { label: "Adresse", value: "À renseigner" },
+    { label: "Sexe", value: "À renseigner" },
+    { label: "Nationalité", value: "À renseigner" },
+    { label: "Téléphone", value: emptyLabel(account.phone) }
+  ];
+  const bio =
+    account.notes?.trim() ||
+    `J’accompagne l’équipe ${schoolName} dans le suivi administratif, la sécurité des accès et la qualité des données scolaires.`;
 
   const applyProfile = (nextProfile: UserSelfProfile): void => {
     setProfile(nextProfile);
-    setProfileForm({
-      displayName: nextProfile.user.displayName || "",
-      firstName: nextProfile.user.firstName || "",
-      lastName: nextProfile.user.lastName || "",
-      phone: nextProfile.user.phone || ""
-    });
+    setProfileForm(profileFormFrom(nextProfile));
+    setPreferencesForm(preferencesFrom(nextProfile, uiLanguage, themeMode));
     onProfileChange?.(nextProfile);
   };
 
@@ -273,10 +387,12 @@ export function ProfileScreen({
             displayName: profileForm.displayName.trim(),
             firstName: profileForm.firstName.trim(),
             lastName: profileForm.lastName.trim(),
-            phone: profileForm.phone.trim()
+            phone: profileForm.phone.trim(),
+            updatedAt: new Date().toISOString()
           }
         });
       }
+      setIsEditingProfile(false);
       onNotice("Profil enregistré.");
       onError(null);
     } catch (error) {
@@ -319,7 +435,7 @@ export function ProfileScreen({
       onError(uploadError instanceof Error ? uploadError.message : "Photo non envoyée.");
     } finally {
       setUploadingAvatar(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
   };
 
@@ -372,6 +488,8 @@ export function ProfileScreen({
         ? await changeMyPassword(api, passwordForm)
         : "Mot de passe validé en aperçu local.";
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setVisiblePasswordFields({ currentPassword: false, newPassword: false, confirmPassword: false });
+      setPasswordPanelOpen(false);
       onNotice(message);
       onError(null);
     } catch (error) {
@@ -381,232 +499,102 @@ export function ProfileScreen({
     }
   };
 
+  const submitPreferences = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setSavingPreferences(true);
+    try {
+      if (remoteEnabled) {
+        const nextProfile = await updateMyProfile(api, {
+          displayName: account.displayName || account.username,
+          phone: account.phone || "",
+          language: preferencesForm.language,
+          theme: preferencesForm.theme,
+          emailNotificationsEnabled: preferencesForm.emailNotificationsEnabled,
+          systemNotificationsEnabled: preferencesForm.pushNotificationsEnabled
+        });
+        applyProfile(nextProfile);
+      } else {
+        setProfile((previous) => ({
+          ...previous,
+          preferences: {
+            language: preferencesForm.language,
+            theme: preferencesForm.theme,
+            emailNotificationsEnabled: preferencesForm.emailNotificationsEnabled,
+            systemNotificationsEnabled: preferencesForm.pushNotificationsEnabled
+          }
+        }));
+      }
+      onLanguageChange?.(preferencesForm.language);
+      onThemeChange?.(preferencesForm.theme);
+      onNotice("Préférences enregistrées.");
+      onError(null);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Préférences non enregistrées.");
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
+
   return (
-    <div className="profile-screen profile-screen-compact" aria-busy={loading}>
-      <section className="panel profile-page-header">
-        <div>
-          <p className="eyebrow">{t("Compte utilisateur")}</p>
-          <h2>{t("Mon profil")}</h2>
-          <p>{t("Gérez vos informations personnelles et la sécurité de votre compte.")}</p>
-        </div>
-        <button type="button" className="button-secondary" onClick={onBackToDashboard}>
-          {t("Retour tableau de bord")}
-        </button>
-      </section>
-
-      <section className="panel profile-card-main">
-        <div className="profile-card-avatar">
-          <span className="profile-avatar-xl profile-avatar-photo">
-            {account.avatarUrl ? <img src={account.avatarUrl} alt="" /> : avatarLabel}
-          </span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="sr-only"
-            onChange={(event) => void onAvatarSelected(event.target.files?.[0])}
-          />
-          <button
-            type="button"
-            className="button-primary profile-avatar-button"
-            disabled={uploadingAvatar}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {uploadingAvatar ? t("Envoi de la photo...") : t("Changer la photo")}
-          </button>
-          {account.avatarUrl ? (
-            <button
-              type="button"
-              className="button-secondary"
-              disabled={removingAvatar}
-              onClick={() => void onRemoveAvatar()}
-            >
-              {removingAvatar ? t("Suppression...") : t("Supprimer la photo")}
-            </button>
-          ) : null}
-        </div>
-        <div className="profile-card-identity">
-          <p className="eyebrow">{t("Identité du compte")}</p>
-          <h3>{displayName}</h3>
-          <p className="profile-email-line" title={email}>{email}</p>
-          <div className="profile-hero-meta">
-            <span>{currentRoleLabel}</span>
-            <span>{lookup(STATUS_LABELS, account.status)}</span>
-            <span>{profile.context.tenantName}</span>
-            <span>{schoolYearLabel}</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="panel profile-tabs-panel">
-        <div className="module-tabs profile-tabs" role="tablist" aria-label={t("Sections du profil")}>
-          {[
-            ["identity", "Informations personnelles"],
-            ["security", "Sécurité"],
-            ["sessions", "Sessions"]
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === id}
-              className={activeTab === id ? "active" : ""}
-              onClick={() => setActiveTab(id as ProfileTab)}
-            >
-              {t(label)}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === "identity" ? (
-          <div className="profile-tab-body">
-            <div className="profile-details-grid compact">
-              <div>
-                <span>{t("Identifiant utilisateur")}</span>
-                <strong className="text-ellipsis">{account.username}</strong>
-              </div>
-              <div>
-                <span>{t("Email principal")}</span>
-                <strong className="text-ellipsis">{email}</strong>
-              </div>
-              <div>
-                <span>{t("Rôle")}</span>
-                <strong>{lookup(ROLE_LABELS, account.role)}</strong>
-              </div>
-              <div>
-                <span>{t("Type de compte")}</span>
-                <strong>{lookup(ACCOUNT_TYPE_LABELS, account.accountType)}</strong>
-              </div>
-              <div>
-                <span>{t("Date de création")}</span>
-                <strong>{formatDate(account.createdAt, locale)}</strong>
-              </div>
-              <div>
-                <span>{t("Dernière connexion")}</span>
-                <strong>{t("Aucune donnée fiable disponible")}</strong>
-              </div>
-            </div>
-
-            <form className="profile-form-grid compact" onSubmit={(event) => void submitProfile(event)}>
-              <label>
-                {t("Nom affiché")} *
-                <input
-                  value={profileForm.displayName}
-                  onChange={(event) => setProfileForm((prev) => ({ ...prev, displayName: event.target.value }))}
-                />
-                {renderError(profileErrors, "displayName")}
-              </label>
-              <label>
-                {t("Prénom")}
-                <input
-                  value={profileForm.firstName}
-                  onChange={(event) => setProfileForm((prev) => ({ ...prev, firstName: event.target.value }))}
-                />
-                {renderError(profileErrors, "firstName")}
-              </label>
-              <label>
-                {t("Nom")}
-                <input
-                  value={profileForm.lastName}
-                  onChange={(event) => setProfileForm((prev) => ({ ...prev, lastName: event.target.value }))}
-                />
-                {renderError(profileErrors, "lastName")}
-              </label>
-              <label>
-                {t("Téléphone")}
-                <input
-                  value={profileForm.phone}
-                  onChange={(event) => setProfileForm((prev) => ({ ...prev, phone: event.target.value }))}
-                />
-                {renderError(profileErrors, "phone")}
-              </label>
-              <div className="profile-form-actions inline">
-                <button type="submit" className="button-primary" disabled={savingProfile}>
-                  {savingProfile ? t("Enregistrement...") : t("Enregistrer les modifications")}
-                </button>
-                <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={() =>
-                    setProfileForm({
-                      displayName: account.displayName || "",
-                      firstName: account.firstName || "",
-                      lastName: account.lastName || "",
-                      phone: account.phone || ""
-                    })
-                  }
-                >
-                  {t("Annuler")}
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : null}
-
-        {activeTab === "security" ? (
-          <div className="profile-tab-body">
-            <div className="profile-details-grid compact">
-              <div>
-                <span>{t("État du compte")}</span>
-                <strong>{lookup(STATUS_LABELS, account.status)}</strong>
-              </div>
-              <div>
-                <span>{t("Première connexion")}</span>
-                <strong>{account.mustChangePasswordAtFirstLogin ? t("À finaliser") : t("Terminée")}</strong>
-              </div>
-              <div>
-                <span>{t("Dernière connexion")}</span>
-                <strong>{t("Aucune donnée fiable disponible")}</strong>
-              </div>
-            </div>
-            <form className="profile-form-grid compact" onSubmit={(event) => void submitPassword(event)}>
-              {[
-                ["currentPassword", "Mot de passe actuel *", "current-password"],
-                ["newPassword", "Nouveau mot de passe *", "new-password"],
-                ["confirmPassword", "Confirmation du nouveau mot de passe *", "new-password"]
-              ].map(([key, label, autocomplete]) => (
-                <label key={key} className="password-field-row">
-                  {t(label)}
-                  <span className="password-input-shell">
-                    <input
-                      aria-label={t(label)}
-                      autoComplete={autocomplete}
-                      type={showPasswords ? "text" : "password"}
-                      value={passwordForm[key as keyof typeof passwordForm]}
-                      onChange={(event) =>
-                        setPasswordForm((prev) => ({ ...prev, [key]: event.target.value }))
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="password-eye-button"
-                      aria-label={showPasswords ? t("Masquer le mot de passe") : t("Afficher le mot de passe")}
-                      onClick={() => setShowPasswords((value) => !value)}
-                    >
-                      {showPasswords ? "✕" : "••"}
-                    </button>
-                  </span>
-                  {renderError(passwordErrors, key)}
-                </label>
-              ))}
-              <div className="profile-form-actions inline">
-                <p className="subtle">{t(PASSWORD_HINT)}</p>
-                <button type="submit" className="button-primary" disabled={changingPassword}>
-                  {changingPassword ? t("Modification...") : t("Changer le mot de passe")}
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : null}
-
-        {activeTab === "sessions" ? (
-          <div className="profile-tab-body">
-            <p className="empty-state-block">
-              {t("La gestion détaillée des sessions n’est pas encore disponible.")}
-            </p>
-          </div>
-        ) : null}
-      </section>
-    </div>
+    <ProfilePage
+      accountTypeLabel={accountTypeLabel}
+      activityItems={activityItems}
+      avatarInputRef={avatarInputRef}
+      avatarInitials={avatarInitials}
+      avatarUrl={account.avatarUrl}
+      bio={bio}
+      changingPassword={changingPassword}
+      createdAtLabel={createdAtLabel}
+      currentRoleLabel={currentRoleLabel}
+      email={email}
+      fullName={fullName}
+      isEditingProfile={isEditingProfile}
+      lastLoginLabel={lastLoginLabel}
+      loading={loading}
+      onAvatarFileSelected={(file) => void onAvatarSelected(file)}
+      onCancelProfileEdit={() => {
+        setProfileForm(profileFormFrom(profile));
+        setProfileErrors({});
+        setIsEditingProfile(false);
+      }}
+      onChangePasswordField={(key, value) => setPasswordForm((previous) => ({ ...previous, [key]: value }))}
+      onLogoutAllDevices={() => onNotice("La gestion détaillée des sessions sera disponible dans l’espace sécurité.")}
+      onOpenAvatarPicker={() => avatarInputRef.current?.click()}
+      onOpenPasswordEditor={() => setPasswordPanelOpen((previous) => !previous)}
+      onOpenProfileEditor={() => setIsEditingProfile(true)}
+      onPreferenceChange={(key, value) => setPreferencesForm((previous) => ({ ...previous, [key]: value }))}
+      onProfileFieldChange={(key, value) => setProfileForm((previous) => ({ ...previous, [key]: value }))}
+      onRemoveAvatar={() => void onRemoveAvatar()}
+      onSubmitPassword={(event) => void submitPassword(event)}
+      onSubmitPreferences={(event) => void submitPreferences(event)}
+      onSubmitProfile={(event) => void submitProfile(event)}
+      onTogglePasswordVisibility={(key) =>
+        setVisiblePasswordFields((previous) => ({ ...previous, [key]: !previous[key] }))
+      }
+      onViewSessions={() => onNotice("La gestion détaillée des sessions n’est pas encore disponible.")}
+      onViewPermissions={() => onNotice("Les permissions détaillées restent gérées dans Utilisateurs & droits.")}
+      passwordErrors={passwordErrors}
+      passwordForm={passwordForm}
+      passwordPanelOpen={passwordPanelOpen}
+      personalInfoRows={personalInfoRows}
+      preferencesForm={preferencesForm}
+      profile={profile}
+      profileErrors={profileErrors}
+      profileForm={profileForm}
+      removingAvatar={removingAvatar}
+      savingPreferences={savingPreferences}
+      savingProfile={savingProfile}
+      schoolName={schoolName}
+      schoolYearLabel={schoolYearLabel}
+      security={{
+        twoFactorEnabled: !remoteEnabled,
+        twoFactorLabel: remoteEnabled ? "Non configurée" : "Activée",
+        activeSessionsLabel: remoteEnabled ? "Non disponible" : "2 appareils"
+      }}
+      statusLabel={statusLabel}
+      t={t}
+      uploadingAvatar={uploadingAvatar}
+      visiblePasswordFields={visiblePasswordFields}
+    />
   );
 }

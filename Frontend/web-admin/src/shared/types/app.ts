@@ -401,6 +401,7 @@ export type UserAccount = {
   status?: UserStatus | string;
   activatedAt?: string;
   disabledAt?: string;
+  lastLoginAt?: string;
   activationEmailSent?: boolean;
   activationEmailError?: string;
   isActive: boolean;

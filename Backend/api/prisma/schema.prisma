@@ -108,6 +108,7 @@ model User {
   isActive      Boolean        @default(true) @map("is_active")
   activatedAt   DateTime?      @map("activated_at") @db.Timestamptz(6)
   disabledAt    DateTime?      @map("disabled_at") @db.Timestamptz(6)
+  lastLoginAt   DateTime?      @map("last_login_at") @db.Timestamptz(6)
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
   deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)

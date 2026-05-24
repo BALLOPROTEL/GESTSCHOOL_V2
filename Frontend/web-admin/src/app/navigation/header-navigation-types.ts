@@ -53,6 +53,7 @@ export type HeaderFeedItem = {
 
 export type HeaderNavigationUser = {
   avatar: string;
+  avatarUrl?: string;
   contextLabel: string;
   email?: string;
   schoolYearLabel?: string;

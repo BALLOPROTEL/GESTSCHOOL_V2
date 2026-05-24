@@ -34,6 +34,7 @@ describe("Auth + access guards (e2e)", () => {
   });
 
   it("POST /auth/login should return access and refresh tokens", async () => {
+    const beforeLogin = new Date(Date.now() - 1000);
     const response = await request(context.app.getHttpServer())
       .post("/api/v1/auth/login")
       .send({
@@ -46,10 +47,55 @@ describe("Auth + access guards (e2e)", () => {
     expect(response.body.accessToken).toBeDefined();
     expect(response.body.refreshToken).toBeDefined();
     expect(response.body.user.role).toBe("ADMIN");
+
+    const persistedUser = await context.prisma.user.findUniqueOrThrow({
+      where: { id: response.body.user.id }
+    });
+    expect(persistedUser.lastLoginAt).toBeTruthy();
+    expect(persistedUser.lastLoginAt!.getTime()).toBeGreaterThanOrEqual(beforeLogin.getTime());
+
+    const me = await request(context.app.getHttpServer())
+      .get("/api/v1/users/me")
+      .set("Authorization", `Bearer ${response.body.accessToken}`)
+      .expect(200);
+    expect(me.body.user.lastLoginAt).toBeDefined();
+    expect(me.body.user.passwordHash).toBeUndefined();
   });
 
   it("GET /students should reject missing token", async () => {
     await request(context.app.getHttpServer()).get("/api/v1/students").expect(401);
+  });
+
+  it("PATCH /users/me/profile should update only personal fields", async () => {
+    const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+
+    const response = await request(context.app.getHttpServer())
+      .patch("/api/v1/users/me/profile")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .send({
+        displayName: "Admin Profil",
+        firstName: "Admin",
+        lastName: "Profil",
+        phone: "+22370000001"
+      })
+      .expect(200);
+
+    expect(response.body.user.displayName).toBe("Admin Profil");
+    expect(response.body.user.firstName).toBe("Admin");
+    expect(response.body.user.lastName).toBe("Profil");
+    expect(response.body.user.phone).toBe("+22370000001");
+    expect(response.body.user.passwordHash).toBeUndefined();
+
+    await request(context.app.getHttpServer())
+      .patch("/api/v1/users/me/profile")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .send({
+        displayName: "Admin Profil",
+        role: UserRole.COMPTABLE,
+        status: "DISABLED",
+        tenantId: "00000000-0000-0000-0000-000000000999"
+      })
+      .expect(400);
   });
 
   it("GET /students should reject token with invalid audience", async () => {
