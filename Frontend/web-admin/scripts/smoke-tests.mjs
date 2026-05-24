@@ -23,9 +23,17 @@ const walkFiles = (directory) => {
 };
 
 const appSource = read("src/app/App.tsx");
+const lazyScreensSource = read("src/app/lazy-screens.tsx");
 const mainSource = read("src/main.tsx");
 assert(lineCount(appSource) < 2000, "App.tsx doit rester sous 2000 lignes apres extraction du preview et des features.");
-assert(appSource.includes("lazy("), "App.tsx doit declarer des imports React.lazy pour le code splitting.");
+assert(
+  lazyScreensSource.includes("lazy("),
+  "src/app/lazy-screens.tsx doit declarer les imports React.lazy pour le code splitting."
+);
+assert(
+  appSource.includes('from "./lazy-screens"'),
+  "App.tsx doit consommer les ecrans lazy depuis src/app/lazy-screens.tsx."
+);
 assert(appSource.includes("<Suspense"), "App.tsx doit rendre les ecrans lazy dans un Suspense.");
 assert(!appSource.includes("preview-sy-2025"), "Les donnees preview lourdes ne doivent plus vivre dans App.tsx.");
 
