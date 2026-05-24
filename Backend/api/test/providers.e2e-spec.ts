@@ -171,6 +171,25 @@ describe("Provider integrations (e2e)", () => {
       }
     };
 
+    await request(context.app.getHttpServer())
+      .post("/api/v1/payments/paydunya/callback")
+      .send({
+        data: {
+          status: "completed",
+          hash: "invalid-callback-hash",
+          invoice: {
+            token: "test-provider-token",
+            total_amount: 150000
+          }
+        }
+      })
+      .expect(401);
+
+    const paymentsAfterRejectedCallback = await context.prisma.payment.count({
+      where: { tenantId: TENANT_ID, invoiceId: invoice.body.id, paymentMethod: "PAYDUNYA" }
+    });
+    expect(paymentsAfterRejectedCallback).toBe(0);
+
     const callback = await request(context.app.getHttpServer())
       .post("/api/v1/payments/paydunya/callback")
       .send(callbackBody)
@@ -251,6 +270,8 @@ describe("Provider integrations (e2e)", () => {
   });
 
   it("exposes provider configuration checks without returning secrets", async () => {
+    await request(context.app.getHttpServer()).get("/api/v1/monitoring/providers").expect(403);
+
     const response = await request(context.app.getHttpServer())
       .get("/api/v1/monitoring/providers")
       .set("x-metrics-token", "test-metrics-token")
@@ -266,6 +287,43 @@ describe("Provider integrations (e2e)", () => {
     expect(JSON.stringify(response.body)).not.toContain("test-brevo-key");
     expect(JSON.stringify(response.body)).not.toContain("test-master-key");
     expect(JSON.stringify(response.body)).not.toContain("test-private-key");
+  });
+
+  it("rejects unsafe public monitoring and notification webhook secrets", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousMetricsToken = process.env.MONITORING_METRICS_TOKEN;
+
+    process.env.NODE_ENV = "production";
+    process.env.MONITORING_METRICS_TOKEN = "change-me";
+
+    try {
+      await request(context.app.getHttpServer())
+        .get("/api/v1/monitoring/providers")
+        .set("x-metrics-token", "change-me")
+        .expect(403);
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+      if (previousMetricsToken === undefined) {
+        delete process.env.MONITORING_METRICS_TOKEN;
+      } else {
+        process.env.MONITORING_METRICS_TOKEN = previousMetricsToken;
+      }
+    }
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/notifications/delivery-events")
+      .set("x-notification-webhook-secret", "invalid-webhook-secret")
+      .send({
+        providerMessageId: "provider-message-unauthorized",
+        provider: "WEBHOOK_EMAIL",
+        status: "DELIVERED",
+        occurredAt: "2026-09-12T08:01:00.000Z"
+      })
+      .expect(403);
   });
 });
 

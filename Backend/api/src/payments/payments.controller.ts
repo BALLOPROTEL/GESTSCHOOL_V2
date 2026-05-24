@@ -17,6 +17,7 @@ import { FinanceService } from "../finance/finance.service";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
 import { Public } from "../security/public.decorator";
+import { RateLimit } from "../security/rate-limit.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
 import { CreatePaymentDto } from "./dto/create-payment.dto";
@@ -83,6 +84,7 @@ export class PaymentsController {
 
   @Public()
   @Post("paydunya/callback")
+  @RateLimit({ bucket: "paydunya-callback", max: 60, windowMs: 60_000 })
   @ApiOperation({ summary: "Receive PayDunya IPN callback" })
   async paydunyaCallback(@Body() body: unknown, @Query() query: Record<string, unknown>) {
     return this.financeService.handlePaydunyaCallback(body, query);
@@ -90,6 +92,7 @@ export class PaymentsController {
 
   @Public()
   @Get("paydunya/callback")
+  @RateLimit({ bucket: "paydunya-callback", max: 60, windowMs: 60_000 })
   @ApiOperation({ summary: "Receive PayDunya callback token fallback" })
   async paydunyaCallbackGet(@Query() query: Record<string, unknown>) {
     return this.financeService.handlePaydunyaCallback({}, query);

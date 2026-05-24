@@ -23,6 +23,7 @@ import { RequirePermission } from "../security/permissions.decorator";
 import { RateLimit } from "../security/rate-limit.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
+import { isUnsafeSharedSecret, secureCompare } from "../security/secure-compare.util";
 import {
   BulkAttendanceDto,
   CreateAttendanceAttachmentDto,
@@ -341,10 +342,14 @@ export class SchoolLifeController {
     const expectedSecret = this.configService
       .get<string>("NOTIFICATION_WEBHOOK_SECRET", "")
       .trim();
+    const nodeEnv = this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
     if (!expectedSecret) {
       throw new ForbiddenException("Notification webhook endpoint is disabled.");
     }
-    if (!webhookSecret || webhookSecret.trim() !== expectedSecret) {
+    if (nodeEnv === "production" && isUnsafeSharedSecret(expectedSecret)) {
+      throw new ForbiddenException("Notification webhook endpoint is disabled.");
+    }
+    if (!secureCompare(webhookSecret, expectedSecret)) {
       throw new ForbiddenException("Invalid notification webhook secret.");
     }
     return this.schoolLifeService.recordDeliveryEvent(body);

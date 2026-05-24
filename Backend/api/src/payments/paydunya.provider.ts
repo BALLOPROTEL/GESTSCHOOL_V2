@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
+import { secureCompare } from "../security/secure-compare.util";
+
 type JsonObject = Record<string, unknown>;
 
 export type PaydunyaCheckoutInput = {
@@ -161,7 +163,7 @@ export class PaydunyaProvider {
     const expected = createHash("sha512")
       .update(this.requiredConfig("PAYDUNYA_MASTER_KEY"))
       .digest("hex");
-    return hash.trim().toLowerCase() === expected;
+    return secureCompare(hash.trim().toLowerCase(), expected);
   }
 
   mode(): "sandbox" {

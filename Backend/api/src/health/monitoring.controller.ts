@@ -8,6 +8,7 @@ import { NOTIFICATION_REQUESTED } from "../notifications/notification-request.co
 import { RequestMetricsService } from "../observability/request-metrics.service";
 import { Public } from "../security/public.decorator";
 import { RateLimit } from "../security/rate-limit.decorator";
+import { isUnsafeSharedSecret, secureCompare } from "../security/secure-compare.util";
 
 @ApiTags("monitoring")
 @Controller("monitoring")
@@ -303,7 +304,10 @@ export class MonitoringController {
       }
       return;
     }
-    if (!tokenHeader || tokenHeader.trim() !== expectedToken) {
+    if (nodeEnv === "production" && isUnsafeSharedSecret(expectedToken)) {
+      throw new ForbiddenException("Metrics endpoint is disabled.");
+    }
+    if (!secureCompare(tokenHeader, expectedToken)) {
       throw new ForbiddenException("Invalid metrics token.");
     }
   }
