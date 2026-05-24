@@ -18,8 +18,7 @@ import type {
   Subject,
   UserAccount
 } from "../../shared/types/app";
-
-export const PREVIEW_ACCESS_TOKEN = "__preview__";
+import { LOCAL_PREVIEW_ACCESS_TOKEN } from "../../shared/services/local-preview-session";
 
 export type PreviewAppData = {
   session: Session;
@@ -69,8 +68,8 @@ export const createPreviewAppData = (
 
   return {
     session: {
-      accessToken: PREVIEW_ACCESS_TOKEN,
-      refreshToken: PREVIEW_ACCESS_TOKEN,
+      accessToken: LOCAL_PREVIEW_ACCESS_TOKEN,
+      refreshToken: LOCAL_PREVIEW_ACCESS_TOKEN,
       tenantId,
       user: {
         username: "preview.admin",

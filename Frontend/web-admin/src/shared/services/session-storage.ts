@@ -1,11 +1,11 @@
 import type { RememberedLogin, Session, ThemeMode } from "../types/app";
 import type { UiLanguage } from "../i18n";
+import { LOCAL_PREVIEW_ACCESS_TOKEN } from "./local-preview-session";
 
 const STORAGE_KEY = "gestschool.web-admin.session";
 const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
 const LANGUAGE_STORAGE_KEY = "gestschool.web-admin.language";
 const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
-const PREVIEW_ACCESS_TOKEN = "__preview__";
 const MIN_TOKEN_LENGTH = 32;
 
 export const readRememberedLogin = (defaultTenantId: string): RememberedLogin | null => {
@@ -31,10 +31,10 @@ const isStoredSession = (value: unknown): value is Session => {
   return (
     typeof candidate.accessToken === "string" &&
     candidate.accessToken.length >= MIN_TOKEN_LENGTH &&
-    candidate.accessToken !== PREVIEW_ACCESS_TOKEN &&
+    candidate.accessToken !== LOCAL_PREVIEW_ACCESS_TOKEN &&
     typeof candidate.refreshToken === "string" &&
     candidate.refreshToken.length >= MIN_TOKEN_LENGTH &&
-    candidate.refreshToken !== PREVIEW_ACCESS_TOKEN &&
+    candidate.refreshToken !== LOCAL_PREVIEW_ACCESS_TOKEN &&
     typeof candidate.tenantId === "string" &&
     typeof candidate.user?.username === "string" &&
     typeof candidate.user?.role === "string" &&

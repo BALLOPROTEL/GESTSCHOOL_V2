@@ -1,7 +1,6 @@
 export const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
 export const DEFAULT_CURRENCY = "CFA";
 export const SCHOOL_NAME = "Al Manarat Islamiyat";
-export const PREVIEW_MODE_ENABLED = import.meta.env.DEV || import.meta.env.VITE_ENABLE_PREVIEW === "true";
 export const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
 export const LANGUAGE_STORAGE_KEY = "gestschool.web-admin.language";
 export const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";

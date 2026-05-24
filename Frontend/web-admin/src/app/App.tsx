@@ -55,7 +55,6 @@ import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
 import { useDomTranslation } from "../shared/i18n";
 import { fetchReferenceData } from "../features/reference/services/reference-service";
 import type { ReferenceData } from "../features/reference/types/reference";
-import { createPreviewAppData, PREVIEW_ACCESS_TOKEN } from "./preview/preview-data";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
 import { focusFirstInlineErrorField, hasFieldErrors } from "../shared/utils/form-ui";
@@ -64,7 +63,6 @@ import {
   DEFAULT_CURRENCY,
   DEFAULT_TENANT,
   LOGIN_HINT_STORAGE_KEY,
-  PREVIEW_MODE_ENABLED,
   SCHOOL_NAME,
   STRONG_PASSWORD_HINT
 } from "./app-config";
@@ -101,6 +99,7 @@ import {
   ReportsScreen
 } from "./lazy-screens";
 import { useAppPreferences } from "./use-app-preferences";
+import { isLocalPreviewEnabled, isLocalPreviewRoute, isLocalPreviewSession } from "./preview/preview-mode";
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
@@ -109,6 +108,7 @@ export function App(): JSX.Element {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileTasksOpen, setMobileTasksOpen] = useState(false);
   const [headerNotificationCount, setHeaderNotificationCount] = useState(0);
+  const localPreviewEnabled = isLocalPreviewEnabled();
   const {
     currentLanguageMeta,
     cycleLanguage,
@@ -363,12 +363,13 @@ export function App(): JSX.Element {
     return () => observer.disconnect();
   }, [session, tab, uiLanguage]);
 
-  const enterPreview = useCallback(() => {
-    if (!PREVIEW_MODE_ENABLED) {
+  const enterPreview = useCallback(async () => {
+    if (!localPreviewEnabled) {
       setError("Le mode aperçu local est désactivé en production.");
       return;
     }
 
+    const { createPreviewAppData } = await import("./preview/preview-data");
     const preview = createPreviewAppData(DEFAULT_TENANT, DEFAULT_CURRENCY);
     clearData();
     setSchoolYears(preview.schoolYears);
@@ -394,9 +395,9 @@ export function App(): JSX.Element {
     setTab("dashboard");
     setError(null);
     setNotice(null);
-  }, [clearData, saveSession]);
+  }, [clearData, localPreviewEnabled, saveSession]);
   const currentRole = (session?.user.role as Role | undefined) || null;
-  const isPreviewSession = PREVIEW_MODE_ENABLED && session?.accessToken === PREVIEW_ACCESS_TOKEN;
+  const isPreviewSession = isLocalPreviewSession(session);
   const currentRoleLabel = currentRole ? formatRoleLabel(currentRole) : "Visiteur";
   const apiAvailable = apiConnection.status === "online";
   const apiStatusText =
@@ -428,12 +429,12 @@ export function App(): JSX.Element {
   }, [currentRole, parentChildren, parentTimetable, schoolYears, teacherClasses]);
 
   useEffect(() => {
-    if (!PREVIEW_MODE_ENABLED || session || window.location.hash !== "#preview-admin") {
+    if (!localPreviewEnabled || session || !isLocalPreviewRoute()) {
       return;
     }
 
-    enterPreview();
-  }, [enterPreview, session]);
+    void enterPreview();
+  }, [enterPreview, localPreviewEnabled, session]);
 
   useEffect(() => {
     if (isPreviewSession) {
@@ -641,7 +642,7 @@ export function App(): JSX.Element {
     if (!session || !currentRole) {
       bootstrapSessionKeyRef.current = null;
       bootstrapSessionInFlightRef.current = null;
-      if (!(PREVIEW_MODE_ENABLED && window.location.hash === "#preview-admin")) {
+      if (!(localPreviewEnabled && isLocalPreviewRoute())) {
         clearData();
       }
       return;
@@ -719,6 +720,7 @@ export function App(): JSX.Element {
     loadReportCards,
     loadStudents,
     loadUsers,
+    localPreviewEnabled,
     session,
     isPreviewSession
   ]);
@@ -1694,8 +1696,8 @@ export function App(): JSX.Element {
             onSubmitForgotPassword={(event) => void requestForgotPasswordToken(event)}
             onSubmitResetPassword={(event) => void submitResetPassword(event)}
             onSubmitFirstConnection={(event) => void submitFirstConnection(event)}
-            onEnterPreview={enterPreview}
-            previewEnabled={PREVIEW_MODE_ENABLED}
+            onEnterPreview={() => void enterPreview()}
+            previewEnabled={localPreviewEnabled}
           />
         </Suspense>
       ) : (
