@@ -151,6 +151,7 @@ Les services Render/Vercel ne doivent pas recevoir de secrets inutiles côté cl
 - PayDunya : `docs/providers/paydunya.md`
 - Brevo : `docs/providers/brevo.md`
 - Runbooks : `docs/runbooks/`
+  - Checklist production : `docs/runbooks/production-readiness-checklist.md`
 
 ## Règles de contribution
 
