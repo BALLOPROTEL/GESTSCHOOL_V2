@@ -98,6 +98,28 @@ describe("Auth + access guards (e2e)", () => {
       .expect(400);
   });
 
+  it("self-service profile endpoints are available without granting admin user management", async () => {
+    const parentTokens = await login(context.app, "parent@gestschool.local", "parent1234");
+
+    const me = await request(context.app.getHttpServer())
+      .get("/api/v1/users/me")
+      .set("Authorization", `Bearer ${parentTokens.accessToken}`)
+      .expect(200);
+
+    expect(me.body.user.role).toBe(UserRole.PARENT);
+    expect(me.body.user.passwordHash).toBeUndefined();
+
+    await request(context.app.getHttpServer())
+      .get("/api/v1/users/me/activity")
+      .set("Authorization", `Bearer ${parentTokens.accessToken}`)
+      .expect(200);
+
+    await request(context.app.getHttpServer())
+      .get("/api/v1/users")
+      .set("Authorization", `Bearer ${parentTokens.accessToken}`)
+      .expect(403);
+  });
+
   it("GET /students should reject token with invalid audience", async () => {
     const invalidAudienceToken = await context.jwtService.signAsync(
       {

@@ -425,6 +425,18 @@ describe("School life + portal flows (e2e)", () => {
       .set("Authorization", `Bearer ${parentTokens.accessToken}`)
       .expect(200);
 
+    await request(context.app.getHttpServer())
+      .get("/api/v1/invoices")
+      .query({ studentId: baseline.studentOneId })
+      .set("Authorization", `Bearer ${parentTokens.accessToken}`)
+      .expect(403);
+
+    await request(context.app.getHttpServer())
+      .get("/api/v1/payments")
+      .query({ studentId: baseline.studentOneId })
+      .set("Authorization", `Bearer ${parentTokens.accessToken}`)
+      .expect(403);
+
     const parentTimetable = await request(context.app.getHttpServer())
       .get("/api/v1/portal/parent/timetable")
       .query({ studentId: baseline.studentOneId })

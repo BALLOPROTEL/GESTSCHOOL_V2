@@ -105,6 +105,7 @@ export class UsersController {
   }
 
   @Get("me")
+  @RateLimit({ bucket: "users-me", max: 60, windowMs: 60_000 })
   @ApiOperation({ summary: "Get the authenticated user profile" })
   async me(
     @Req() request: { user?: AuthenticatedUser },
@@ -171,6 +172,7 @@ export class UsersController {
   }
 
   @Get("me/activity")
+  @RateLimit({ bucket: "users-me-activity", max: 60, windowMs: 60_000 })
   @ApiOperation({ summary: "List recent activity for the authenticated user" })
   async myActivity(
     @Req() request: { user?: AuthenticatedUser },
