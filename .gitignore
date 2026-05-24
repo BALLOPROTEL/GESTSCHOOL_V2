@@ -16,6 +16,7 @@ Frontend/**/dist/
 .turbo/
 .vercel/
 backups/
+Antigravity-x64/
 
 # Environment files
 .env
