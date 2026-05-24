@@ -25,6 +25,8 @@ const viewports = {
 const screenshots = [];
 const findings = [];
 const consoleErrors = [];
+const networkErrors = [];
+const ignoredLocalApiErrors = [];
 
 const safeName = (value) =>
   value
@@ -33,6 +35,9 @@ const safeName = (value) =>
     .replace(/[\u0300-\u036f]/gu, "")
     .replace(/[^a-z0-9]+/gu, "-")
     .replace(/^-|-$/gu, "");
+
+const isExpectedLocalApiHealthFailure = (value) =>
+  value.includes("/api/v1/health/live") && value.includes("127.0.0.1");
 
 async function createContext(browser, viewport, theme = "light") {
   const context = await browser.newContext({
@@ -60,9 +65,27 @@ async function createContext(browser, viewport, theme = "light") {
 
   context.on("page", (page) => {
     page.on("console", (message) => {
-      if (message.type() === "error") consoleErrors.push(message.text());
+      if (message.type() !== "error") return;
+      const location = message.location();
+      const source = location.url ? ` (${location.url}:${location.lineNumber})` : "";
+      const entry = `${message.text()}${source}`;
+      if (isExpectedLocalApiHealthFailure(entry)) {
+        ignoredLocalApiErrors.push(entry);
+        return;
+      }
+      consoleErrors.push(entry);
     });
     page.on("pageerror", (error) => consoleErrors.push(error.message));
+    page.on("response", (response) => {
+      if (response.status() >= 400) {
+        const entry = `HTTP ${response.status()} ${response.url()}`;
+        if (isExpectedLocalApiHealthFailure(entry)) {
+          ignoredLocalApiErrors.push(entry);
+          return;
+        }
+        networkErrors.push(entry);
+      }
+    });
   });
 
   return context;
@@ -179,10 +202,10 @@ async function auditGradesText(page, label) {
     "Matiere",
     "Periode",
     "Bareme",
-	    "DEVOIR",
-	    "Filtrer",
-	    "Recharger",
-	    "Notification prête",
+    "DEVOIR",
+    "Filtrer",
+    "Recharger",
+    "Notification prête",
     "fichier(s)",
     "bulletin(s)",
     "note(s)"
@@ -277,19 +300,19 @@ async function runDesktop(browser, theme) {
   await capture(page, `notes-saisie-${theme}-desktop`, { fullPage: true });
 
   await clickTab(page, /Moyennes/u);
-	  await auditNoHorizontalOverflow(page, `notes-moyennes-${theme}-desktop`);
-	  await auditGradesText(page, `notes-moyennes-${theme}-desktop`);
-	  await capture(page, `notes-moyennes-${theme}-desktop`, { fullPage: true });
-	  await clickTab(page, /Bulletins/u);
-	  await auditNoHorizontalOverflow(page, `notes-bulletins-avant-generation-${theme}-desktop`);
-	  await auditGradesText(page, `notes-bulletins-avant-generation-${theme}-desktop`);
-	  await capture(page, `notes-bulletins-avant-generation-${theme}-desktop`, { fullPage: true });
-	  await seedGradeAndComputeSummary(page);
-	  await auditNoHorizontalOverflow(page, `notes-moyennes-calculees-detail-${theme}-desktop`);
-	  await auditGradesText(page, `notes-moyennes-calculees-detail-${theme}-desktop`);
-	  await capture(page, `notes-moyennes-calculees-detail-${theme}-desktop`, { fullPage: true });
+  await auditNoHorizontalOverflow(page, `notes-moyennes-${theme}-desktop`);
+  await auditGradesText(page, `notes-moyennes-${theme}-desktop`);
+  await capture(page, `notes-moyennes-${theme}-desktop`, { fullPage: true });
+  await clickTab(page, /Bulletins/u);
+  await auditNoHorizontalOverflow(page, `notes-bulletins-avant-generation-${theme}-desktop`);
+  await auditGradesText(page, `notes-bulletins-avant-generation-${theme}-desktop`);
+  await capture(page, `notes-bulletins-avant-generation-${theme}-desktop`, { fullPage: true });
+  await seedGradeAndComputeSummary(page);
+  await auditNoHorizontalOverflow(page, `notes-moyennes-calculees-detail-${theme}-desktop`);
+  await auditGradesText(page, `notes-moyennes-calculees-detail-${theme}-desktop`);
+  await capture(page, `notes-moyennes-calculees-detail-${theme}-desktop`, { fullPage: true });
 
-	  await clickTab(page, /Bulletins/u);
+  await clickTab(page, /Bulletins/u);
   await auditNoHorizontalOverflow(page, `notes-bulletins-${theme}-desktop`);
   await auditGradesText(page, `notes-bulletins-${theme}-desktop`);
   await auditCompactCheckboxes(page, `notes-bulletins-${theme}-desktop`);
@@ -353,7 +376,9 @@ async function main() {
     baseUrl,
     screenshots,
     findings,
-    consoleErrors
+    consoleErrors,
+    networkErrors,
+    ignoredLocalApiErrors
   };
   const reportPath = path.join(outputDir, "report.json");
   await writeFile(reportPath, JSON.stringify(report, null, 2), "utf8");
@@ -361,7 +386,11 @@ async function main() {
   console.log(`Notes & bulletins visual audit written to ${outputDir}`);
   console.log(JSON.stringify({ reportPath, screenshots: screenshots.length, findings: findings.length }, null, 2));
 
-  if (findings.some((finding) => finding.priority === "P1") || consoleErrors.length > 0) {
+  if (
+    findings.some((finding) => finding.priority === "P1") ||
+    consoleErrors.length > 0 ||
+    networkErrors.length > 0
+  ) {
     process.exitCode = 1;
   }
 }

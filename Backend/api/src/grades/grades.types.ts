@@ -38,6 +38,7 @@ export type StudentClassSummaryView = {
   placementId?: string;
   track: AcademicTrack;
   matricule: string;
+  birthDate?: string;
   studentName: string;
   averageGeneral: number;
   classRank: number;
@@ -62,6 +63,9 @@ export type ReportCardSectionView = {
   classLabel?: string;
   levelCode?: string;
   levelLabel?: string;
+  matricule?: string;
+  birthDate?: string;
+  schoolYearCode?: string;
   academicStage: AcademicStage;
   averageGeneral: number;
   classRank?: number;

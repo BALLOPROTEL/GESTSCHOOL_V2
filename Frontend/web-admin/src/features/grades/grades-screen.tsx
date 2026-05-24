@@ -121,6 +121,7 @@ export function GradesScreen({
     applyGradeFilters,
     classSummary,
     computeClassSummary,
+    downloadReportCardPdf,
     generateReport,
     gradeErrors,
     gradeFilters,
@@ -873,26 +874,26 @@ export function GradesScreen({
                     .map((item) => {
                       const isDetailOpen = selectedSummaryStudentId === item.studentId;
                       return (
-                      <tr key={item.studentId} className={isDetailOpen ? "is-selected-row" : undefined}>
-                        <td>{item.classRank}</td>
-                        <td>{item.studentName}</td>
-                        <td>{item.matricule}</td>
-                        <td>{item.averageGeneral.toFixed(2)}</td>
-                        <td>{item.noteCount}</td>
-                        <td>{item.missingGrades ?? 0}</td>
-                        <td>{item.appreciation}</td>
-                        <td>{item.noteCount > 0 ? "Calculé" : "Incomplet"}</td>
-                        <td>
-                          <button
-                            type="button"
-                            className={`button-ghost${isDetailOpen ? " is-active" : ""}`}
-                            aria-expanded={isDetailOpen}
-                            onClick={() => setSelectedSummaryStudentId(item.studentId)}
-                          >
-                            {isDetailOpen ? "Détail ouvert" : "Voir détail"}
-                          </button>
-                        </td>
-                      </tr>
+                        <tr key={item.studentId} className={isDetailOpen ? "is-selected-row" : undefined}>
+                          <td>{item.classRank}</td>
+                          <td>{item.studentName}</td>
+                          <td>{item.matricule}</td>
+                          <td>{item.averageGeneral.toFixed(2)}</td>
+                          <td>{item.noteCount}</td>
+                          <td>{item.missingGrades ?? 0}</td>
+                          <td>{item.appreciation}</td>
+                          <td>{item.noteCount > 0 ? "Calculé" : "Incomplet"}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className={`button-ghost${isDetailOpen ? " is-active" : ""}`}
+                              aria-expanded={isDetailOpen}
+                              onClick={() => setSelectedSummaryStudentId(item.studentId)}
+                            >
+                              {isDetailOpen ? "Détail ouvert" : "Voir détail"}
+                            </button>
+                          </td>
+                        </tr>
                       );
                     })}
                 </tbody>
@@ -910,32 +911,32 @@ export function GradesScreen({
                 <div className="table-wrap">
                   <table>
                     <thead>
-	                      <tr>
-	                        <th>Matière</th>
-	                        <th>Moyenne matière</th>
-	                        <th>Coefficient</th>
-	                        <th>Nombre de notes</th>
-	                        <th>Notes manquantes</th>
-	                        <th>Appréciation</th>
-	                      </tr>
+                      <tr>
+                        <th>Matière</th>
+                        <th>Moyenne matière</th>
+                        <th>Coefficient</th>
+                        <th>Nombre de notes</th>
+                        <th>Notes manquantes</th>
+                        <th>Appréciation</th>
+                      </tr>
                     </thead>
                     <tbody>
-	                      {selectedSummarySubjectRows.length > 0 ? (
-	                        selectedSummarySubjectRows.map((subject) => (
-	                          <tr key={subject.subjectId}>
-	                            <td>{subject.subjectLabel}</td>
-	                            <td>{subject.average.toFixed(2)}</td>
-	                            <td>{subject.coefficient ?? 1}</td>
-	                            <td>{subject.noteCount}</td>
-	                            <td>{subject.missingGrades}</td>
-	                            <td>{subject.average >= 14 ? "Très bien" : subject.average >= 10 ? "Satisfaisant" : "À renforcer"}</td>
-	                          </tr>
-	                        ))
-	                      ) : (
-	                        <tr>
-	                          <td colSpan={6} className="empty-row">
-	                            Aucun détail de matière disponible.
-	                          </td>
+                      {selectedSummarySubjectRows.length > 0 ? (
+                        selectedSummarySubjectRows.map((subject) => (
+                          <tr key={subject.subjectId}>
+                            <td>{subject.subjectLabel}</td>
+                            <td>{subject.average.toFixed(2)}</td>
+                            <td>{subject.coefficient ?? 1}</td>
+                            <td>{subject.noteCount}</td>
+                            <td>{subject.missingGrades}</td>
+                            <td>{subject.average >= 14 ? "Très bien" : subject.average >= 10 ? "Satisfaisant" : "À renforcer"}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="empty-row">
+                            Aucun détail de matière disponible.
+                          </td>
                         </tr>
                       )}
                     </tbody>
@@ -944,14 +945,14 @@ export function GradesScreen({
               </div>
             ) : null}
           </>
-	        ) : (
-	          <div className="empty-state-block">
-	            <p className="subtle">Aucune moyenne calculée pour l’instant.</p>
-	            <button type="button" onClick={() => void computeClassSummary()}>
-	              Calculer les moyennes/rangs
-	            </button>
-	          </div>
-	        )}
+        ) : (
+          <div className="empty-state-block">
+            <p className="subtle">Aucune moyenne calculée pour l’instant.</p>
+            <button type="button" onClick={() => void computeClassSummary()}>
+              Calculer les moyennes/rangs
+            </button>
+          </div>
+        )}
       </section>
 
       <section id="grades-reports" data-step-id="reports" className="panel editor-panel workflow-section module-modern">
@@ -965,39 +966,39 @@ export function GradesScreen({
         <p className="section-lead">
           Générez un bulletin individuel ou les bulletins de toute une classe après calcul des moyennes.
         </p>
-	        <form className="module-form" onSubmit={(event) => void generateReport(event)}>
-	          <div className="form-grid">
-	            <label>
-	              Année scolaire *
-	              <select
-	                value={reportForm.schoolYearId}
-	                onChange={(event) =>
-	                  setReportForm((previous) => ({
-	                    ...previous,
-	                    schoolYearId: event.target.value,
-	                    classId: "",
-	                    academicPeriodId: "",
-	                    studentId: ""
-	                  }))
-	                }
-	                required
-	              >
-	                <option value="">Choisir...</option>
-	                {schoolYears.map((item) => (
-	                  <option key={item.id} value={item.id}>
-	                    {item.label || item.code}
-	                  </option>
-	                ))}
-	              </select>
-	              {renderFieldError(reportErrors, "schoolYearId")}
-	            </label>
-	            <label>
-	              Classe *
-	              <select value={reportForm.classId} onChange={(event) => setClassOnReportForm(event.target.value)} required>
-	                <option value="">Choisir...</option>
-	                {reportFormClasses.map((item) => (
-	                  <option key={item.id} value={item.id}>
-	                    {item.code} - {item.label}
+        <form className="module-form" onSubmit={(event) => void generateReport(event)}>
+          <div className="form-grid">
+            <label>
+              Année scolaire *
+              <select
+                value={reportForm.schoolYearId}
+                onChange={(event) =>
+                  setReportForm((previous) => ({
+                    ...previous,
+                    schoolYearId: event.target.value,
+                    classId: "",
+                    academicPeriodId: "",
+                    studentId: ""
+                  }))
+                }
+                required
+              >
+                <option value="">Choisir...</option>
+                {schoolYears.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label || item.code}
+                  </option>
+                ))}
+              </select>
+              {renderFieldError(reportErrors, "schoolYearId")}
+            </label>
+            <label>
+              Classe *
+              <select value={reportForm.classId} onChange={(event) => setClassOnReportForm(event.target.value)} required>
+                <option value="">Choisir...</option>
+                {reportFormClasses.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.code} - {item.label}
                   </option>
                 ))}
               </select>
@@ -1011,11 +1012,11 @@ export function GradesScreen({
                   setReportForm((previous) => ({ ...previous, academicPeriodId: event.target.value }))
                 }
                 required
-	              >
-	                <option value="">Choisir...</option>
-	                {reportFormPeriods.map((item) => (
-	                  <option key={item.id} value={item.id}>
-	                    {item.code} - {item.label}
+              >
+                <option value="">Choisir...</option>
+                {reportFormPeriods.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.code} - {item.label}
                   </option>
                 ))}
               </select>
@@ -1057,8 +1058,8 @@ export function GradesScreen({
                 required={reportForm.mode === "student"}
               >
                 <option value="">Choisir...</option>
-	                {reportStudents.map((item) => (
-	                  <option key={item.id} value={item.id}>
+                {reportStudents.map((item) => (
+                  <option key={item.id} value={item.id}>
                     {item.matricule} - {formatStudentName(item)}
                   </option>
                 ))}
@@ -1077,30 +1078,30 @@ export function GradesScreen({
               />
               Régénérer les PDF existants
             </label>
-	            <label className="module-inline-pill">
-	              <input
-	                type="checkbox"
-	                checked={reportForm.publish}
-	                onChange={(event) => setReportForm((previous) => ({ ...previous, publish: event.target.checked }))}
-	              />
-	              Publier dans le portail
-	            </label>
-	          </div>
-	          {!hasMatchingSummary ? (
-	            <p className="empty-row">Calculez d’abord les moyennes et rangs avant de générer les bulletins.</p>
-	          ) : reportMissingGrades > 0 ? (
-	            <p className="empty-row">
-	              Attention : {reportMissingGrades} note{reportMissingGrades > 1 ? "s" : ""} manquante{reportMissingGrades > 1 ? "s" : ""}
-	              . Une confirmation sera demandée avant génération.
-	            </p>
-	          ) : null}
-	          <div className="actions">
-	            <button type="submit" disabled={!hasMatchingSummary}>
-	              {reportForm.mode === "class" ? "Générer les bulletins de la classe" : "Générer le bulletin"}
-	            </button>
-	            <button type="button" className="button-ghost" onClick={() => void loadReportCards()}>
-	              Actualiser les bulletins
-	            </button>
+            <label className="module-inline-pill">
+              <input
+                type="checkbox"
+                checked={reportForm.publish}
+                onChange={(event) => setReportForm((previous) => ({ ...previous, publish: event.target.checked }))}
+              />
+              Publier dans le portail
+            </label>
+          </div>
+          {!hasMatchingSummary ? (
+            <p className="empty-row">Calculez d’abord les moyennes et rangs avant de générer les bulletins.</p>
+          ) : reportMissingGrades > 0 ? (
+            <p className="empty-row">
+              Attention : {reportMissingGrades} note{reportMissingGrades > 1 ? "s" : ""} manquante{reportMissingGrades > 1 ? "s" : ""}
+              . Une confirmation sera demandée avant génération.
+            </p>
+          ) : null}
+          <div className="actions">
+            <button type="submit" disabled={!hasMatchingSummary}>
+              {reportForm.mode === "class" ? "Générer les bulletins de la classe" : "Générer le bulletin"}
+            </button>
+            <button type="button" className="button-ghost" onClick={() => void loadReportCards()}>
+              Actualiser les bulletins
+            </button>
             {reportPdfUrl ? (
               <button
                 type="button"
@@ -1157,18 +1158,18 @@ export function GradesScreen({
                     <td>{formatReportCardAverage(item)}</td>
                     <td>{item.classRank || "-"}</td>
                     <td>{item.appreciation || "-"}</td>
-	                    <td>{item.publishedAt ? "Publié" : "Généré"}</td>
-	                    <td>
-	                      {item.generatedAt || item.publishedAt || reportsGeneratedAt
-	                        ? formatDateTime(item.generatedAt || item.publishedAt || reportsGeneratedAt)
-	                        : "-"}
-	                    </td>
+                    <td>{item.publishedAt ? "Publié" : "Généré"}</td>
+                    <td>
+                      {item.generatedAt || item.publishedAt || reportsGeneratedAt
+                        ? formatDateTime(item.generatedAt || item.publishedAt || reportsGeneratedAt)
+                        : "-"}
+                    </td>
                     <td>
                       <div className="actions">
                         <button type="button" className="button-ghost" onClick={() => void openReportCardPdf(item.id)}>
                           Ouvrir PDF
                         </button>
-                        <button type="button" className="button-ghost" onClick={() => void openReportCardPdf(item.id)}>
+                        <button type="button" className="button-ghost" onClick={() => void downloadReportCardPdf(item.id)}>
                           Télécharger PDF
                         </button>
                       </div>

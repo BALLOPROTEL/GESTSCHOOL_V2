@@ -519,6 +519,7 @@ export class GradesReportCardsService {
         placementId: placement.id,
         track: placement.track,
         matricule: placement.student.matricule,
+        birthDate: placement.student.birthDate?.toISOString().slice(0, 10),
         studentName,
         averageGeneral,
         noteCount: subjectAverages.length,
@@ -617,20 +618,24 @@ export class GradesReportCardsService {
       const pdf = buildSimplePdf([
         "Al Manarat Islamiyat",
         "Bulletin global primaire",
-        `Eleve: ${leadSection.studentName}`,
-        `Periode: ${leadSection.periodLabel}`,
+        `Année scolaire: ${leadSection.schoolYearCode || "-"}`,
+        `Période: ${leadSection.periodLabel}`,
+        `Élève: ${leadSection.studentName}`,
+        `Matricule: ${leadSection.matricule || "-"}`,
+        `Date de naissance: ${this.formatPdfDate(leadSection.birthDate)}`,
         "Sections francophone et arabophone",
         ...sections.flatMap((section) => [
-          `${section.track} - ${section.classLabel || section.levelLabel || section.classId}`,
+          `${this.formatTrackLabel(section.track)} - ${section.classLabel || section.levelLabel || section.classId}`,
           `Moyenne: ${section.averageGeneral.toFixed(2)}/20`,
           `Rang: ${section.classRank ?? "-"}`,
-          `Appreciation: ${section.appreciation}`,
-          ...section.subjectAverages.map(
-            (subject) => `${subject.subjectLabel}: ${subject.average.toFixed(2)}/20`
-          )
+          `Appréciation: ${section.appreciation}`,
+          ...section.subjectAverages.map((subject) => this.formatSubjectPdfLine(subject))
         ]),
-        `Date de generation: ${new Date().toISOString().slice(0, 10)}`,
-        "Signature / cachet"
+        `Moyenne générale: ${averageGeneral.toFixed(2)}/20`,
+        `Appréciation générale: ${appreciation}`,
+        `Date de génération: ${this.formatPdfDate(new Date().toISOString())}`,
+        "Décision / observation: -",
+        "Signature et cachet:"
       ]);
 
       return [
@@ -667,18 +672,21 @@ export class GradesReportCardsService {
         const pdf = buildSimplePdf([
           "Al Manarat Islamiyat",
           "Bulletin scolaire",
+          `Année scolaire: ${section.schoolYearCode || "-"}`,
+          `Période: ${section.periodLabel}`,
           `Classe: ${section.classLabel || section.classId}`,
-          `Periode: ${section.periodLabel}`,
-          `Eleve: ${section.studentName}`,
-          `Cursus: ${section.track}`,
-          `Moyenne generale: ${section.averageGeneral.toFixed(2)}/20`,
+          `Cursus: ${this.formatTrackLabel(section.track)}`,
+          `Élève: ${section.studentName}`,
+          `Matricule: ${section.matricule || "-"}`,
+          `Date de naissance: ${this.formatPdfDate(section.birthDate)}`,
+          "Notes et moyennes par matière",
+          ...section.subjectAverages.map((subject) => this.formatSubjectPdfLine(subject)),
+          `Moyenne générale: ${section.averageGeneral.toFixed(2)}/20`,
           `Rang: ${section.classRank ?? "-"}`,
-          `Appreciation generale: ${section.appreciation}`,
-          ...section.subjectAverages.map(
-            (subject) => `${subject.subjectLabel}: ${subject.average.toFixed(2)}/20`
-          ),
-          `Date de generation: ${new Date().toISOString().slice(0, 10)}`,
-          "Signature / cachet"
+          `Appréciation générale: ${section.appreciation}`,
+          `Date de génération: ${this.formatPdfDate(new Date().toISOString())}`,
+          "Décision / observation: -",
+          "Signature et cachet:"
         ]);
 
         return {
@@ -712,14 +720,18 @@ export class GradesReportCardsService {
       classLabel?: string;
       levelCode?: string;
       levelLabel?: string;
+      schoolYearCode?: string;
       academicStage?: AcademicStage;
       studentId: string;
     },
     academicPeriodId: string
   ): Promise<
     ReportCardSectionView & {
+      birthDate?: string;
+      matricule: string;
       studentName: string;
       periodLabel: string;
+      schoolYearCode?: string;
     }
   > {
     if (!placement.classId) {
@@ -755,6 +767,9 @@ export class GradesReportCardsService {
       classLabel: placement.classLabel,
       levelCode: placement.levelCode,
       levelLabel: placement.levelLabel,
+      matricule: target.matricule,
+      birthDate: target.birthDate,
+      schoolYearCode: placement.schoolYearCode,
       academicStage: placement.academicStage || AcademicStage.SECONDARY,
       averageGeneral: target.averageGeneral,
       classRank: target.classRank,
@@ -782,9 +797,35 @@ export class GradesReportCardsService {
       subjectAverages: section.subjectAverages.map((subject) => ({
         subjectId: subject.subjectId,
         subjectLabel: subject.subjectLabel,
-        average: subject.average
+        average: subject.average,
+        coefficient: subject.coefficient
       }))
     };
+  }
+
+  private formatSubjectPdfLine(subject: {
+    subjectLabel: string;
+    average: number;
+    coefficient?: number;
+  }): string {
+    return `${subject.subjectLabel}: ${subject.average.toFixed(2)}/20 | Coef. ${subject.coefficient ?? 1} | ${resolveAppreciation(subject.average)}`;
+  }
+
+  private formatTrackLabel(track: AcademicTrack): string {
+    return track === AcademicTrack.ARABOPHONE ? "Arabophone" : "Francophone";
+  }
+
+  private formatPdfDate(value?: string): string {
+    if (!value) {
+      return "-";
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value.slice(0, 10);
+    }
+
+    return new Intl.DateTimeFormat("fr-FR").format(date);
   }
 
   private isSkippableAutoSyncError(error: unknown): boolean {
@@ -835,6 +876,9 @@ export class GradesReportCardsService {
         classLabel: section.classLabel,
         levelCode: section.levelCode,
         levelLabel: section.levelLabel,
+        matricule: section.matricule,
+        birthDate: section.birthDate,
+        schoolYearCode: section.schoolYearCode,
         academicStage: section.academicStage,
         averageGeneral: section.averageGeneral,
         classRank: section.classRank,

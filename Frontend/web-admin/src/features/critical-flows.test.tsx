@@ -1097,7 +1097,15 @@ describe("critical frontend flows", () => {
 	  fireEvent.change(within(entry).getByLabelText("Classe *"), { target: { value: classroom.id } });
 	  fireEvent.change(within(entry).getByLabelText("Matière *"), { target: { value: subject.id } });
 	  fireEvent.change(within(entry).getByLabelText("Période *"), { target: { value: period.id } });
-	  fireEvent.change(within(entry).getByLabelText(`Note de ${student.fullName}`), { target: { value: "15" } });
+	  const noteInput = within(entry).getByLabelText(`Note de ${student.fullName}`) as HTMLInputElement;
+	  const absentCheckbox = within(entry).getByLabelText(`Absent ${student.fullName}`);
+	  fireEvent.change(noteInput, { target: { value: "15" } });
+	  fireEvent.click(absentCheckbox);
+	  expect(noteInput).toBeDisabled();
+	  expect(noteInput.value).toBe("");
+	  fireEvent.click(absentCheckbox);
+	  expect(noteInput).not.toBeDisabled();
+	  fireEvent.change(noteInput, { target: { value: "15" } });
 	  fireEvent.click(within(entry).getByRole("button", { name: "Enregistrer les notes" }));
 
 	  await waitFor(() => {

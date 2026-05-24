@@ -223,6 +223,11 @@ export class GenerateReportCardDto {
   @IsOptional()
   @IsBoolean()
   publish?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  regenerateExisting?: boolean;
 }
 
 export class GenerateBulkReportCardsDto {
@@ -243,4 +248,9 @@ export class GenerateBulkReportCardsDto {
   @IsOptional()
   @IsBoolean()
   publish?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  regenerateExisting?: boolean;
 }

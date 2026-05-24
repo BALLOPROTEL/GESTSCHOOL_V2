@@ -152,11 +152,12 @@ const appendLocalGrades = (
     grades: Array<{
       studentId: string;
       placementId?: string;
-      score: number;
+      score?: number;
       absent: boolean;
       exempted: boolean;
       comment?: string;
     }>;
+    track?: AcademicTrack;
   },
   students: Student[],
   subjects: Subject[]
@@ -164,20 +165,21 @@ const appendLocalGrades = (
   const subject = subjects.find((item) => item.id === payload.subjectId);
   const nextRows = payload.grades.map((row) => {
     const student = students.find((item) => item.id === row.studentId);
+    const placement = student ? resolvePlacement(student, payload.classId, payload.track) : undefined;
     return {
       id: `local-grade-${payload.classId}-${payload.subjectId}-${payload.academicPeriodId}-${row.studentId}`,
       studentId: row.studentId,
       studentName: student ? formatStudentName(student) : undefined,
       classId: payload.classId,
       placementId: row.placementId,
-      track: "FRANCOPHONE" as AcademicTrack,
+      track: payload.track || placement?.track || "FRANCOPHONE",
       subjectId: payload.subjectId,
       subjectLabel: subject?.label,
       academicPeriodId: payload.academicPeriodId,
       assessmentLabel: payload.assessmentLabel,
       assessmentType: payload.assessmentType,
       assessmentDate: payload.assessmentDate,
-      score: row.score,
+      score: row.score ?? 0,
       scoreMax: payload.scoreMax,
       coefficient: payload.coefficient,
       absent: row.absent,
@@ -463,7 +465,7 @@ export const useGradesData = ({
         return {
           studentId: row.studentId,
           placementId: row.placementId,
-          score: isNeutralized ? 0 : score,
+          score: isNeutralized ? undefined : score,
           absent: row.absent,
           exempted: row.exempted,
           comment: row.comment.trim() || undefined
@@ -665,6 +667,7 @@ export const useGradesData = ({
           classId: reportForm.classId,
           academicPeriodId: reportForm.academicPeriodId,
           track: reportForm.track === "MIXED" ? undefined : reportForm.track,
+          regenerateExisting: reportForm.regenerateExisting,
           publish: reportForm.publish
         });
         setReportErrors({});
@@ -679,6 +682,7 @@ export const useGradesData = ({
         classId: reportForm.classId,
         academicPeriodId: reportForm.academicPeriodId,
         track: reportForm.track === "MIXED" ? undefined : reportForm.track,
+        regenerateExisting: reportForm.regenerateExisting,
         publish: reportForm.publish
       });
       setReportErrors({});
@@ -709,6 +713,26 @@ export const useGradesData = ({
     }
   };
 
+  const downloadReportCardPdf = async (reportCardId: string): Promise<void> => {
+    if (!remoteEnabled) {
+      onNotice("Mode aperçu local : PDF indisponible.");
+      return;
+    }
+
+    try {
+      const pdfDataUrl = await fetchReportCardPdf(api, reportCardId);
+      setReportPdfUrl(pdfDataUrl);
+      const link = document.createElement("a");
+      link.href = pdfDataUrl;
+      link.download = `bulletin-${reportCardId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Erreur de téléchargement du bulletin.");
+    }
+  };
+
   const gradeSteps = useMemo(
     () => [
       { id: "filters", title: "Vue d’ensemble", hint: "Choisir l’année, la classe et la période." },
@@ -723,6 +747,7 @@ export const useGradesData = ({
     applyGradeFilters,
     classSummary,
     computeClassSummary,
+    downloadReportCardPdf,
     generateReport,
     gradeErrors,
     gradeFilters,

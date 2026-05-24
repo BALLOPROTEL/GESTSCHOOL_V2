@@ -412,6 +412,9 @@ export class GradesEntryService {
     isNeutralized: boolean
   ): number {
     if (isNeutralized) {
+      if (score !== undefined && score !== null) {
+        throw new ConflictException("score must be empty when the student is absent or exempted.");
+      }
       return 0;
     }
     if (score === undefined || score === null || !Number.isFinite(score)) {

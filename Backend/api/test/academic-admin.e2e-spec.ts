@@ -166,6 +166,21 @@ describe("Academic administration core flows (e2e)", () => {
       })
       .expect(400);
 
+    await request(context.app.getHttpServer())
+      .post("/api/v1/grades/bulk")
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .send({
+        classId: baseline.classId,
+        subjectId: baseline.subjectId,
+        academicPeriodId: baseline.academicPeriodId,
+        assessmentLabel: "Absent avec note",
+        assessmentType: "DEVOIR",
+        scoreMax: 20,
+        coefficient: 1,
+        grades: [{ studentId: baseline.studentOneId, score: 12, absent: true }]
+      })
+      .expect(409);
+
     const bulk = await request(context.app.getHttpServer())
       .post("/api/v1/grades/bulk")
       .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)

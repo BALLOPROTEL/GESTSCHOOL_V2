@@ -1,23 +1,18 @@
-function normalizePdfText(input: string): string {
-  return input
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\x20-\x7E]/g, " ")
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
+function toWinAnsiHexString(input: string): string {
+  const sanitized = input.replace(/[^\x20-\x7E\u00A0-\u00FF]/g, "?");
+  return Buffer.from(sanitized, "latin1").toString("hex").toUpperCase();
 }
 
 export function buildSimplePdf(lines: string[]): Buffer {
   const contentLines = ["BT", "/F1 12 Tf", "50 790 Td"];
   lines.forEach((line, index) => {
-    const normalized = normalizePdfText(line);
+    const encoded = toWinAnsiHexString(line);
     if (index === 0) {
-      contentLines.push(`(${normalized}) Tj`);
+      contentLines.push(`<${encoded}> Tj`);
       return;
     }
 
-    contentLines.push(`0 -16 Td (${normalized}) Tj`);
+    contentLines.push(`0 -16 Td <${encoded}> Tj`);
   });
   contentLines.push("ET");
 
@@ -27,7 +22,7 @@ export function buildSimplePdf(lines: string[]): Buffer {
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
     `<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
   ];
 
   let pdf = "%PDF-1.4\n";
