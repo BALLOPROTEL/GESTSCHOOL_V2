@@ -17,6 +17,7 @@ import "./styles/dashboard.css";
 import "./styles/teachers.css";
 import "./styles/rooms.css";
 import "./styles/parents.css";
+import "./styles/profile-premium.css";
 import "./styles/forms.css";
 import "./styles/tables.css";
 import "./styles/utilities.css";

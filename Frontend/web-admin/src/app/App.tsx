@@ -1,4 +1,4 @@
-import { FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AcademicTrack,
@@ -32,7 +32,6 @@ import type {
   TeacherClass,
   TeacherOverview,
   TeacherStudent,
-  ThemeMode,
   UserAccount,
   UserSelfProfile
 } from "../shared/types/app";
@@ -50,178 +49,78 @@ import {
   SCREEN_DEFS,
   hasScreenAccess
 } from "./navigation/screen-registry";
-import { ROLE_LABELS } from "../shared/constants/domain";
 import { decorateResponsiveTables } from "./shell/responsive-tables";
 import { GlobalToastLayer } from "./shell/global-toast-layer";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
-import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, UiLanguage, useDomTranslation } from "../shared/i18n";
+import { useDomTranslation } from "../shared/i18n";
 import { fetchReferenceData } from "../features/reference/services/reference-service";
 import type { ReferenceData } from "../features/reference/types/reference";
 import { createPreviewAppData, PREVIEW_ACCESS_TOKEN } from "./preview/preview-data";
 import { API_BASE_URLS } from "../shared/services/api-config";
-import { parseApiError } from "../shared/services/api-errors";
-import { readLanguagePreference, readRememberedLogin, readThemePreference } from "../shared/services/session-storage";
+import { readRememberedLogin } from "../shared/services/session-storage";
 import { focusFirstInlineErrorField, hasFieldErrors } from "../shared/utils/form-ui";
 import { AppContextBar, AppFooter, PreviewLocalNotice } from "./app-shell-panels";
-
-const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
-const DEFAULT_CURRENCY = "CFA";
-const SCHOOL_NAME = "Al Manarat Islamiyat";
-const PREVIEW_MODE_ENABLED = import.meta.env.DEV || import.meta.env.VITE_ENABLE_PREVIEW === "true";
-const THEME_STORAGE_KEY = "gestschool.web-admin.theme";
-const LANGUAGE_STORAGE_KEY = "gestschool.web-admin.language";
-const LOGIN_HINT_STORAGE_KEY = "gestschool.web-admin.login-hint";
-const ICON_TOGGLE_ANIMATION_MS = 460;
-const STRONG_PASSWORD_REGEX =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{12,128}$/;
-const STRONG_PASSWORD_HINT =
-  "Le mot de passe doit contenir au moins 12 caractères, avec majuscule, minuscule, chiffre et caractère spécial.";
-
-const AuthScreen = lazy(() =>
-  import("../features/auth-screen").then((module) => ({ default: module.AuthScreen }))
-);
-const DashboardScreen = lazy(() =>
-  import("../features/dashboard-screen").then((module) => ({ default: module.DashboardScreen }))
-);
-const MessagesScreen = lazy(() =>
-  import("../features/messages-screen").then((module) => ({ default: module.MessagesScreen }))
-);
-const ParentsScreen = lazy(() =>
-  import("../features/parents-screen").then((module) => ({ default: module.ParentsScreen }))
-);
-const StudentPortalPlaceholderScreen = lazy(() =>
-  import("../features/student-portal-placeholder-screen").then((module) => ({
-    default: module.StudentPortalPlaceholderScreen
-  }))
-);
-const StudentsScreen = lazy(() =>
-  import("../features/students/students-screen").then((module) => ({ default: module.StudentsScreen }))
-);
-const TeachersScreen = lazy(() =>
-  import("../features/teachers-screen").then((module) => ({ default: module.TeachersScreen }))
-);
-const RoomsScreen = lazy(() =>
-  import("../features/rooms-screen").then((module) => ({ default: module.RoomsScreen }))
-);
-const IamScreen = lazy(() =>
-  import("../features/iam/iam-screen").then((module) => ({ default: module.IamScreen }))
-);
-const ReportsScreen = lazy(() =>
-  import("../features/reports/reports-screen").then((module) => ({ default: module.ReportsScreen }))
-);
-const EnrollmentsScreen = lazy(() =>
-  import("../features/enrollments/enrollments-screen").then((module) => ({
-    default: module.EnrollmentsScreen
-  }))
-);
-const FinanceScreen = lazy(() =>
-  import("../features/finance/finance-screen").then((module) => ({ default: module.FinanceScreen }))
-);
-const ProfileScreen = lazy(() =>
-  import("../features/profile/profile-screen").then((module) => ({ default: module.ProfileScreen }))
-);
-const PreferencesScreen = lazy(() =>
-  import("../features/profile/account-destination-screens").then((module) => ({
-    default: module.PreferencesScreen
-  }))
-);
-const ActivityScreen = lazy(() =>
-  import("../features/profile/account-destination-screens").then((module) => ({
-    default: module.ActivityScreen
-  }))
-);
-const BillingScreen = lazy(() =>
-  import("../features/profile/account-destination-screens").then((module) => ({
-    default: module.BillingScreen
-  }))
-);
-const GradesScreen = lazy(() =>
-  import("../features/grades/grades-screen").then((module) => ({ default: module.GradesScreen }))
-);
-const PortalTeacherScreen = lazy(() =>
-  import("../features/portal/portal-teacher-screen").then((module) => ({
-    default: module.PortalTeacherScreen
-  }))
-);
-const PortalParentScreen = lazy(() =>
-  import("../features/portal/portal-parent-screen").then((module) => ({
-    default: module.PortalParentScreen
-  }))
-);
-const ReferenceScreen = lazy(() =>
-  import("../features/reference/reference-screen").then((module) => ({ default: module.ReferenceScreen }))
-);
-const SchoolLifePanel = lazy(() =>
-  import("../features/school-life/school-life-panel").then((module) => ({
-    default: module.SchoolLifePanel
-  }))
-);
-const ConstructionPageMosquee = lazy(() =>
-  import("../features/mosquee/construction-page").then((module) => ({
-    default: module.ConstructionPageMosquee
-  }))
-);
-
-const ScreenLoadingFallback = (): JSX.Element => (
-  <section className="panel table-panel screen-loading" aria-live="polite">
-    <span className="mini-loader" />
-    <div>
-      <strong>Chargement du module</strong>
-      <p className="subtle">Preparation de l'ecran demande...</p>
-    </div>
-  </section>
-);
-
-const isStrongPassword = (value: string): boolean => STRONG_PASSWORD_REGEX.test(value);
-const getNextThemeMode = (mode: ThemeMode): ThemeMode => (mode === "light" ? "dark" : "light");
-const getNextUiLanguage = (language: UiLanguage): UiLanguage => {
-  const currentIndex = UI_LANGUAGE_ORDER.indexOf(language);
-  return UI_LANGUAGE_ORDER[(currentIndex + 1) % UI_LANGUAGE_ORDER.length] || "fr";
-};
-const getIconToggleAnimationDuration = (): number =>
-  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : ICON_TOGGLE_ANIMATION_MS;
-const formatLookupLabel = (map: Record<string, string>, value?: string): string => {
-  const normalized = (value || "").trim().toUpperCase();
-  return map[normalized] || value || "-";
-};
-const formatRoleLabel = (value?: string): string => formatLookupLabel(ROLE_LABELS, value);
-const formatAccountStatusLabel = (value?: string): string =>
-  formatLookupLabel(
-    {
-      ACTIVE: "Actif",
-      ARCHIVED: "Archivé",
-      DISABLED: "Désactivé",
-      INACTIVE: "Inactif",
-      PENDING_ACTIVATION: "En attente d’activation"
-    },
-    value
-  );
-const getInitials = (value?: string): string => {
-  const parts = (value || "").trim().split(/\s+/u).filter(Boolean);
-  if (parts.length >= 2) return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
-  return (parts[0]?.slice(0, 2) || "U").toUpperCase();
-};
-const parseError = (response: Response): Promise<string> =>
-  parseApiError(response, {
-    localApiHint: ["localhost", "127.0.0.1"].includes(window.location.hostname)
-      ? "Erreur API locale. Verifie que `pnpm dev:api` tourne puis redemarre `pnpm dev:web` pour recharger le proxy."
-      : undefined
-  });
+import {
+  DEFAULT_CURRENCY,
+  DEFAULT_TENANT,
+  LOGIN_HINT_STORAGE_KEY,
+  PREVIEW_MODE_ENABLED,
+  SCHOOL_NAME,
+  STRONG_PASSWORD_HINT
+} from "./app-config";
+import {
+  formatAccountStatusLabel,
+  formatRoleLabel,
+  getInitials,
+  isStrongPassword,
+  parseError
+} from "./app-formatters";
+import {
+  ActivityScreen,
+  AuthScreen,
+  BillingScreen,
+  ConstructionPageMosquee,
+  DashboardScreen,
+  EnrollmentsScreen,
+  FinanceScreen,
+  GradesScreen,
+  IamScreen,
+  MessagesScreen,
+  ParentsScreen,
+  PortalParentScreen,
+  PortalTeacherScreen,
+  PreferencesScreen,
+  ProfileScreen,
+  ReferenceScreen,
+  RoomsScreen,
+  SchoolLifePanel,
+  ScreenLoadingFallback,
+  StudentPortalPlaceholderScreen,
+  StudentsScreen,
+  TeachersScreen,
+  ReportsScreen
+} from "./lazy-screens";
+import { useAppPreferences } from "./use-app-preferences";
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
   const appRootRef = useRef<HTMLElement | null>(null);
   const rememberedLogin = useMemo(() => readRememberedLogin(DEFAULT_TENANT), []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemePreference());
-  const [uiLanguage, setUiLanguage] = useState<UiLanguage>(() => readLanguagePreference());
-  const [themeFlipTarget, setThemeFlipTarget] = useState<ThemeMode | null>(null);
-  const [languageFlipTarget, setLanguageFlipTarget] = useState<UiLanguage | null>(null);
-  const currentLanguageMeta = UI_LANGUAGE_META[uiLanguage];
   const [mobileTasksOpen, setMobileTasksOpen] = useState(false);
   const [headerNotificationCount, setHeaderNotificationCount] = useState(0);
-  const themeFlipTimeoutRef = useRef<number | null>(null);
-  const languageFlipTimeoutRef = useRef<number | null>(null);
+  const {
+    currentLanguageMeta,
+    cycleLanguage,
+    languageFlipTarget,
+    nextLanguageMeta,
+    selectLanguage,
+    selectThemeMode,
+    themeFlipTarget,
+    themeMode,
+    toggleThemeMode,
+    uiLanguage
+  } = useAppPreferences();
 
   useDomTranslation(appRootRef, uiLanguage);
 
@@ -580,28 +479,6 @@ export function App(): JSX.Element {
   }, [error]);
 
   useEffect(() => {
-    return () => {
-      if (themeFlipTimeoutRef.current !== null) {
-        window.clearTimeout(themeFlipTimeoutRef.current);
-      }
-      if (languageFlipTimeoutRef.current !== null) {
-        window.clearTimeout(languageFlipTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", themeMode);
-    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
-  }, [themeMode]);
-
-  useEffect(() => {
-    document.documentElement.lang = uiLanguage;
-    document.documentElement.dir = currentLanguageMeta.dir;
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, uiLanguage);
-  }, [currentLanguageMeta.dir, uiLanguage]);
-
-  useEffect(() => {
     if (session && !lastSyncAt) {
       setLastSyncAt(new Date().toISOString());
     }
@@ -875,90 +752,6 @@ export function App(): JSX.Element {
       window.clearInterval(timer);
     };
   }, [apiAvailable, currentRole, ensureApiAvailable, loadHeaderNotificationCount, session, isPreviewSession]);
-
-  const toggleThemeMode = (): void => {
-    const nextThemeMode = getNextThemeMode(themeMode);
-    if (themeFlipTarget || nextThemeMode === themeMode) return;
-    const animationDuration = getIconToggleAnimationDuration();
-    if (animationDuration === 0) {
-      setThemeMode(nextThemeMode);
-      return;
-    }
-
-    if (themeFlipTimeoutRef.current !== null) {
-      window.clearTimeout(themeFlipTimeoutRef.current);
-    }
-
-    setThemeFlipTarget(nextThemeMode);
-    themeFlipTimeoutRef.current = window.setTimeout(() => {
-      setThemeMode(nextThemeMode);
-      setThemeFlipTarget(null);
-      themeFlipTimeoutRef.current = null;
-    }, animationDuration);
-  };
-
-  const selectThemeMode = (nextThemeMode: ThemeMode): void => {
-    if (nextThemeMode === themeMode || themeFlipTarget) return;
-
-    const animationDuration = getIconToggleAnimationDuration();
-    if (animationDuration === 0) {
-      setThemeMode(nextThemeMode);
-      return;
-    }
-
-    if (themeFlipTimeoutRef.current !== null) {
-      window.clearTimeout(themeFlipTimeoutRef.current);
-    }
-
-    setThemeFlipTarget(nextThemeMode);
-    themeFlipTimeoutRef.current = window.setTimeout(() => {
-      setThemeMode(nextThemeMode);
-      setThemeFlipTarget(null);
-      themeFlipTimeoutRef.current = null;
-    }, animationDuration);
-  };
-
-  const cycleLanguage = (): void => {
-    const nextLanguage = getNextUiLanguage(uiLanguage);
-    if (languageFlipTarget || nextLanguage === uiLanguage) return;
-    const animationDuration = getIconToggleAnimationDuration();
-    if (animationDuration === 0) {
-      setUiLanguage(nextLanguage);
-      return;
-    }
-
-    if (languageFlipTimeoutRef.current !== null) {
-      window.clearTimeout(languageFlipTimeoutRef.current);
-    }
-
-    setLanguageFlipTarget(nextLanguage);
-    languageFlipTimeoutRef.current = window.setTimeout(() => {
-      setUiLanguage(nextLanguage);
-      setLanguageFlipTarget(null);
-      languageFlipTimeoutRef.current = null;
-    }, animationDuration);
-  };
-
-  const selectLanguage = (nextLanguage: UiLanguage): void => {
-    if (nextLanguage === uiLanguage || languageFlipTarget) return;
-
-    const animationDuration = getIconToggleAnimationDuration();
-    if (animationDuration === 0) {
-      setUiLanguage(nextLanguage);
-      return;
-    }
-
-    if (languageFlipTimeoutRef.current !== null) {
-      window.clearTimeout(languageFlipTimeoutRef.current);
-    }
-
-    setLanguageFlipTarget(nextLanguage);
-    languageFlipTimeoutRef.current = window.setTimeout(() => {
-      setUiLanguage(nextLanguage);
-      setLanguageFlipTarget(null);
-      languageFlipTimeoutRef.current = null;
-    }, animationDuration);
-  };
 
   const showLoginPanel = (): void => {
     setAuthAssistMode("none");
@@ -1327,11 +1120,11 @@ export function App(): JSX.Element {
       api={api}
       initialReportCards={reportCards}
       classes={classes}
-	      students={students}
-	      subjects={subjects}
-	      periods={periods}
-	      schoolYears={schoolYears}
-	      remoteEnabled={!isPreviewSession}
+      students={students}
+      subjects={subjects}
+      periods={periods}
+      schoolYears={schoolYears}
+      remoteEnabled={!isPreviewSession}
       onReportCardsChange={setReportCards}
       onError={setError}
       onNotice={setNotice}
@@ -1706,8 +1499,6 @@ export function App(): JSX.Element {
   const profileContextLabel = currentRole ? ROLE_CONTEXT_LABELS[currentRole] : "Session";
   const headerTenantLabel = currentProfile?.context.tenantName || SCHOOL_NAME;
   const headerStatusLabel = formatAccountStatusLabel(headerAccount?.status || session?.user.status || "ACTIVE");
-  const nextLanguage = languageFlipTarget || getNextUiLanguage(uiLanguage);
-  const nextLanguageMeta = UI_LANGUAGE_META[nextLanguage];
   const lastSyncLabel = lastSyncAt
     ? new Date(lastSyncAt).toLocaleString(currentLanguageMeta.locale)
     : "Non synchronise";
