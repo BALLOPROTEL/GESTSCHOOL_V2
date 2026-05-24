@@ -1,152 +1,157 @@
-# GestSchool - Quick Start Sprint 1
+# GestSchool V2
 
-## Prerequisites
-- Node.js 20+ (Node 22 also works)
-- pnpm 10+
-- Docker Desktop
-- psql client (recommended)
+GestSchool est une application SaaS de gestion scolaire en monorepo.
 
-## 1) Start local infrastructure
-```powershell
-docker compose -f infra/docker/docker-compose.dev.yml up -d
-```
+- Frontend admin : `Frontend/web-admin` (React, Vite, TypeScript).
+- API et worker : `Backend/api` (NestJS, Prisma, PostgreSQL).
+- Infrastructure locale : `Infrastructure/docker`.
+- Documentation projet : `docs`.
 
-## 2) Initialize database
-```powershell
-# Snapshot bootstrap (optional)
-psql "postgresql://gestschool:gestschool@localhost:5432/gestschool" -f infra/migrations/V1__init.sql
+## Prérequis
 
-# Seed baseline reference data
-psql "postgresql://gestschool:gestschool@localhost:5432/gestschool" -f infra/scripts/seed.sql
-Copy-Item apps/api/.env.example apps/api/.env -Force
-```
+- Node.js 22 recommandé.
+- pnpm 10.24.0, version déclarée dans `package.json`.
+- Docker pour PostgreSQL et Redis locaux.
+- Un client PostgreSQL est utile, mais pas obligatoire pour lancer l'application.
 
-## 3) Install dependencies
-```powershell
+Le runbook complet de développement local est disponible dans `docs/local-development.md`.
+
+## Installation
+
+```bash
 pnpm install
 ```
 
-## 4) Apply Prisma migrations + seed users
-```powershell
-pnpm --filter @gestschool/api db:generate
+Créer les fichiers d'environnement locaux depuis les exemples :
+
+```bash
+cp Backend/api/.env.example Backend/api/.env
+cp Frontend/web-admin/.env.example Frontend/web-admin/.env
+```
+
+Les fichiers `.env` locaux ne doivent jamais être commités. Les secrets réels doivent rester dans GitHub Actions, Render, Vercel ou le gestionnaire de secrets cible.
+
+## Infrastructure locale
+
+```bash
+docker compose -f Infrastructure/docker/docker-compose.dev.yml up -d
+```
+
+Arrêt :
+
+```bash
+docker compose -f Infrastructure/docker/docker-compose.dev.yml down
+```
+
+## Base de données
+
+Depuis la racine du repo :
+
+```bash
+pnpm --filter @gestschool/api prisma:generate
 pnpm --filter @gestschool/api db:migrate:deploy
+pnpm --filter @gestschool/api db:seed:minimal
 pnpm --filter @gestschool/api db:seed:users
 ```
 
-## 5) Start API
-```powershell
+Les comptes de développement sont définis dans `Backend/api/.env.example`. Ne documentez pas de mots de passe réels dans le README ou les runbooks.
+
+## Lancer l'application
+
+API :
+
+```bash
 pnpm dev:api
 ```
 
-## 5b) Start Worker
-```powershell
+Worker :
+
+```bash
 pnpm dev:worker
 ```
 
-## 5c) Start Web Admin
-```powershell
-Copy-Item apps/web-admin/.env.example apps/web-admin/.env -Force
+Web admin :
+
+```bash
 pnpm dev:web
 ```
 
-## 6) Login and get JWT token
-```powershell
-$loginBody = @{
-  username = "admin@gestschool.local"
-  password = "admin12345"
-  tenantId = "00000000-0000-0000-0000-000000000001"
-} | ConvertTo-Json
+Par défaut, l'API expose les routes sous `/api/v1`. Le web admin lit son URL API via `Frontend/web-admin/.env`.
 
-$auth = Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/v1/auth/login -ContentType "application/json" -Body $loginBody
-$token = $auth.accessToken
-$refreshToken = $auth.refreshToken
+## Commandes utiles
+
+Backend :
+
+```bash
+pnpm --filter @gestschool/api lint
+pnpm --filter @gestschool/api build
+pnpm --filter @gestschool/api prisma:generate
 ```
 
-Seed users available by default (`pnpm --filter @gestschool/api seed:users`):
-- `admin@gestschool.local / admin12345`
-- `scolarite@gestschool.local / scolarite123`
-- `comptable@gestschool.local / comptable123`
-- `enseignant@gestschool.local / teacher1234`
-- `parent@gestschool.local / parent1234`
+Frontend :
 
-## Stabilisation produit
-
-- Lot 0 source-of-truth: voir `docs/lot0-source-of-truth-stabilization.md`.
-- Lot 1 consolidation: voir `docs/lot1-consolidation.md`.
-- Validation pre-bascule DB + emploi du temps: voir `docs/precutover-db-validation.md`.
-- Reset propre DB + bascule V2: voir `docs/clean-db-reset-and-cutover-strategy.md`.
-- Rapport execution reset DB: voir `docs/clean-db-reset-execution-report.md`.
-- Rapport final `gestschool_v2BD`: voir `docs/final-cutover-gestschool-v2bd-report.md`.
-- Bascule staging/production `gestschool_v2BD`: voir `docs/release-cutover-gestschool-v2bd.md`.
-- Rapport de bascule production: voir `docs/production-cutover-gestschool-v2bd-2026-04-17.md`.
-- Les nouveaux flux doivent privilegier `StudentTrackPlacement`, `Parent.userId` + `ParentStudentLink.parentId`, `TeacherAssignment`, `Room` et les ids canoniques d'emploi du temps.
-- Les champs legacy comme `Enrollment`, `parentUserId`, `teacherName` et `room` restent des compatibilites transitoires, pas des sources de verite pour les nouveaux chantiers.
-
-## 7) Validate endpoints
-- Health: `http://localhost:3000/api/v1/health`
-- Readiness: `http://localhost:3000/api/v1/health/ready`
-- Swagger: `http://localhost:3000/api/docs`
-- Protected routes require `Authorization: Bearer <token>`.
-- Example:
-```powershell
-Invoke-RestMethod -Method Get -Uri http://localhost:3000/api/v1/students -Headers @{ Authorization = "Bearer $token" }
+```bash
+pnpm --filter @gestschool/web-admin lint
+pnpm --filter @gestschool/web-admin test
+pnpm --filter @gestschool/web-admin test:smoke
+pnpm --filter @gestschool/web-admin build
 ```
 
-## 8) Refresh and logout
-```powershell
-# Refresh tokens (rotation)
-$refreshBody = @{ refreshToken = $refreshToken } | ConvertTo-Json
-$newAuth = Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/v1/auth/refresh -ContentType "application/json" -Body $refreshBody
+Global :
 
-# Logout (revoke refresh token)
-Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/v1/auth/logout -ContentType "application/json" -Body $refreshBody
+```bash
+pnpm lint
+pnpm build
+git diff --check
 ```
 
-## 9) Run e2e tests on PostgreSQL
-```powershell
-# Standard (fast)
-pnpm --filter @gestschool/api test:e2e:db
+## Tests e2e API avec PostgreSQL
 
-# Fresh Prisma client rebuild (use this if you see a prisma:// datasource error)
+Les tests e2e backend exigent une base jetable dédiée dont le nom ou l'hôte contient `test`, `e2e` ou `jest`.
+
+Exemple avec une base locale jetable :
+
+```bash
+export TEST_DATABASE_URL="postgresql://<user>:<password>@localhost:5432/gestschool_test"
+export TEST_DIRECT_URL="$TEST_DATABASE_URL"
+export DATABASE_URL="$TEST_DATABASE_URL"
+export DIRECT_URL="$TEST_DIRECT_URL"
+
 pnpm --filter @gestschool/api test:e2e:db:fresh
 ```
 
-## 10) Sprint 2 API endpoints
-- Reference CRUD:
-  - `GET|POST|PATCH|DELETE /api/v1/school-years`
-  - `GET|POST|PATCH|DELETE /api/v1/cycles`
-  - `GET|POST|PATCH|DELETE /api/v1/levels`
-  - `GET|POST|PATCH|DELETE /api/v1/classes`
-  - `GET|POST|PATCH|DELETE /api/v1/subjects`
-  - `GET|POST|PATCH|DELETE /api/v1/academic-periods`
-- Enrollments:
-  - `GET|POST /api/v1/enrollments`
-  - `DELETE /api/v1/enrollments/:id`
+Ne lancez jamais ces tests contre une base de recette ou de production.
 
-## Stop infrastructure
-```powershell
-docker compose -f infra/docker/docker-compose.dev.yml down
-```
+## Points de contrôle locaux
 
-## Sprint 0 reference
-See `docs/sprint0.md`.
+- API health : `http://localhost:3000/api/v1/health`
+- API readiness : `http://localhost:3000/api/v1/health/ready`
+- Swagger local si activé : `http://localhost:3000/api/docs`
+- Web admin Vite : port affiché par `pnpm dev:web`
 
-## Deployment (GitHub + Render + Vercel)
-- Guide complet: `docs/deployment-github-vercel-render.md`
-- Render blueprint file: `render.yaml`
-- Vercel config: `vercel.json`
+## Déploiement
 
-## Production database operations
-- Runtime:
-  - `DATABASE_URL` is used by the API and the worker.
-- Schema migrations:
-  - `DIRECT_URL` is used by Prisma migrations outside the Render runtime.
-- Recommended production flow:
-```powershell
-# 1. Set Supabase env vars in GitHub + Render
-# 2. Run the manual GitHub Actions workflow: "Migrate Production"
-# 3. Deploy Render web + worker
-# 4. Run seed only if explicitly needed
-pnpm --filter @gestschool/api db:seed:users
-```
-- Render services must not execute `prisma migrate deploy` or seed commands at boot.
+- Render : `render.yaml`
+- Vercel : `vercel.json`
+- Guide : `docs/deployment-github-vercel-render.md`
+
+Les services Render/Vercel ne doivent pas recevoir de secrets inutiles côté client. Les clés Supabase service role, Brevo, PayDunya et tokens de monitoring restent côté backend ou CI.
+
+## Documentation
+
+- Structure réelle du repo : `docs/project-structure.md`
+- Développement local : `docs/local-development.md`
+- Sécurité runtime backend : `docs/backend-runtime-safety.md`
+- Hotspots techniques : `docs/technical-hotspots.md`
+- Source of truth académique : `docs/academic-source-of-truth.md`
+- Storage Supabase : `docs/providers/supabase-storage.md`
+- PayDunya : `docs/providers/paydunya.md`
+- Brevo : `docs/providers/brevo.md`
+- Runbooks : `docs/runbooks/`
+
+## Règles de contribution
+
+- Ne commitez pas `.env`, dumps SQL, captures privées, bundles locaux ou archives outils.
+- Gardez les changements métier séparés des changements de style ou documentation.
+- Ajoutez ou adaptez les tests quand un flux utilisateur, une règle métier ou une validation backend change.
+- Préférez les chemins actuels `Frontend/web-admin` et `Backend/api`; les anciens chemins `apps/*` ne sont plus la source de vérité.
