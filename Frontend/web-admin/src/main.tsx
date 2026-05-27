@@ -14,6 +14,7 @@ import "./styles/auth-premium.css";
 import "./styles/auth-canvas.css";
 import "./styles/layout.css";
 import "./styles/dashboard.css";
+import "./styles/pilotage.css";
 import "./styles/teachers.css";
 import "./styles/rooms.css";
 import "./styles/parents.css";

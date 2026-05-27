@@ -85,6 +85,7 @@ import {
   IamScreen,
   MessagesScreen,
   ParentsScreen,
+  PilotageScreen,
   PortalParentScreen,
   PortalTeacherScreen,
   PreferencesScreen,
@@ -1457,15 +1458,21 @@ export function App(): JSX.Element {
     if (tab === "grades") return renderGrades();
     if (tab === "schoolLifeOverview") {
       return (
-        <SchoolLifePanel
+        <PilotageScreen
           api={api}
           students={students}
+          enrollments={enrollments}
           classes={classes}
-          subjects={subjects}
+          levels={levels}
+          schoolYears={schoolYears}
+          periods={periods}
+          invoices={invoices}
+          recovery={recovery}
+          reportCards={reportCards}
           locale={currentLanguageMeta.locale}
-          onError={setError}
-          onNotice={setNotice}
-          focusSection="overview"
+          remoteEnabled={!isPreviewSession}
+          formatMoney={formatMoney}
+          onSelectScreen={setTab}
         />
       );
     }

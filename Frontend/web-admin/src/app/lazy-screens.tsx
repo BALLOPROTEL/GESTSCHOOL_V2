@@ -43,6 +43,9 @@ export const FinanceScreen = lazy(() =>
 export const ProfileScreen = lazy(() =>
   import("../features/profile/profile-screen").then((module) => ({ default: module.ProfileScreen }))
 );
+export const PilotageScreen = lazy(() =>
+  import("../features/pilotage/pilotage-screen").then((module) => ({ default: module.PilotageScreen }))
+);
 export const PreferencesScreen = lazy(() =>
   import("../features/profile/account-destination-screens").then((module) => ({
     default: module.PreferencesScreen
