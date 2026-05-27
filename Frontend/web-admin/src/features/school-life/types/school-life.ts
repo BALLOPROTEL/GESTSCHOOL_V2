@@ -143,7 +143,7 @@ export type DispatchResult = {
   notifications: NotificationItem[];
 };
 
-export type SchoolLifeFocus = "all" | "overview" | "attendance" | "timetable" | "notifications";
+export type SchoolLifeFocus = "attendance" | "timetable" | "notifications";
 
 export type SchoolLifePanelProps = {
   api: (path: string, init?: RequestInit) => Promise<Response>;

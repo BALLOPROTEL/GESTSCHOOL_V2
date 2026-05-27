@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { WorkflowGuide } from "../../shared/components/workflow-guide";
 import {
@@ -13,7 +13,6 @@ import {
   dispatchPendingNotifications as dispatchPendingSchoolLifeNotifications,
   fetchAttendance,
   fetchAttendanceAttachments,
-  fetchAttendanceSummary,
   fetchNotifications,
   fetchTimetableGrid,
   fetchTimetableReferences,
@@ -35,7 +34,6 @@ import {
 import type {
   AttendanceAttachment,
   AttendanceRecord,
-  AttendanceSummary,
   NotificationItem,
   RoomRef,
   SchoolLifePanelProps,
@@ -53,12 +51,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     locale,
     onError,
     onNotice,
-    focusSection = "all",
+    focusSection = "attendance",
     readOnly = false
   } = props;
 
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [attendanceSummary, setAttendanceSummary] = useState<AttendanceSummary | null>(null);
   const [timetableSlots, setTimetableSlots] = useState<TimetableSlot[]>([]);
   const [timetableGrid, setTimetableGrid] = useState<TimetableGrid | null>(null);
   const [rooms, setRooms] = useState<RoomRef[]>([]);
@@ -189,16 +186,6 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     [api, attendanceFilters, onError]
   );
 
-  const loadAttendanceSummary = useCallback(
-    async (filters = attendanceFilters) => {
-      try {
-        setAttendanceSummary(await fetchAttendanceSummary(api, filters));
-      } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur lors du chargement de la synthese des absences.");
-      }
-    },
-    [api, attendanceFilters, onError]
-  );
   const loadAttendanceAttachments = useCallback(
     async (attendanceId = selectedAttendanceId) => {
       if (!attendanceId) {
@@ -216,8 +203,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   );
 
   useEffect(() => {
-    const needsAttendance =
-      focusSection === "all" || focusSection === "overview" || focusSection === "attendance";
+    const needsAttendance = focusSection === "attendance";
 
     if (!needsAttendance || !selectedAttendanceId) {
       return;
@@ -270,16 +256,12 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   );
 
   useEffect(() => {
-    const needsAttendance =
-      focusSection === "all" || focusSection === "overview" || focusSection === "attendance";
-    const needsTimetable =
-      focusSection === "all" || focusSection === "overview" || focusSection === "timetable";
-    const needsNotifications =
-      focusSection === "all" || focusSection === "overview" || focusSection === "notifications";
+    const needsAttendance = focusSection === "attendance";
+    const needsTimetable = focusSection === "timetable";
+    const needsNotifications = focusSection === "notifications";
 
     if (needsAttendance) {
       void loadAttendance();
-      void loadAttendanceSummary();
     }
     if (needsTimetable) {
       void loadTimetableReferences();
@@ -292,7 +274,6 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   }, [
     focusSection,
     loadAttendance,
-    loadAttendanceSummary,
     loadTimetableReferences,
     loadNotifications,
     loadTimetableGrid,
@@ -328,7 +309,6 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     setAttendanceForm((prev) => ({ ...prev, reason: "" }));
     setSelectedAttendanceId(created.id);
     await loadAttendance(attendanceFilters);
-    await loadAttendanceSummary(attendanceFilters);
     await loadNotifications(notificationFilters);
   };
 
@@ -344,14 +324,12 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
     onNotice("Absence supprimee.");
     await loadAttendance(attendanceFilters);
-    await loadAttendanceSummary(attendanceFilters);
     await loadNotifications(notificationFilters);
   };
 
   const applyAttendanceFilters = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     await loadAttendance(attendanceFilters);
-    await loadAttendanceSummary(attendanceFilters);
     await loadNotifications(notificationFilters);
   };
 
@@ -359,7 +337,6 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     const next = { classId: "", studentId: "", status: "", fromDate: "", toDate: "" };
     setAttendanceFilters(next);
     await loadAttendance(next);
-    await loadAttendanceSummary(next);
   };
 
   const submitAttendanceAttachment = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -444,7 +421,6 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     });
     onNotice("Validation mise a jour.");
     await loadAttendance(attendanceFilters);
-    await loadAttendanceSummary(attendanceFilters);
     await loadAttendanceAttachments(selectedAttendanceId);
   };
 
@@ -483,7 +459,6 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
     setBulkAttendanceForm((prev) => ({ ...prev, studentIds: [], reason: "" }));
     await loadAttendance(attendanceFilters);
-    await loadAttendanceSummary(attendanceFilters);
     await loadNotifications(notificationFilters);
   };
   const submitTimetableSlot = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -609,34 +584,10 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     await loadNotifications(next);
   };
 
-  const attendanceMetrics = useMemo(() => {
-    if (attendanceSummary) {
-      return {
-        total: attendanceSummary.total,
-        present: attendanceSummary.byStatus.PRESENT,
-        absent: attendanceSummary.byStatus.ABSENT,
-        late: attendanceSummary.byStatus.LATE,
-        excused: attendanceSummary.byStatus.EXCUSED,
-        rate: attendanceSummary.absenceRatePercent
-      };
-    }
-
-    const total = attendanceRecords.length;
-    const present = attendanceRecords.filter((item) => item.status === "PRESENT").length;
-    const absent = attendanceRecords.filter((item) => item.status === "ABSENT").length;
-    const late = attendanceRecords.filter((item) => item.status === "LATE").length;
-    const excused = attendanceRecords.filter((item) => item.status === "EXCUSED").length;
-    const rate = total === 0 ? 0 : Number((((absent + late) / total) * 100).toFixed(2));
-
-    return { total, present, absent, late, excused, rate };
-  }, [attendanceRecords, attendanceSummary]);
-
-  const topAbsentees = attendanceSummary?.topAbsentees ?? [];
   const selectedAttendance = attendanceRecords.find((item) => item.id === selectedAttendanceId) || null;
-  const showOverview = focusSection === "all" || focusSection === "overview";
-  const showAttendance = focusSection === "all" || focusSection === "attendance";
-  const showTimetable = focusSection === "all" || focusSection === "timetable";
-  const showNotifications = focusSection === "all" || focusSection === "notifications";
+  const showAttendance = focusSection === "attendance";
+  const showTimetable = focusSection === "timetable";
+  const showNotifications = focusSection === "notifications";
   const activeRooms = rooms.filter((room) => room.status === "ACTIVE");
   const compatibleTeacherAssignments = teacherAssignments.filter((assignment) => {
     if (assignment.status !== "ACTIVE") return false;
@@ -701,34 +652,6 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
   return (
     <div className={`school-life-root focus-${focusSection}${readOnly ? " read-only" : ""}`}>
-      {showOverview ? (
-      <section className="panel table-panel workflow-section module-modern">
-        <div className="headline-row">
-          <h2>Pilotage vie scolaire</h2>
-        </div>
-        <div className="metrics-grid">
-          <div className="metric-card"><span>Total pointages</span><strong>{attendanceMetrics.total}</strong></div>
-          <div className="metric-card"><span>Presences</span><strong>{attendanceMetrics.present}</strong></div>
-          <div className="metric-card"><span>Absences</span><strong>{attendanceMetrics.absent}</strong></div>
-          <div className="metric-card"><span>Retards</span><strong>{attendanceMetrics.late}</strong></div>
-          <div className="metric-card"><span>Excuses</span><strong>{attendanceMetrics.excused}</strong></div>
-          <div className="metric-card"><span>Taux absence+retard</span><strong>{attendanceMetrics.rate}%</strong></div>
-        </div>
-        <div className="mini-list">
-          {topAbsentees.length === 0 ? (
-            <div className="mini-item"><span>Aucun cumul d'absences notable sur la periode.</span></div>
-          ) : (
-            topAbsentees.map((item) => (
-              <div key={item.studentId} className="mini-item">
-                <span>{item.studentName}</span>
-                <strong>{item.absentCount} absence(s)</strong>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-      ) : null}
-
       {showAttendance ? (
       <WorkflowGuide
         title="Absences"
