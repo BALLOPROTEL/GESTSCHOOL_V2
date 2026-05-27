@@ -101,6 +101,32 @@ import {
 import { useAppPreferences } from "./use-app-preferences";
 import { isLocalPreviewEnabled, isLocalPreviewRoute, isLocalPreviewSession } from "./preview/preview-mode";
 
+type LoadListOptions = {
+  fallbackMessage: string;
+  setError: (message: string | null) => void;
+  silentForbidden?: boolean;
+};
+
+async function readListResponse<T>(
+  response: Response,
+  { fallbackMessage, setError, silentForbidden = false }: LoadListOptions
+): Promise<T[]> {
+  if (!response.ok) {
+    if (!(silentForbidden && response.status === 403)) {
+      setError(await parseError(response));
+    }
+    return [];
+  }
+
+  const payload = (await response.json().catch(() => null)) as unknown;
+  if (!Array.isArray(payload)) {
+    setError(fallbackMessage);
+    return [];
+  }
+
+  return payload as T[];
+}
+
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
   const appRootRef = useRef<HTMLElement | null>(null);
@@ -508,14 +534,25 @@ export function App(): JSX.Element {
   const loadStudents = useCallback(async () => {
     if (!sessionRef.current) return;
     const response = await api("/students");
-    setStudents((await response.json()) as Student[]);
+    setStudents(
+      await readListResponse<Student>(response, {
+        fallbackMessage: "Format inattendu pour la liste des élèves.",
+        setError
+      })
+    );
   }, [api]);
 
   const loadUsers = useCallback(async () => {
     if (!sessionRef.current) return;
-    const response = await api("/users");
-    setUsers((await response.json()) as UserAccount[]);
-  }, [api]);
+    const response = await api("/users", {}, true, { background: currentRole !== "ADMIN" });
+    setUsers(
+      await readListResponse<UserAccount>(response, {
+        fallbackMessage: "Format inattendu pour la liste des utilisateurs.",
+        setError,
+        silentForbidden: currentRole !== "ADMIN"
+      })
+    );
+  }, [api, currentRole]);
 
   const loadReference = useCallback(async () => {
     if (!sessionRef.current) return;
@@ -577,12 +614,12 @@ export function App(): JSX.Element {
   const loadReportCards = useCallback(async () => {
     if (!sessionRef.current) return;
     const response = await api("/report-cards");
-    if (!response.ok) {
-      setError(await parseError(response));
-      return;
-    }
-
-    setReportCards((await response.json()) as ReportCard[]);
+    setReportCards(
+      await readListResponse<ReportCard>(response, {
+        fallbackMessage: "Format inattendu pour la liste des bulletins.",
+        setError
+      })
+    );
   }, [api]);
 
   const loadHeaderNotificationCount = useCallback(async () => {
@@ -680,11 +717,14 @@ export function App(): JSX.Element {
         if (needReference) await loadReference();
         if (needStudents) await loadStudents();
         if (
-          hasScreenAccess(currentRole, "iam") ||
-          hasScreenAccess(currentRole, "parents") ||
-          hasScreenAccess(currentRole, "reports")
+          currentRole === "ADMIN" &&
+          (hasScreenAccess(currentRole, "iam") ||
+            hasScreenAccess(currentRole, "parents") ||
+            hasScreenAccess(currentRole, "reports"))
         ) {
           await loadUsers();
+        } else {
+          setUsers([]);
         }
         if (hasScreenAccess(currentRole, "enrollments")) await loadEnrollments();
         if (hasScreenAccess(currentRole, "finance")) await loadFinance();
