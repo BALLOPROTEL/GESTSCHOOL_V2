@@ -250,6 +250,48 @@ describe("Provider integrations (e2e)", () => {
     expect(JSON.stringify(descriptor.body)).not.toContain("test-service-role-key");
   });
 
+  it("infers Supabase storage in production when credentials are configured", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousStorageProvider = process.env.STORAGE_PROVIDER;
+    const previousFileStorageDriver = process.env.FILE_STORAGE_DRIVER;
+    process.env.NODE_ENV = "production";
+    delete process.env.STORAGE_PROVIDER;
+    delete process.env.FILE_STORAGE_DRIVER;
+
+    try {
+      const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+
+      const descriptor = await request(context.app.getHttpServer())
+        .post("/api/v1/storage/upload-descriptor")
+        .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+        .send({
+          fileName: "fallback-supabase.pdf",
+          mimeType: "application/pdf",
+          bucket: "documents",
+          studentId: baseline.studentOneId
+        })
+        .expect(201);
+
+      expect(descriptor.body.driver).toBe("SUPABASE");
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+      if (previousStorageProvider === undefined) {
+        delete process.env.STORAGE_PROVIDER;
+      } else {
+        process.env.STORAGE_PROVIDER = previousStorageProvider;
+      }
+      if (previousFileStorageDriver === undefined) {
+        delete process.env.FILE_STORAGE_DRIVER;
+      } else {
+        process.env.FILE_STORAGE_DRIVER = previousFileStorageDriver;
+      }
+    }
+  });
+
   it("uploads authenticated user avatars to the public Supabase avatar bucket", async () => {
     const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
 

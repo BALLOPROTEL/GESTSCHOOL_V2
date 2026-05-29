@@ -69,12 +69,38 @@ export class StorageService {
       .get<string>("STORAGE_PROVIDER", "")
       .trim()
       .toUpperCase();
+    const configuredDriver = this.configService
+      .get<string>("FILE_STORAGE_DRIVER", "")
+      .trim()
+      .toUpperCase();
+
+    if (
+      !configuredProvider &&
+      (!configuredDriver || configuredDriver === "LOCAL") &&
+      this.isProduction() &&
+      this.hasSupabaseRuntimeConfig()
+    ) {
+      return "SUPABASE";
+    }
+
     const normalized =
       configuredProvider ||
-      this.configService.get<string>("FILE_STORAGE_DRIVER", "LOCAL").trim().toUpperCase();
+      configuredDriver ||
+      "LOCAL";
     if (normalized === "S3") return "S3";
     if (normalized === "WEBHOOK") return "WEBHOOK";
     if (normalized === "SUPABASE") return "SUPABASE";
     return "LOCAL";
+  }
+
+  private hasSupabaseRuntimeConfig(): boolean {
+    return Boolean(
+      this.configService.get<string>("SUPABASE_URL", "").trim() &&
+        this.configService.get<string>("SUPABASE_SERVICE_ROLE_KEY", "").trim()
+    );
+  }
+
+  private isProduction(): boolean {
+    return this.configService.get<string>("NODE_ENV", "").trim().toLowerCase() === "production";
   }
 }
