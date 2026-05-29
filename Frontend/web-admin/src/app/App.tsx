@@ -464,15 +464,15 @@ export function App(): JSX.Element {
   }, [enterPreview, localPreviewEnabled, session]);
 
   useEffect(() => {
-    if (isPreviewSession) {
+    if (isPreviewSession || (localPreviewEnabled && isLocalPreviewRoute())) {
       return;
     }
 
     void ensureApiAvailable();
-  }, [ensureApiAvailable, isPreviewSession]);
+  }, [ensureApiAvailable, isPreviewSession, localPreviewEnabled]);
 
   useEffect(() => {
-    if (isPreviewSession) {
+    if (isPreviewSession || (localPreviewEnabled && isLocalPreviewRoute())) {
       return undefined;
     }
 
@@ -486,7 +486,7 @@ export function App(): JSX.Element {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [apiConnection.nextRetryAt, apiConnection.status, ensureApiAvailable, isPreviewSession]);
+  }, [apiConnection.nextRetryAt, apiConnection.status, ensureApiAvailable, isPreviewSession, localPreviewEnabled]);
 
   useEffect(() => {
     if (!notice) {
@@ -1194,6 +1194,7 @@ export function App(): JSX.Element {
         locale={currentLanguageMeta.locale}
         onError={setError}
         onLanguageChange={selectLanguage}
+        onLogoutAllDevices={logout}
         onNotice={setNotice}
         onProfileChange={setCurrentProfile}
         onThemeChange={selectThemeMode}

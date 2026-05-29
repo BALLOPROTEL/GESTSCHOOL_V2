@@ -1,5 +1,6 @@
 import type {
   UserActivityItem,
+  UserSessionItem,
   UserSelfProfile
 } from "../../shared/types/app";
 
@@ -109,4 +110,24 @@ export const fetchMyActivity = async (api: ProfileApiClient): Promise<UserActivi
     throw new Error(await parseProfileError(response));
   }
   return (await response.json()) as UserActivityItem[];
+};
+
+export const fetchMySessions = async (api: ProfileApiClient): Promise<UserSessionItem[]> => {
+  const response = await api("/users/me/sessions", undefined, true, { background: true });
+  if (!response.ok) {
+    throw new Error(await parseProfileError(response));
+  }
+  return (await response.json()) as UserSessionItem[];
+};
+
+export const logoutAllMySessions = async (
+  api: ProfileApiClient
+): Promise<{ message: string; revokedSessions: number }> => {
+  const response = await api("/users/me/logout-all-devices", {
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(await parseProfileError(response));
+  }
+  return (await response.json()) as { message: string; revokedSessions: number };
 };

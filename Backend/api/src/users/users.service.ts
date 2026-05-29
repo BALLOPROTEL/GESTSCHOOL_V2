@@ -105,6 +105,13 @@ export type MyProfileView = {
   permissions: RolePermissionView[];
 };
 
+export type MySessionView = {
+  id: string;
+  label: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -349,6 +356,62 @@ export class UsersService {
       resourceId: row.resourceId || undefined,
       createdAt: row.createdAt.toISOString()
     }));
+  }
+
+  async listMySessions(tenantId: string, userId: string): Promise<MySessionView[]> {
+    const rows = await this.prisma.refreshToken.findMany({
+      where: {
+        tenantId,
+        userId,
+        revokedAt: null,
+        expiresAt: {
+          gt: new Date()
+        }
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 20
+    });
+
+    return rows.map((row, index) => ({
+      id: row.id,
+      label: index === 0 ? "Session active" : `Session ${index + 1}`,
+      createdAt: row.createdAt.toISOString(),
+      expiresAt: row.expiresAt.toISOString()
+    }));
+  }
+
+  async logoutAllMySessions(tenantId: string, userId: string): Promise<{ revokedSessions: number }> {
+    const now = new Date();
+    const result = await this.prisma.$transaction(async (transaction) => {
+      const revoked = await transaction.refreshToken.updateMany({
+        where: {
+          tenantId,
+          userId,
+          revokedAt: null
+        },
+        data: {
+          revokedAt: now
+        }
+      });
+
+      await this.auditService.enqueueLog(
+        {
+          tenantId,
+          userId,
+          action: "USER_SESSIONS_REVOKED",
+          resource: "users",
+          resourceId: userId,
+          payload: {
+            revokedSessions: revoked.count
+          } as unknown as Prisma.InputJsonValue
+        },
+        transaction
+      );
+
+      return revoked;
+    });
+
+    return { revokedSessions: result.count };
   }
 
   async create(

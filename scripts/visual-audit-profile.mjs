@@ -99,7 +99,17 @@ async function openPreview(page) {
 async function openUserMenu(page) {
   const trigger = page.locator(".header-user-trigger").first();
   if (await trigger.isVisible().catch(() => false)) {
+    if (await page.locator(".header-floating-panel.header-user-dropdown").isVisible().catch(() => false)) {
+      return "desktop";
+    }
     await trigger.click({ timeout: 5_000 });
+    const opened = await page
+      .locator(".header-floating-panel.header-user-dropdown")
+      .isVisible({ timeout: 1_500 })
+      .catch(() => false);
+    if (!opened) {
+      await trigger.click({ timeout: 5_000, force: true });
+    }
     await page.waitForSelector(".header-floating-panel.header-user-dropdown", { timeout: 5_000 });
     return "desktop";
   }

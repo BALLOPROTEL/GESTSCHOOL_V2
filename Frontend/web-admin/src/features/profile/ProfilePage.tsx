@@ -91,8 +91,7 @@ export type PremiumActivityItem = {
 };
 
 export type PremiumSecurityState = {
-  twoFactorLabel: string;
-  twoFactorEnabled: boolean;
+  passwordPolicyLabel: string;
   activeSessionsLabel: string;
 };
 
@@ -320,10 +319,8 @@ function SecurityCard(props: ProfilePageProps): JSX.Element {
           </strong>
         </div>
         <div className="premium-info-row">
-          <span>{props.t("Authentification à deux facteurs")}</span>
-          <strong className={props.security.twoFactorEnabled ? "premium-state-success" : "premium-state-muted"}>
-            {props.security.twoFactorLabel}
-          </strong>
+          <span>{props.t("Politique mot de passe")}</span>
+          <strong className="premium-state-success">{props.security.passwordPolicyLabel}</strong>
         </div>
         <div className="premium-info-row">
           <span>{props.t("Sessions actives")}</span>

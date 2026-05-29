@@ -32,6 +32,7 @@ import { UpdateRolePermissionsDto } from "./dto/update-role-permissions.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import {
   UsersService,
+  type MySessionView,
   type MyProfileView,
   type RolePermissionView,
   type UserActivityView,
@@ -181,6 +182,34 @@ export class UsersController {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     const actorUserId = this.getActorUserId(request.user);
     return this.usersService.listMyActivity(tenantId, actorUserId);
+  }
+
+  @Get("me/sessions")
+  @RateLimit({ bucket: "users-me-sessions", max: 60, windowMs: 60_000 })
+  @ApiOperation({ summary: "List active refresh sessions for the authenticated user" })
+  async mySessions(
+    @Req() request: { user?: AuthenticatedUser },
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<MySessionView[]> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    return this.usersService.listMySessions(tenantId, actorUserId);
+  }
+
+  @Post("me/logout-all-devices")
+  @RateLimit({ bucket: "users-me-logout-all-devices", max: 5, windowMs: 600_000 })
+  @ApiOperation({ summary: "Revoke all refresh sessions for the authenticated user" })
+  async logoutAllMySessions(
+    @Req() request: { user?: AuthenticatedUser },
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<{ message: string; revokedSessions: number }> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const actorUserId = this.getActorUserId(request.user);
+    const result = await this.usersService.logoutAllMySessions(tenantId, actorUserId);
+    return {
+      message: "Toutes les sessions ont été révoquées.",
+      revokedSessions: result.revokedSessions
+    };
   }
 
   @Post()

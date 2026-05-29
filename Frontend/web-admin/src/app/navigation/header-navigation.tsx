@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { HeaderMobilePanel } from "./header-mobile-panel";
 import type {
@@ -84,7 +84,6 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
   } = props;
   const [openId, setOpenId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const rootRef = useRef<HTMLElement | null>(null);
   const languagePreference = preferences.find((item) => item.id === "language") ?? preferences[0];
   const themePreference =
     preferences.find((item) => item.id === "theme") ??
@@ -242,11 +241,11 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
         return;
       }
 
-      if (rootRef.current?.contains(target)) {
+      if (target instanceof Element && target.closest("[data-header-floating-panel='true']")) {
         return;
       }
 
-      if (target instanceof Element && target.closest("[data-header-floating-panel='true']")) {
+      if (target instanceof Element && target.closest(".header-dropdown")) {
         return;
       }
 
@@ -282,7 +281,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
   };
 
   return (
-    <header ref={rootRef} className="panel app-shell-header global-header-shell">
+    <header className="panel app-shell-header global-header-shell">
       <div className="global-header-row">
         <button type="button" className="global-brand" onClick={dashboard.onSelect}>
           <span className="global-brand-logo">

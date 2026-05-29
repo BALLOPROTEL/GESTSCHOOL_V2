@@ -417,6 +417,13 @@ export type UserActivityItem = {
   createdAt: string;
 };
 
+export type UserSessionItem = {
+  id: string;
+  label: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
 export type UserSelfProfile = {
   user: UserAccount;
   context: {

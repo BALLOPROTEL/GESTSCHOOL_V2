@@ -8,12 +8,15 @@ import type {
   ThemeMode,
   UserAccount,
   UserActivityItem,
+  UserSessionItem,
   UserSelfProfile
 } from "../../shared/types/app";
 import {
   changeMyPassword,
   fetchMyActivity,
   fetchMyProfile,
+  fetchMySessions,
+  logoutAllMySessions,
   removeMyAvatar,
   type ProfileApiClient,
   updateMyProfile,
@@ -35,6 +38,7 @@ type ProfileScreenProps = {
   locale: string;
   onError: (message: string | null) => void;
   onLanguageChange?: (language: UiLanguage) => void;
+  onLogoutAllDevices?: () => void | Promise<void>;
   onNotice: (message: string | null) => void;
   onProfileChange?: (profile: UserSelfProfile) => void;
   onThemeChange?: (theme: ThemeMode) => void;
@@ -68,6 +72,11 @@ const PASSWORD_HINT =
   "Le mot de passe doit contenir au moins 12 caractères, avec majuscule, minuscule, chiffre et caractère spécial.";
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+type RemoteRowsState<T> = {
+  status: "idle" | "loading" | "available" | "unavailable";
+  rows: T[];
+};
 
 const lookup = (map: Record<string, string>, value?: string): string => {
   const normalized = (value || "").trim().toUpperCase();
@@ -111,6 +120,24 @@ const formatActivityTime = (value: string | undefined, locale: string): string =
 
 const emptyLabel = (value?: string): string => value?.trim() || "À renseigner";
 
+const isEmailLike = (value?: string): boolean => Boolean(value?.trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/u));
+
+const humanizeIdentifier = (value?: string): string => {
+  const normalized = value?.trim() || "";
+  if (!normalized) return "";
+  const safeValue = isEmailLike(normalized) ? normalized.split("@")[0] || normalized : normalized;
+  return safeValue.replace(/[._-]+/gu, " ").replace(/\s+/gu, " ").trim() || normalized;
+};
+
+const buildFullName = (account: UserAccount): string => {
+  const names = [account.firstName, account.lastName].map((item) => item?.trim()).filter(Boolean);
+  const explicitDisplayName = account.displayName?.trim();
+  if (names.length > 0) return names.join(" ");
+  if (explicitDisplayName && !isEmailLike(explicitDisplayName)) return explicitDisplayName;
+  if (explicitDisplayName) return humanizeIdentifier(explicitDisplayName);
+  return humanizeIdentifier(account.username) || account.username;
+};
+
 const buildFallbackProfile = (
   session: Session,
   users: UserAccount[],
@@ -133,7 +160,7 @@ const buildFallbackProfile = (
     accountType: (session.user.accountType as UserAccount["accountType"]) || "STAFF",
     email: session.user.email || (session.user.username.includes("@") ? session.user.username : undefined),
     phone: session.user.phone,
-    displayName: session.user.displayName || session.user.username,
+    displayName: session.user.displayName || humanizeIdentifier(session.user.username) || session.user.username,
     mustChangePasswordAtFirstLogin: false,
     status: session.user.status || "ACTIVE",
     isActive: true,
@@ -168,7 +195,7 @@ const buildFallbackProfile = (
 };
 
 const profileFormFrom = (profile: UserSelfProfile): ProfileFormState => ({
-  displayName: profile.user.displayName || profile.user.username || "",
+  displayName: buildFullName(profile.user),
   firstName: profile.user.firstName || "",
   lastName: profile.user.lastName || "",
   phone: profile.user.phone || ""
@@ -186,11 +213,6 @@ const preferencesFrom = (
   pushNotificationsEnabled: profile.preferences?.systemNotificationsEnabled ?? true
 });
 
-const buildFullName = (account: UserAccount): string => {
-  const names = [account.firstName, account.lastName].map((item) => item?.trim()).filter(Boolean);
-  return names.join(" ") || account.displayName || account.username;
-};
-
 const mapActivity = (item: UserActivityItem, locale: string): PremiumActivityItem => {
   const action = `${item.action} ${item.resource}`.toLowerCase();
   if (action.includes("password")) {
@@ -205,25 +227,40 @@ const mapActivity = (item: UserActivityItem, locale: string): PremiumActivityIte
   return { id: item.id, icon: "activity", tone: "orange", title: item.action, time: formatActivityTime(item.createdAt, locale) };
 };
 
-const buildDefaultActivity = (account: UserAccount, locale: string): PremiumActivityItem[] => [
+const buildLocalActivity = (account: UserAccount, locale: string): PremiumActivityItem[] => {
+  const items: PremiumActivityItem[] = [];
+  if (account.lastLoginAt) {
+    items.push({
+      id: "last-login",
+      icon: "shield",
+      tone: "green",
+      title: "Connexion réussie",
+      time: formatActivityTime(account.lastLoginAt, locale)
+    });
+  }
+  if (account.updatedAt) {
+    items.push({
+      id: "profile-update",
+      icon: "edit",
+      tone: "blue",
+      title: "Modification du profil",
+      time: formatActivityTime(account.updatedAt, locale)
+    });
+  }
+  return items;
+};
+
+const buildLocalSessions = (account: UserAccount): UserSessionItem[] => [
   {
-    id: "last-login",
-    icon: "shield",
-    tone: "green",
-    title: "Connexion réussie",
-    time: account.lastLoginAt ? formatActivityTime(account.lastLoginAt, locale) : "Aujourd’hui à 09:42"
-  },
-  {
-    id: "profile-update",
-    icon: "edit",
-    tone: "blue",
-    title: "Modification du profil",
-    time: account.updatedAt ? formatActivityTime(account.updatedAt, locale) : "Hier à 16:30"
-  },
-  { id: "class-created", icon: "school", tone: "orange", title: "Création d’une classe", time: "14 mai à 11:20" },
-  { id: "student-added", icon: "student", tone: "green", title: "Ajout d’un élève", time: "13 mai à 15:45" },
-  { id: "grades-export", icon: "export", tone: "purple", title: "Export des notes", time: "12 mai à 10:15" }
+    id: "current-session",
+    label: "Session actuelle",
+    createdAt: account.lastLoginAt || new Date().toISOString(),
+    expiresAt: ""
+  }
 ];
+
+const formatSessionCount = (count: number): string =>
+  count > 1 ? `${count} sessions actives` : "1 session active";
 
 export function ProfileScreen({
   api,
@@ -231,6 +268,7 @@ export function ProfileScreen({
   locale,
   onError,
   onLanguageChange,
+  onLogoutAllDevices,
   onNotice,
   onProfileChange,
   onThemeChange,
@@ -274,6 +312,10 @@ export function ProfileScreen({
   const [profileErrors, setProfileErrors] = useState<FieldErrors>({});
   const [passwordErrors, setPasswordErrors] = useState<FieldErrors>({});
   const [activityRows, setActivityRows] = useState<UserActivityItem[]>([]);
+  const [sessionsState, setSessionsState] = useState<RemoteRowsState<UserSessionItem>>({
+    status: "idle",
+    rows: []
+  });
 
   useEffect(() => {
     setProfile(fallbackProfile);
@@ -286,6 +328,7 @@ export function ProfileScreen({
     if (!remoteEnabled) {
       setLoading(false);
       setActivityRows([]);
+      setSessionsState({ status: "available", rows: buildLocalSessions(fallbackProfile.user) });
       onProfileChange?.(fallbackProfile);
       return () => {
         cancelled = true;
@@ -306,6 +349,14 @@ export function ProfileScreen({
             if (!cancelled) setActivityRows(items);
           })
           .catch(() => undefined);
+        setSessionsState((current) => ({ status: "loading", rows: current.rows }));
+        fetchMySessions(api)
+          .then((items) => {
+            if (!cancelled) setSessionsState({ status: "available", rows: items });
+          })
+          .catch(() => {
+            if (!cancelled) setSessionsState({ status: "unavailable", rows: [] });
+          });
       } catch (error) {
         if (!cancelled) onError(error instanceof Error ? error.message : "Profil utilisateur indisponible.");
       } finally {
@@ -331,19 +382,27 @@ export function ProfileScreen({
   const statusLabel = lookup(STATUS_LABELS, account.status);
   const activityItems = useMemo(() => {
     const mapped = activityRows.map((item) => mapActivity(item, locale));
-    return remoteEnabled ? mapped.slice(0, 5) : [...mapped, ...buildDefaultActivity(account, locale)].slice(0, 5);
+    return remoteEnabled ? mapped.slice(0, 5) : [...mapped, ...buildLocalActivity(account, locale)].slice(0, 5);
   }, [account, activityRows, locale, remoteEnabled]);
+  const activeSessionsLabel =
+    sessionsState.status === "loading"
+      ? "Chargement"
+      : sessionsState.rows.length > 0
+        ? formatSessionCount(sessionsState.rows.length)
+        : "1 session active";
   const personalInfoRows: ProfileInfoRow[] = [
-    { label: "Nom complet", value: fullName },
-    { label: "Date de naissance", value: "À renseigner" },
-    { label: "Adresse", value: "À renseigner" },
-    { label: "Sexe", value: "À renseigner" },
-    { label: "Nationalité", value: "À renseigner" },
-    { label: "Téléphone", value: emptyLabel(account.phone) }
+    { label: "Nom affiché", value: fullName },
+    { label: "Prénom", value: emptyLabel(account.firstName) },
+    { label: "Nom", value: emptyLabel(account.lastName) },
+    { label: "Email principal", value: email },
+    { label: "Téléphone", value: emptyLabel(account.phone) },
+    { label: "Type de compte", value: accountTypeLabel },
+    { label: "Statut", value: statusLabel },
+    { label: "Dernière connexion", value: lastLoginLabel }
   ];
   const bio =
     account.notes?.trim() ||
-    `J’accompagne l’équipe ${schoolName} dans le suivi administratif, la sécurité des accès et la qualité des données scolaires.`;
+    `Compte utilisateur rattaché à ${schoolName}. Les informations affichées proviennent du profil et de la session active.`;
 
   const applyProfile = (nextProfile: UserSelfProfile): void => {
     setProfile(nextProfile);
@@ -499,6 +558,31 @@ export function ProfileScreen({
     }
   };
 
+  const revokeAllSessions = async (): Promise<void> => {
+    try {
+      if (remoteEnabled) {
+        const result = await logoutAllMySessions(api);
+        onNotice(`${result.message} Vous allez être déconnecté.`);
+      } else {
+        onNotice("Session locale fermée.");
+      }
+      await onLogoutAllDevices?.();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Sessions non révoquées.");
+    }
+  };
+
+  const describeSessions = (): void => {
+    if (sessionsState.rows.length === 0) {
+      onNotice("Session actuelle active. Aucun autre appareil détecté.");
+      return;
+    }
+
+    const latest = sessionsState.rows[0];
+    const startedAt = formatDateTime(latest.createdAt, locale);
+    onNotice(`${formatSessionCount(sessionsState.rows.length)}. Dernière ouverture : ${startedAt}.`);
+  };
+
   const submitPreferences = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     setSavingPreferences(true);
@@ -558,7 +642,7 @@ export function ProfileScreen({
         setIsEditingProfile(false);
       }}
       onChangePasswordField={(key, value) => setPasswordForm((previous) => ({ ...previous, [key]: value }))}
-      onLogoutAllDevices={() => onNotice("La gestion détaillée des sessions sera disponible dans l’espace sécurité.")}
+      onLogoutAllDevices={() => void revokeAllSessions()}
       onOpenAvatarPicker={() => avatarInputRef.current?.click()}
       onOpenPasswordEditor={() => setPasswordPanelOpen((previous) => !previous)}
       onOpenProfileEditor={() => setIsEditingProfile(true)}
@@ -571,7 +655,7 @@ export function ProfileScreen({
       onTogglePasswordVisibility={(key) =>
         setVisiblePasswordFields((previous) => ({ ...previous, [key]: !previous[key] }))
       }
-      onViewSessions={() => onNotice("La gestion détaillée des sessions n’est pas encore disponible.")}
+      onViewSessions={describeSessions}
       onViewPermissions={() => onNotice("Les permissions détaillées restent gérées dans Utilisateurs & droits.")}
       passwordErrors={passwordErrors}
       passwordForm={passwordForm}
@@ -587,9 +671,8 @@ export function ProfileScreen({
       schoolName={schoolName}
       schoolYearLabel={schoolYearLabel}
       security={{
-        twoFactorEnabled: !remoteEnabled,
-        twoFactorLabel: remoteEnabled ? "Non configurée" : "Activée",
-        activeSessionsLabel: remoteEnabled ? "Non disponible" : "2 appareils"
+        passwordPolicyLabel: "12 caractères + complexité",
+        activeSessionsLabel
       }}
       statusLabel={statusLabel}
       t={t}

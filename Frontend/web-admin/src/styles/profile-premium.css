@@ -7,8 +7,8 @@
   --profile-text: #0f172a;
   --profile-muted: #64748b;
   --profile-muted-strong: #475569;
-  --profile-accent: #2563eb;
-  --profile-accent-soft: #eaf2ff;
+  --profile-accent: #51ced8;
+  --profile-accent-soft: #e8fbfd;
   --profile-success: #16a34a;
   --profile-success-soft: #eafaf0;
   --profile-radius: 1rem;
@@ -16,7 +16,7 @@
   display: grid;
   gap: 1.45rem;
   padding: clamp(0.8rem, 1.35vw, 1.35rem);
-  border-radius: 1.15rem;
+  border-radius: 0;
   background:
     radial-gradient(circle at 16% -10%, rgba(37, 99, 235, 0.08), transparent 34rem),
     var(--profile-bg);
@@ -60,9 +60,10 @@
 
 .premium-profile-hero {
   display: grid;
-  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr) minmax(18rem, 25rem);
+  grid-template-columns: minmax(8rem, 11rem) minmax(0, 1.05fr) minmax(17rem, 0.95fr);
   gap: clamp(1.2rem, 2vw, 2rem);
   align-items: center;
+  overflow: hidden;
   padding: clamp(1.5rem, 2.3vw, 2.2rem);
 }
 
@@ -158,18 +159,24 @@
 
 .premium-profile-hero-main {
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   display: grid;
   align-content: center;
   gap: 0.72rem;
 }
 
 .premium-profile-hero-main h2 {
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   color: var(--profile-text);
   font-family: var(--erp-font-title);
-  font-size: clamp(1.8rem, 1.25rem + 1.8vw, 2.8rem);
-  line-height: 1.05;
+  font-size: clamp(1.55rem, 1.05rem + 1.35vw, 2.3rem);
+  line-height: 1.08;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .premium-profile-hero-main p {
@@ -190,6 +197,7 @@
 }
 
 .premium-role-badge {
+  max-width: 100%;
   width: fit-content;
   display: inline-flex;
   align-items: center;
@@ -208,6 +216,8 @@
 }
 
 .premium-profile-bio {
+  min-width: 0;
+  overflow: hidden;
   min-height: 10.5rem;
   display: grid;
   align-content: center;
@@ -234,6 +244,7 @@
   margin: 0;
   color: var(--profile-muted-strong);
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .premium-profile-mini-context {
@@ -243,6 +254,8 @@
 }
 
 .premium-profile-mini-context span {
+  min-width: 0;
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 0.38rem;
@@ -252,6 +265,9 @@
   color: var(--profile-muted-strong);
   font-size: 0.82rem;
   font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .premium-profile-grid {
@@ -308,6 +324,7 @@
 }
 
 .premium-password-summary {
+  min-width: 0;
   display: flex !important;
   align-items: center;
   justify-content: space-between;
@@ -369,6 +386,10 @@
   background: color-mix(in srgb, var(--profile-accent-soft) 40%, #ffffff);
 }
 
+.premium-password-editor {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .premium-profile-edit-form.visible {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -422,17 +443,37 @@
 
 .premium-password-input {
   position: relative;
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.8rem;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.72rem;
+  background: #ffffff;
 }
 
 .premium-password-input input {
-  padding-right: 3.35rem;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding-right: 0.4rem;
+  box-shadow: none;
+}
+
+.premium-password-input:focus-within {
+  border-color: var(--profile-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--profile-accent) 22%, transparent);
+}
+
+.premium-password-input input:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .premium-password-input button {
-  position: absolute;
-  top: 50%;
-  right: 0.42rem;
+  position: static;
+  justify-self: center;
   width: 2.35rem;
   height: 2.35rem;
   min-width: 2.35rem;
@@ -445,13 +486,23 @@
   justify-content: center;
   padding: 0;
   line-height: 1;
-  transform: translateY(-50%);
+  transform: none;
   border: 1px solid #d8e0ea;
   border-radius: 0.62rem;
   background: #f8fafc;
   color: var(--profile-muted-strong);
   cursor: pointer;
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.premium-password-editor .premium-password-field:nth-of-type(3),
+.premium-password-editor .premium-password-hint,
+.premium-password-editor > .premium-profile-primary {
+  grid-column: 1 / -1;
+}
+
+.premium-password-editor > .premium-profile-primary {
+  justify-self: start;
 }
 
 .premium-password-input button:hover,
@@ -542,8 +593,8 @@
 .premium-profile-primary {
   border: 1px solid color-mix(in srgb, var(--profile-accent) 82%, #0f172a);
   background: var(--profile-accent);
-  color: #ffffff;
-  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+  color: #061014;
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--profile-accent) 28%, transparent);
 }
 
 .premium-profile-secondary {
@@ -674,9 +725,16 @@
 :root[data-theme="dark"] .premium-profile-secondary,
 :root[data-theme="dark"] .premium-row-action,
 :root[data-theme="dark"] .premium-profile-edit-form input,
+:root[data-theme="dark"] .premium-password-input,
 :root[data-theme="dark"] .premium-password-input input {
   background: var(--profile-card);
   color: var(--profile-text);
+}
+
+:root[data-theme="dark"] .premium-avatar-camera {
+  border-color: #d8e0ea;
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 :root[data-theme="dark"] .premium-profile-edit-form.visible,
@@ -762,6 +820,7 @@
   .premium-select-row,
   .premium-switch-row,
   .premium-activity-row,
+  .premium-password-editor,
   .premium-profile-edit-form.visible {
     grid-template-columns: 1fr;
     gap: 0.35rem;

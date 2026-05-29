@@ -313,6 +313,27 @@ async function runProfile(browser, viewportName, theme) {
   await context.close();
 }
 
+async function runPilotage(browser, viewportName, theme) {
+  const context = await createContext(browser, viewports[viewportName], theme);
+  const page = await context.newPage();
+  await openPreview(page);
+  await openModule(page, /Pilotage/u, /Pilotage/u);
+  const label = `pilotage-${viewportName}-${theme}`;
+  await auditNoHorizontalOverflow(page, label);
+  await auditRequiredText(page, label, [
+    "CONSOLE OPÉRATIONNELLE",
+    "Scolarité",
+    "Vie scolaire",
+    "Finance",
+    "À traiter en priorité",
+    "Inscriptions",
+    "Notes & bulletins"
+  ]);
+  await auditForbiddenText(page, label, ["Tableau de bord", "données fictives", "mock"]);
+  await capture(page, label, { fullPage: viewportName !== "desktop" });
+  await context.close();
+}
+
 async function runGrades(browser, viewportName, theme) {
   const context = await createContext(browser, viewports[viewportName], theme);
   const page = await context.newPage();
@@ -389,6 +410,11 @@ async function main() {
     await runProfile(browser, "desktop", "dark");
     await runProfile(browser, "tablet", "light");
     await runProfile(browser, "mobile", "light");
+
+    await runPilotage(browser, "desktop", "light");
+    await runPilotage(browser, "desktop", "dark");
+    await runPilotage(browser, "tablet", "light");
+    await runPilotage(browser, "mobile", "light");
 
     await runGrades(browser, "desktop", "light");
     await runGrades(browser, "mobile", "light");

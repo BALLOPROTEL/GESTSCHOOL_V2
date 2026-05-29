@@ -84,9 +84,11 @@ describe("ProfileScreen", () => {
     expect(screen.getByRole("heading", { name: "Préférences" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Activité récente" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Mes rôles et permissions" })).toBeInTheDocument();
-    expect(screen.getByText(/20 mai 2026/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/20 mai 2026/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/passwordHash/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/refreshToken/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Politique mot de passe")).toBeInTheDocument();
+    expect(screen.getByText("1 session active")).toBeInTheDocument();
   });
 
   it("ouvre l’édition du profil et expose les champs personnels modifiables", async () => {
@@ -99,6 +101,33 @@ describe("ProfileScreen", () => {
     expect(screen.getByLabelText("Prénom")).toBeInTheDocument();
     expect(screen.getByLabelText("Nom")).toBeInTheDocument();
     expect(screen.getByLabelText("Téléphone")).toHaveValue("+22370000000");
+  });
+
+  it("garde une identité lisible quand le compte utilise un email comme nom", () => {
+    const emailOnlyUser: UserAccount = {
+      ...user,
+      username: "leprotel@gmail.com",
+      email: "leprotel@gmail.com",
+      displayName: "leprotel@gmail.com",
+      firstName: undefined,
+      lastName: undefined
+    };
+
+    renderProfile({
+      session: {
+        ...session,
+        user: {
+          ...session.user,
+          username: "leprotel@gmail.com",
+          email: "leprotel@gmail.com",
+          displayName: "leprotel@gmail.com"
+        }
+      },
+      users: [emailOnlyUser]
+    });
+
+    expect(screen.getByRole("heading", { name: "leprotel" })).toBeInTheDocument();
+    expect(screen.getAllByText("leprotel@gmail.com").length).toBeGreaterThan(0);
   });
 
   it("refuse un avatar non image et un avatar trop lourd côté frontend", () => {
@@ -197,15 +226,85 @@ describe("ProfileScreen", () => {
           headers: { "Content-Type": "application/json" }
         });
       }
+      if (path === "/users/me/sessions") {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "session-1",
+              label: "Session active",
+              createdAt: "2026-05-20T09:30:00.000Z",
+              expiresAt: "2026-06-20T09:30:00.000Z"
+            },
+            {
+              id: "session-2",
+              label: "Session 2",
+              createdAt: "2026-05-19T09:30:00.000Z",
+              expiresAt: "2026-06-19T09:30:00.000Z"
+            }
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
       return new Response("{}", { status: 404 });
     });
 
     renderProfile({ api, remoteEnabled: true });
 
     await waitFor(() => expect(api).toHaveBeenCalledWith("/users/me", undefined, true, { background: true }));
+    expect(await screen.findByText("2 sessions actives")).toBeInTheDocument();
     expect(await screen.findByText("Aucune activité récente disponible.")).toBeInTheDocument();
     expect(screen.queryByText("Création d’une classe")).not.toBeInTheDocument();
     expect(screen.queryByText("Export des notes")).not.toBeInTheDocument();
+  });
+
+  it("révoque les sessions et déclenche la fermeture locale", async () => {
+    const browserUser = userEvent.setup();
+    const onLogoutAllDevices = vi.fn();
+    const api = vi.fn(async (path: string) => {
+      if (path === "/users/me") {
+        return new Response(
+          JSON.stringify({
+            user,
+            context: {
+              tenantId: "tenant-1",
+              tenantName: "Al Manarat Islamiyat",
+              activeSchoolYear: {
+                id: schoolYear.id,
+                code: schoolYear.code,
+                label: schoolYear.label,
+                status: schoolYear.status,
+                isActive: schoolYear.isActive
+              },
+              timeZone: "Europe/Paris"
+            },
+            preferences: {},
+            permissions: []
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      if (path === "/users/me/activity" || path === "/users/me/sessions") {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      if (path === "/users/me/logout-all-devices") {
+        return new Response(JSON.stringify({ message: "Toutes les sessions ont été révoquées.", revokedSessions: 1 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return new Response("{}", { status: 404 });
+    });
+
+    renderProfile({ api, onLogoutAllDevices, remoteEnabled: true });
+
+    await screen.findByText("Aucune activité récente disponible.");
+    await browserUser.click(screen.getByRole("button", { name: "Se déconnecter de tous les appareils" }));
+
+    expect(api).toHaveBeenCalledWith("/users/me/logout-all-devices", { method: "POST" });
+    expect(onLogoutAllDevices).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -66,6 +66,12 @@ type AlertItem = {
   tone: "warning" | "danger" | "info";
 };
 
+type QuickAction = {
+  label: string;
+  hint: string;
+  screen: ScreenId;
+};
+
 const TRACK_LABELS: Record<AcademicTrack, string> = {
   FRANCOPHONE: "Francophone",
   ARABOPHONE: "Arabophone"
@@ -194,6 +200,30 @@ function PilotageAlertList({
           </article>
         ))}
       </div>
+    </section>
+  );
+}
+
+function PilotageQuickActions({
+  actions,
+  onSelectScreen
+}: {
+  actions: QuickAction[];
+  onSelectScreen: (screen: ScreenId) => void;
+}): JSX.Element {
+  return (
+    <section className="pilotage-quick-actions" aria-label="Actions rapides de pilotage">
+      {actions.map((action) => (
+        <button
+          key={action.screen}
+          type="button"
+          className="pilotage-quick-action"
+          onClick={() => onSelectScreen(action.screen)}
+        >
+          <strong>{action.label}</strong>
+          <span>{action.hint}</span>
+        </button>
+      ))}
     </section>
   );
 }
@@ -617,6 +647,33 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
       tone: missingReportCardsCount && missingReportCardsCount > 0 ? "warning" : "info"
     }
   ];
+  const quickActions: QuickAction[] = [
+    {
+      label: "Inscriptions",
+      hint: `${incompleteEnrollments.length} dossier(s) à vérifier`,
+      screen: "enrollments"
+    },
+    {
+      label: "Élèves",
+      hint: `${studentsWithoutClass.length} sans classe`,
+      screen: "students"
+    },
+    {
+      label: "Comptabilité",
+      hint: `${openInvoices.length} facture(s) à suivre`,
+      screen: "finance"
+    },
+    {
+      label: "Notes & bulletins",
+      hint: missingReportCardsCount === null ? "Choisir une période" : `${missingReportCardsCount} bulletin(s) manquant(s)`,
+      screen: "grades"
+    },
+    {
+      label: "Absences",
+      hint: attendanceState.status === "available" ? `${attendanceState.data?.byStatus.ABSENT ?? 0} absence(s)` : "Synthèse à charger",
+      screen: "schoolLifeAttendance"
+    }
+  ];
 
   return (
     <section className="pilotage-screen" aria-labelledby="pilotage-title">
@@ -725,6 +782,8 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
           </select>
         </label>
       </section>
+
+      <PilotageQuickActions actions={quickActions} onSelectScreen={onSelectScreen} />
 
       <div className="pilotage-grid">
         <PilotageDomainCard

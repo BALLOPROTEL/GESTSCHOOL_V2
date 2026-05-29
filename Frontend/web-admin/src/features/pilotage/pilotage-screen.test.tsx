@@ -207,6 +207,7 @@ describe("PilotageScreen", () => {
     expect(screen.getByRole("region", { name: /vie-scolaire/i })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: /finance/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "À traiter en priorité" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Actions rapides de pilotage" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Tableau de bord" })).not.toBeInTheDocument();
   });
 
@@ -235,6 +236,7 @@ describe("PilotageScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Traiter" }));
     fireEvent.click(screen.getByRole("button", { name: "Relancer" }));
     fireEvent.click(screen.getByRole("button", { name: "Générer" }));
+    fireEvent.click(screen.getByRole("button", { name: /Notes & bulletins/i }));
 
     expect(onSelectScreen).toHaveBeenCalledWith("enrollments");
     expect(onSelectScreen).toHaveBeenCalledWith("finance");
