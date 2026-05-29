@@ -255,8 +255,8 @@ describe("Provider integrations (e2e)", () => {
     const previousStorageProvider = process.env.STORAGE_PROVIDER;
     const previousFileStorageDriver = process.env.FILE_STORAGE_DRIVER;
     process.env.NODE_ENV = "production";
-    delete process.env.STORAGE_PROVIDER;
-    delete process.env.FILE_STORAGE_DRIVER;
+    process.env.STORAGE_PROVIDER = "LOCAL";
+    process.env.FILE_STORAGE_DRIVER = "LOCAL";
 
     try {
       const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");

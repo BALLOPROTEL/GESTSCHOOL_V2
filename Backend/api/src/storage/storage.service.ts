@@ -73,10 +73,12 @@ export class StorageService {
       .get<string>("FILE_STORAGE_DRIVER", "")
       .trim()
       .toUpperCase();
+    const isLocalStorageRequested =
+      (!configuredProvider || configuredProvider === "LOCAL") &&
+      (!configuredDriver || configuredDriver === "LOCAL");
 
     if (
-      !configuredProvider &&
-      (!configuredDriver || configuredDriver === "LOCAL") &&
+      isLocalStorageRequested &&
       this.isProduction() &&
       this.hasSupabaseRuntimeConfig()
     ) {
