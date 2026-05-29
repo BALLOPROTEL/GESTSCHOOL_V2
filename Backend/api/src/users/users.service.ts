@@ -304,6 +304,25 @@ export class UsersService {
     if (normalized.includes("bucket") && normalized.includes("not found")) {
       return "Le bucket Supabase des avatars est introuvable. Créez le bucket gestschool-avatars ou vérifiez SUPABASE_STORAGE_BUCKET_AVATARS.";
     }
+    if (normalized.includes("(404)")) {
+      return "Supabase Storage renvoie 404. Vérifiez SUPABASE_URL côté API : elle doit ressembler à https://<project-ref>.supabase.co, sans /storage/v1.";
+    }
+    if (
+      normalized.includes("row-level security") ||
+      normalized.includes("violates row-level security") ||
+      normalized.includes("rls")
+    ) {
+      return "Supabase bloque l’écriture Storage par une policy RLS. Vérifiez que SUPABASE_SERVICE_ROLE_KEY est la clé service_role et que le bucket avatars accepte les uploads serveur.";
+    }
+    if (normalized.includes("invalid api key") || normalized.includes("api key")) {
+      return "Supabase refuse la clé API. Vérifiez SUPABASE_SERVICE_ROLE_KEY dans Render et recolle la clé service_role complète.";
+    }
+    if (normalized.includes("(413)") || normalized.includes("payload too large")) {
+      return "L’image est trop lourde pour Supabase Storage. Utilisez une image JPG, PNG ou WebP de 2 Mo maximum.";
+    }
+    if (normalized.includes("(415)") || normalized.includes("mime")) {
+      return "Supabase refuse le type de fichier. Utilisez uniquement JPG, PNG ou WebP.";
+    }
     if (
       normalized.includes("fetch failed") ||
       normalized.includes("enotfound") ||
@@ -312,7 +331,18 @@ export class UsersService {
       return "Supabase Storage est inaccessible depuis l’API. Vérifiez SUPABASE_URL et la connectivité Render.";
     }
 
-    return "Le stockage de la photo de profil est temporairement indisponible. Réessayez dans quelques instants.";
+    return `Le stockage avatar Supabase est indisponible. Diagnostic sécurisé : ${this.sanitizeAvatarStorageDiagnostic(message)}.`;
+  }
+
+  private sanitizeAvatarStorageDiagnostic(message: string): string {
+    return (
+      message
+        .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [masqué]")
+        .replace(/apikey["':=\s]+[A-Za-z0-9._-]+/gi, "apikey [masqué]")
+        .replace(/service[_-]?role[_-]?key["':=\s]+[A-Za-z0-9._-]+/gi, "service_role_key [masqué]")
+        .replace(/[A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{24,}/g, "[jwt masqué]")
+        .slice(0, 320) || "erreur Supabase non détaillée"
+    );
   }
 
   async removeMyAvatar(tenantId: string, userId: string): Promise<MyProfileView> {
