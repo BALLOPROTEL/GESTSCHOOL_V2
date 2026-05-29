@@ -1,7 +1,14 @@
 import { randomBytes } from "node:crypto";
 
 import { compare, hash } from "bcryptjs";
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException
+} from "@nestjs/common";
 import { Prisma, type User } from "@prisma/client";
 
 import { AuditService } from "../audit/audit.service";
@@ -114,6 +121,8 @@ export type MySessionView = {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly auditService: AuditService,
     private readonly authService: AuthService,
@@ -213,13 +222,7 @@ export class UsersService {
     }
 
     const existing = await this.requireUser(tenantId, userId);
-    const stored = await this.storageService.uploadUserAvatar({
-      tenantId,
-      userId,
-      fileName: file.originalname,
-      mimeType: file.mimetype,
-      buffer: file.buffer
-    });
+    const stored = await this.uploadAvatarToStorage(tenantId, userId, file);
 
     const updated = await this.prisma.$transaction(async (transaction) => {
       await transaction.user.update({
@@ -255,6 +258,30 @@ export class UsersService {
     });
 
     return this.toMyProfileView(updated);
+  }
+
+  private async uploadAvatarToStorage(
+    tenantId: string,
+    userId: string,
+    file: { originalname: string; mimetype: string; buffer: Buffer }
+  ) {
+    try {
+      return await this.storageService.uploadUserAvatar({
+        tenantId,
+        userId,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        buffer: file.buffer
+      });
+    } catch (error) {
+      this.logger.error(
+        `Unable to upload avatar for user ${userId}`,
+        error instanceof Error ? error.stack : undefined
+      );
+      throw new ServiceUnavailableException(
+        "Le stockage de la photo de profil est temporairement indisponible. Réessayez dans quelques instants."
+      );
+    }
   }
 
   async removeMyAvatar(tenantId: string, userId: string): Promise<MyProfileView> {

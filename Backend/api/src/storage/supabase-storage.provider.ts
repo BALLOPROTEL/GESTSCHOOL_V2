@@ -50,7 +50,9 @@ export class SupabaseStorageProvider implements StorageProvider {
     const bucket = this.bucketName(bucketKind);
     const fileName = this.sanitizeFileName(input.fileName);
     const key = this.buildObjectPath(input, bucketKind, fileName);
-    const body = Uint8Array.from(buffer).buffer;
+    const body = new Uint8Array(buffer);
+
+    await this.ensureBucketReady(bucket, bucketKind);
 
     await this.fetchJson(
       `${this.storageBaseUrl()}/object/${encodeURIComponent(bucket)}/${this.encodeObjectKey(key)}`,
@@ -70,10 +72,57 @@ export class SupabaseStorageProvider implements StorageProvider {
       fileName: input.fileName.trim(),
       mimeType: input.mimeType,
       key,
-      fileUrl: this.authenticatedObjectUrl(bucket, key),
+      fileUrl: this.objectUrl(bucket, key, bucketKind),
       bucket,
       size: buffer.byteLength
     };
+  }
+
+  private async ensureBucketReady(bucket: string, bucketKind: StorageBucketKind): Promise<void> {
+    if (bucketKind !== "avatars") {
+      return;
+    }
+
+    const bucketUrl = `${this.storageBaseUrl()}/bucket/${encodeURIComponent(bucket)}`;
+    const existingBucket = await this.fetchOptionalJson(
+      bucketUrl,
+      {
+        method: "GET",
+        headers: this.headers()
+      },
+      [404]
+    );
+
+    if (!existingBucket) {
+      await this.fetchOptionalJson(
+        `${this.storageBaseUrl()}/bucket`,
+        {
+          method: "POST",
+          headers: this.headers(),
+          body: JSON.stringify({
+            id: bucket,
+            name: bucket,
+            public: this.avatarsArePublic(),
+            file_size_limit: this.avatarMaxBytes(),
+            allowed_mime_types: ["image/jpeg", "image/png", "image/webp"]
+          })
+        },
+        [409]
+      );
+      return;
+    }
+
+    if (this.avatarsArePublic() && existingBucket.public === false) {
+      await this.fetchJson(bucketUrl, {
+        method: "PUT",
+        headers: this.headers(),
+        body: JSON.stringify({
+          public: true,
+          file_size_limit: this.avatarMaxBytes(),
+          allowed_mime_types: ["image/jpeg", "image/png", "image/webp"]
+        })
+      });
+    }
   }
 
   private async createSignedUploadUrl(
@@ -170,6 +219,13 @@ export class SupabaseStorageProvider implements StorageProvider {
     return `${this.storageBaseUrl()}/object/authenticated/${encodeURIComponent(bucket)}/${this.encodeObjectKey(key)}`;
   }
 
+  private objectUrl(bucket: string, key: string, bucketKind: StorageBucketKind): string {
+    if (bucketKind === "avatars" && this.avatarsArePublic()) {
+      return `${this.storageBaseUrl()}/object/public/${encodeURIComponent(bucket)}/${this.encodeObjectKey(key)}`;
+    }
+    return this.authenticatedObjectUrl(bucket, key);
+  }
+
   private uploadUrlFromToken(bucket: string, key: string, token: string): string {
     return (
       `${this.storageBaseUrl()}/object/upload/sign/${encodeURIComponent(bucket)}/` +
@@ -190,7 +246,37 @@ export class SupabaseStorageProvider implements StorageProvider {
     return `${this.storageBaseUrl()}/${url}`;
   }
 
+  private async fetchOptionalJson(
+    url: string,
+    init: RequestInit,
+    optionalStatuses: number[]
+  ): Promise<JsonObject | null> {
+    const response = await this.fetchStorage(url, init);
+    if (response.ok) {
+      return response.parsed;
+    }
+    if (optionalStatuses.includes(response.status)) {
+      return null;
+    }
+    throw new Error(
+      `Supabase Storage request failed (${response.status}): ${this.safeErrorText(response.parsed)}`
+    );
+  }
+
   private async fetchJson(url: string, init: RequestInit): Promise<JsonObject> {
+    const response = await this.fetchStorage(url, init);
+    if (!response.ok) {
+      throw new Error(
+        `Supabase Storage request failed (${response.status}): ${this.safeErrorText(response.parsed)}`
+      );
+    }
+    return response.parsed;
+  }
+
+  private async fetchStorage(
+    url: string,
+    init: RequestInit
+  ): Promise<{ ok: boolean; parsed: JsonObject; status: number }> {
     const timeoutMs = Number(this.configService.get<string>("SUPABASE_STORAGE_TIMEOUT_MS", "10000"));
     const effectiveTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 10000;
     const abortController = new AbortController();
@@ -202,13 +288,22 @@ export class SupabaseStorageProvider implements StorageProvider {
       });
       const raw = await response.text();
       const parsed = this.asObject(this.parseMaybeJson(raw));
-      if (!response.ok) {
-        throw new Error(`Supabase Storage request failed (${response.status}): ${this.safeErrorText(parsed)}`);
-      }
-      return parsed;
+      return { ok: response.ok, parsed, status: response.status };
     } finally {
       clearTimeout(timeoutHandle);
     }
+  }
+
+  private avatarsArePublic(): boolean {
+    return this.configService
+      .get<string>("SUPABASE_STORAGE_AVATARS_PUBLIC", "true")
+      .trim()
+      .toLowerCase() !== "false";
+  }
+
+  private avatarMaxBytes(): number {
+    const raw = Number(this.configService.get<string>("USER_AVATAR_MAX_BYTES", `${2 * 1024 * 1024}`));
+    return Number.isFinite(raw) && raw > 0 ? raw : 2 * 1024 * 1024;
   }
 
   private requiredConfig(key: string): string {

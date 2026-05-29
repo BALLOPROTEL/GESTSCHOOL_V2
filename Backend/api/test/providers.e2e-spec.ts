@@ -77,6 +77,16 @@ describe("Provider integrations (e2e)", () => {
           token: "signed-upload-token"
         });
       }
+      if (url.includes("/storage/v1/bucket/gestschool-avatars")) {
+        return jsonResponse({
+          id: "gestschool-avatars",
+          name: "gestschool-avatars",
+          public: true
+        });
+      }
+      if (url.includes("/storage/v1/object/gestschool-avatars/")) {
+        return jsonResponse({ Key: "avatar-object-key" });
+      }
       if (url.includes("/v3/smtp/email")) {
         return jsonResponse({ messageId: "<brevo-message-id>" });
       }
@@ -238,6 +248,35 @@ describe("Provider integrations (e2e)", () => {
     expect(descriptor.body.key).toContain(`tenants/${TENANT_ID}/students/${baseline.studentOneId}`);
     expect(descriptor.body.uploadUrl).toContain("/storage/v1/object/upload/sign/");
     expect(JSON.stringify(descriptor.body)).not.toContain("test-service-role-key");
+  });
+
+  it("uploads authenticated user avatars to the public Supabase avatar bucket", async () => {
+    const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+
+    const response = await request(context.app.getHttpServer())
+      .post("/api/v1/users/me/avatar")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .attach("file", Buffer.from([137, 80, 78, 71]), {
+        filename: "avatar.png",
+        contentType: "image/png"
+      })
+      .expect(201);
+
+    expect(response.body.user.avatarUrl).toContain(
+      "/storage/v1/object/public/gestschool-avatars/"
+    );
+    expect(response.body.user.avatarUrl).toContain(`tenants/${TENANT_ID}/avatars/`);
+    expect(JSON.stringify(response.body)).not.toContain("test-service-role-key");
+
+    const persistedUser = await context.prisma.user.findUniqueOrThrow({
+      where: {
+        tenantId_username: {
+          tenantId: TENANT_ID,
+          username: "admin@gestschool.local"
+        }
+      }
+    });
+    expect(persistedUser.avatarUrl).toBe(response.body.user.avatarUrl);
   });
 
   it("dispatches Brevo email through provider API and keeps SMS in dry-run by default", async () => {
