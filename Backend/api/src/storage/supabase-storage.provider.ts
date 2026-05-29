@@ -13,6 +13,17 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
+class SupabaseStorageRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly response: JsonObject,
+    readonly raw: string
+  ) {
+    super(message);
+  }
+}
+
 @Injectable()
 export class SupabaseStorageProvider implements StorageProvider {
   constructor(private readonly configService: ConfigService) {}
@@ -52,19 +63,16 @@ export class SupabaseStorageProvider implements StorageProvider {
     const key = this.buildObjectPath(input, bucketKind, fileName);
     const body = new Uint8Array(buffer);
 
-    await this.ensureBucketReady(bucket, bucketKind);
-
-    await this.fetchJson(
-      `${this.storageBaseUrl()}/object/${encodeURIComponent(bucket)}/${this.encodeObjectKey(key)}`,
-      {
-        method: "POST",
-        headers: {
-          ...this.headers(input.mimeType),
-          "x-upsert": "true"
-        },
-        body
+    try {
+      await this.uploadObject(bucket, key, input.mimeType, body);
+    } catch (error) {
+      if (bucketKind !== "avatars" || !this.isBucketMissingError(error)) {
+        throw error;
       }
-    );
+
+      await this.createAvatarBucket(bucket);
+      await this.uploadObject(bucket, key, input.mimeType, body);
+    }
 
     return {
       driver: "SUPABASE",
@@ -78,51 +86,41 @@ export class SupabaseStorageProvider implements StorageProvider {
     };
   }
 
-  private async ensureBucketReady(bucket: string, bucketKind: StorageBucketKind): Promise<void> {
-    if (bucketKind !== "avatars") {
-      return;
-    }
-
-    const bucketUrl = `${this.storageBaseUrl()}/bucket/${encodeURIComponent(bucket)}`;
-    const existingBucket = await this.fetchOptionalJson(
-      bucketUrl,
+  private async uploadObject(
+    bucket: string,
+    key: string,
+    mimeType: string,
+    body: BodyInit
+  ): Promise<void> {
+    await this.fetchJson(
+      `${this.storageBaseUrl()}/object/${encodeURIComponent(bucket)}/${this.encodeObjectKey(key)}`,
       {
-        method: "GET",
-        headers: this.headers()
-      },
-      [404]
-    );
-
-    if (!existingBucket) {
-      await this.fetchOptionalJson(
-        `${this.storageBaseUrl()}/bucket`,
-        {
-          method: "POST",
-          headers: this.headers(),
-          body: JSON.stringify({
-            id: bucket,
-            name: bucket,
-            public: this.avatarsArePublic(),
-            file_size_limit: this.avatarMaxBytes(),
-            allowed_mime_types: ["image/jpeg", "image/png", "image/webp"]
-          })
+        method: "POST",
+        headers: {
+          ...this.headers(mimeType),
+          "cache-control": "3600",
+          "x-upsert": "true"
         },
-        [409]
-      );
-      return;
-    }
+        body
+      }
+    );
+  }
 
-    if (this.avatarsArePublic() && existingBucket.public === false) {
-      await this.fetchJson(bucketUrl, {
-        method: "PUT",
+  private async createAvatarBucket(bucket: string): Promise<void> {
+    await this.fetchOptionalJson(
+      `${this.storageBaseUrl()}/bucket`,
+      {
+        method: "POST",
         headers: this.headers(),
         body: JSON.stringify({
-          public: true,
+          name: bucket,
+          public: this.avatarsArePublic(),
           file_size_limit: this.avatarMaxBytes(),
           allowed_mime_types: ["image/jpeg", "image/png", "image/webp"]
         })
-      });
-    }
+      },
+      [409]
+    );
   }
 
   private async createSignedUploadUrl(
@@ -258,17 +256,13 @@ export class SupabaseStorageProvider implements StorageProvider {
     if (optionalStatuses.includes(response.status)) {
       return null;
     }
-    throw new Error(
-      `Supabase Storage request failed (${response.status}): ${this.safeErrorText(response.parsed)}`
-    );
+    throw this.createStorageError(response);
   }
 
   private async fetchJson(url: string, init: RequestInit): Promise<JsonObject> {
     const response = await this.fetchStorage(url, init);
     if (!response.ok) {
-      throw new Error(
-        `Supabase Storage request failed (${response.status}): ${this.safeErrorText(response.parsed)}`
-      );
+      throw this.createStorageError(response);
     }
     return response.parsed;
   }
@@ -276,7 +270,7 @@ export class SupabaseStorageProvider implements StorageProvider {
   private async fetchStorage(
     url: string,
     init: RequestInit
-  ): Promise<{ ok: boolean; parsed: JsonObject; status: number }> {
+  ): Promise<{ ok: boolean; parsed: JsonObject; raw: string; status: number }> {
     const timeoutMs = Number(this.configService.get<string>("SUPABASE_STORAGE_TIMEOUT_MS", "10000"));
     const effectiveTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 10000;
     const abortController = new AbortController();
@@ -288,10 +282,38 @@ export class SupabaseStorageProvider implements StorageProvider {
       });
       const raw = await response.text();
       const parsed = this.asObject(this.parseMaybeJson(raw));
-      return { ok: response.ok, parsed, status: response.status };
+      return { ok: response.ok, parsed, raw, status: response.status };
     } finally {
       clearTimeout(timeoutHandle);
     }
+  }
+
+  private createStorageError(response: {
+    parsed: JsonObject;
+    raw: string;
+    status: number;
+  }): SupabaseStorageRequestError {
+    const safeText = this.safeErrorText(response.parsed, response.raw);
+    return new SupabaseStorageRequestError(
+      `Supabase Storage request failed (${response.status}): ${safeText}`,
+      response.status,
+      response.parsed,
+      response.raw
+    );
+  }
+
+  private isBucketMissingError(error: unknown): boolean {
+    if (!(error instanceof SupabaseStorageRequestError)) {
+      return false;
+    }
+
+    const text = `${this.safeErrorText(error.response, error.raw)} ${error.message}`.toLowerCase();
+    return (
+      error.status === 404 ||
+      text.includes("bucket not found") ||
+      text.includes("bucket_not_found") ||
+      text.includes("not found")
+    );
   }
 
   private avatarsArePublic(): boolean {
@@ -373,11 +395,16 @@ export class SupabaseStorageProvider implements StorageProvider {
     return typeof value === "string" ? value.trim() : "";
   }
 
-  private safeErrorText(value: JsonObject): string {
-    return JSON.stringify({
+  private safeErrorText(value: JsonObject, raw = ""): string {
+    const jsonText = JSON.stringify({
       statusCode: value.statusCode,
       error: value.error,
       message: value.message
-    }).slice(0, 500);
+    });
+    if (jsonText !== "{}") {
+      return jsonText.slice(0, 500);
+    }
+    return raw.trim().slice(0, 500) || "{}";
   }
+
 }

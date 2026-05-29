@@ -278,10 +278,41 @@ export class UsersService {
         `Unable to upload avatar for user ${userId}`,
         error instanceof Error ? error.stack : undefined
       );
-      throw new ServiceUnavailableException(
-        "Le stockage de la photo de profil est temporairement indisponible. Réessayez dans quelques instants."
-      );
+      throw new ServiceUnavailableException(this.avatarStorageFailureMessage(error));
     }
+  }
+
+  private avatarStorageFailureMessage(error: unknown): string {
+    const message = error instanceof Error ? error.message : "";
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes("supabase_url is required")) {
+      return "Configuration Supabase incomplète : SUPABASE_URL est manquant côté API.";
+    }
+    if (normalized.includes("supabase_service_role_key is required")) {
+      return "Configuration Supabase incomplète : SUPABASE_SERVICE_ROLE_KEY est manquant côté API.";
+    }
+    if (
+      normalized.includes("(401)") ||
+      normalized.includes("(403)") ||
+      normalized.includes("invalid compact jws") ||
+      normalized.includes("jwt") ||
+      normalized.includes("unauthorized")
+    ) {
+      return "Supabase refuse l’upload avatar. Vérifiez que SUPABASE_SERVICE_ROLE_KEY est bien la clé service_role du projet Supabase.";
+    }
+    if (normalized.includes("bucket") && normalized.includes("not found")) {
+      return "Le bucket Supabase des avatars est introuvable. Créez le bucket gestschool-avatars ou vérifiez SUPABASE_STORAGE_BUCKET_AVATARS.";
+    }
+    if (
+      normalized.includes("fetch failed") ||
+      normalized.includes("enotfound") ||
+      normalized.includes("econnrefused")
+    ) {
+      return "Supabase Storage est inaccessible depuis l’API. Vérifiez SUPABASE_URL et la connectivité Render.";
+    }
+
+    return "Le stockage de la photo de profil est temporairement indisponible. Réessayez dans quelques instants.";
   }
 
   async removeMyAvatar(tenantId: string, userId: string): Promise<MyProfileView> {
