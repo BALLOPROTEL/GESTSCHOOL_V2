@@ -11,6 +11,7 @@
     "start:worker:dev": "node --watch --watch-path src -r ts-node/register/transpile-only -r tsconfig-paths/register src/worker.ts",
     "start:worker": "node dist/worker",
     "lint": "eslint \"src/**/*.ts\"",
+    "test:unit": "jest --config ./test/jest-unit.json --runInBand",
     "test:e2e": "node ./scripts/run-e2e-db-sequence.cjs test",
     "test:e2e:db": "node ./scripts/run-e2e-db-sequence.cjs db",
     "test:e2e:db:fresh": "node ./scripts/run-e2e-db-sequence.cjs fresh",
