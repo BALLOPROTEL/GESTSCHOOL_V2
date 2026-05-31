@@ -282,11 +282,13 @@ export function ProfileScreen({
 }: ProfileScreenProps): JSX.Element {
   const t = (value: string): string => translateUiString(uiLanguage, value);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarPreviewRef = useRef<string | null>(null);
   const fallbackProfile = useMemo(
     () => buildFallbackProfile(session, users, schoolYears, schoolName, uiLanguage, themeMode),
     [schoolName, schoolYears, session, themeMode, uiLanguage, users]
   );
   const [profile, setProfile] = useState<UserSelfProfile>(fallbackProfile);
+  const [localAvatarPreviewUrl, setLocalAvatarPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(remoteEnabled);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPreferences, setSavingPreferences] = useState(false);
@@ -316,6 +318,24 @@ export function ProfileScreen({
     status: "idle",
     rows: []
   });
+
+  const replaceLocalAvatarPreview = (nextUrl: string | null): void => {
+    if (avatarPreviewRef.current && avatarPreviewRef.current !== nextUrl) {
+      URL.revokeObjectURL(avatarPreviewRef.current);
+    }
+    avatarPreviewRef.current = nextUrl;
+    setLocalAvatarPreviewUrl(nextUrl);
+  };
+
+  useEffect(
+    () => () => {
+      if (avatarPreviewRef.current) {
+        URL.revokeObjectURL(avatarPreviewRef.current);
+        avatarPreviewRef.current = null;
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     setProfile(fallbackProfile);
@@ -475,6 +495,8 @@ export function ProfileScreen({
       return;
     }
     setUploadingAvatar(true);
+    const previewUrl = URL.createObjectURL(file);
+    replaceLocalAvatarPreview(previewUrl);
     try {
       if (remoteEnabled) {
         const nextProfile = await uploadMyAvatar(api, file);
@@ -484,13 +506,14 @@ export function ProfileScreen({
           ...profile,
           user: {
             ...profile.user,
-            avatarUrl: URL.createObjectURL(file)
+            avatarUrl: previewUrl
           }
         });
       }
       onNotice("Photo de profil mise à jour.");
       onError(null);
     } catch (uploadError) {
+      replaceLocalAvatarPreview(null);
       onError(uploadError instanceof Error ? uploadError.message : "Photo non envoyée.");
     } finally {
       setUploadingAvatar(false);
@@ -513,6 +536,7 @@ export function ProfileScreen({
           }
         });
       }
+      replaceLocalAvatarPreview(null);
       onNotice("Photo de profil supprimée.");
       onError(null);
     } catch (removeError) {
@@ -625,7 +649,7 @@ export function ProfileScreen({
       activityItems={activityItems}
       avatarInputRef={avatarInputRef}
       avatarInitials={avatarInitials}
-      avatarUrl={account.avatarUrl}
+      avatarUrl={localAvatarPreviewUrl || account.avatarUrl}
       bio={bio}
       changingPassword={changingPassword}
       createdAtLabel={createdAtLabel}

@@ -89,6 +89,8 @@ describe("ProfileScreen", () => {
     expect(screen.queryByText(/refreshToken/i)).not.toBeInTheDocument();
     expect(screen.getByText("Politique mot de passe")).toBeInTheDocument();
     expect(screen.getByText("1 session active")).toBeInTheDocument();
+    expect(screen.queryByText("Changer la photo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Supprimer la photo")).not.toBeInTheDocument();
   });
 
   it("ouvre l’édition du profil et expose les champs personnels modifiables", async () => {
@@ -144,6 +146,34 @@ describe("ProfileScreen", () => {
     });
     fireEvent.change(input, { target: { files: [heavyImage] } });
     expect(onError).toHaveBeenCalledWith("L’image doit peser 2 Mo maximum.");
+  });
+
+  it("affiche immédiatement la photo choisie dans l’avatar", async () => {
+    const createObjectURL = vi.fn(() => "blob:avatar-preview");
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURL
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectURL
+    });
+
+    renderProfile();
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const image = new File([new Uint8Array([137, 80, 78, 71])], "avatar.png", {
+      type: "image/png"
+    });
+    fireEvent.change(input, { target: { files: [image] } });
+
+    await waitFor(() => {
+      expect(document.querySelector(".premium-profile-avatar img")).toHaveAttribute(
+        "src",
+        "blob:avatar-preview"
+      );
+    });
   });
 
   it("valide le changement de mot de passe faible ou avec confirmation différente", async () => {

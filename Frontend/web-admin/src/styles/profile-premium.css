@@ -99,7 +99,7 @@
 .premium-avatar-camera {
   position: absolute;
   right: clamp(0.15rem, 1vw, 0.65rem);
-  bottom: 2.45rem;
+  bottom: 0.25rem;
   width: 2.8rem;
   height: 2.8rem;
   display: inline-flex;

@@ -176,7 +176,6 @@ async function auditProfileScreen(page, label) {
     "Préférences",
     "Activité récente",
     "Mes rôles et permissions",
-    "Changer la photo",
     "Modifier le profil"
   ]) {
     if (!text.includes(expected)) {
@@ -185,6 +184,26 @@ async function auditProfileScreen(page, label) {
         priority: "P1",
         type: "profile-screen",
         message: `Section absente sur Mon profil: ${expected}.`
+      });
+    }
+  }
+  const avatarPicker = page.getByRole("button", { name: "Changer la photo" });
+  if ((await avatarPicker.count()) === 0) {
+    findings.push({
+      label,
+      priority: "P1",
+      type: "profile-screen",
+      message: "Bouton rond de changement de photo absent sur Mon profil."
+    });
+  }
+  for (const removedAction of ["Changer la photo", "Supprimer la photo"]) {
+    const visibleText = page.getByText(removedAction, { exact: true });
+    if ((await visibleText.count()) > 0) {
+      findings.push({
+        label,
+        priority: "P1",
+        type: "profile-screen",
+        message: `Ancien bouton texte encore visible sur Mon profil: ${removedAction}.`
       });
     }
   }

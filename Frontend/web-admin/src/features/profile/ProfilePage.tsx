@@ -1,4 +1,4 @@
-import type { FormEvent, RefObject } from "react";
+import { useEffect, useState, type FormEvent, type RefObject } from "react";
 
 import type { FieldErrors, ThemeMode, UserSelfProfile } from "../../shared/types/app";
 import type { UiLanguage } from "../../shared/i18n";
@@ -193,9 +193,7 @@ function ProfileHero(props: ProfilePageProps): JSX.Element {
   return (
     <section className="premium-profile-card premium-profile-hero">
       <div className="premium-profile-avatar-stack">
-        <span className="premium-profile-avatar">
-          {props.avatarUrl ? <img src={props.avatarUrl} alt="" /> : props.avatarInitials}
-        </span>
+        <ProfileAvatar avatarInitials={props.avatarInitials} avatarUrl={props.avatarUrl} />
         <input
           ref={props.avatarInputRef}
           type="file"
@@ -211,16 +209,6 @@ function ProfileHero(props: ProfilePageProps): JSX.Element {
         >
           <PremiumIcon name="camera" />
         </button>
-        <div className="premium-avatar-actions">
-          <button type="button" className="premium-profile-link-button" disabled={props.uploadingAvatar} onClick={props.onOpenAvatarPicker}>
-            {props.uploadingAvatar ? props.t("Envoi de la photo...") : props.t("Changer la photo")}
-          </button>
-          {props.avatarUrl ? (
-            <button type="button" className="premium-profile-link-button danger" disabled={props.removingAvatar} onClick={props.onRemoveAvatar}>
-              {props.removingAvatar ? props.t("Suppression...") : props.t("Supprimer la photo")}
-            </button>
-          ) : null}
-        </div>
       </div>
 
       <div className="premium-profile-hero-main">
@@ -240,6 +228,32 @@ function ProfileHero(props: ProfilePageProps): JSX.Element {
         </div>
       </div>
     </section>
+  );
+}
+
+function ProfileAvatar({
+  avatarInitials,
+  avatarUrl
+}: {
+  avatarInitials: string;
+  avatarUrl?: string;
+}): JSX.Element {
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFailedAvatarUrl(null);
+  }, [avatarUrl]);
+
+  const canRenderAvatar = Boolean(avatarUrl && failedAvatarUrl !== avatarUrl);
+
+  return (
+    <span className="premium-profile-avatar">
+      {canRenderAvatar ? (
+        <img src={avatarUrl} alt="" onError={() => setFailedAvatarUrl(avatarUrl || null)} />
+      ) : (
+        avatarInitials
+      )}
+    </span>
   );
 }
 

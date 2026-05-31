@@ -64,6 +64,9 @@ export class SupabaseStorageProvider implements StorageProvider {
     const body = new Uint8Array(buffer);
 
     try {
+      if (bucketKind === "avatars") {
+        await this.ensureAvatarBucket(bucket);
+      }
       await this.uploadObject(bucket, key, input.mimeType, body);
     } catch (error) {
       if (bucketKind !== "avatars" || !this.isBucketMissingError(error)) {
@@ -84,6 +87,30 @@ export class SupabaseStorageProvider implements StorageProvider {
       bucket,
       size: buffer.byteLength
     };
+  }
+
+  private async ensureAvatarBucket(bucket: string): Promise<void> {
+    if (!this.avatarsArePublic()) {
+      return;
+    }
+
+    const updated = await this.fetchOptionalJson(
+      `${this.storageBaseUrl()}/bucket/${encodeURIComponent(bucket)}`,
+      {
+        method: "PUT",
+        headers: this.headers(),
+        body: JSON.stringify({
+          public: true,
+          file_size_limit: this.avatarMaxBytes(),
+          allowed_mime_types: ["image/jpeg", "image/png", "image/webp"]
+        })
+      },
+      [404]
+    );
+
+    if (updated === null) {
+      await this.createAvatarBucket(bucket);
+    }
   }
 
   private async uploadObject(
