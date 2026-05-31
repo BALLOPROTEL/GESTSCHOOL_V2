@@ -13,7 +13,6 @@ const REQUIRED_SCHEMA: RequiredSchema = {
   rooms: ["id", "code", "name", "status"],
   student_track_placements: ["id", "legacy_enrollment_id"],
   teacher_assignments: ["id"],
-  teacher_class_assignments: ["id", "user_id", "class_id", "school_year_id"],
   teachers: ["id", "user_id", "status"],
   timetable_slots: ["id", "room", "room_id", "teacher_name", "teacher_assignment_id"],
   users: ["id", "role", "account_type", "deleted_at"]
@@ -97,7 +96,6 @@ async function main(): Promise<void> {
   }
 
   const [
-    teacherClassAssignments,
     parentStudentLinksCount,
     teacherAssignmentsCount,
     teachersWithUserCount,
@@ -115,20 +113,6 @@ async function main(): Promise<void> {
     classrooms,
     rooms
   ] = await Promise.all([
-    prisma.teacherClassAssignment.findMany({
-      select: {
-        id: true,
-        subjectId: true,
-        user: {
-          select: {
-            id: true,
-            role: true,
-            deletedAt: true,
-            teacherProfile: { select: { id: true, status: true, archivedAt: true } }
-          }
-        }
-      }
-    }),
     prisma.parentStudentLink.count(),
     prisma.teacherAssignment.count(),
     prisma.teacher.count({ where: { userId: { not: null } } }),
@@ -165,16 +149,6 @@ async function main(): Promise<void> {
     prisma.room.findMany({ select: { id: true, code: true, name: true, status: true } })
   ]);
 
-  const portalTeacherAssignmentsWithTeacherProfile = teacherClassAssignments.filter(
-    (assignment) => assignment.user.teacherProfile
-  ).length;
-  const portalTeacherAssignmentsWithoutTeacherProfile = teacherClassAssignments.filter(
-    (assignment) => !assignment.user.teacherProfile
-  ).length;
-  const portalTeacherAssignmentsWithInactiveUser = teacherClassAssignments.filter(
-    (assignment) => assignment.user.deletedAt || assignment.user.role !== "ENSEIGNANT"
-  ).length;
-
   const timetableRooms = summarizeTextReferences(
     timetableSlots.map((slot) => slot.room),
     rooms
@@ -196,12 +170,8 @@ async function main(): Promise<void> {
       timetableTeachers: "TeacherAssignment + TimetableSlot.teacherAssignmentId"
     },
     legacyCounts: {
-      teacherClassAssignments: teacherClassAssignments.length,
       teacherAssignments: teacherAssignmentsCount,
       teacherProfilesLinkedToUsers: teachersWithUserCount,
-      teacherClassAssignmentsWithTeacherProfile: portalTeacherAssignmentsWithTeacherProfile,
-      teacherClassAssignmentsWithoutTeacherProfile: portalTeacherAssignmentsWithoutTeacherProfile,
-      teacherClassAssignmentsWithInactiveOrNonTeacherUser: portalTeacherAssignmentsWithInactiveUser,
       parentStudentLinks: parentStudentLinksCount,
       parentStudentLinksWithoutParentProfile: parentLinksWithoutParentProfileCount,
       enrollments: enrollmentsCount,
@@ -223,7 +193,7 @@ async function main(): Promise<void> {
       classroomMainRoomTextsNotMatchedToRoom: classroomMainRooms.unknown
     },
     migrationNotes: [
-      "Teacher portal should read TeacherAssignment only; TeacherClassAssignment is legacy inventory material.",
+      "Teacher portal reads Teacher + TeacherAssignment; the former portal teacher assignment table has been removed.",
       "Parent portal should resolve Parent.userId first and then read ParentStudentLink.parentId.",
       "Do not remove Enrollment writes until every downstream consumer is confirmed on StudentTrackPlacement.",
       "TimetableSlot.room and teacherName are compatibility display fields; new writes should prefer roomId and teacherAssignmentId.",

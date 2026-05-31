@@ -115,7 +115,6 @@ model User {
   refreshTokens RefreshToken[]
   securityTokens UserSecurityToken[]
   iamAuditLogs  IamAuditLog[]
-  teacherAssignments TeacherClassAssignment[] @relation("TeacherAssignments")
   teacherProfile Teacher? @relation("TeacherUser")
   teacherDocumentUploads TeacherDocument[] @relation("TeacherDocumentUploads")
   parentLinks ParentStudentLink[] @relation("ParentStudentLinks")
@@ -190,7 +189,6 @@ model SchoolYear {
   invoices    Invoice[]
   attendance  Attendance[]
   timetableSlots TimetableSlot[]
-  teacherAssignments TeacherClassAssignment[]
   teacherPedagogicalAssignments TeacherAssignment[]
   roomAssignments RoomAssignment[]
   roomAvailabilities RoomAvailability[]
@@ -283,7 +281,6 @@ model Classroom {
   reportCards  ReportCard[]
   attendance   Attendance[]
   timetableSlots TimetableSlot[]
-  teacherAssignments TeacherClassAssignment[]
   teacherPedagogicalAssignments TeacherAssignment[]
   roomAssignments RoomAssignment[]
   trackPlacements StudentTrackPlacement[]
@@ -314,7 +311,6 @@ model Subject {
   levelScopes SubjectLevelScope[]
   grades    GradeEntry[]
   timetableSlots TimetableSlot[]
-  teacherAssignments TeacherClassAssignment[]
   teacherSkills TeacherSkill[]
   teacherPedagogicalAssignments TeacherAssignment[]
   roomAssignments RoomAssignment[]
@@ -770,26 +766,6 @@ model NotificationProviderCallback {
   @@index([tenantId, provider, providerMessageId], map: "idx_notif_callbacks_tenant_provider_message")
   @@index([tenantId, occurredAt], map: "idx_notif_callbacks_tenant_occurred")
   @@map("notification_provider_callbacks")
-}
-
-model TeacherClassAssignment {
-  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId     String     @map("tenant_id") @db.Uuid
-  userId       String     @map("user_id") @db.Uuid
-  classId      String     @map("class_id") @db.Uuid
-  schoolYearId String     @map("school_year_id") @db.Uuid
-  subjectId    String?    @map("subject_id") @db.Uuid
-  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamptz(6)
-  user         User       @relation("TeacherAssignments", fields: [userId], references: [id], onDelete: Cascade)
-  classroom    Classroom  @relation(fields: [classId], references: [id], onDelete: Cascade)
-  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
-  subject      Subject?   @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-
-  @@unique([tenantId, userId, classId, schoolYearId], map: "uq_teacher_assignments_scope")
-  @@index([tenantId, userId], map: "idx_teacher_assignments_tenant_user")
-  @@index([tenantId, classId], map: "idx_teacher_assignments_tenant_class")
-  @@map("teacher_class_assignments")
 }
 
 model Teacher {

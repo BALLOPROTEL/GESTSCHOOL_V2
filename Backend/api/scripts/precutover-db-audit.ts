@@ -29,7 +29,6 @@ const REQUIRED_SCHEMA: RequiredSchema = {
     "track",
     "status"
   ],
-  teacher_class_assignments: ["id", "tenant_id", "user_id", "class_id", "school_year_id"],
   teachers: ["id", "tenant_id", "user_id", "first_name", "last_name", "status", "archived_at"],
   timetable_slots: [
     "id",
@@ -142,7 +141,6 @@ function sample<T>(rows: T[], size = 25): T[] {
 function compatibilityLevel(metrics: {
   orphanAccounts: number;
   parentLinksWithoutParentProfile: number;
-  legacyTeacherAssignments: number;
   timetableLegacyOnly: number;
   unmatchedTimetableRooms: number;
   unmatchedTimetableTeachers: number;
@@ -156,7 +154,7 @@ function compatibilityLevel(metrics: {
     return "BLOCKED";
   }
 
-  if (metrics.legacyTeacherAssignments > 0 || metrics.timetableLegacyOnly > 0) {
+  if (metrics.timetableLegacyOnly > 0) {
     return "NEEDS_MANUAL_REVIEW";
   }
 
@@ -239,7 +237,6 @@ async function main(): Promise<void> {
     orphanTeacherAccounts,
     orphanParentAccounts,
     orphanStudentAccounts,
-    teacherClassAssignments,
     parentLinksWithoutParentProfile,
     parentLinksWithLegacyOnly,
     enrollmentsWithoutPlacement,
@@ -256,7 +253,6 @@ async function main(): Promise<void> {
       prisma.parentStudentLink.count(),
       prisma.teacher.count(),
       prisma.teacherAssignment.count(),
-      prisma.teacherClassAssignment.count(),
       prisma.room.count(),
       prisma.timetableSlot.count(),
       prisma.enrollment.count(),
@@ -276,7 +272,6 @@ async function main(): Promise<void> {
         parentStudentLinks,
         teachers,
         teacherAssignments,
-        teacherClassAssignments,
         rooms,
         timetableSlots,
         enrollments,
@@ -295,7 +290,6 @@ async function main(): Promise<void> {
         parentStudentLinks,
         teachers,
         teacherAssignments,
-        teacherClassAssignments,
         rooms,
         timetableSlots,
         enrollments,
@@ -323,17 +317,6 @@ async function main(): Promise<void> {
       where: { accountType: "STUDENT", deletedAt: null, studentProfile: null },
       select: { id: true, username: true, email: true, role: true, accountType: true, isActive: true },
       orderBy: { username: "asc" }
-    }),
-    prisma.teacherClassAssignment.findMany({
-      select: {
-        id: true,
-        tenantId: true,
-        userId: true,
-        classId: true,
-        schoolYearId: true,
-        subjectId: true
-      },
-      orderBy: { createdAt: "asc" }
     }),
     prisma.parentStudentLink.findMany({
       where: { parentId: null },
@@ -435,7 +418,6 @@ async function main(): Promise<void> {
     orphanAccounts:
       orphanTeacherAccounts.length + orphanParentAccounts.length + orphanStudentAccounts.length,
     parentLinksWithoutParentProfile: parentLinksWithoutParentProfile.length,
-    legacyTeacherAssignments: teacherClassAssignments.length,
     timetableLegacyOnly,
     unmatchedTimetableRooms: roomAudit.filter((row) => row.candidateRoomIds.length !== 1).length,
     unmatchedTimetableTeachers: teacherAudit.filter(
@@ -450,7 +432,6 @@ async function main(): Promise<void> {
     totals.parentStudentLinks +
     totals.teachers +
     totals.teacherAssignments +
-    totals.teacherClassAssignments +
     totals.rooms +
     totals.timetableSlots +
     totals.enrollments +
@@ -512,10 +493,6 @@ async function main(): Promise<void> {
           parent: sample(orphanParentAccounts),
           student: sample(orphanStudentAccounts)
         }
-      },
-      legacyIamTeacherAssignments: {
-        count: teacherClassAssignments.length,
-        samples: sample(teacherClassAssignments)
       },
       parentLinksWithoutParentProfile: {
         count: parentLinksWithoutParentProfile.length,
