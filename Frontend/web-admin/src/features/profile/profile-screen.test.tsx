@@ -176,6 +176,24 @@ describe("ProfileScreen", () => {
     });
   });
 
+  it("restaure la photo de profil depuis la session après actualisation", () => {
+    renderProfile({
+      session: {
+        ...session,
+        user: {
+          ...session.user,
+          avatarUrl: "https://storage.example/avatar.png"
+        }
+      },
+      users: []
+    });
+
+    expect(document.querySelector(".premium-profile-avatar img")).toHaveAttribute(
+      "src",
+      "https://storage.example/avatar.png"
+    );
+  });
+
   it("valide le changement de mot de passe faible ou avec confirmation différente", async () => {
     const browserUser = userEvent.setup();
     renderProfile();

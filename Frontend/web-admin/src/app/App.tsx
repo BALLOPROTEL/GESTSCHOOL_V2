@@ -1185,6 +1185,52 @@ export function App(): JSX.Element {
       onNotice={setNotice}
     />
   );
+  const handleProfileChange = useCallback(
+    (profile: UserSelfProfile): void => {
+      setCurrentProfile(profile);
+      const currentSession = sessionRef.current;
+      if (!currentSession) return;
+
+      const nextSessionUser: Session["user"] = {
+        ...currentSession.user,
+        id: profile.user.id,
+        username: profile.user.username,
+        role: profile.user.role,
+        tenantId: profile.user.tenantId,
+        email: profile.user.email,
+        phone: profile.user.phone,
+        displayName: profile.user.displayName,
+        avatarUrl: profile.user.avatarUrl,
+        accountType: profile.user.accountType,
+        status: profile.user.status
+      };
+      const nextTenantId = currentSession.tenantId || profile.context.tenantId;
+      const sessionUserChanged = (
+        [
+          "id",
+          "username",
+          "role",
+          "tenantId",
+          "email",
+          "phone",
+          "displayName",
+          "avatarUrl",
+          "accountType",
+          "status"
+        ] as const
+      ).some((key) => currentSession.user[key] !== nextSessionUser[key]);
+      if (!sessionUserChanged && currentSession.tenantId === nextTenantId) {
+        return;
+      }
+
+      saveSession({
+        ...currentSession,
+        tenantId: nextTenantId,
+        user: nextSessionUser
+      });
+    },
+    [saveSession, sessionRef]
+  );
   const renderProfile = (): JSX.Element => {
     if (!session) return renderForbidden();
     return (
@@ -1196,7 +1242,7 @@ export function App(): JSX.Element {
         onLanguageChange={selectLanguage}
         onLogoutAllDevices={logout}
         onNotice={setNotice}
-        onProfileChange={setCurrentProfile}
+        onProfileChange={handleProfileChange}
         onThemeChange={selectThemeMode}
         remoteEnabled={!isPreviewSession}
         schoolName={SCHOOL_NAME}

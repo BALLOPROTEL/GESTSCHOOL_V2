@@ -161,6 +161,7 @@ const buildFallbackProfile = (
     email: session.user.email || (session.user.username.includes("@") ? session.user.username : undefined),
     phone: session.user.phone,
     displayName: session.user.displayName || humanizeIdentifier(session.user.username) || session.user.username,
+    avatarUrl: session.user.avatarUrl,
     mustChangePasswordAtFirstLogin: false,
     status: session.user.status || "ACTIVE",
     isActive: true,

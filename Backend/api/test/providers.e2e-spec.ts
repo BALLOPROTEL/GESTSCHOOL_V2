@@ -319,6 +319,13 @@ describe("Provider integrations (e2e)", () => {
       }
     });
     expect(persistedUser.avatarUrl).toBe(response.body.user.avatarUrl);
+
+    const profileResponse = await request(context.app.getHttpServer())
+      .get("/api/v1/users/me")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .expect(200);
+
+    expect(profileResponse.body.user.avatarUrl).toBe(response.body.user.avatarUrl);
   });
 
   it("dispatches Brevo email through provider API and keeps SMS in dry-run by default", async () => {

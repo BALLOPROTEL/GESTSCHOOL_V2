@@ -36,4 +36,27 @@ describe("session-storage", () => {
 
     expect(readStoredSession()).toEqual(session);
   });
+
+  it("conserve les informations d’affichage du compte dont l’avatar", () => {
+    const token = "a".repeat(64);
+    const session: Session = {
+      ...createSession(token, "b".repeat(64)),
+      user: {
+        id: "user-1",
+        username: "admin@example.local",
+        role: "ADMIN",
+        tenantId: "00000000-0000-0000-0000-000000000001",
+        email: "admin@example.local",
+        phone: "+22370000000",
+        displayName: "Admin GestSchool",
+        avatarUrl: "https://storage.example/avatar.png",
+        accountType: "STAFF",
+        status: "ACTIVE"
+      }
+    };
+
+    persistSession(session);
+
+    expect(readStoredSession()).toEqual(session);
+  });
 });

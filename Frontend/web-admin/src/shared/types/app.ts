@@ -9,6 +9,7 @@ export type Session = {
     email?: string;
     phone?: string;
     displayName?: string;
+    avatarUrl?: string;
     accountType?: string;
     status?: string;
   };

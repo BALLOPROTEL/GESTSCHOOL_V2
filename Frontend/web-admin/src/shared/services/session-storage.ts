@@ -60,9 +60,16 @@ export const readStoredSession = (): Session | null => {
         refreshToken: parsed.refreshToken,
         tenantId: parsed.tenantId,
         user: {
+          ...(typeof parsed.user.id === "string" ? { id: parsed.user.id } : {}),
           username: parsed.user.username,
           role: parsed.user.role,
-          tenantId: parsed.user.tenantId
+          tenantId: parsed.user.tenantId,
+          ...(typeof parsed.user.email === "string" ? { email: parsed.user.email } : {}),
+          ...(typeof parsed.user.phone === "string" ? { phone: parsed.user.phone } : {}),
+          ...(typeof parsed.user.displayName === "string" ? { displayName: parsed.user.displayName } : {}),
+          ...(typeof parsed.user.avatarUrl === "string" ? { avatarUrl: parsed.user.avatarUrl } : {}),
+          ...(typeof parsed.user.accountType === "string" ? { accountType: parsed.user.accountType } : {}),
+          ...(typeof parsed.user.status === "string" ? { status: parsed.user.status } : {})
         }
       };
       window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
