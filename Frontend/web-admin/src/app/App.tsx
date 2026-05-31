@@ -1,14 +1,11 @@
-import { FormEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AcademicTrack,
-  AuthMessageResponse,
   ClassItem,
   Cycle,
   Enrollment,
   FeePlan,
-  FieldErrors,
-  ForgotPasswordResponse,
   GradeEntry,
   Invoice,
   Level,
@@ -21,7 +18,6 @@ import type {
   Period,
   PortalNotification,
   RecoveryDashboard,
-  RememberedLogin,
   ReportCard,
   Role,
   SchoolYear,
@@ -55,7 +51,6 @@ import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
 import { useDomTranslation } from "../shared/i18n";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
-import { focusFirstInlineErrorField, hasFieldErrors } from "../shared/utils/form-ui";
 import { AppContextBar, AppFooter, PreviewLocalNotice } from "./app-shell-panels";
 import {
   applyReferenceDataToState,
@@ -72,16 +67,12 @@ import {
 import {
   DEFAULT_CURRENCY,
   DEFAULT_TENANT,
-  LOGIN_HINT_STORAGE_KEY,
-  SCHOOL_NAME,
-  STRONG_PASSWORD_HINT
+  SCHOOL_NAME
 } from "./app-config";
 import {
   formatAccountStatusLabel,
   formatRoleLabel,
-  getInitials,
-  isStrongPassword,
-  parseError
+  getInitials
 } from "./app-formatters";
 import {
   ActivityScreen,
@@ -111,6 +102,7 @@ import {
 } from "./lazy-screens";
 import { useAppPreferences } from "./use-app-preferences";
 import { isLocalPreviewEnabled, isLocalPreviewRoute, isLocalPreviewSession } from "./preview/preview-mode";
+import { useAuthFlows } from "./use-auth-flows";
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
@@ -134,49 +126,6 @@ export function App(): JSX.Element {
   } = useAppPreferences();
 
   useDomTranslation(appRootRef, uiLanguage);
-
-  const [loginForm, setLoginForm] = useState({
-    username: rememberedLogin?.username || "",
-    password: "",
-    tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT
-  });
-  const [loadingAuth, setLoadingAuth] = useState(false);
-  const [rememberMe, setRememberMe] = useState(Boolean(rememberedLogin?.remember));
-  const [authAssistMode, setAuthAssistMode] = useState<"none" | "forgot" | "first">("none");
-  const [authAssistLoading, setAuthAssistLoading] = useState(false);
-  const [forgotPasswordForm, setForgotPasswordForm] = useState({
-    username: rememberedLogin?.username || "",
-    tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT
-  });
-  const [resetPasswordForm, setResetPasswordForm] = useState({
-    token: "",
-    newPassword: "",
-    confirmPassword: ""
-  });
-  const [firstConnectionForm, setFirstConnectionForm] = useState({
-    username: rememberedLogin?.username || "",
-    tenantId: rememberedLogin?.tenantId || DEFAULT_TENANT,
-    temporaryPassword: "",
-    newPassword: "",
-    confirmPassword: ""
-  });
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token")?.trim();
-    if (!token) return;
-
-    if (window.location.pathname.includes("reset-password")) {
-      setResetPasswordForm((prev) => ({ ...prev, token }));
-      setAuthAssistMode("forgot");
-      return;
-    }
-
-    if (window.location.pathname.includes("activate")) {
-      setFirstConnectionForm((prev) => ({ ...prev, temporaryPassword: token }));
-      setAuthAssistMode("first");
-    }
-  }, []);
 
   const [students, setStudents] = useState<Student[]>([]);
 
@@ -280,7 +229,6 @@ export function App(): JSX.Element {
   const [moduleQueryInput, setModuleQueryInput] = useState("");
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
 
-  const [loginErrors, setLoginErrors] = useState<FieldErrors>({});
   const applyReferenceData = useCallback((data: Parameters<typeof applyReferenceDataToState>[0]): void => {
     applyReferenceDataToState(data, {
       setClasses,
@@ -353,6 +301,44 @@ export function App(): JSX.Element {
     onClearData: handleAuthClearData,
     onRefreshNotice: setNotice,
     onRefreshSuccess: handleAuthRefreshSuccess
+  });
+  const {
+    authAssistLoading,
+    authAssistMode,
+    firstConnectionForm,
+    forgotPasswordForm,
+    loadingAuth,
+    login,
+    loginErrors,
+    loginForm,
+    logout,
+    rememberMe,
+    requestForgotPasswordToken,
+    resetPasswordForm,
+    setFirstConnectionForm,
+    setForgotPasswordForm,
+    setLoginForm,
+    setRememberMe,
+    setResetPasswordForm,
+    showFirstConnectionPanel,
+    showForgotPasswordPanel,
+    showLoginPanel,
+    submitFirstConnection,
+    submitResetPassword
+  } = useAuthFlows({
+    clearData,
+    clearSession,
+    ensureApiAvailable,
+    markApiAvailable,
+    markApiUnavailable,
+    onError: setError,
+    onNotice: setNotice,
+    onSyncNow: () => setLastSyncAt(new Date().toISOString()),
+    rememberedLogin,
+    resolveApiUrl,
+    saveSession,
+    sessionRef,
+    setTab
   });
   const bootstrapSessionKeyRef = useRef<string | null>(null);
   const bootstrapSessionInFlightRef = useRef<string | null>(null);
@@ -722,288 +708,6 @@ export function App(): JSX.Element {
     };
   }, [apiAvailable, currentRole, ensureApiAvailable, loadHeaderNotificationCount, session, isPreviewSession]);
 
-  const showLoginPanel = (): void => {
-    setAuthAssistMode("none");
-    setError(null);
-    setNotice(null);
-  };
-
-  const showForgotPasswordPanel = (): void => {
-    setAuthAssistMode("forgot");
-    setError(null);
-    setNotice(null);
-  };
-
-  const showFirstConnectionPanel = (): void => {
-    setAuthAssistMode("first");
-    setError(null);
-    setNotice(null);
-  };
-
-  const performPublicRequest = useCallback(
-    async (
-      path: string,
-      init: RequestInit,
-      options: { forceProbe?: boolean; suppressError?: boolean } = {}
-    ): Promise<Response | null> => {
-      const { forceProbe = true, suppressError = false } = options;
-      const ready = await ensureApiAvailable(forceProbe);
-      if (!ready) {
-        if (!suppressError) {
-          setError("API indisponible. Reconnexion...");
-        }
-        return null;
-      }
-
-      try {
-        const response = await fetch(resolveApiUrl(path), init);
-        markApiAvailable();
-        return response;
-      } catch {
-        markApiUnavailable();
-        if (!suppressError) {
-          setError("API indisponible. Reconnexion...");
-        }
-        return null;
-      }
-    },
-    [ensureApiAvailable, markApiAvailable, markApiUnavailable, resolveApiUrl]
-  );
-
-  const requestForgotPasswordToken = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    setError(null);
-    setNotice(null);
-
-    if (!forgotPasswordForm.username.trim()) {
-      setError("Renseignez votre identifiant pour recevoir le lien de réinitialisation.");
-      return;
-    }
-
-    setAuthAssistLoading(true);
-    try {
-      const response = await performPublicRequest("/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: forgotPasswordForm.username.trim(),
-          tenantId: DEFAULT_TENANT
-        })
-      });
-      if (!response) return;
-      if (!response.ok) {
-        setError(await parseError(response));
-        return;
-      }
-
-      const payload = (await response.json()) as ForgotPasswordResponse;
-      setNotice(payload.message || "Si un compte correspond à ces informations, un email de réinitialisation a été envoyé.");
-    } finally {
-      setAuthAssistLoading(false);
-    }
-  };
-
-  const submitResetPassword = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    setError(null);
-    setNotice(null);
-
-    if (!resetPasswordForm.token.trim()) {
-      setError("Lien de réinitialisation invalide ou expiré.");
-      return;
-    }
-    if (!isStrongPassword(resetPasswordForm.newPassword)) {
-      setError(STRONG_PASSWORD_HINT);
-      return;
-    }
-    if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
-      setError("La confirmation du mot de passe ne correspond pas.");
-      return;
-    }
-
-    setAuthAssistLoading(true);
-    try {
-      const response = await performPublicRequest("/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: resetPasswordForm.token.trim(),
-          newPassword: resetPasswordForm.newPassword
-        })
-      });
-      if (!response) return;
-      if (!response.ok) {
-        setError(await parseError(response));
-        return;
-      }
-
-      const payload = (await response.json()) as AuthMessageResponse;
-      setNotice(payload.message || "Mot de passe réinitialisé.");
-      setLoginForm((prev) => ({
-        ...prev,
-        username: forgotPasswordForm.username.trim() || prev.username,
-        tenantId: DEFAULT_TENANT,
-        password: ""
-      }));
-      setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
-      setAuthAssistMode("none");
-      window.history.replaceState({}, "", "/");
-    } finally {
-      setAuthAssistLoading(false);
-    }
-  };
-
-  const submitFirstConnection = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    setError(null);
-    setNotice(null);
-
-    const activationToken = firstConnectionForm.temporaryPassword.trim();
-    if (!activationToken && !firstConnectionForm.username.trim()) {
-      setError("Identifiant requis pour renvoyer le lien d’activation.");
-      return;
-    }
-    if (!activationToken) {
-      setAuthAssistLoading(true);
-      try {
-        const response = await performPublicRequest("/auth/resend-activation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: firstConnectionForm.username.trim(),
-            tenantId: DEFAULT_TENANT
-          })
-        });
-        if (!response) return;
-        if (!response.ok) {
-          setError(await parseError(response));
-          return;
-        }
-        const payload = (await response.json()) as AuthMessageResponse;
-        setNotice(payload.message || "Si un compte en attente correspond à ces informations, un email d’activation a été envoyé.");
-      } finally {
-        setAuthAssistLoading(false);
-      }
-      return;
-    }
-    if (!isStrongPassword(firstConnectionForm.newPassword)) {
-      setError(STRONG_PASSWORD_HINT);
-      return;
-    }
-    if (firstConnectionForm.newPassword !== firstConnectionForm.confirmPassword) {
-      setError("La confirmation du mot de passe ne correspond pas.");
-      return;
-    }
-
-    setAuthAssistLoading(true);
-    try {
-      const response = await performPublicRequest("/auth/activate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: activationToken,
-          newPassword: firstConnectionForm.newPassword
-        })
-      });
-      if (!response) return;
-      if (!response.ok) {
-        setError(await parseError(response));
-        return;
-      }
-
-      const payload = (await response.json()) as AuthMessageResponse;
-      setNotice(payload.message || "Compte activé. Vous pouvez maintenant vous connecter.");
-      setLoginForm((prev) => ({
-        ...prev,
-        username: firstConnectionForm.username.trim(),
-        tenantId: DEFAULT_TENANT,
-        password: ""
-      }));
-      setFirstConnectionForm((prev) => ({
-        ...prev,
-        temporaryPassword: "",
-        newPassword: "",
-        confirmPassword: ""
-      }));
-      setAuthAssistMode("none");
-      window.history.replaceState({}, "", "/");
-    } finally {
-      setAuthAssistLoading(false);
-    }
-  };
-
-  const login = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    setError(null);
-    setNotice(null);
-    const errors: FieldErrors = {};
-    if (!loginForm.username.trim()) errors.username = "Nom utilisateur requis.";
-    if (!loginForm.password || loginForm.password.length < 8) errors.password = "Minimum 8 caracteres.";
-    setLoginErrors(errors);
-    if (hasFieldErrors(errors)) {
-      focusFirstInlineErrorField();
-      return;
-    }
-    setLoadingAuth(true);
-    try {
-      const response = await performPublicRequest("/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: loginForm.username.trim(),
-          password: loginForm.password,
-          tenantId: DEFAULT_TENANT
-        })
-      });
-      if (!response) return;
-      if (!response.ok) {
-        setError(await parseError(response));
-        return;
-      }
-      const payload = (await response.json()) as Omit<Session, "tenantId"> & { user: Session["user"] };
-      const nextSession = { ...payload, tenantId: payload.user.tenantId || DEFAULT_TENANT };
-      const role = (nextSession.user.role as Role) || "ADMIN";
-      const cleanUsername = loginForm.username.trim();
-      const cleanTenant = payload.user.tenantId || DEFAULT_TENANT;
-      setLoginErrors({});
-      saveSession(nextSession);
-      setLastSyncAt(new Date().toISOString());
-      setAuthAssistMode("none");
-      if (rememberMe) {
-        localStorage.setItem(
-          LOGIN_HINT_STORAGE_KEY,
-          JSON.stringify({
-            username: cleanUsername,
-            tenantId: cleanTenant,
-            remember: true
-          } as RememberedLogin)
-        );
-      } else {
-        localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
-      }
-      setNotice("Connexion reussie.");
-      setTab(ROLE_HOME_SCREEN[role] || "dashboard");
-    } finally {
-      setLoadingAuth(false);
-    }
-  };
-
-  const logout = async (): Promise<void> => {
-    const current = sessionRef.current;
-    if (current?.refreshToken && (await ensureApiAvailable())) {
-      await performPublicRequest("/auth/logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: current.refreshToken })
-      }, { forceProbe: false, suppressError: true });
-    }
-    clearSession();
-    setAuthAssistMode("none");
-    setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
-    clearData();
-    setNotice("Deconnexion reussie.");
-    setError(null);
-  };
   const formatAmount = (value: number): string =>
     new Intl.NumberFormat(currentLanguageMeta.locale, { maximumFractionDigits: 0 }).format(value);
   const formatCurrencyLabel = (currency?: string): string => {
@@ -1696,10 +1400,7 @@ export function App(): JSX.Element {
             loginPasswordError={loginErrors.password}
             onLoginFormChange={(patch) => setLoginForm((prev) => ({ ...prev, ...patch }))}
             rememberMe={rememberMe}
-            onRememberMeChange={(next) => {
-              setRememberMe(next);
-              if (!next) localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
-            }}
+            onRememberMeChange={setRememberMe}
             loadingAuth={loadingAuth}
             onSubmitLogin={(event) => void login(event)}
             authAssistMode={authAssistMode}
