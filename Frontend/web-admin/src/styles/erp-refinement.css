@@ -44,6 +44,7 @@
   --erp-control-height: 40px;
   --erp-row-height: 44px;
   --app-header-height: var(--ui-header-height, 3.55rem);
+  --app-header-body-gap: clamp(0.75rem, 1.05vw, 1rem);
   --app-toast-top: calc(var(--app-header-height) + clamp(2.25rem, 3vw, 2.75rem));
   --shell-z-toast: 6500;
 
@@ -2543,6 +2544,7 @@ code {
 
 .page:not(.page-auth) .app-shell {
   gap: 0.95rem;
+  padding-block-start: var(--app-header-body-gap) !important;
 }
 
 .page:not(.page-auth) .app-sidebar-v2 {
