@@ -20,6 +20,11 @@ import {
   type TimetableSlotView,
   type TimetableSlotWithRelations
 } from "./school-life.types";
+import {
+  formatTimetableCanonicalRefsError,
+  getMissingTimetableCanonicalRefs,
+  getProvidedTimetableLegacyFields
+} from "./timetable-canonical-policy";
 
 @Injectable()
 export class SchoolLifeTimetableService {
@@ -127,7 +132,10 @@ export class SchoolLifeTimetableService {
       ? this.teacherDisplayName(teacherAssignment.teacher)
       : payload.teacherName?.trim();
     const roomLabel = room ? `${room.code} - ${room.name}` : payload.room?.trim();
-    this.assertCanonicalTimetableRefs(room?.id, teacherAssignment?.id);
+    this.assertCanonicalTimetableRefs(room?.id, teacherAssignment?.id, {
+      room: payload.room,
+      teacherName: payload.teacherName
+    });
 
     await this.ensureNoTimetableConflict(tenantId, {
       classId: classroom.id,
@@ -231,7 +239,10 @@ export class SchoolLifeTimetableService {
     const roomLabel = room
       ? `${room.code} - ${room.name}`
       : payload.room ?? existing.room ?? undefined;
-    this.assertCanonicalTimetableRefs(roomId, teacherAssignmentId);
+    this.assertCanonicalTimetableRefs(roomId, teacherAssignmentId, {
+      room: payload.room,
+      teacherName: payload.teacherName
+    });
 
     await this.ensureNoTimetableConflict(tenantId, {
       classId: classroom.id,
@@ -436,20 +447,21 @@ export class SchoolLifeTimetableService {
 
   private assertCanonicalTimetableRefs(
     roomId?: string | null,
-    teacherAssignmentId?: string | null
+    teacherAssignmentId?: string | null,
+    legacyFields: { room?: string | null; teacherName?: string | null } = {}
   ): void {
     if (!this.requiresCanonicalTimetableRefs()) {
       return;
     }
 
-    const missing = [
-      roomId ? undefined : "roomId",
-      teacherAssignmentId ? undefined : "teacherAssignmentId"
-    ].filter(Boolean);
+    const missing = getMissingTimetableCanonicalRefs({ roomId, teacherAssignmentId });
 
     if (missing.length > 0) {
       throw new BadRequestException(
-        `Timetable canonical references are required before cutover: ${missing.join(", ")}.`
+        formatTimetableCanonicalRefsError(
+          missing,
+          getProvidedTimetableLegacyFields(legacyFields)
+        )
       );
     }
   }

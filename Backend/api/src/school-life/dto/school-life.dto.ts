@@ -168,7 +168,11 @@ export class CreateTimetableSlotDto {
   @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
   endTime!: string;
 
-  @ApiPropertyOptional({ example: "Salle B" })
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: "Legacy display mirror kept for historical rows. Use roomId for active writes.",
+    example: "Salle B"
+  })
   @IsOptional()
   @IsString()
   @MaxLength(80)
@@ -179,7 +183,11 @@ export class CreateTimetableSlotDto {
   @IsUUID("all")
   roomId?: string;
 
-  @ApiPropertyOptional({ example: "Mme Traore" })
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: "Legacy display mirror kept for historical rows. Use teacherAssignmentId for active writes.",
+    example: "Mme Traore"
+  })
   @IsOptional()
   @IsString()
   @MaxLength(120)
