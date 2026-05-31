@@ -67,6 +67,9 @@ const isOverdueInvoice = (dueDate: string | undefined, status: string): boolean 
   return deadline < today;
 };
 
+const shouldDisplayOverdueInvoiceStatus = (dueDate: string | undefined, status: string): boolean =>
+  ["DRAFT", "OPEN"].includes(status) && isOverdueInvoice(dueDate, status);
+
 export function FinanceScreen({
   api,
   initialData,
@@ -151,7 +154,9 @@ export function FinanceScreen({
   const overdueInvoicesCount = invoices.filter((item) => isOverdueInvoice(item.dueDate, item.status)).length;
   const selectedPaymentInvoice = invoices.find((item) => item.id === paymentForm.invoiceId);
   const invoiceStatusLabel = (item: { dueDate?: string; status?: string }): string =>
-    isOverdueInvoice(item.dueDate, item.status || "") ? "En retard" : formatInvoiceStatusLabel(item.status);
+    shouldDisplayOverdueInvoiceStatus(item.dueDate, item.status || "")
+      ? "En retard"
+      : formatInvoiceStatusLabel(item.status);
   const planInvoiceCount = (feePlanId: string): number => invoices.filter((item) => item.feePlanId === feePlanId).length;
 
   return (
