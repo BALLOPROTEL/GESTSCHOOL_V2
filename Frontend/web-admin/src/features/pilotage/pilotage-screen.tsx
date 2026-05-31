@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import "../../styles/pilotage.css";
 import type {
   AcademicTrack,
   ClassItem,

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
+import "../../styles/profile-premium.css";
 import { translateUiString, type UiLanguage } from "../../shared/i18n";
 import type {
   FieldErrors,
