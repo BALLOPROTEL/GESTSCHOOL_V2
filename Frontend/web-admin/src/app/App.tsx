@@ -53,12 +53,22 @@ import { decorateResponsiveTables } from "./shell/responsive-tables";
 import { GlobalToastLayer } from "./shell/global-toast-layer";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
 import { useDomTranslation } from "../shared/i18n";
-import { fetchReferenceData } from "../features/reference/services/reference-service";
-import type { ReferenceData } from "../features/reference/types/reference";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
 import { focusFirstInlineErrorField, hasFieldErrors } from "../shared/utils/form-ui";
 import { AppContextBar, AppFooter, PreviewLocalNotice } from "./app-shell-panels";
+import {
+  applyReferenceDataToState,
+  countActionableNotifications,
+  loadEnrollmentsData,
+  loadFinanceData,
+  loadHeaderNotificationRows,
+  loadReferenceData,
+  loadReportCardsData,
+  loadStudentsData,
+  loadUsersData,
+  resolveBootstrapNeeds
+} from "./app-data-loaders";
 import {
   DEFAULT_CURRENCY,
   DEFAULT_TENANT,
@@ -101,32 +111,6 @@ import {
 } from "./lazy-screens";
 import { useAppPreferences } from "./use-app-preferences";
 import { isLocalPreviewEnabled, isLocalPreviewRoute, isLocalPreviewSession } from "./preview/preview-mode";
-
-type LoadListOptions = {
-  fallbackMessage: string;
-  setError: (message: string | null) => void;
-  silentForbidden?: boolean;
-};
-
-async function readListResponse<T>(
-  response: Response,
-  { fallbackMessage, setError, silentForbidden = false }: LoadListOptions
-): Promise<T[]> {
-  if (!response.ok) {
-    if (!(silentForbidden && response.status === 403)) {
-      setError(await parseError(response));
-    }
-    return [];
-  }
-
-  const payload = (await response.json().catch(() => null)) as unknown;
-  if (!Array.isArray(payload)) {
-    setError(fallbackMessage);
-    return [];
-  }
-
-  return payload as T[];
-}
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
@@ -297,13 +281,15 @@ export function App(): JSX.Element {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
 
   const [loginErrors, setLoginErrors] = useState<FieldErrors>({});
-  const applyReferenceData = useCallback((data: ReferenceData): void => {
-    setSchoolYears(data.schoolYears);
-    setCycles(data.cycles);
-    setLevels(data.levels);
-    setClasses(data.classes);
-    setSubjects(data.subjects);
-    setPeriods(data.periods);
+  const applyReferenceData = useCallback((data: Parameters<typeof applyReferenceDataToState>[0]): void => {
+    applyReferenceDataToState(data, {
+      setClasses,
+      setCycles,
+      setLevels,
+      setPeriods,
+      setSchoolYears,
+      setSubjects
+    });
   }, []);
 
   const clearData = useCallback(() => {
@@ -534,93 +520,54 @@ export function App(): JSX.Element {
 
   const loadStudents = useCallback(async () => {
     if (!sessionRef.current) return;
-    const response = await api("/students");
-    setStudents(
-      await readListResponse<Student>(response, {
-        fallbackMessage: "Format inattendu pour la liste des élèves.",
-        setError
-      })
-    );
+    const { data, error: loadError } = await loadStudentsData(api);
+    setStudents(data);
+    if (loadError) setError(loadError);
   }, [api]);
 
   const loadUsers = useCallback(async () => {
-    if (!sessionRef.current) return;
-    const response = await api("/users", {}, true, { background: currentRole !== "ADMIN" });
-    setUsers(
-      await readListResponse<UserAccount>(response, {
-        fallbackMessage: "Format inattendu pour la liste des utilisateurs.",
-        setError,
-        silentForbidden: currentRole !== "ADMIN"
-      })
-    );
+    if (!sessionRef.current || !currentRole) return;
+    const { data, error: loadError } = await loadUsersData(api, currentRole);
+    setUsers(data);
+    if (loadError) setError(loadError);
   }, [api, currentRole]);
 
   const loadReference = useCallback(async () => {
     if (!sessionRef.current) return;
-    const { data, errors } = await fetchReferenceData(api);
+    const { data, error: loadError } = await loadReferenceData(api);
     applyReferenceData(data);
-    if (errors.length > 0) {
-      setError(errors.join(" | "));
-    }
+    if (loadError) setError(loadError);
   }, [api, applyReferenceData, sessionRef]);
 
   const loadEnrollments = useCallback(
     async (filters = { schoolYearId: "", classId: "", studentId: "", track: "" }) => {
       if (!sessionRef.current) return;
-      const query = new URLSearchParams();
-      if (filters.schoolYearId) query.set("schoolYearId", filters.schoolYearId);
-      if (filters.classId) query.set("classId", filters.classId);
-      if (filters.studentId) query.set("studentId", filters.studentId);
-      if (filters.track) query.set("track", filters.track);
-      const suffix = query.toString() ? `?${query.toString()}` : "";
-      const response = await api(`/enrollments${suffix}`);
-      if (!response.ok) {
-        setError(await parseError(response));
-        return;
-      }
-      setEnrollments((await response.json()) as Enrollment[]);
+      const { data, error: loadError } = await loadEnrollmentsData(api, filters);
+      setEnrollments(data);
+      if (loadError) setError(loadError);
     },
     [api]
   );
 
   const loadFinance = useCallback(async () => {
     if (!sessionRef.current) return;
-
-    const responses = await Promise.all([
-      api("/fee-plans"),
-      api("/invoices"),
-      api("/payments"),
-      api("/finance/recovery")
-    ]);
-
-    const failed = responses.find((item) => !item.ok);
-    if (failed) {
-      setError(await parseError(failed));
+    const { data, error: loadError } = await loadFinanceData(api);
+    if (!data) {
+      if (loadError) setError(loadError);
       return;
     }
 
-    const [feePlanRows, invoiceRows, paymentRows, recoveryView] = await Promise.all([
-      responses[0].json() as Promise<FeePlan[]>,
-      responses[1].json() as Promise<Invoice[]>,
-      responses[2].json() as Promise<PaymentRecord[]>,
-      responses[3].json() as Promise<RecoveryDashboard>
-    ]);
-
-    setFeePlans(feePlanRows);
-    setInvoices(invoiceRows);
-    setPayments(paymentRows);
-    setRecovery(recoveryView);
+    setFeePlans(data.feePlans);
+    setInvoices(data.invoices);
+    setPayments(data.payments);
+    setRecovery(data.recovery);
   }, [api]);
 
   const loadReportCards = useCallback(async () => {
     if (!sessionRef.current) return;
-    const response = await api("/report-cards");
-    setReportCards(
-      await readListResponse<ReportCard>(response, {
-        fallbackMessage: "Format inattendu pour la liste des bulletins.",
-        setError
-      })
-    );
+    const { data, error: loadError } = await loadReportCardsData(api);
+    setReportCards(data);
+    if (loadError) setError(loadError);
   }, [api]);
 
   const loadHeaderNotificationCount = useCallback(async () => {
@@ -644,29 +591,13 @@ export function App(): JSX.Element {
       return;
     }
 
-    const response = await api("/notifications", {}, false, { background: true });
-    if (!response.ok) {
+    const { data: rows, error: loadError } = await loadHeaderNotificationRows(api);
+    if (loadError) {
       setHeaderNotificationCount(0);
       return;
     }
 
-    const rows = (await response.json()) as Array<{
-      deliveryStatus?: string;
-      status?: string;
-    }>;
-
-    const liveItems = rows.filter((item) => {
-      const status = (item.status || "").toUpperCase();
-      const deliveryStatus = (item.deliveryStatus || "").toUpperCase();
-      return (
-        status === "PENDING" ||
-        status === "SCHEDULED" ||
-        deliveryStatus === "QUEUED" ||
-        deliveryStatus === "RETRYING"
-      );
-    });
-
-    setHeaderNotificationCount(liveItems.length || rows.length);
+    setHeaderNotificationCount(countActionableNotifications(rows));
   }, [
     api,
     currentRole,
@@ -695,12 +626,7 @@ export function App(): JSX.Element {
       return;
     }
 
-    const needStudents = ["iam", "students", "parents", "enrollments", "grades", "schoolLifeAttendance"].some(
-      (screen) => hasScreenAccess(currentRole, screen as ScreenId)
-    );
-    const needReference = ["reference", "teachers", "rooms", "enrollments", "grades", "schoolLifeAttendance", "schoolLifeTimetable", "teacherPortal"].some(
-      (screen) => hasScreenAccess(currentRole, screen as ScreenId)
-    );
+    const { needReference, needStudents } = resolveBootstrapNeeds(currentRole);
 
     const sessionKey = `${session.user.username}:${session.tenantId}:${currentRole}`;
     if (
