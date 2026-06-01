@@ -1,6 +1,9 @@
+import type { CSSProperties } from "react";
 import type {
   Enrollment,
   Invoice,
+  ModuleIconName,
+  MosqueeDashboard,
   ParentChild,
   ParentOverview,
   PortalNotification,
@@ -12,7 +15,7 @@ import type {
   TeacherClass,
   TeacherOverview
 } from "../shared/types/app";
-import type { MosqueeDashboard } from "../shared/types/app";
+import { ModuleIcon } from "../shared/components/module-icon";
 
 type DashboardScreenProps = {
   currentRole: Role | null;
@@ -75,7 +78,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
 
   const priorityTitle = currentRole === "PARENT" ? "Actions utiles" : "Tâches prioritaires";
 
-  let dashboardCards: Array<{ label: string; value: string | number; hint: string }> = [];
+  let dashboardCards: Array<{ icon: ModuleIconName; label: string; value: string | number; hint: string }> = [];
   let dashboardTasks: Array<{ id: string; title: string; text: string; screen: ScreenId }> = [];
   let dashboardNotifications: Array<{
     id: string;
@@ -87,11 +90,13 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
   if (currentRole === "PARENT") {
     dashboardCards = [
       {
+        icon: "users",
         label: "Enfants",
         value: parentOverview?.childrenCount ?? parentChildren.length,
         hint: "Suivi famille"
       },
       {
+        icon: "wallet",
         label: "Factures ouvertes",
         value:
           parentOverview?.openInvoicesCount ??
@@ -99,11 +104,13 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         hint: "À régler"
       },
       {
+        icon: "wallet",
         label: "Reste à payer",
         value: formatMoney(parentOverview?.remainingAmount ?? 0),
         hint: "Situation famille"
       },
       {
+        icon: "bell",
         label: "Notifications",
         value: parentOverview?.notificationsCount ?? parentNotifications.length,
         hint: "Messages reçus"
@@ -159,21 +166,25 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
   } else if (currentRole === "ENSEIGNANT") {
     dashboardCards = [
       {
+        icon: "room",
         label: "Classes",
         value: teacherOverview?.classesCount ?? teacherClasses.length,
         hint: "Affectations"
       },
       {
+        icon: "users",
         label: "Élèves suivis",
         value: teacherOverview?.studentsCount ?? teacherStudentsCount,
         hint: "Périmètre"
       },
       {
+        icon: "book",
         label: "Notes",
         value: teacherOverview?.gradesCount ?? teacherGradesCount,
         hint: "Saisies"
       },
       {
+        icon: "bell",
         label: "Notifications",
         value: teacherOverview?.notificationsCount ?? teacherNotifications.length,
         hint: "Messages utiles"
@@ -235,28 +246,30 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
       } => item !== null
     );
   } else {
-    const backOfficeCards: Array<{ label: string; value: string | number; hint: string } | null> = [
+    const backOfficeCards: Array<{ icon: ModuleIconName; label: string; value: string | number; hint: string } | null> = [
       hasScreenAccess(currentRole, "students")
-        ? { label: "Élèves", value: students.length, hint: "Population" }
+        ? { icon: "users", label: "Élèves", value: students.length, hint: "Population" }
         : null,
       hasScreenAccess(currentRole, "reference") || hasScreenAccess(currentRole, "enrollments")
-        ? { label: "Classes", value: classesCount, hint: "Organisation" }
+        ? { icon: "room", label: "Classes", value: classesCount, hint: "Organisation" }
         : null,
       hasScreenAccess(currentRole, "enrollments")
-        ? { label: "Inscriptions", value: enrollments.length, hint: "Actives" }
+        ? { icon: "clipboard", label: "Inscriptions", value: enrollments.length, hint: "Actives" }
         : null,
       hasScreenAccess(currentRole, "finance")
         ? {
+            icon: "wallet",
             label: "Recouvrement",
             value: `${recovery ? recovery.totals.recoveryRatePercent.toFixed(1) : "0.0"}%`,
             hint: "Santé financière"
           }
         : null,
       hasScreenAccess(currentRole, "grades")
-        ? { label: "Bulletins", value: reportCards.length, hint: "Publiés" }
+        ? { icon: "book", label: "Bulletins", value: reportCards.length, hint: "Publiés" }
         : null,
       hasScreenAccess(currentRole, "mosquee")
         ? {
+            icon: "wallet",
             label: "Dons mosquée",
             value: formatMoney(MosqueeDashboard?.totals.donationsTotal ?? 0),
             hint: "Total cumulé"
@@ -264,7 +277,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         : null
     ];
     dashboardCards = backOfficeCards.filter(
-      (item): item is { label: string; value: string | number; hint: string } => item !== null
+      (item): item is { icon: ModuleIconName; label: string; value: string | number; hint: string } => item !== null
     );
 
     dashboardTasks = [
@@ -357,20 +370,136 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
   }
 
   const overviewCards = dashboardCards.slice(0, 4);
+  const financeBars = recovery
+    ? [
+        {
+          label: "Dû",
+          value: recovery.totals.amountDue,
+          formatted: formatMoney(recovery.totals.amountDue),
+          tone: "primary"
+        },
+        {
+          label: "Encaissé",
+          value: recovery.totals.amountPaid,
+          formatted: formatMoney(recovery.totals.amountPaid),
+          tone: "success"
+        },
+        {
+          label: "Reste",
+          value: recovery.totals.remainingAmount,
+          formatted: formatMoney(recovery.totals.remainingAmount),
+          tone: "warning"
+        }
+      ]
+    : [];
+  const maxFinanceBarValue = Math.max(1, ...financeBars.map((item) => item.value));
+  const operationalSignals = overviewCards.map((card) => {
+    const numericValue = typeof card.value === "number" ? card.value : null;
+
+    return {
+      label: card.label,
+      displayValue: String(card.value),
+      numericValue
+    };
+  });
+  const maxOperationalSignal = Math.max(1, ...operationalSignals.map((item) => item.numericValue ?? 0));
+  const dashboardSubtitle =
+    currentRole === "PARENT"
+      ? "Vue rapide du suivi familial et des notifications utiles."
+      : currentRole === "ENSEIGNANT"
+        ? "Vue rapide de vos classes, élèves et actions pédagogiques."
+        : "Bienvenue, voici l'état opérationnel de l'établissement aujourd'hui.";
 
   return (
     <div className="dashboard-shell-v2">
+      <header className="dashboard-page-header">
+        <div>
+          <h1>Tableau de bord</h1>
+          <p>{dashboardSubtitle}</p>
+        </div>
+      </header>
+
       <section className="dashboard-kpi-grid dashboard-kpi-grid-flex">
-        {overviewCards.map((card, index) => (
+        {overviewCards.map((card) => (
           <article key={card.label} className="panel metric-card kpi-card kpi-card-flex">
-            <span className="kpi-card-label">{card.label}</span>
+            <div className="kpi-card-head">
+              <span className="kpi-card-label">{card.label}</span>
+              <span className="kpi-card-icon" aria-hidden="true">
+                <ModuleIcon name={card.icon} />
+              </span>
+            </div>
             <strong>{card.value}</strong>
             <small className="subtle">{card.hint}</small>
-            <div className="kpi-card-progress" aria-hidden="true">
-              <span style={{ width: `${58 + ((index + 1) % 4) * 10}%` }} />
-            </div>
           </article>
         ))}
+      </section>
+
+      <section className="dashboard-template-grid">
+        <article className="panel dashboard-panel-shell dashboard-visual-panel">
+          <div className="dashboard-visual-head">
+            <div>
+              <h3>Recouvrement & encaissements</h3>
+              <p>Lecture rapide issue des factures disponibles.</p>
+            </div>
+          </div>
+
+          {financeBars.length > 0 ? (
+            <div className="dashboard-bar-chart" aria-label="Synthèse du recouvrement">
+              {financeBars.map((item) => {
+                const barHeight = Math.max(8, Math.round((item.value / maxFinanceBarValue) * 100));
+
+                return (
+                  <div key={item.label} className="dashboard-bar-column">
+                    <span className="dashboard-bar-value">{item.formatted}</span>
+                    <span
+                      className={`dashboard-bar-track is-${item.tone}`}
+                      style={{ "--bar-height": `${barHeight}%` } as CSSProperties}
+                    >
+                      <span />
+                    </span>
+                    <strong>{item.label}</strong>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="dashboard-empty-chart">
+              <strong>À calculer</strong>
+              <p>Le backend ne fournit pas encore de synthèse financière exploitable pour ce profil.</p>
+            </div>
+          )}
+        </article>
+
+        <article className="panel dashboard-panel-shell dashboard-visual-panel">
+          <div className="dashboard-visual-head">
+            <div>
+              <h3>Suivi opérationnel</h3>
+              <p>Indicateurs clés du périmètre visible.</p>
+            </div>
+          </div>
+
+          <div className="dashboard-signal-list">
+            {operationalSignals.map((item) => {
+              const barWidth =
+                item.numericValue === null ? 0 : Math.max(8, Math.round((item.numericValue / maxOperationalSignal) * 100));
+
+              return (
+                <div key={item.label} className="dashboard-signal-row">
+                  <div>
+                    <span>{item.label}</span>
+                    <strong>{item.displayValue}</strong>
+                  </div>
+                  <span
+                    className={`dashboard-signal-track ${item.numericValue === null ? "is-unavailable" : ""}`.trim()}
+                    style={{ "--signal-width": `${barWidth}%` } as CSSProperties}
+                  >
+                    <span />
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </article>
       </section>
 
       <section className="dashboard-main-grid dashboard-main-grid-summary">

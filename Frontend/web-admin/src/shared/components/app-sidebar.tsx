@@ -1,5 +1,6 @@
 import type { ModuleIconName } from "../types/app";
 import type { HeaderNavigationAction } from "../../app/navigation/header-navigation";
+import type { HeaderNavigationUser } from "../../app/navigation/header-navigation-types";
 import { ModuleIcon } from "./module-icon";
 
 type AppSidebarGroup = {
@@ -9,7 +10,12 @@ type AppSidebarGroup = {
 };
 
 type AppSidebarProps = {
+  brandName?: string;
   groups: AppSidebarGroup[];
+  logoAlt?: string;
+  logoSrc?: string;
+  onBrandSelect?: () => void;
+  user?: Pick<HeaderNavigationUser, "avatar" | "avatarUrl" | "email" | "roleLabel" | "username">;
 };
 
 const SIDEBAR_ICON_BY_ACTION: Record<string, ModuleIconName> = {
@@ -34,7 +40,7 @@ const SIDEBAR_ICON_BY_ACTION: Record<string, ModuleIconName> = {
 };
 
 export function AppSidebar(props: AppSidebarProps): JSX.Element {
-  const { groups } = props;
+  const { brandName, groups, logoAlt, logoSrc, onBrandSelect, user } = props;
 
   const visibleGroups = groups
     .map((group) => ({
@@ -48,6 +54,18 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
 
   return (
     <aside className="panel app-sidebar app-sidebar-v2" aria-label="Navigation laterale">
+      {brandName && logoSrc ? (
+        <button type="button" className="sidebar-brand" onClick={onBrandSelect}>
+          <span className="sidebar-brand-logo">
+            <img src={logoSrc} alt={logoAlt || brandName} />
+          </span>
+          <span className="sidebar-brand-copy">
+            <strong>{brandName}</strong>
+            <small>Administration scolaire</small>
+          </span>
+        </button>
+      ) : null}
+
       <div className="sidebar-scroll-region">
         {visibleGroups.map((group) => (
           <div key={group.id} className="sidebar-group">
@@ -75,6 +93,18 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
           </div>
         ))}
       </div>
+
+      {user ? (
+        <div className="sidebar-user-card">
+          <span className="sidebar-user-avatar" aria-hidden="true">
+            {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.avatar}
+          </span>
+          <span className="sidebar-user-copy">
+            <strong>{user.username}</strong>
+            <small>{user.email || user.roleLabel}</small>
+          </span>
+        </div>
+      ) : null}
     </aside>
   );
 }

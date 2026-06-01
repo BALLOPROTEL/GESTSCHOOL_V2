@@ -498,7 +498,7 @@ export function App(): JSX.Element {
     if (!session) return undefined;
 
     const frame = window.requestAnimationFrame(() => {
-      appRootRef.current?.querySelector<HTMLElement>(".app-shell-main")?.scrollTo({ top: 0, left: 0 });
+      appRootRef.current?.querySelector<HTMLElement>(".app-shell-content")?.scrollTo({ top: 0, left: 0 });
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -1423,78 +1423,91 @@ export function App(): JSX.Element {
         </Suspense>
       ) : (
         <section className="workspace fade-up">
-          <HeaderNavigation
-            brandName={SCHOOL_NAME}
-            logoAlt={`Logo ${SCHOOL_NAME}`}
-            logoSrc="/logo.png"
-            sidebarCollapsed={sidebarCollapsed}
-            searchPlaceholder="Rechercher un module, un écran, une action..."
-            searchValue={moduleQueryInput}
-            onSearchChange={setModuleQueryInput}
-            onSearchSubmit={headerSearchSubmit}
-            onToggleSidebar={() => setSidebarCollapsed((previous) => !previous)}
-            dashboard={dashboardAction}
-            scolarite={scolariteActions}
-            schoolLife={schoolLifeActions}
-            settings={settingsActions}
-            settingsGroups={settingsGroups}
-            preferences={preferenceActions}
-            userActions={headerUserActions}
-            messages={{
-              active: messageActive,
-              count: headerMessageCount,
-              disabled: true,
-              label: "Messagerie en aperçu",
-              statusLabel: "Service indisponible pour le moment",
-              onSelect: () => setTab(messageTarget)
-            }}
-            notifications={{
-              active: notificationActive,
-              count: headerNotificationCount,
-              label: "Notifications en temps reel",
-              onSelect: () => setTab(notificationTarget)
-            }}
-            user={{
-              avatar: profileInitial,
-              avatarUrl: headerAccount?.avatarUrl,
-              contextLabel: profileContextLabel,
-              email: headerEmail,
-              roleLabel: currentRoleLabel,
-              schoolYearLabel,
-              secondaryLabel: `Année : ${schoolYearLabel}`,
-              statusLabel: headerStatusLabel,
-              tenantLabel: headerTenantLabel,
-              username: headerDisplayName,
-              onLogout: () => void logout()
-            }}
-          />
-
           <div className={`app-shell ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`.trim()}>
             <AppSidebar
+              brandName={SCHOOL_NAME}
               groups={sidebarGroups}
+              logoAlt={`Logo ${SCHOOL_NAME}`}
+              logoSrc="/logo.png"
+              onBrandSelect={dashboardAction.onSelect}
+              user={{
+                avatar: profileInitial,
+                avatarUrl: headerAccount?.avatarUrl,
+                email: headerEmail,
+                roleLabel: currentRoleLabel,
+                username: headerDisplayName
+              }}
             />
             <div className="app-shell-main">
-              {isPreviewSession ? <PreviewLocalNotice uiLanguage={uiLanguage} /> : null}
-
-              <AppContextBar
-                activeLabel={activeScreen.label}
-                isEnrollmentsContext={isEnrollmentsContext}
-                isTeachersContext={isTeachersContext}
-                onBackToDashboard={() => setTab("dashboard")}
-                tab={tab}
+              <HeaderNavigation
+                brandName={SCHOOL_NAME}
+                logoAlt={`Logo ${SCHOOL_NAME}`}
+                logoSrc="/logo.png"
+                sidebarCollapsed={sidebarCollapsed}
+                searchPlaceholder="Rechercher un module, un écran, une action..."
+                searchValue={moduleQueryInput}
+                onSearchChange={setModuleQueryInput}
+                onSearchSubmit={headerSearchSubmit}
+                onToggleSidebar={() => setSidebarCollapsed((previous) => !previous)}
+                dashboard={dashboardAction}
+                scolarite={scolariteActions}
+                schoolLife={schoolLifeActions}
+                settings={settingsActions}
+                settingsGroups={settingsGroups}
+                preferences={preferenceActions}
+                userActions={headerUserActions}
+                messages={{
+                  active: messageActive,
+                  count: headerMessageCount,
+                  disabled: true,
+                  label: "Messagerie en aperçu",
+                  statusLabel: "Service indisponible pour le moment",
+                  onSelect: () => setTab(messageTarget)
+                }}
+                notifications={{
+                  active: notificationActive,
+                  count: headerNotificationCount,
+                  label: "Notifications en temps reel",
+                  onSelect: () => setTab(notificationTarget)
+                }}
+                user={{
+                  avatar: profileInitial,
+                  avatarUrl: headerAccount?.avatarUrl,
+                  contextLabel: profileContextLabel,
+                  email: headerEmail,
+                  roleLabel: currentRoleLabel,
+                  schoolYearLabel,
+                  secondaryLabel: `Année : ${schoolYearLabel}`,
+                  statusLabel: headerStatusLabel,
+                  tenantLabel: headerTenantLabel,
+                  username: headerDisplayName,
+                  onLogout: () => void logout()
+                }}
               />
 
-              <section key={tab} className="screen-host">
-                <Suspense fallback={<ScreenLoadingFallback />}>{renderActiveScreen()}</Suspense>
-              </section>
+              <div className="app-shell-content">
+                {isPreviewSession ? <PreviewLocalNotice uiLanguage={uiLanguage} /> : null}
 
-              <AppFooter
-                apiConnectionStatus={apiConnection.status}
-                apiStatusText={apiStatusText}
-                lastSyncLabel={lastSyncLabel}
-                schoolName={SCHOOL_NAME}
-                schoolYearLabel={schoolYearLabel}
-              />
+                <AppContextBar
+                  activeLabel={activeScreen.label}
+                  isEnrollmentsContext={isEnrollmentsContext}
+                  isTeachersContext={isTeachersContext}
+                  onBackToDashboard={() => setTab("dashboard")}
+                  tab={tab}
+                />
+
+                <section key={tab} className="screen-host">
+                  <Suspense fallback={<ScreenLoadingFallback />}>{renderActiveScreen()}</Suspense>
+                </section>
+
+                <AppFooter
+                  apiConnectionStatus={apiConnection.status}
+                  apiStatusText={apiStatusText}
+                  lastSyncLabel={lastSyncLabel}
+                  schoolName={SCHOOL_NAME}
+                  schoolYearLabel={schoolYearLabel}
+                />
+              </div>
             </div>
           </div>
         </section>
