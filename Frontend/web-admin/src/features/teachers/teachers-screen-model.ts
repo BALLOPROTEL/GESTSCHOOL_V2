@@ -92,6 +92,7 @@ export const TEACHER_DOCUMENT_ALLOWED_MIME_TYPES = new Set(TEACHER_DOCUMENT_ACCE
 export const trackLabel = (track: AcademicTrack): string => (track === "ARABOPHONE" ? "Arabophone" : "Francophone");
 
 export const TEACHER_TYPE_LABELS: Record<string, string> = {
+  PERMANENT: "Permanent",
   TITULAIRE: "Titulaire",
   VACATAIRE: "Vacataire",
   CONTRACTUEL: "Contractuel",

@@ -15,6 +15,16 @@ export type HeaderPreferenceAction = {
   helperText?: string;
   iconSrc?: string;
   onSelect: () => void;
+  options?: HeaderPreferenceOption[];
+};
+
+export type HeaderPreferenceOption = {
+  id: string;
+  label: string;
+  active?: boolean;
+  helperText?: string;
+  iconSrc?: string;
+  onSelect: () => void;
 };
 
 export type HeaderNavigationGroup = {

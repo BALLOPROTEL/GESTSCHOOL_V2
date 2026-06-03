@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import type {
   ClassItem,
@@ -11,7 +11,8 @@ import { translateUiString, type UiLanguage } from "../../../shared/i18n";
 import {
   createEnrollment,
   fetchEnrollments,
-  removeEnrollment
+  removeEnrollment,
+  upsertEnrollmentPlacement
 } from "../services/enrollments-service";
 import type {
   EnrollmentFilters,
@@ -71,6 +72,17 @@ const buildInitialForm = (): EnrollmentForm => ({
   enrollmentStatus: "ENROLLED"
 });
 
+const normalizeEnrollmentStatus = (value: string): string =>
+  value.trim().toUpperCase() || "ENROLLED";
+
+const toPlacementStatus = (value: string): "ACTIVE" | "INACTIVE" | "COMPLETED" | "SUSPENDED" => {
+  const normalized = normalizeEnrollmentStatus(value);
+  if (normalized === "COMPLETED") return "COMPLETED";
+  if (normalized === "SUSPENDED") return "SUSPENDED";
+  if (normalized === "CANCELLED" || normalized === "INACTIVE") return "INACTIVE";
+  return "ACTIVE";
+};
+
 export const useEnrollmentsData = ({
   api,
   initialEnrollments,
@@ -87,7 +99,8 @@ export const useEnrollmentsData = ({
   const [enrollmentFilters, setEnrollmentFilters] = useState<EnrollmentFilters>(() => buildInitialFilters());
   const [enrollmentForm, setEnrollmentForm] = useState<EnrollmentForm>(() => buildInitialForm());
   const [enrollmentErrors, setEnrollmentErrors] = useState<FieldErrors>({});
-  const [enrollmentWorkflowStep, setEnrollmentWorkflowStep] = useState("create");
+  const [enrollmentWorkflowStep, setEnrollmentWorkflowStep] = useState("list");
+  const [editingEnrollmentId, setEditingEnrollmentId] = useState<string | null>(null);
 
   const setEnrollmentsAndNotify = useCallback(
     (nextEnrollments: Enrollment[]) => {
@@ -150,10 +163,39 @@ export const useEnrollmentsData = ({
     void loadEnrollments(buildInitialFilters());
   }, [loadEnrollments]);
 
+  const resetEnrollmentForm = useCallback(() => {
+    setEditingEnrollmentId(null);
+    setEnrollmentErrors({});
+    setEnrollmentForm((previous) => ({
+      ...buildInitialForm(),
+      schoolYearId: schoolYears[0]?.id || previous.schoolYearId,
+      classId: classes[0]?.id || previous.classId,
+      studentId: students[0]?.id || previous.studentId,
+      track: classes[0]?.track || previous.track
+    }));
+  }, [classes, schoolYears, students]);
+
+  const startEnrollmentEdit = useCallback((enrollment: Enrollment): void => {
+    setEditingEnrollmentId(enrollment.id);
+    setEnrollmentErrors({});
+    setEnrollmentForm({
+      schoolYearId: enrollment.schoolYearId,
+      classId: enrollment.classId,
+      studentId: enrollment.studentId,
+      track: enrollment.track,
+      enrollmentDate: enrollment.enrollmentDate || today(),
+      enrollmentStatus: normalizeEnrollmentStatus(enrollment.enrollmentStatus)
+    });
+    setEnrollmentWorkflowStep("create");
+  }, []);
+
   const submitEnrollment = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     onError(null);
 
+    const editedEnrollment = editingEnrollmentId
+      ? enrollments.find((item) => item.id === editingEnrollmentId) || null
+      : null;
     const errors: FieldErrors = {};
     if (!enrollmentForm.schoolYearId) errors.schoolYearId = "Année scolaire requise.";
     if (!enrollmentForm.classId) errors.classId = "Classe requise.";
@@ -169,10 +211,22 @@ export const useEnrollmentsData = ({
     if (selectedClass && selectedClass.track !== enrollmentForm.track) {
       errors.track = "Le cursus doit correspondre à la classe sélectionnée.";
     }
+    if (editedEnrollment) {
+      if (editedEnrollment.studentId !== enrollmentForm.studentId) {
+        errors.studentId = "Pour changer d'élève, créez une nouvelle inscription.";
+      }
+      if (editedEnrollment.schoolYearId !== enrollmentForm.schoolYearId) {
+        errors.schoolYearId = "Pour changer d'année scolaire, créez une nouvelle inscription.";
+      }
+      if (editedEnrollment.track !== enrollmentForm.track) {
+        errors.track = "Pour changer de cursus, créez une nouvelle inscription.";
+      }
+    }
 
     const duplicateEnrollment = enrollments.some((item) => {
       const status = item.enrollmentStatus.trim().toUpperCase();
       return (
+        item.id !== editingEnrollmentId &&
         item.studentId === enrollmentForm.studentId &&
         item.schoolYearId === enrollmentForm.schoolYearId &&
         item.classId === enrollmentForm.classId &&
@@ -190,24 +244,67 @@ export const useEnrollmentsData = ({
       return;
     }
     if (!remoteEnabled) {
+      if (editedEnrollment) {
+        const selectedStudent = students.find((item) => item.id === enrollmentForm.studentId);
+        const selectedYear = schoolYears.find((item) => item.id === enrollmentForm.schoolYearId);
+        const nextEnrollments = enrollments.map((item) =>
+          item.id === editedEnrollment.id
+            ? {
+                ...item,
+                classId: enrollmentForm.classId,
+                track: enrollmentForm.track,
+                enrollmentDate: enrollmentForm.enrollmentDate || today(),
+                enrollmentStatus: normalizeEnrollmentStatus(enrollmentForm.enrollmentStatus),
+                studentName:
+                  item.studentName ||
+                  `${selectedStudent?.firstName || ""} ${selectedStudent?.lastName || ""}`.trim(),
+                classLabel: selectedClass?.label || item.classLabel,
+                schoolYearCode: selectedYear?.code || item.schoolYearCode
+              }
+            : item
+        );
+        setEnrollmentsAndNotify(nextEnrollments);
+        setNoticeAndStep(translateUiString(language, "Mode aperçu local : inscription modifiée."), "list");
+        setEditingEnrollmentId(null);
+        return;
+      }
       onNotice(translateUiString(language, "Mode aperçu local : inscription non persistée."));
       return;
     }
 
     try {
-      await createEnrollment(api, {
-        schoolYearId: enrollmentForm.schoolYearId,
-        classId: enrollmentForm.classId,
-        studentId: enrollmentForm.studentId,
-        track: enrollmentForm.track,
-        enrollmentDate: enrollmentForm.enrollmentDate || today(),
-        enrollmentStatus: enrollmentForm.enrollmentStatus.trim().toUpperCase() || "ENROLLED"
-      });
-      setNoticeAndStep(translateUiString(language, "Inscription créée."), "list");
+      if (editedEnrollment) {
+        if (!selectedClass?.levelId) {
+          onError("La classe sélectionnée n'a pas de niveau associé.");
+          return;
+        }
+        await upsertEnrollmentPlacement(api, {
+          schoolYearId: enrollmentForm.schoolYearId,
+          classId: enrollmentForm.classId,
+          studentId: enrollmentForm.studentId,
+          track: enrollmentForm.track,
+          levelId: selectedClass.levelId,
+          placementStatus: toPlacementStatus(enrollmentForm.enrollmentStatus),
+          startDate: enrollmentForm.enrollmentDate || today(),
+          isPrimary: Boolean(editedEnrollment.isPrimary)
+        });
+        setEditingEnrollmentId(null);
+        setNoticeAndStep(translateUiString(language, "Inscription modifiée."), "list");
+      } else {
+        await createEnrollment(api, {
+          schoolYearId: enrollmentForm.schoolYearId,
+          classId: enrollmentForm.classId,
+          studentId: enrollmentForm.studentId,
+          track: enrollmentForm.track,
+          enrollmentDate: enrollmentForm.enrollmentDate || today(),
+          enrollmentStatus: normalizeEnrollmentStatus(enrollmentForm.enrollmentStatus)
+        });
+        setNoticeAndStep(translateUiString(language, "Inscription créée."), "list");
+      }
       setEnrollmentErrors({});
       await loadEnrollments(enrollmentFilters);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de création d'inscription.");
+      onError(error instanceof Error ? error.message : "Erreur d'enregistrement de l'inscription.");
     }
   };
 
@@ -237,27 +334,21 @@ export const useEnrollmentsData = ({
     await loadEnrollments(next);
   };
 
-  const enrollmentSteps = useMemo(
-    () => [
-      { id: "create", title: "Création", hint: "Lier élève, classe et année." },
-      { id: "list", title: "Suivi", hint: "Filtrer et gérer les inscriptions.", done: enrollments.length > 0 }
-    ],
-    [enrollments.length]
-  );
-
   return {
     deleteEnrollment,
+    editingEnrollmentId,
     enrollmentErrors,
     enrollmentFilters,
     enrollmentForm,
     enrollments,
-    enrollmentSteps,
     enrollmentWorkflowStep,
     loadEnrollments,
     resetEnrollmentFilters,
+    resetEnrollmentForm,
     setEnrollmentFilters,
     setEnrollmentForm,
     setEnrollmentWorkflowStep,
+    startEnrollmentEdit,
     submitEnrollment
   };
 };

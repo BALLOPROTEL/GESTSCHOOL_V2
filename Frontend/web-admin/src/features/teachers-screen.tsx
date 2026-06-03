@@ -14,11 +14,13 @@ import type {
   TeacherRecord,
   TeacherSkillRecord,
   TeacherWorkloadRecord,
-  UserAccount,
-  WorkflowStepDef
+  UserAccount
 } from "../shared/types/app";
-import { WorkflowGuide } from "../shared/components/workflow-guide";
 import { TeachersListSection, TeachersSummarySection } from "./teachers/components/teachers-list-section";
+import {
+  buildPreviewTeachersModuleData,
+  filterPreviewTeachers
+} from "./teachers/teachers-preview-data";
 import {
   createTeacherAssignment,
   createTeacherDocument,
@@ -122,20 +124,19 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     () => users.filter((user) => user.role === "ENSEIGNANT" && user.isActive),
     [users]
   );
+  const previewTeachersModule = useMemo(
+    () => buildPreviewTeachersModuleData({ classes, schoolYears, subjects }),
+    [classes, schoolYears, subjects]
+  );
   const selectedTeacher = teachers.find((teacher) => teacher.id === selectedTeacherId) || teachers[0];
 
-  const steps: WorkflowStepDef[] = [
-    { id: "list", title: "Liste des enseignants", hint: "Rechercher, filtrer et ouvrir une fiche.", done: teachers.length > 0 },
-    { id: "form", title: editingTeacherId ? "Modifier l'enseignant" : "Ajouter un enseignant", hint: "Identité, contact et statut." },
-    { id: "detail", title: "Détail", hint: "Fiche complète, compétences, affectations et documents." },
-    { id: "skills", title: "Compétences", hint: "Matière, cycle, niveau et qualification.", done: skills.length > 0 },
-    { id: "assignments", title: "Affectations", hint: "Classe, matière, année, charge et titulaire.", done: assignments.length > 0 },
-    { id: "workloads", title: "Charges", hint: "Synthèse des volumes horaires.", done: workloads.length > 0 },
-    { id: "documents", title: "Documents", hint: "Contrats, diplômes, pièces et attestations.", done: documents.length > 0 }
-  ];
-
   const loadTeachers = async (): Promise<void> => {
-    if (!remoteEnabled) return;
+    if (!remoteEnabled) {
+      const rows = filterPreviewTeachers(previewTeachersModule.teachers, filters, previewTeachersModule.skills);
+      setTeachers(rows);
+      if (!selectedTeacherId && rows[0]) setSelectedTeacherId(rows[0].id);
+      return;
+    }
     try {
       const rows = await fetchTeachers(api, filters);
       setTeachers(rows);
@@ -147,6 +148,14 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
   const loadModule = async (): Promise<void> => {
     if (!remoteEnabled) {
+      setTeachers(previewTeachersModule.teachers);
+      setSkills(previewTeachersModule.skills);
+      setAssignments(previewTeachersModule.assignments);
+      setDocuments(previewTeachersModule.documents);
+      setWorkloads(previewTeachersModule.workloads);
+      if (!selectedTeacherId && previewTeachersModule.teachers[0]) {
+        setSelectedTeacherId(previewTeachersModule.teachers[0].id);
+      }
       setLoading(false);
       return;
     }
@@ -168,7 +177,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
 
   const loadDetail = async (teacherId: string): Promise<void> => {
     if (!teacherId) return;
-    if (!remoteEnabled) return;
+    if (!remoteEnabled) {
+      setDetail(previewTeachersModule.details.find((teacher) => teacher.id === teacherId) || null);
+      return;
+    }
     try {
       setDetail(await fetchTeacherDetail(api, teacherId));
     } catch (error) {
@@ -402,6 +414,12 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     setActiveStep("form");
   };
 
+  const openTeacherForm = (): void => {
+    setEditingTeacherId(null);
+    setTeacherForm(defaultTeacherForm());
+    setActiveStep("form");
+  };
+
   const archiveResource = async (path: string, successMessage: string, confirmMessage?: string): Promise<void> => {
     if (confirmMessage && !window.confirm(translate(confirmMessage))) return;
     if (!remoteEnabled) {
@@ -439,9 +457,45 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     ? documents.filter((item) => item.teacherId === selectedTeacherId)
     : documents;
 
+  const teacherTabs = [
+    { id: "list", label: translate("Liste") },
+    { id: "skills", label: translate("Compétences") },
+    { id: "assignments", label: translate("Affectations") },
+    { id: "workloads", label: translate("Charges") },
+    { id: "documents", label: translate("Documents") }
+  ];
+
   return (
-    <WorkflowGuide title="Enseignants" steps={steps} activeStepId={activeStep} onStepChange={setActiveStep}>
-      <div className="teachers-screen-shell">
+    <div className="teachers-v3-shell">
+      <header className="teachers-v3-page-header">
+        <div>
+          <h1>{translate("Enseignants")}</h1>
+          <p>{translate("Pilotez les fiches enseignants, affectations, compétences et charges pédagogiques.")}</p>
+        </div>
+        {activeStep === "list" ? (
+          <button type="button" onClick={openTeacherForm}>{translate("Ajouter un enseignant")}</button>
+        ) : (
+          <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>
+            {translate("Retour à la liste")}
+          </button>
+        )}
+      </header>
+
+      <nav className="teachers-v3-step-tabs" role="tablist" aria-label={translate("Navigation enseignants")}>
+        {teacherTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeStep === tab.id}
+            className={activeStep === tab.id ? "is-active" : ""}
+            onClick={() => setActiveStep(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
       {activeStep === "list" ? (
         <TeachersSummarySection
           assignments={assignments}
@@ -457,7 +511,6 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
         <TeachersListSection
           filters={filters}
           loading={loading}
-          onAddTeacher={() => setActiveStep("form")}
           onArchiveTeacher={(teacherId) =>
             void archiveResource(`/teachers/${teacherId}`, "Enseignant archivé.", "Confirmer l'archivage de cet enseignant ?")
           }
@@ -678,7 +731,6 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           </div>
         </section>
       ) : null}
-      </div>
-    </WorkflowGuide>
+    </div>
   );
 }

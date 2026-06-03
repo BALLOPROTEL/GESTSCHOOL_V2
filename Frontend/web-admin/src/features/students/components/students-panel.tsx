@@ -1,7 +1,6 @@
-import { type FormEvent } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 
-import { WorkflowGuide } from "../../../shared/components/workflow-guide";
-import type { AcademicTrack, FieldErrors, Student, WorkflowStepDef } from "../../../shared/types/app";
+import type { AcademicTrack, FieldErrors, Student } from "../../../shared/types/app";
 import { fieldError } from "../../../shared/utils/form-ui";
 import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm } from "../types/students";
 
@@ -30,11 +29,15 @@ const SCHOOL_NAME = "Al Manarat Islamiyat";
 const formatTrackLabel = (track?: AcademicTrack): string =>
   track === "ARABOPHONE" ? "Arabophone" : "Francophone";
 
-const formatStudentTracks = (student: Student): string => {
+const getStudentTrackCodes = (student: Student): AcademicTrack[] => {
   const placementTracks = (student.placements || []).map((placement) => placement.track);
-  const tracks = (student.tracks && student.tracks.length > 0 ? student.tracks : placementTracks).filter(
+  return (student.tracks && student.tracks.length > 0 ? student.tracks : placementTracks).filter(
     (track, index, allTracks) => allTracks.indexOf(track) === index
   );
+};
+
+const formatStudentTracks = (student: Student): string => {
+  const tracks = getStudentTrackCodes(student);
   if (tracks.length === 0) return "À régulariser via inscription";
   if (tracks.length > 1) return "Francophone + Arabophone";
   return formatTrackLabel(tracks[0]);
@@ -76,11 +79,10 @@ const getStudentStatusClassName = (status?: string): string => {
 const getStudentDisplayName = (student: Student): string =>
   student.fullName || `${student.firstName} ${student.lastName}`.trim();
 
-const formatParentSummary = (student: Student): string => {
-  const parents = student.parents || [];
-  if (parents.length === 0) return "Aucun responsable";
-  const primary = parents.find((parent) => parent.isPrimaryContact) || parents[0];
-  return parents.length > 1 ? `${parents.length} responsables` : primary.parentName;
+const getStudentInitials = (student: Student): string => {
+  const firstInitial = (student.firstName || student.fullName || "?").trim().charAt(0);
+  const lastInitial = (student.lastName || "").trim().charAt(0);
+  return `${firstInitial}${lastInitial}`.toUpperCase();
 };
 
 export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
@@ -103,71 +105,62 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
     students,
     studentsLoading
   } = props;
-  const activeStudents = students.filter((student) => (student.status || "ACTIVE").toUpperCase() === "ACTIVE").length;
-  const bicursusCount = students.filter((student) => (student.tracks || []).length > 1).length;
-  const studentsWithParents = students.filter((student) => (student.parents || []).length > 0).length;
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [trackFilter, setTrackFilter] = useState("ALL");
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
 
-  const studentSteps: WorkflowStepDef[] = [
-    {
-      id: "entry",
-      title: editingStudentId ? "Modifier le dossier" : "Ajouter un élève",
-      hint: "Dossier administratif, statut et informations utiles."
-    },
-    {
-      id: "list",
-      title: "Base élèves",
-      hint: "Lire les dossiers, responsables et placements issus des inscriptions.",
-      done: students.length > 0
-    }
-  ];
+  const filteredStudents = useMemo(
+    () =>
+      shownStudents.filter((student) => {
+        const normalizedStatus = (student.status || "ACTIVE").toUpperCase();
+        const tracks = getStudentTrackCodes(student);
+        const matchesStatus = statusFilter === "ALL" || normalizedStatus === statusFilter;
+        const matchesTrack =
+          trackFilter === "ALL" ||
+          (trackFilter === "BICURSUS" && tracks.length > 1) ||
+          (trackFilter === "UNASSIGNED" && tracks.length === 0) ||
+          tracks.includes(trackFilter as AcademicTrack);
+
+        return matchesStatus && matchesTrack;
+      }),
+    [shownStudents, statusFilter, trackFilter]
+  );
+
+  const hasListFilters = studentSearch.trim().length > 0 || statusFilter !== "ALL" || trackFilter !== "ALL";
+  const openStudentForm = (): void => {
+    onResetStudentForm();
+    onStudentWorkflowStepChange("entry");
+  };
+  const resetListFilters = (): void => {
+    onSearchChange("");
+    setStatusFilter("ALL");
+    setTrackFilter("ALL");
+  };
+  const closeActionMenu = (): void => setOpenActionMenuId(null);
+  const toggleActionMenu = (studentId: string): void => {
+    setOpenActionMenuId((current) => (current === studentId ? null : studentId));
+  };
 
   return (
-    <WorkflowGuide
-      title="Élèves"
-      steps={studentSteps}
-      activeStepId={studentWorkflowStep}
-      onStepChange={onStudentWorkflowStepChange}
-    >
-      <div className="students-screen-shell">
-        <section data-step-id="list" className="panel table-panel workflow-section module-modern students-overview">
-          <div className="table-header">
-            <div>
-              <p className="section-kicker">Dossier administratif</p>
-              <h2>Base élèves</h2>
-            </div>
-            <span className="students-overview-status">
-              {studentsLoading ? "Synchronisation en cours" : `${students.length} dossier(s)`}
-            </span>
-          </div>
-          <p className="section-lead">
-            Les classes et cursus affichés ici proviennent des inscriptions validées.
-          </p>
-          <div className="students-overview-grid">
-            <article className="students-overview-card">
-              <span>Dossiers actifs</span>
-              <strong>{activeStudents}</strong>
-              <small>dossiers de la base élèves</small>
-            </article>
-            <article className="students-overview-card">
-              <span>Élèves bi-cursus</span>
-              <strong>{bicursusCount}</strong>
-              <small>parcours multiples</small>
-            </article>
-            <article className="students-overview-card">
-              <span>Responsables liés</span>
-              <strong>{studentsWithParents}</strong>
-              <small>responsables rattachés</small>
-            </article>
-            <article className="students-overview-card">
-              <span>Dossiers affichés</span>
-              <strong>{shownStudents.length}</strong>
-              <small>dossiers affichés</small>
-            </article>
-          </div>
-        </section>
+    <div className="students-v3-shell students-screen-shell">
+      <header className="students-v3-page-header">
+        <div>
+          <h1>Élèves</h1>
+          <p>Gérez et consultez les dossiers administratifs des élèves.</p>
+        </div>
+        {studentWorkflowStep === "entry" ? (
+          <button type="button" className="button-ghost" onClick={() => onStudentWorkflowStepChange("list")}>
+            Base élèves
+          </button>
+        ) : (
+          <button type="button" onClick={openStudentForm}>
+            Ajouter un élève
+          </button>
+        )}
+      </header>
 
         {studentWorkflowStep === "entry" ? (
-          <section data-step-id="entry" className="panel editor-panel workflow-section module-modern">
+          <section className="panel editor-panel module-modern students-v3-form-card">
             <div className="table-header">
               <div>
                 <p className="section-kicker">Dossier administratif</p>
@@ -399,92 +392,151 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
           </section>
         ) : null}
 
-        {studentWorkflowStep === "list" ? (
-          <section data-step-id="list" className="panel table-panel workflow-section module-modern students-list-panel">
-            <div className="table-header">
+      {studentWorkflowStep === "list" ? (
+        <>
+          <section className="panel students-v3-filter-card" aria-label="Filtres élèves">
+            <label className="students-v3-search-field">
+              <span>Recherche rapide</span>
+              <input
+                className="search-input"
+                placeholder="Nom, matricule ou classe..."
+                value={studentSearch}
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+            </label>
+            <label className="students-v3-filter-field">
+              <span>Statut</span>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="ALL">Tous les statuts</option>
+                <option value="ACTIVE">Actifs</option>
+                <option value="INACTIVE">Inactifs</option>
+                <option value="PENDING">En attente</option>
+                <option value="DRAFT">Brouillons</option>
+                <option value="SUSPENDED">Suspendus</option>
+                <option value="ARCHIVED">Archivés</option>
+              </select>
+            </label>
+            <label className="students-v3-filter-field">
+              <span>Cursus</span>
+              <select value={trackFilter} onChange={(event) => setTrackFilter(event.target.value)}>
+                <option value="ALL">Tous les cursus</option>
+                <option value="FRANCOPHONE">Francophone</option>
+                <option value="ARABOPHONE">Arabophone</option>
+                <option value="BICURSUS">Bi-cursus</option>
+                <option value="UNASSIGNED">À régulariser</option>
+              </select>
+            </label>
+            <button type="button" className="button-ghost" onClick={resetListFilters} disabled={!hasListFilters}>
+              Réinitialiser
+            </button>
+          </section>
+
+          <section className="panel table-panel module-modern students-list-panel students-v3-table-card">
+            <div className="students-v3-table-head">
               <div>
-                <p className="section-kicker">Base élèves</p>
-                <h2>Base élèves</h2>
+                <h2>Base élèves ({filteredStudents.length})</h2>
+                <p>Statuts et placements issus des inscriptions validées.</p>
               </div>
-              <div className="students-table-toolbar">
-                <label className="students-search-field">
-                  <span>Recherche rapide</span>
-                  <input
-                    className="search-input"
-                    placeholder="Matricule, nom, parent, cursus"
-                    value={studentSearch}
-                    onChange={(event) => onSearchChange(event.target.value)}
-                  />
-                </label>
-              </div>
+              <span className="students-overview-status">
+                {studentsLoading ? "Synchronisation en cours" : `${students.length} dossier(s)`}
+              </span>
             </div>
-            <p className="section-lead">
-              Lecture métier : statut du dossier, responsables et placements issus des inscriptions validées.
-            </p>
             <div className="table-wrap">
-              <table data-responsive-table="true">
+              <table className="students-v3-table" data-responsive-table="true">
                 <thead>
                   <tr>
+                    <th>Élève</th>
                     <th>Matricule</th>
-                    <th>Nom complet</th>
-                    <th>Date de naissance</th>
+                    <th>Classe / cursus</th>
                     <th>Statut</th>
-                    <th>Cursus</th>
-                    <th>Classe principale</th>
-                    <th>Responsables</th>
-                    <th>Actions</th>
+                    <th className="students-v3-actions-heading" aria-label="Actions"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {studentsLoading ? (
                     <tr>
-                      <td colSpan={8} className="empty-row">
+                      <td colSpan={5} className="empty-row">
                         Chargement...
                       </td>
                     </tr>
-                  ) : shownStudents.length === 0 ? (
+                  ) : filteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="empty-row">
+                      <td colSpan={5} className="empty-row">
                         Aucun élève enregistré.
                       </td>
                     </tr>
                   ) : (
-                    shownStudents.map((item) => (
+                    filteredStudents.map((item) => (
                       <tr key={item.id}>
-                        <td data-label="Matricule">{item.matricule}</td>
-                        <td data-label="Nom complet">{getStudentDisplayName(item)}</td>
-                        <td data-label="Date de naissance">{item.birthDate || "-"}</td>
+                        <td data-label="Élève">
+                          <div className="students-v3-student-cell">
+                            <span className="students-v3-avatar">{getStudentInitials(item)}</span>
+                            <div>
+                              <strong>{getStudentDisplayName(item)}</strong>
+                              <small>{item.birthDate || "Date de naissance à compléter"}</small>
+                            </div>
+                          </div>
+                        </td>
+                        <td data-label="Matricule" className="students-v3-muted-cell">
+                          {item.matricule}
+                        </td>
+                        <td data-label="Classe / cursus">
+                          <div className="students-v3-class-cell">
+                            <strong>{formatPrimaryClass(item)}</strong>
+                            <span className="students-v3-class-badge">{formatStudentTracks(item)}</span>
+                          </div>
+                        </td>
                         <td data-label="Statut">
                           <span className={getStudentStatusClassName(item.status)}>
                             {formatStudentStatus(item.status)}
                           </span>
                         </td>
-                        <td data-label="Cursus">{formatStudentTracks(item)}</td>
-                        <td data-label="Classe principale">{formatPrimaryClass(item)}</td>
-                        <td data-label="Responsables">{formatParentSummary(item)}</td>
                         <td data-label="Actions">
-                          <div className="row-actions">
+                          <div className="students-v3-action-cell">
                             <button
                               type="button"
-                              className="button-ghost"
-                              onClick={() => onViewStudent(item)}
+                              className="students-v3-more-button"
+                              aria-label={`Actions pour ${getStudentDisplayName(item)}`}
+                              aria-expanded={openActionMenuId === item.id}
+                              onClick={() => toggleActionMenu(item.id)}
                             >
-                              Voir
+                              <span aria-hidden="true">...</span>
                             </button>
-                            <button
-                              type="button"
-                              className="button-ghost"
-                              onClick={() => onEditStudent(item)}
-                            >
-                              Modifier
-                            </button>
-                            <button
-                              type="button"
-                              className="button-danger"
-                              onClick={() => onDeleteStudent(item.id)}
-                            >
-                              Archiver
-                            </button>
+                            {openActionMenuId === item.id ? (
+                              <div className="students-v3-action-menu" role="menu">
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    closeActionMenu();
+                                    onViewStudent(item);
+                                  }}
+                                >
+                                  Voir
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    closeActionMenu();
+                                    onEditStudent(item);
+                                  }}
+                                >
+                                  Modifier
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="is-danger"
+                                  onClick={() => {
+                                    closeActionMenu();
+                                    onDeleteStudent(item.id);
+                                  }}
+                                >
+                                  Archiver
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -521,16 +573,12 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     <span>Classe principale</span>
                     <strong>{formatPrimaryClass(selectedStudent)}</strong>
                   </div>
-                  <div>
-                    <span>Responsables</span>
-                    <strong>{formatParentSummary(selectedStudent)}</strong>
-                  </div>
                 </div>
               </aside>
             ) : null}
           </section>
-        ) : null}
-      </div>
-    </WorkflowGuide>
+        </>
+      ) : null}
+    </div>
   );
 }

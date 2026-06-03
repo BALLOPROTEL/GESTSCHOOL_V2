@@ -18,3 +18,14 @@ export type EnrollmentForm = {
   enrollmentDate: string;
   enrollmentStatus: string;
 };
+
+export type EnrollmentPlacementPayload = {
+  studentId: string;
+  schoolYearId: string;
+  track: AcademicTrack;
+  levelId: string;
+  classId?: string;
+  placementStatus?: "ACTIVE" | "INACTIVE" | "COMPLETED" | "SUSPENDED";
+  isPrimary?: boolean;
+  startDate?: string;
+};

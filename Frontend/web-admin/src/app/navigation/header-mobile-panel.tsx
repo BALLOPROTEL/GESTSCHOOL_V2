@@ -1,4 +1,5 @@
 import { HeaderSearchBar } from "./header-search-bar";
+import { ModuleIcon } from "../../shared/components/module-icon";
 import type {
   HeaderNavigationAction,
   HeaderNavigationGroup,
@@ -6,6 +7,7 @@ import type {
   HeaderPreferenceAction,
   HeaderUserAction
 } from "./header-navigation-types";
+import type { ModuleIconName } from "../../shared/types/app";
 
 type HeaderMobileSection = {
   id: string;
@@ -13,6 +15,28 @@ type HeaderMobileSection = {
   items: HeaderNavigationAction[];
   groups?: HeaderNavigationGroup[];
 };
+
+const MOBILE_ICON_BY_ACTION: Record<string, ModuleIconName> = {
+  dashboard: "chart",
+  enrollments: "clipboard",
+  iam: "shield",
+  teachers: "teacher",
+  rooms: "room",
+  students: "users",
+  parentPortal: "users",
+  finance: "wallet",
+  grades: "book",
+  schoolLifeOverview: "chart",
+  schoolLifeAttendance: "bell",
+  schoolLifeTimetable: "calendar",
+  schoolLifeNotifications: "bell",
+  reference: "settings",
+  reports: "chart",
+  mosquee: "calendar",
+  messages: "messages"
+};
+
+const resolveMobileIcon = (actionId: string): ModuleIconName => MOBILE_ICON_BY_ACTION[actionId] || "settings";
 
 export function HeaderMobilePanel(props: {
   brandLogoSrc: string;
@@ -104,18 +128,22 @@ export function HeaderMobilePanel(props: {
         {sections.map((section) => (
           <section key={section.id} className="header-mobile-section">
             <p>{section.label}</p>
-            <div className="header-mobile-links">
+            <div className="header-mobile-links" role="menu" aria-label={section.label}>
               {section.items.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   className={`header-mobile-link ${item.active ? "is-active" : ""}`.trim()}
                   disabled={item.disabled}
+                  role="menuitem"
                   onClick={() => {
                     item.onSelect();
                     onClose();
                   }}
                 >
+                  <span className="header-mobile-link-icon" aria-hidden="true">
+                    <ModuleIcon name={resolveMobileIcon(item.id)} />
+                  </span>
                   <span>{item.label}</span>
                   {item.helperText ? <small>{item.helperText}</small> : null}
                 </button>
@@ -124,18 +152,22 @@ export function HeaderMobilePanel(props: {
             {section.groups?.map((group) => (
               <div key={group.id} className="header-mobile-subsection">
                 <p>{group.label}</p>
-                <div className="header-mobile-links">
+                <div className="header-mobile-links" role="menu" aria-label={group.label}>
                   {group.items.map((item) => (
                     <button
                       key={item.id}
                       type="button"
                       className={`header-mobile-link ${item.active ? "is-active" : ""}`.trim()}
                       disabled={item.disabled}
+                      role="menuitem"
                       onClick={() => {
                         item.onSelect();
                         onClose();
                       }}
                     >
+                      <span className="header-mobile-link-icon" aria-hidden="true">
+                        <ModuleIcon name={resolveMobileIcon(item.id)} />
+                      </span>
                       <span>{item.label}</span>
                       {item.helperText ? <small>{item.helperText}</small> : null}
                     </button>
@@ -148,12 +180,13 @@ export function HeaderMobilePanel(props: {
 
         <section className="header-mobile-section">
           <p>Préférences</p>
-          <div className="header-preferences-grid mobile">
+          <div className="header-preferences-grid mobile" role="menu" aria-label="Préférences">
             {preferences.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className="header-preference-button"
+                role="menuitem"
                 onClick={() => {
                   item.onSelect();
                   onClose();
@@ -173,6 +206,7 @@ export function HeaderMobilePanel(props: {
           <button
             type="button"
             className={`header-mobile-link ${messages.active ? "is-active" : ""}`.trim()}
+            role="menuitem"
             onClick={() => {
               messages.onSelect();
               onClose();
@@ -185,6 +219,7 @@ export function HeaderMobilePanel(props: {
         <button
           type="button"
           className={`header-mobile-link ${notifications.active ? "is-active" : ""}`.trim()}
+          role="menuitem"
           onClick={() => {
             notifications.onSelect();
             onClose();
@@ -200,13 +235,14 @@ export function HeaderMobilePanel(props: {
           </div>
         </div>
         {userActions.length > 0 ? (
-          <div className="header-mobile-links user-actions">
+          <div className="header-mobile-links user-actions" role="menu" aria-label="Menu profil">
             {userActions.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className="header-mobile-link"
                 aria-label={item.label}
+                role="menuitem"
                 onClick={() => {
                   item.onSelect();
                   onClose();
@@ -221,12 +257,13 @@ export function HeaderMobilePanel(props: {
           <button
             type="button"
             className="header-logout-button"
+            role="menuitem"
             onClick={() => {
               onClose();
               user.onLogout();
             }}
           >
-            <span>Déconnexion</span>
+            <span>Se déconnecter</span>
           </button>
         </div>
       </div>

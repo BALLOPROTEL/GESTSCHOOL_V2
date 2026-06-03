@@ -160,12 +160,18 @@ export function FinanceScreen({
   const planInvoiceCount = (feePlanId: string): number => invoices.filter((item) => item.feePlanId === feePlanId).length;
 
   return (
-    <WorkflowGuide
-      title="Comptabilité"
-      steps={financeSteps}
-      activeStepId={financeWorkflowStep}
-      onStepChange={scrollToFinance}
-    >
+    <>
+      <header className="finance-mobile-heading">
+        <h1>Comptabilité</h1>
+        <p>Suivez le recouvrement, les factures et les paiements de l’établissement.</p>
+      </header>
+
+      <WorkflowGuide
+        title="Comptabilité"
+        steps={financeSteps}
+        activeStepId={financeWorkflowStep}
+        onStepChange={scrollToFinance}
+      >
       {financeWorkflowStep === "overview" ? (
         <section className="panel table-panel workflow-section module-modern module-overview-shell finance-screen-shell">
           <div className="table-header">
@@ -355,7 +361,7 @@ export function FinanceScreen({
           <span className="module-header-badge">{feePlans.length} plan(s)</span>
         </div>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
                 <th>Libellé</th>
@@ -380,14 +386,14 @@ export function FinanceScreen({
                   const usageCount = planInvoiceCount(item.id);
                   return (
                     <tr key={item.id}>
-                      <td>{item.label}</td>
-                      <td>{schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
-                      <td>{levelById.get(item.levelId)?.label || "-"}</td>
-                      <td>Selon inscription</td>
-                      <td>{formatMoney(item.totalAmount, item.currency)}</td>
-                      <td>{formatCurrencyLabel(item.currency)}</td>
-                      <td><span className="status-pill is-success">Actif</span></td>
-                      <td>
+                      <td data-label="Libellé">{item.label}</td>
+                      <td data-label="Année scolaire">{schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
+                      <td data-label="Niveau">{levelById.get(item.levelId)?.label || "-"}</td>
+                      <td data-label="Cursus">Selon inscription</td>
+                      <td data-label="Montant total">{formatMoney(item.totalAmount, item.currency)}</td>
+                      <td data-label="Devise">{formatCurrencyLabel(item.currency)}</td>
+                      <td data-label="Statut"><span className="status-pill is-success">Actif</span></td>
+                      <td data-label="Actions">
                         {usageCount > 0 ? (
                           <span className="finance-safe-note">{usageCount} facture(s) liée(s)</span>
                         ) : (
@@ -496,7 +502,7 @@ export function FinanceScreen({
           <span className="module-header-badge">{invoices.length} facture(s)</span>
         </div>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
                 <th>Numéro</th>
@@ -520,23 +526,23 @@ export function FinanceScreen({
               ) : (
                 invoices.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.invoiceNo}</td>
-                    <td>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
-                    <td>
+                    <td data-label="Numéro">{item.invoiceNo}</td>
+                    <td data-label="Élève">{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
+                    <td data-label="Classe / cursus">
                       {[item.primaryClassLabel, item.primaryTrack ? formatAcademicTrackLabel(item.primaryTrack) : undefined]
                         .filter(Boolean)
                         .join(" / ") || "-"}
                     </td>
-                    <td>{formatMoney(item.amountDue)}</td>
-                    <td>{formatMoney(item.amountPaid)}</td>
-                    <td>{formatMoney(item.remainingAmount)}</td>
-                    <td>{item.dueDate ? new Date(item.dueDate).toLocaleDateString(locale) : "-"}</td>
-                    <td>
+                    <td data-label="Montant dû">{formatMoney(item.amountDue)}</td>
+                    <td data-label="Payé">{formatMoney(item.amountPaid)}</td>
+                    <td data-label="Reste">{formatMoney(item.remainingAmount)}</td>
+                    <td data-label="Date d’échéance">{item.dueDate ? new Date(item.dueDate).toLocaleDateString(locale) : "-"}</td>
+                    <td data-label="Statut">
                       <span className={`status-pill ${item.status === "PAID" ? "is-success" : "is-muted"}`}>
                         {invoiceStatusLabel(item)}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Actions">
                       {item.status === "VOID" ? (
                         <span className="finance-safe-note">Annulée</span>
                       ) : item.remainingAmount <= 0 ? (
@@ -667,7 +673,7 @@ export function FinanceScreen({
           <span className="module-header-badge">{payments.length} opération(s)</span>
         </div>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
                 <th>Reçu</th>
@@ -691,15 +697,15 @@ export function FinanceScreen({
               ) : (
                 payments.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.receiptNo}</td>
-                    <td>{item.invoiceNo || "-"}</td>
-                    <td>{item.studentName || "-"}</td>
-                    <td>{formatMoney(item.paidAmount)}</td>
-                    <td>{formatChannelLabel(item.paymentMethod)}</td>
-                    <td>{item.referenceExternal || "-"}</td>
-                    <td>{new Date(item.paidAt).toLocaleString(locale)}</td>
-                    <td><span className="status-pill is-success">Enregistré</span></td>
-                    <td>
+                    <td data-label="Reçu">{item.receiptNo}</td>
+                    <td data-label="Facture">{item.invoiceNo || "-"}</td>
+                    <td data-label="Élève">{item.studentName || "-"}</td>
+                    <td data-label="Montant">{formatMoney(item.paidAmount)}</td>
+                    <td data-label="Mode">{formatChannelLabel(item.paymentMethod)}</td>
+                    <td data-label="Référence">{item.referenceExternal || "-"}</td>
+                    <td data-label="Date">{new Date(item.paidAt).toLocaleString(locale)}</td>
+                    <td data-label="Statut"><span className="status-pill is-success">Enregistré</span></td>
+                    <td data-label="Actions">
                       {remoteEnabled ? (
                         <button type="button" className="button-ghost" onClick={() => void openReceipt(item.id)}>
                           Reçu en PDF
@@ -715,6 +721,7 @@ export function FinanceScreen({
           </table>
         </div>
       </section>
-    </WorkflowGuide>
+      </WorkflowGuide>
+    </>
   );
 }

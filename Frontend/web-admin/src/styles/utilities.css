@@ -44,8 +44,7 @@ canvas {
   .messages-conversation-panel,
   .messages-side,
   .students-screen-shell,
-  .teachers-panel,
-  .teachers-hero
+  .teachers-panel
 ) {
   min-width: 0;
 }
@@ -126,8 +125,7 @@ canvas {
   .messages-conversation-toolbar,
   .iam-permissions-header,
   .messages-hero,
-  .students-overview,
-  .teachers-hero
+  .students-overview
 ) {
   min-width: 0;
   gap: var(--responsive-space-3);
@@ -342,8 +340,7 @@ canvas {
     .messages-conversation-toolbar,
     .iam-permissions-header,
     .messages-hero,
-    .students-overview,
-    .teachers-hero
+    .students-overview
   ) {
     grid-template-columns: 1fr !important;
     align-items: stretch !important;

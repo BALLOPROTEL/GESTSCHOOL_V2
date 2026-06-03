@@ -73,7 +73,7 @@ export const useStudentsData = ({
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentForm, setStudentForm] = useState<StudentForm>(() => buildInitialStudentForm());
   const [studentErrors, setStudentErrors] = useState<FieldErrors>({});
-  const [studentWorkflowStep, setStudentWorkflowStep] = useState("entry");
+  const [studentWorkflowStep, setStudentWorkflowStep] = useState("list");
 
   const setStudentsAndNotify = useCallback(
     (nextStudents: Student[]) => {

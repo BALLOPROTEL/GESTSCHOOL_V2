@@ -966,8 +966,6 @@ describe("critical frontend flows", () => {
   });
 
   it("monte les flux eleves, inscriptions et bulletins avec des donnees bi-cursus", async () => {
-    const user = userEvent.setup();
-
     render(
       <StudentsScreen
         api={failingApi}
@@ -978,10 +976,9 @@ describe("critical frontend flows", () => {
       />
     );
 
-    await user.click(screen.getByRole("tab", { name: "Base élèves" }));
-    expect(screen.getAllByRole("heading", { name: "Base élèves" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /Base élèves/u }).length).toBeGreaterThan(0);
     expect(screen.getByText("Francophone + Arabophone")).toBeInTheDocument();
-    expect(screen.getByText("Aminata Diallo")).toBeInTheDocument();
+    expect(screen.getByText("Awa Diallo")).toBeInTheDocument();
   });
 
   it("monte les inscriptions, notes et finance sans appel reseau en mode local", () => {
@@ -998,12 +995,15 @@ describe("critical frontend flows", () => {
       />
     );
 
-    expect(screen.getByText("Suivi des inscriptions")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Nouvelle inscription" })).toBeInTheDocument();
-    expect(screen.getAllByText("Type de placement").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("tab", { name: "Suivi" }));
-    expect(screen.getByRole("button", { name: "Voir" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Supprimer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Inscriptions" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nouvelle inscription" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Liste des inscriptions/u })).toBeInTheDocument();
+    expect(screen.getByText("Placement principal")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Supprimer" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Actions inscription Awa Diallo/u }));
+    expect(screen.getByRole("menuitem", { name: "Voir" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Modifier" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Supprimer" })).toBeInTheDocument();
     expect(screen.queryByText(/FlexAdmin/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Vue v2/i)).not.toBeInTheDocument();
     expect(screen.getAllByText("Awa Diallo").length).toBeGreaterThan(0);
@@ -1153,7 +1153,8 @@ describe("critical frontend flows", () => {
     );
 
     expect(await screen.findByText("Mamadou Ndiaye")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Module enseignants" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Enseignants" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Base enseignants (1)" })).toBeInTheDocument();
     teachers.unmount();
 
     render(

@@ -48,7 +48,7 @@ import {
 import { decorateResponsiveTables } from "./shell/responsive-tables";
 import { GlobalToastLayer } from "./shell/global-toast-layer";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
-import { useDomTranslation } from "../shared/i18n";
+import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, useDomTranslation } from "../shared/i18n";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
 import { AppContextBar, AppFooter, PreviewLocalNotice } from "./app-shell-panels";
@@ -114,9 +114,7 @@ export function App(): JSX.Element {
   const localPreviewEnabled = isLocalPreviewEnabled();
   const {
     currentLanguageMeta,
-    cycleLanguage,
     languageFlipTarget,
-    nextLanguageMeta,
     selectLanguage,
     selectThemeMode,
     themeFlipTarget,
@@ -1306,10 +1304,18 @@ export function App(): JSX.Element {
   const preferenceActions: HeaderPreferenceAction[] = [
     {
       id: "language",
-      label: "Changer la langue",
-      helperText: `Passer de ${currentLanguageMeta.label} à ${nextLanguageMeta.label}`,
+      label: "Sélectionner la langue",
+      helperText: `Langue active : ${currentLanguageMeta.label}`,
       iconSrc: currentLanguageMeta.iconSrc,
-      onSelect: cycleLanguage
+      onSelect: () => selectLanguage(uiLanguage),
+      options: UI_LANGUAGE_ORDER.map((language) => ({
+        id: language,
+        label: UI_LANGUAGE_META[language].label,
+        active: language === uiLanguage,
+        helperText: language === uiLanguage ? "Langue active" : "Changer la langue",
+        iconSrc: UI_LANGUAGE_META[language].iconSrc,
+        onSelect: () => selectLanguage(language)
+      }))
     },
     {
       id: "theme",
@@ -1430,6 +1436,7 @@ export function App(): JSX.Element {
               logoAlt={`Logo ${SCHOOL_NAME}`}
               logoSrc="/logo.png"
               onBrandSelect={dashboardAction.onSelect}
+              onUserLogout={() => void logout()}
               user={{
                 avatar: profileInitial,
                 avatarUrl: headerAccount?.avatarUrl,
@@ -1437,6 +1444,7 @@ export function App(): JSX.Element {
                 roleLabel: currentRoleLabel,
                 username: headerDisplayName
               }}
+              userActions={headerUserActions}
             />
             <div className="app-shell-main">
               <HeaderNavigation

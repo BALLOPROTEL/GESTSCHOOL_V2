@@ -11,7 +11,17 @@ const action = (id: string, label: string): HeaderNavigationAction => ({
 });
 
 const preferences: HeaderPreferenceAction[] = [
-  { id: "language", label: "Francais", onSelect: vi.fn() },
+  {
+    id: "language",
+    label: "Sélectionner la langue",
+    helperText: "Langue active : Francais",
+    onSelect: vi.fn(),
+    options: [
+      { id: "fr", label: "Francais", active: true, helperText: "Langue active", onSelect: vi.fn() },
+      { id: "en", label: "Anglais", helperText: "Changer la langue", onSelect: vi.fn() },
+      { id: "ar", label: "Arabe", helperText: "Changer la langue", onSelect: vi.fn() }
+    ]
+  },
   { id: "theme", label: "Mode", onSelect: vi.fn() }
 ];
 
@@ -141,13 +151,13 @@ describe("HeaderNavigation", () => {
     rectSpy.mockRestore();
   });
 
-  it("rend aussi le menu utilisateur hors du header", () => {
+  it("rend le sélecteur de langue dans une couche flottante hors du header", () => {
     const rectSpy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
       if (this.classList.contains("global-header-shell")) {
         return domRect({ bottom: 120, height: 70, right: 900, top: 50, width: 860, x: 20, y: 50 });
       }
-      if (this.classList.contains("header-user-menu")) {
-        return domRect({ bottom: 96, height: 44, left: 760, right: 820, top: 52, width: 60, x: 760, y: 52 });
+      if (this.classList.contains("header-language-dropdown")) {
+        return domRect({ bottom: 96, height: 44, left: 640, right: 684, top: 52, width: 44, x: 640, y: 52 });
       }
 
       return domRect({});
@@ -180,20 +190,27 @@ describe("HeaderNavigation", () => {
       />
     );
 
-    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-language-dropdown .header-icon-button")!);
 
     const header = container.querySelector(".global-header-shell");
-    const userPanel = document.body.querySelector<HTMLElement>(".header-floating-panel.header-user-dropdown");
-    expect(userPanel).not.toBeNull();
-    expect(userPanel?.parentElement).toBe(document.body);
-    expect(header?.contains(userPanel)).toBe(false);
-    expect(userPanel?.style.position).toBe("fixed");
-    expect(userPanel?.style.top).toBe("128px");
+    const languagePanel = document.body.querySelector<HTMLElement>(".header-floating-panel.header-language-dropdown");
+    expect(languagePanel).not.toBeNull();
+    expect(languagePanel?.parentElement).toBe(document.body);
+    expect(header?.contains(languagePanel)).toBe(false);
+    expect(languagePanel?.style.position).toBe("fixed");
+    expect(languagePanel).toHaveTextContent("Langue");
+    expect(languagePanel).toHaveTextContent("Francais");
+    expect(languagePanel).toHaveTextContent("Anglais");
+    expect(languagePanel).toHaveTextContent("Arabe");
+
+    fireEvent.click(languagePanel!.querySelectorAll<HTMLButtonElement>(".header-language-option")[1]);
+    expect(preferences[0].options?.[1].onSelect).toHaveBeenCalledTimes(1);
+    expect(document.body.querySelector(".header-floating-panel.header-language-dropdown")).toBeNull();
 
     rectSpy.mockRestore();
   });
 
-  it("affiche un email long sans débordement brutal et ouvre chaque destination utilisateur", () => {
+  it("ne rend plus l'ancien profil utilisateur desktop dans le header", () => {
     const profileAction = vi.fn();
     const preferencesAction = vi.fn();
     const activityAction = vi.fn();
@@ -204,7 +221,6 @@ describe("HeaderNavigation", () => {
       { id: "activity", icon: "activity", label: "Journal d’activité", onSelect: activityAction },
       { id: "billing", icon: "billing", label: "Facturation", onSelect: billingAction }
     ];
-    const longEmail = "administration-super-longue-al-manarat-islamiyat@example-ecole.local";
     const { container } = render(
       <HeaderNavigation
         brandName="Al Manarat"
@@ -225,7 +241,7 @@ describe("HeaderNavigation", () => {
         user={{
           avatar: "AM",
           contextLabel: "GestSchool admin",
-          email: longEmail,
+          email: "administration-super-longue-al-manarat-islamiyat@example-ecole.local",
           roleLabel: "Administrateur",
           username: "Administration centrale",
           onLogout: vi.fn()
@@ -234,37 +250,15 @@ describe("HeaderNavigation", () => {
       />
     );
 
-    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
-
-    const userPanel = document.body.querySelector<HTMLElement>(".header-floating-panel.header-user-dropdown");
-    expect(userPanel).not.toBeNull();
-    const emailLine = userPanel!.querySelector(".header-user-summary-copy p");
-    expect(emailLine).toHaveTextContent(longEmail);
-    expect(emailLine).toHaveAttribute("title", longEmail);
-    expect(userPanel).toHaveTextContent("Administration centrale");
-    expect(userPanel).not.toHaveTextContent("Al Manarat Islamiyat");
-    expect(userPanel).not.toHaveTextContent("2025-2026");
-    expect(userPanel).not.toHaveTextContent("Actif");
-    expect(userPanel!.querySelector(".header-user-facts")).toBeNull();
-
-    fireEvent.click(userPanel!.querySelector<HTMLButtonElement>(".header-user-link")!);
-    expect(profileAction).toHaveBeenCalledTimes(1);
+    expect(container.querySelector(".header-user-trigger")).toBeNull();
     expect(document.body.querySelector(".header-floating-panel.header-user-dropdown")).toBeNull();
-
-    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
-    fireEvent.click(document.body.querySelector<HTMLButtonElement>('[aria-label="Préférences"]')!);
-    expect(preferencesAction).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
-    fireEvent.click(document.body.querySelector<HTMLButtonElement>('[aria-label="Journal d’activité"]')!);
-    expect(activityAction).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
-    fireEvent.click(document.body.querySelector<HTMLButtonElement>('[aria-label="Facturation"]')!);
-    expect(billingAction).toHaveBeenCalledTimes(1);
+    expect(profileAction).not.toHaveBeenCalled();
+    expect(preferencesAction).not.toHaveBeenCalled();
+    expect(activityAction).not.toHaveBeenCalled();
+    expect(billingAction).not.toHaveBeenCalled();
   });
 
-  it("ferme le menu utilisateur avec Escape", () => {
+  it("ferme le sélecteur de langue avec Escape", () => {
     const { container } = render(
       <HeaderNavigation
         brandName="Al Manarat"
@@ -293,10 +287,10 @@ describe("HeaderNavigation", () => {
       />
     );
 
-    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-user-trigger")!);
-    expect(document.body.querySelector(".header-floating-panel.header-user-dropdown")).not.toBeNull();
+    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-language-dropdown .header-icon-button")!);
+    expect(document.body.querySelector(".header-floating-panel.header-language-dropdown")).not.toBeNull();
 
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(document.body.querySelector(".header-floating-panel.header-user-dropdown")).toBeNull();
+    expect(document.body.querySelector(".header-floating-panel.header-language-dropdown")).toBeNull();
   });
 });

@@ -1086,20 +1086,6 @@ textarea {
   font-weight: 950;
 }
 
-.enrollment-placement-help,
-.enrollment-detail-card {
-  grid-column: 1 / -1;
-}
-
-.enrollment-placement-help {
-  min-height: auto;
-  padding: 0.85rem 0.95rem;
-}
-
-.enrollment-detail-card {
-  margin-top: 0.9rem;
-}
-
 .parents-screen-shell .students-search-field > span {
   color: var(--erp-text-strong);
   font-weight: 900;
@@ -1993,14 +1979,6 @@ tbody tr:hover td {
   align-items: center;
 }
 
-.enrollment-row-actions {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 0.42rem;
-  align-items: center;
-  justify-content: flex-start;
-}
-
 .table-actions > button,
 .table-wrap td > .actions > button,
 .row-actions button {
@@ -2008,10 +1986,6 @@ tbody tr:hover td {
   padding: 0.38rem 0.58rem;
   border-radius: var(--erp-radius-compact);
   font-size: 0.76rem;
-}
-
-.enrollment-row-actions > button {
-  min-width: 4.8rem;
 }
 
 :root:not([data-theme="dark"]) :where(.table-actions > button, .table-wrap td > .actions > button, .row-actions button) {

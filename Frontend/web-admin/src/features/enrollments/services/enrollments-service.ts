@@ -1,5 +1,6 @@
 import type { Enrollment } from "../../../shared/types/app";
 import type {
+  EnrollmentPlacementPayload,
   EnrollmentFilters,
   EnrollmentsApiClient
 } from "../types/enrollments";
@@ -38,6 +39,20 @@ export const createEnrollment = async (
   payload: Record<string, unknown>
 ): Promise<Enrollment> => {
   const response = await api("/enrollments", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(await parseEnrollmentsError(response));
+  }
+  return (await response.json()) as Enrollment;
+};
+
+export const upsertEnrollmentPlacement = async (
+  api: EnrollmentsApiClient,
+  payload: EnrollmentPlacementPayload
+): Promise<Enrollment> => {
+  const response = await api("/enrollments/placements", {
     method: "POST",
     body: JSON.stringify(payload)
   });

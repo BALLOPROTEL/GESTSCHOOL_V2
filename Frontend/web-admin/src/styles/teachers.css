@@ -1,12 +1,6 @@
 /* GestSchool_V2 teachers module */
-.teachers-hero,
 .teachers-panel {
   gap: 0.88rem;
-}
-
-.teachers-screen-shell {
-  display: grid;
-  gap: clamp(0.88rem, 1.3vw, 1.15rem);
 }
 
 .teachers-panel {

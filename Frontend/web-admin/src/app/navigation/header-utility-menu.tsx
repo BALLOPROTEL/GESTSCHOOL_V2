@@ -3,7 +3,7 @@ import { useRef } from "react";
 
 import { HeaderFloatingPanel } from "./header-floating-panel";
 import { HeaderGlyph, type HeaderGlyphName } from "./header-glyph";
-import type { HeaderFeedItem, HeaderQuickAction } from "./header-navigation-types";
+import type { HeaderFeedItem, HeaderPreferenceAction, HeaderQuickAction } from "./header-navigation-types";
 
 export function HeaderUtilityButton(props: {
   active?: boolean;
@@ -111,6 +111,59 @@ export function HeaderQuickActionsPanel(props: {
               <HeaderGlyph icon={item.icon} />
             </span>
             <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function HeaderLanguagePanel(props: {
+  preference: HeaderPreferenceAction;
+  onOpenChange: (value: string | null) => void;
+}): JSX.Element {
+  const { onOpenChange, preference } = props;
+  const options = preference.options?.length
+    ? preference.options
+    : [
+        {
+          id: preference.id,
+          label: preference.label,
+          active: true,
+          helperText: preference.helperText,
+          iconSrc: preference.iconSrc,
+          onSelect: preference.onSelect
+        }
+      ];
+
+  return (
+    <div className="header-language-panel">
+      <div className="header-feed-header">
+        <div>
+          <strong>Langue</strong>
+          {preference.helperText ? <span>{preference.helperText}</span> : null}
+        </div>
+      </div>
+      <div className="header-language-list">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={`header-language-option ${option.active ? "is-active" : ""}`.trim()}
+            aria-current={option.active ? "true" : undefined}
+            onClick={() => {
+              option.onSelect();
+              onOpenChange(null);
+            }}
+          >
+            <span className="header-language-icon" aria-hidden="true">
+              {option.iconSrc ? <img src={option.iconSrc} alt="" /> : option.label.slice(0, 2).toUpperCase()}
+            </span>
+            <span className="header-language-copy">
+              <strong>{option.label}</strong>
+              {option.helperText ? <small>{option.helperText}</small> : null}
+            </span>
+            {option.active ? <span className="header-language-status">Actif</span> : null}
           </button>
         ))}
       </div>

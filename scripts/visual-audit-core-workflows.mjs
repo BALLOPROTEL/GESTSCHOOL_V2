@@ -18,8 +18,10 @@ const storageKeys = {
 
 const viewports = {
   desktop: { width: 1440, height: 900 },
+  desktopNarrow: { width: 1220, height: 760 },
   tablet: { width: 768, height: 1024 },
-  mobile: { width: 390, height: 844 }
+  mobile: { width: 414, height: 896 },
+  mobileSmall: { width: 390, height: 844 }
 };
 
 const screenshots = [];
@@ -135,10 +137,10 @@ async function openModule(page, labelPattern, expectedTextPattern) {
 }
 
 async function openUserMenu(page) {
-  const trigger = page.locator(".header-user-trigger").first();
+  const trigger = page.locator(".sidebar-user-card").first();
   if (await trigger.isVisible().catch(() => false)) {
     await trigger.click({ timeout: 5_000 });
-    await page.waitForSelector(".header-floating-panel.header-user-dropdown", { timeout: 5_000 });
+    await page.waitForSelector(".sidebar-user-dropdown", { timeout: 5_000 });
     return "desktop";
   }
 
@@ -151,7 +153,7 @@ async function openUserMenu(page) {
 async function clickUserAction(page, mode, actionLabel, expectedTextPattern) {
   const container =
     mode === "desktop"
-      ? page.locator(".header-floating-panel.header-user-dropdown")
+      ? page.locator(".sidebar-user-dropdown")
       : page.locator("#header-mobile-panel");
   await container.getByRole("menuitem", { name: actionLabel }).click({ timeout: 5_000 });
   await page.waitForFunction((pattern) => new RegExp(pattern, "u").test(document.body.innerText), expectedTextPattern.source, {
@@ -228,7 +230,7 @@ async function auditForbiddenText(page, label, values) {
 async function auditUserMenu(page, label, mode) {
   const scope =
     mode === "desktop"
-      ? page.locator(".header-floating-panel.header-user-dropdown").first()
+      ? page.locator(".sidebar-user-dropdown").first()
       : page.locator("#header-mobile-panel").first();
   const text = await scope.innerText();
   for (const expected of ["Mon profil", "Préférences", "Journal d’activité", "Facturation", "Se déconnecter"]) {
@@ -286,6 +288,20 @@ async function runDashboard(browser, viewportName, theme) {
   await auditRequiredText(page, label, ["Tâches prioritaires", "Alertes & suivi"]);
   await auditForbiddenText(page, label, ["Accueil simplifie", "backend messagerie", "UI-only"]);
   await capture(page, label, { fullPage: viewportName !== "desktop" });
+  await context.close();
+}
+
+async function runHeaderLanguage(browser, theme) {
+  const context = await createContext(browser, viewports.desktop, theme);
+  const page = await context.newPage();
+  await openPreview(page);
+  const trigger = page.locator(".header-language-dropdown .header-icon-button").first();
+  await trigger.click({ timeout: 5_000 });
+  await page.waitForSelector(".header-floating-panel.header-language-dropdown", { timeout: 5_000 });
+  const label = `header-language-desktop-${theme}`;
+  await auditNoHorizontalOverflow(page, label);
+  await auditRequiredText(page, label, ["Langue", "Français", "Anglais", "Arabe"]);
+  await capture(page, label);
   await context.close();
 }
 
@@ -397,6 +413,73 @@ async function runStudents(browser, viewportName, theme) {
   await context.close();
 }
 
+async function runEnrollments(browser, viewportName, theme) {
+  const context = await createContext(browser, viewports[viewportName], theme);
+  const page = await context.newPage();
+  await openPreview(page);
+  await openModule(page, /Inscriptions/u, /Nouvelle inscription/u);
+  const label = `enrollments-${viewportName}-${theme}`;
+  await auditNoHorizontalOverflow(page, label);
+  await auditRequiredText(page, label, ["Inscriptions", "Recherche rapide", "Liste des inscriptions"]);
+  await auditForbiddenText(page, label, [
+    "Suivi des inscriptions",
+    "Admissions",
+    "Type de placement",
+    "Actions",
+    "FlexAdmin",
+    "Vue v2"
+  ]);
+  await capture(page, label, { fullPage: viewportName !== "desktop" });
+
+  if (viewportName === "desktopNarrow" && theme === "dark") {
+    const tableWrap = page.locator(".enrollments-v3-table-card .table-wrap").first();
+    await tableWrap.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+    });
+    await capture(page, "enrollments-table-actions-desktopnarrow-dark", { fullPage: true });
+  }
+
+  if (viewportName === "desktop" && theme === "light") {
+    const actionMenuTrigger = page.locator(".enrollments-v3-more-button").first();
+    if (await actionMenuTrigger.isVisible().catch(() => false)) {
+      await actionMenuTrigger.click({ timeout: 5_000 });
+      await page.waitForSelector(".enrollments-v3-action-menu", { timeout: 5_000 });
+      await auditRequiredText(page, "enrollments-actions-desktop-light", ["Voir", "Modifier", "Supprimer"]);
+      await capture(page, "enrollments-actions-desktop-light");
+    }
+
+    await page.getByRole("button", { name: "Nouvelle inscription" }).click({ timeout: 5_000 });
+    await page.waitForFunction(() => document.body.innerText.includes("Créer inscription"), { timeout: 10_000 });
+    await auditNoHorizontalOverflow(page, "enrollments-create-desktop-light");
+    await auditRequiredText(page, "enrollments-create-desktop-light", ["Nouvelle inscription", "Créer inscription"]);
+    await capture(page, "enrollments-create-desktop-light");
+  }
+  await context.close();
+}
+
+async function runTeachers(browser, viewportName, theme) {
+  const context = await createContext(browser, viewports[viewportName], theme);
+  const page = await context.newPage();
+  await openPreview(page);
+  await openModule(page, /Enseignants/u, /Ajouter un enseignant/u);
+  const label = `teachers-${viewportName}-${theme}`;
+  await auditNoHorizontalOverflow(page, label);
+  await auditRequiredText(page, label, ["Enseignants", "Base enseignants", "Recherche rapide", "Aminata Coulibaly"]);
+  await auditForbiddenText(page, label, ["Registre enseignants", "Module enseignants", "Actions", "Workflow"]);
+  await capture(page, label, { fullPage: viewportName !== "desktop" });
+
+  if (viewportName === "desktop" && theme === "light") {
+    const actionMenuTrigger = page.locator(".teachers-v3-more-button").first();
+    if (await actionMenuTrigger.isVisible().catch(() => false)) {
+      await actionMenuTrigger.click({ timeout: 5_000 });
+      await page.waitForSelector(".teachers-v3-action-menu", { timeout: 5_000 });
+      await auditRequiredText(page, "teachers-actions-desktop-light", ["Voir", "Modifier", "Archiver"]);
+      await capture(page, "teachers-actions-desktop-light");
+    }
+  }
+  await context.close();
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
@@ -405,6 +488,9 @@ async function main() {
     await runDashboard(browser, "desktop", "dark");
     await runDashboard(browser, "tablet", "light");
     await runDashboard(browser, "mobile", "light");
+    await runDashboard(browser, "mobile", "dark");
+    await runHeaderLanguage(browser, "light");
+    await runHeaderLanguage(browser, "dark");
 
     await runProfile(browser, "desktop", "light");
     await runProfile(browser, "desktop", "dark");
@@ -420,7 +506,21 @@ async function main() {
     await runGrades(browser, "mobile", "light");
 
     await runFinance(browser, "desktop", "light");
+    await runFinance(browser, "mobile", "light");
     await runStudents(browser, "desktop", "light");
+    await runStudents(browser, "desktop", "dark");
+    await runStudents(browser, "mobile", "light");
+    await runStudents(browser, "mobile", "dark");
+    await runEnrollments(browser, "desktop", "light");
+    await runEnrollments(browser, "desktop", "dark");
+    await runEnrollments(browser, "desktopNarrow", "light");
+    await runEnrollments(browser, "desktopNarrow", "dark");
+    await runEnrollments(browser, "mobile", "light");
+    await runEnrollments(browser, "mobile", "dark");
+    await runEnrollments(browser, "mobileSmall", "light");
+    await runTeachers(browser, "desktop", "light");
+    await runTeachers(browser, "desktop", "dark");
+    await runTeachers(browser, "mobile", "light");
   } finally {
     await browser.close();
   }

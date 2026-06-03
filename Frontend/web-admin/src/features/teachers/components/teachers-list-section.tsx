@@ -1,9 +1,8 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 import { translateUiString, type UiLanguage } from "../../../shared/i18n";
 import type { Subject, TeacherRecord, TeacherSkillRecord, TeacherWorkloadRecord } from "../../../shared/types/app";
 import {
-  SCHOOL_NAME,
   TEACHER_STATUSES,
   TEACHER_TYPES,
   TRACKS,
@@ -15,10 +14,19 @@ import {
   trackLabel
 } from "../teachers-screen-model";
 
+const teacherInitials = (teacher: TeacherRecord): string => {
+  const source = teacher.fullName || `${teacher.firstName} ${teacher.lastName}`;
+  const parts = source.trim().split(/\s+/u).filter(Boolean);
+  if (parts.length === 0) return "EN";
+  return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || parts[0]?.charAt(1) || ""}`.toUpperCase();
+};
+
+const pluralize = (count: number, singular: string, plural: string): string =>
+  `${count} ${count > 1 ? plural : singular}`;
+
 export function TeachersListSection(props: {
   filters: TeacherFilters;
   loading: boolean;
-  onAddTeacher: () => void;
   onArchiveTeacher: (teacherId: string) => void;
   onEditTeacher: (teacher: TeacherRecord) => void;
   onFilter: () => void;
@@ -32,7 +40,6 @@ export function TeachersListSection(props: {
   const {
     filters,
     loading,
-    onAddTeacher,
     onArchiveTeacher,
     onEditTeacher,
     onFilter,
@@ -43,59 +50,75 @@ export function TeachersListSection(props: {
     teachers,
     language = "fr"
   } = props;
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const t = (value: string): string => translateUiString(language, value);
 
+  const hasFilters = Object.values(filters).some((value) => value.trim().length > 0);
+
+  const closeActionMenu = (): void => setOpenActionMenuId(null);
+  const toggleActionMenu = (teacherId: string): void => {
+    setOpenActionMenuId((current) => (current === teacherId ? null : teacherId));
+  };
+
   return (
-    <section className="panel table-panel workflow-section module-modern teachers-panel">
-      <div className="table-header">
-        <div>
-          <p className="section-kicker">{t("Registre enseignants")}</p>
-          <h2>{t("Liste des enseignants")}</h2>
-        </div>
-        <button type="button" onClick={onAddTeacher}>{t("Ajouter un enseignant")}</button>
-      </div>
-      <div className="filter-grid module-filter teachers-filter-grid">
-        <label>
-          {t("Recherche")}
+    <>
+      <section className="panel teachers-v3-filter-card" aria-label={t("Filtres enseignants")}>
+        <label className="teachers-v3-search-field">
+          <span>{t("Recherche rapide")}</span>
           <input
             value={filters.search}
             onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-            placeholder={t("Nom, prénom, matricule, email")}
+            placeholder={t("Nom, matricule, email ou téléphone...")}
           />
         </label>
-        <label>
-          {t("Statut")}
+        <label className="teachers-v3-filter-field">
+          <span>{t("Statut")}</span>
           <select value={filters.status} onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}>
-            <option value="">{t("Tous")}</option>
-            {TEACHER_STATUSES.map((status) => <option key={status} value={status}>{t(teacherStatusLabel(status))}</option>)}
+            <option value="">{t("Tous les statuts")}</option>
+            {TEACHER_STATUSES.map((status) => (
+              <option key={status} value={status}>{t(teacherStatusLabel(status))}</option>
+            ))}
           </select>
         </label>
-        <label>
-          {t("Type")}
-          <select value={filters.teacherType} onChange={(event) => setFilters((prev) => ({ ...prev, teacherType: event.target.value }))}>
-            <option value="">{t("Tous")}</option>
-            {TEACHER_TYPES.map((type) => <option key={type} value={type}>{t(teacherTypeLabel(type))}</option>)}
+        <label className="teachers-v3-filter-field">
+          <span>{t("Type")}</span>
+          <select
+            value={filters.teacherType}
+            onChange={(event) => setFilters((prev) => ({ ...prev, teacherType: event.target.value }))}
+          >
+            <option value="">{t("Tous les types")}</option>
+            {TEACHER_TYPES.map((type) => (
+              <option key={type} value={type}>{t(teacherTypeLabel(type))}</option>
+            ))}
           </select>
         </label>
-        <label>
-          {t("Matière")}
-          <select value={filters.subjectId} onChange={(event) => setFilters((prev) => ({ ...prev, subjectId: event.target.value }))}>
-            <option value="">{t("Toutes")}</option>
-            {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}
+        <label className="teachers-v3-filter-field">
+          <span>{t("Matière")}</span>
+          <select
+            value={filters.subjectId}
+            onChange={(event) => setFilters((prev) => ({ ...prev, subjectId: event.target.value }))}
+          >
+            <option value="">{t("Toutes les matières")}</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>{subject.label}</option>
+            ))}
           </select>
         </label>
-        <label>
-          Cursus
+        <label className="teachers-v3-filter-field">
+          <span>{t("Cursus")}</span>
           <select value={filters.track} onChange={(event) => setFilters((prev) => ({ ...prev, track: event.target.value }))}>
-            <option value="">{t("Tous")}</option>
-            {TRACKS.map((track) => <option key={track} value={track}>{t(trackLabel(track))}</option>)}
+            <option value="">{t("Tous les cursus")}</option>
+            {TRACKS.map((track) => (
+              <option key={track} value={track}>{t(trackLabel(track))}</option>
+            ))}
           </select>
         </label>
-        <div className="actions">
-          <button type="button" onClick={onFilter}>{t("Filtrer")}</button>
+        <div className="teachers-v3-filter-actions">
+          <button type="button" onClick={onFilter}>{t("Appliquer")}</button>
           <button
             type="button"
             className="button-ghost"
+            disabled={!hasFilters}
             onClick={() => {
               setFilters(defaultTeacherFilters());
               onReload();
@@ -104,52 +127,121 @@ export function TeachersListSection(props: {
             {t("Réinitialiser")}
           </button>
         </div>
-      </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>{t("Matricule")}</th>
-              <th>{t("Nom complet")}</th>
-              <th>{t("Téléphone")}</th>
-              <th>{t("Email")}</th>
-              <th>{t("Type")}</th>
-              <th>{t("Établissement")}</th>
-              <th>{t("Statut")}</th>
-              <th>{t("Affectations")}</th>
-              <th>{t("Charge")}</th>
-              <th>{t("Cursus")}</th>
-              <th>{t("Actions")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {teachers.length === 0 ? (
-              <tr><td colSpan={11} className="empty-row">{loading ? t("Chargement...") : t("Aucun enseignant trouvé.")}</td></tr>
-            ) : teachers.map((teacher) => (
-              <tr key={teacher.id}>
-                <td>{teacher.matricule}</td>
-                <td>{teacher.fullName}</td>
-                <td>{teacher.primaryPhone || "-"}</td>
-                <td>{teacher.email || "-"}</td>
-                <td>{t(teacherTypeLabel(teacher.teacherType))}</td>
-                <td>{SCHOOL_NAME}</td>
-                <td><span className={statusPillClass(teacher.status)}>{t(teacherStatusLabel(teacher.status))}</span></td>
-                <td>{teacher.activeAssignmentsCount}</td>
-                <td>{teacher.workloadHoursTotal} h</td>
-                <td>{teacher.francophoneWorkloadHoursTotal} h / {teacher.arabophoneWorkloadHoursTotal} h</td>
-                <td>
-                  <div className="table-actions">
-                    <button type="button" className="button-ghost" onClick={() => onOpenDetail(teacher.id)}>{t("Détail")}</button>
-                    <button type="button" className="button-edit" onClick={() => onEditTeacher(teacher)}>{t("Modifier")}</button>
-                    <button type="button" className="button-ghost" onClick={() => onArchiveTeacher(teacher.id)}>{t("Archiver")}</button>
-                  </div>
-                </td>
+      </section>
+
+      <section className="panel table-panel module-modern teachers-v3-table-card">
+        <div className="teachers-v3-table-head">
+          <div>
+            <h2>{t("Base enseignants")} ({teachers.length})</h2>
+            <p>{loading ? t("Synchronisation en cours...") : t("Fiches, affectations et charges pédagogiques réelles.")}</p>
+          </div>
+          <span className="students-overview-status">{pluralize(teachers.length, "enseignant", "enseignants")}</span>
+        </div>
+        <div className="table-wrap">
+          <table className="teachers-v3-table" data-responsive-table="true">
+            <thead>
+              <tr>
+                <th>{t("Enseignant")}</th>
+                <th>{t("Matricule")}</th>
+                <th>{t("Type")}</th>
+                <th>{t("Charge")}</th>
+                <th>{t("Cursus")}</th>
+                <th>{t("Statut")}</th>
+                <th className="teachers-v3-actions-heading" aria-label={t("Actions")}></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+            </thead>
+            <tbody>
+              {teachers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="empty-row">
+                    {loading ? t("Chargement...") : t("Aucun enseignant trouvé.")}
+                  </td>
+                </tr>
+              ) : teachers.map((teacher) => (
+                <tr key={teacher.id}>
+                  <td data-label={t("Enseignant")}>
+                    <div className="teachers-v3-teacher-cell">
+                      <span className="teachers-v3-avatar">
+                        {teacher.photoUrl ? <img src={teacher.photoUrl} alt="" /> : teacherInitials(teacher)}
+                      </span>
+                      <div>
+                        <strong>{teacher.fullName}</strong>
+                        <small>{teacher.email || teacher.primaryPhone || t("Contact à compléter")}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td data-label={t("Matricule")} className="teachers-v3-muted-cell">{teacher.matricule}</td>
+                  <td data-label={t("Type")} className="teachers-v3-muted-cell">{t(teacherTypeLabel(teacher.teacherType))}</td>
+                  <td data-label={t("Charge")}>
+                    <div className="teachers-v3-stack-cell">
+                      <strong>{teacher.workloadHoursTotal} h</strong>
+                      <small>{pluralize(teacher.activeAssignmentsCount, "affectation", "affectations")}</small>
+                    </div>
+                  </td>
+                  <td data-label={t("Cursus")}>
+                    <div className="teachers-v3-track-cell">
+                      <span>{teacher.francophoneWorkloadHoursTotal} h FR</span>
+                      <span>{teacher.arabophoneWorkloadHoursTotal} h AR</span>
+                    </div>
+                  </td>
+                  <td data-label={t("Statut")}>
+                    <span className={statusPillClass(teacher.status)}>{t(teacherStatusLabel(teacher.status))}</span>
+                  </td>
+                  <td data-label={t("Actions")}>
+                    <div className="teachers-v3-action-cell">
+                      <button
+                        type="button"
+                        className="teachers-v3-more-button"
+                        aria-label={`${t("Actions enseignant")} ${teacher.fullName}`}
+                        aria-expanded={openActionMenuId === teacher.id}
+                        onClick={() => toggleActionMenu(teacher.id)}
+                      >
+                        <span aria-hidden="true">...</span>
+                      </button>
+                      {openActionMenuId === teacher.id ? (
+                        <div className="teachers-v3-action-menu" role="menu">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              closeActionMenu();
+                              onOpenDetail(teacher.id);
+                            }}
+                          >
+                            {t("Voir")}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              closeActionMenu();
+                              onEditTeacher(teacher);
+                            }}
+                          >
+                            {t("Modifier")}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="is-danger"
+                            onClick={() => {
+                              closeActionMenu();
+                              onArchiveTeacher(teacher.id);
+                            }}
+                          >
+                            {t("Archiver")}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -164,40 +256,37 @@ export function TeachersSummarySection(props: {
   const { assignments, loading, skills, teachers, workloads, language = "fr" } = props;
   const t = (value: string): string => translateUiString(language, value);
 
+  const summary = useMemo(
+    () => ({
+      activeTeachers: teachers.filter((item) => item.status === "ACTIVE").length,
+      activeAssignments: assignments.filter((item) => item.status === "ACTIVE").length,
+      totalWorkload: workloads.reduce((sum, item) => sum + item.workloadHoursTotal, 0)
+    }),
+    [assignments, teachers, workloads]
+  );
+
   return (
-    <section className="panel table-panel workflow-section module-modern teachers-hero">
-      <div className="table-header">
-        <div>
-          <p className="section-kicker">{t("Gestion pédagogique")}</p>
-          <h2>{t("Module enseignants")}</h2>
-        </div>
-        <span className="module-header-badge">{loading ? t("Synchronisation...") : t(`${teachers.length} enseignant(s)`)}</span>
-      </div>
-      <p className="section-lead">
-        {t("Gérez les fiches enseignants, leurs compétences, leurs affectations, leur charge horaire et leurs documents administratifs.")}
-      </p>
-      <div className="module-overview-grid">
-        <article className="module-overview-card">
-          <span>{t("Actifs")}</span>
-          <strong>{teachers.filter((item) => item.status === "ACTIVE").length}</strong>
-          <small>{t("Enseignants affectables")}</small>
-        </article>
-        <article className="module-overview-card">
-          <span>{t("Compétences")}</span>
-          <strong>{skills.length}</strong>
-          <small>{t("Matières et périmètres autorisés")}</small>
-        </article>
-        <article className="module-overview-card">
-          <span>{t("Affectations")}</span>
-          <strong>{assignments.filter((item) => item.status === "ACTIVE").length}</strong>
-          <small>{t("Classes, matières et années")}</small>
-        </article>
-        <article className="module-overview-card">
-          <span>{t("Charge hebdo")}</span>
-          <strong>{workloads.reduce((sum, item) => sum + item.workloadHoursTotal, 0)}</strong>
-          <small>{t("Heures déclarées")}</small>
-        </article>
-      </div>
+    <section className="teachers-v3-kpi-grid" aria-label={t("Synthèse enseignants")}>
+      <article className="teachers-v3-kpi-card">
+        <span>{t("Actifs")}</span>
+        <strong>{loading ? "..." : summary.activeTeachers}</strong>
+        <small>{t("Enseignants affectables")}</small>
+      </article>
+      <article className="teachers-v3-kpi-card">
+        <span>{t("Compétences")}</span>
+        <strong>{loading ? "..." : skills.length}</strong>
+        <small>{t("Matières et périmètres")}</small>
+      </article>
+      <article className="teachers-v3-kpi-card">
+        <span>{t("Affectations")}</span>
+        <strong>{loading ? "..." : summary.activeAssignments}</strong>
+        <small>{t("Classes et années")}</small>
+      </article>
+      <article className="teachers-v3-kpi-card">
+        <span>{t("Charge hebdo")}</span>
+        <strong>{loading ? "..." : summary.totalWorkload}</strong>
+        <small>{t("Heures déclarées")}</small>
+      </article>
     </section>
   );
 }

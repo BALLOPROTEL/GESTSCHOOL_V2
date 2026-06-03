@@ -1167,7 +1167,6 @@ tbody td {
 
   :where(
     .students-screen-shell,
-    .teachers-hero,
     .teachers-panel,
     #iam-accounts,
     #iam-permissions,

@@ -666,7 +666,7 @@ export function GradesScreen({
             </label>
           </div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
                   <th>Élève</th>
@@ -691,9 +691,9 @@ export function GradesScreen({
                     const scoreError = gradeRowErrors[`score-${student.id}`];
                     return (
                       <tr key={student.id}>
-                        <td>{formatStudentName(student)}</td>
-                        <td>{student.matricule}</td>
-                        <td>
+                        <td data-label="Élève">{formatStudentName(student)}</td>
+                        <td data-label="Matricule">{student.matricule}</td>
+                        <td data-label="Note">
                           <label className="inline-field">
                             <span className="sr-only">Note de {formatStudentName(student)}</span>
                             <input
@@ -708,7 +708,7 @@ export function GradesScreen({
                             {scoreError ? <span className="field-error" role="alert">{scoreError}</span> : null}
                           </label>
                         </td>
-                        <td>
+                        <td data-label="Absent">
                           <input
                             type="checkbox"
                             checked={Boolean(row?.absent)}
@@ -722,7 +722,7 @@ export function GradesScreen({
                             aria-label={`Absent ${formatStudentName(student)}`}
                           />
                         </td>
-                        <td>
+                        <td data-label="Dispensé">
                           <input
                             type="checkbox"
                             checked={Boolean(row?.exempted)}
@@ -736,14 +736,14 @@ export function GradesScreen({
                             aria-label={`Dispensé ${formatStudentName(student)}`}
                           />
                         </td>
-                        <td>
+                        <td data-label="Commentaire">
                           <input
                             value={row?.comment || ""}
                             onChange={(event) => updateGradeRow(student.id, { comment: event.target.value })}
                             aria-label={`Commentaire ${formatStudentName(student)}`}
                           />
                         </td>
-                        <td>{row?.absent ? "Absent" : row?.exempted ? "Dispensé" : row?.score ? "Prêt" : "À saisir"}</td>
+                        <td data-label="Statut">{row?.absent ? "Absent" : row?.exempted ? "Dispensé" : row?.score ? "Prêt" : "À saisir"}</td>
                       </tr>
                     );
                   })
@@ -773,7 +773,7 @@ export function GradesScreen({
           <span className="module-header-badge">{pluralize(grades.length, "ligne", "lignes")}</span>
         </div>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
                 <th>Élève</th>
@@ -799,17 +799,17 @@ export function GradesScreen({
               ) : (
                 grades.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.studentName || formatStudentName(studentById.get(item.studentId))}</td>
-                    <td>{classById.get(item.classId)?.label || "-"}</td>
-                    <td>{item.subjectLabel || subjectById.get(item.subjectId)?.label || "-"}</td>
-                    <td>{periodById.get(item.academicPeriodId)?.label || "-"}</td>
-                    <td>{item.assessmentLabel}</td>
-                    <td>{formatAssessmentTypeLabel(item.assessmentType)}</td>
-                    <td>{item.absent ? "Absent" : item.exempted ? "Dispensé" : item.score.toFixed(2)}</td>
-                    <td>{item.scoreMax}</td>
-                    <td>{item.coefficient ?? 1}</td>
-                    <td>{formatDate(item.assessmentDate)}</td>
-                    <td>
+                    <td data-label="Élève">{item.studentName || formatStudentName(studentById.get(item.studentId))}</td>
+                    <td data-label="Classe">{classById.get(item.classId)?.label || "-"}</td>
+                    <td data-label="Matière">{item.subjectLabel || subjectById.get(item.subjectId)?.label || "-"}</td>
+                    <td data-label="Période">{periodById.get(item.academicPeriodId)?.label || "-"}</td>
+                    <td data-label="Évaluation">{item.assessmentLabel}</td>
+                    <td data-label="Type">{formatAssessmentTypeLabel(item.assessmentType)}</td>
+                    <td data-label="Note">{item.absent ? "Absent" : item.exempted ? "Dispensé" : item.score.toFixed(2)}</td>
+                    <td data-label="Barème">{item.scoreMax}</td>
+                    <td data-label="Coefficient">{item.coefficient ?? 1}</td>
+                    <td data-label="Date">{formatDate(item.assessmentDate)}</td>
+                    <td data-label="Actions">
                       <div className="actions">
                         <button type="button" className="button-ghost" onClick={() => editGrade(item)}>
                           Modifier
@@ -853,7 +853,7 @@ export function GradesScreen({
         {classSummary && classSummary.students.length > 0 ? (
           <>
             <div className="table-wrap">
-              <table>
+              <table data-responsive-table="true">
                 <thead>
                   <tr>
                     <th>Rang</th>
@@ -875,15 +875,15 @@ export function GradesScreen({
                       const isDetailOpen = selectedSummaryStudentId === item.studentId;
                       return (
                         <tr key={item.studentId} className={isDetailOpen ? "is-selected-row" : undefined}>
-                          <td>{item.classRank}</td>
-                          <td>{item.studentName}</td>
-                          <td>{item.matricule}</td>
-                          <td>{item.averageGeneral.toFixed(2)}</td>
-                          <td>{item.noteCount}</td>
-                          <td>{item.missingGrades ?? 0}</td>
-                          <td>{item.appreciation}</td>
-                          <td>{item.noteCount > 0 ? "Calculé" : "Incomplet"}</td>
-                          <td>
+                          <td data-label="Rang">{item.classRank}</td>
+                          <td data-label="Élève">{item.studentName}</td>
+                          <td data-label="Matricule">{item.matricule}</td>
+                          <td data-label="Moyenne générale">{item.averageGeneral.toFixed(2)}</td>
+                          <td data-label="Nombre de matières">{item.noteCount}</td>
+                          <td data-label="Notes manquantes">{item.missingGrades ?? 0}</td>
+                          <td data-label="Appréciation">{item.appreciation}</td>
+                          <td data-label="Statut">{item.noteCount > 0 ? "Calculé" : "Incomplet"}</td>
+                          <td data-label="Actions">
                             <button
                               type="button"
                               className={`button-ghost${isDetailOpen ? " is-active" : ""}`}
@@ -909,7 +909,7 @@ export function GradesScreen({
                   <span className="module-header-badge">{formatTrackLabel(selectedSummaryStudent.track)}</span>
                 </div>
                 <div className="table-wrap">
-                  <table>
+                  <table data-responsive-table="true">
                     <thead>
                       <tr>
                         <th>Matière</th>
@@ -924,12 +924,12 @@ export function GradesScreen({
                       {selectedSummarySubjectRows.length > 0 ? (
                         selectedSummarySubjectRows.map((subject) => (
                           <tr key={subject.subjectId}>
-                            <td>{subject.subjectLabel}</td>
-                            <td>{subject.average.toFixed(2)}</td>
-                            <td>{subject.coefficient ?? 1}</td>
-                            <td>{subject.noteCount}</td>
-                            <td>{subject.missingGrades}</td>
-                            <td>{subject.average >= 14 ? "Très bien" : subject.average >= 10 ? "Satisfaisant" : "À renforcer"}</td>
+                            <td data-label="Matière">{subject.subjectLabel}</td>
+                            <td data-label="Moyenne matière">{subject.average.toFixed(2)}</td>
+                            <td data-label="Coefficient">{subject.coefficient ?? 1}</td>
+                            <td data-label="Nombre de notes">{subject.noteCount}</td>
+                            <td data-label="Notes manquantes">{subject.missingGrades}</td>
+                            <td data-label="Appréciation">{subject.average >= 14 ? "Très bien" : subject.average >= 10 ? "Satisfaisant" : "À renforcer"}</td>
                           </tr>
                         ))
                       ) : (
@@ -1124,7 +1124,7 @@ export function GradesScreen({
           <span className="module-header-badge">{pluralize(reportCards.length, "fichier", "fichiers")}</span>
         </div>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
                 <th>Élève</th>
@@ -1150,21 +1150,21 @@ export function GradesScreen({
               ) : (
                 reportCards.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.studentName || formatStudentName(studentById.get(item.studentId))}</td>
-                    <td>{formatReportCardContext(item)}</td>
-                    <td>{formatReportCardModeLabel(item.mode)}</td>
-                    <td>{formatTrackLabel(item.track)}</td>
-                    <td>{item.periodLabel || periodById.get(item.academicPeriodId)?.label || "-"}</td>
-                    <td>{formatReportCardAverage(item)}</td>
-                    <td>{item.classRank || "-"}</td>
-                    <td>{item.appreciation || "-"}</td>
-                    <td>{item.publishedAt ? "Publié" : "Généré"}</td>
-                    <td>
+                    <td data-label="Élève">{item.studentName || formatStudentName(studentById.get(item.studentId))}</td>
+                    <td data-label="Classe">{formatReportCardContext(item)}</td>
+                    <td data-label="Type de bulletin">{formatReportCardModeLabel(item.mode)}</td>
+                    <td data-label="Cursus">{formatTrackLabel(item.track)}</td>
+                    <td data-label="Période">{item.periodLabel || periodById.get(item.academicPeriodId)?.label || "-"}</td>
+                    <td data-label="Moyenne">{formatReportCardAverage(item)}</td>
+                    <td data-label="Rang">{item.classRank || "-"}</td>
+                    <td data-label="Appréciation">{item.appreciation || "-"}</td>
+                    <td data-label="Statut">{item.publishedAt ? "Publié" : "Généré"}</td>
+                    <td data-label="Généré le">
                       {item.generatedAt || item.publishedAt || reportsGeneratedAt
                         ? formatDateTime(item.generatedAt || item.publishedAt || reportsGeneratedAt)
                         : "-"}
                     </td>
-                    <td>
+                    <td data-label="Actions">
                       <div className="actions">
                         <button type="button" className="button-ghost" onClick={() => void openReportCardPdf(item.id)}>
                           Ouvrir PDF

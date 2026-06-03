@@ -11,9 +11,9 @@ import type {
   HeaderUserAction
 } from "./header-navigation-types";
 import { HeaderSearchBar } from "./header-search-bar";
-import { HeaderUserMenu } from "./header-user-menu";
 import {
   HeaderFeedPanel,
+  HeaderLanguagePanel,
   HeaderQuickActionsPanel,
   HeaderUtilityButton,
   HeaderUtilityDropdown
@@ -319,11 +319,16 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
         <div className="global-header-actions">
           <div className="header-utility-actions">
             {languagePreference ? (
-              <HeaderUtilityButton
+              <HeaderUtilityDropdown
+                className="header-language-dropdown"
+                id="language"
                 imageSrc={languagePreference.iconSrc}
                 label={languagePreference.label}
-                onSelect={languagePreference.onSelect}
-              />
+                openId={openId}
+                onOpenChange={handleOpenIdChange}
+              >
+                <HeaderLanguagePanel preference={languagePreference} onOpenChange={setOpenId} />
+              </HeaderUtilityDropdown>
             ) : null}
             <HeaderUtilityDropdown
               className="header-quick-dropdown"
@@ -410,13 +415,6 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
               />
             </HeaderUtilityDropdown>
           </div>
-          <span className="header-actions-separator" aria-hidden="true" />
-          <HeaderUserMenu
-            actions={userMenuActions}
-            user={user}
-            openId={openId}
-            onOpenChange={handleOpenIdChange}
-          />
           <button
             type="button"
             className={`header-mobile-toggle ${mobileOpen ? "is-open" : ""}`.trim()}

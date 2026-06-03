@@ -38,11 +38,15 @@ const renderStudents = (initialStudents: Student[] = []) =>
   );
 
 describe("StudentsScreen", () => {
-  it("présente un formulaire de dossier administratif clair et sans champs techniques", () => {
+  it("ouvre le formulaire de dossier administratif depuis la base élèves", async () => {
+    const user = userEvent.setup();
     renderStudents();
 
-    expect(screen.getByRole("tab", { name: "Ajouter un élève" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Base élèves" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Élèves" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Base élèves (0)" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ajouter un élève" }));
+
     expect(screen.getByRole("heading", { name: "Ajouter un élève" })).toBeInTheDocument();
     expect(screen.getByText("Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.")).toBeInTheDocument();
     expect(screen.getByText("Identité")).toBeInTheDocument();
@@ -61,24 +65,20 @@ describe("StudentsScreen", () => {
   });
 
   it("affiche la base élèves sans statut technique ni confusion cursus/dossier", async () => {
-    const user = userEvent.setup();
     renderStudents([studentWithoutPlacement]);
-
-    await user.click(screen.getByRole("tab", { name: "Base élèves" }));
 
     const table = screen.getByRole("table");
     expect(table).toHaveAttribute("data-responsive-table", "true");
     expect(within(table).getByText("Actif")).toBeInTheDocument();
     expect(within(table).getAllByText("À régulariser via inscription").length).toBeGreaterThan(0);
-    expect(within(table).getByText("Aucun responsable")).toBeInTheDocument();
+    expect(within(table).queryByText("Responsables")).not.toBeInTheDocument();
+    expect(within(table).queryByText("Actions")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Actions pour Aicha Diallo" })).toBeInTheDocument();
     expect(screen.queryByText("ACTIVE")).not.toBeInTheDocument();
   });
 
   it("affiche un état vide propre quand aucun dossier n'est présent", async () => {
-    const user = userEvent.setup();
     renderStudents();
-
-    await user.click(screen.getByRole("tab", { name: "Base élèves" }));
 
     expect(screen.getByText("Aucun élève enregistré.")).toBeInTheDocument();
   });
@@ -89,24 +89,21 @@ describe("StudentsScreen", () => {
       "Base élèves",
       "Créer le dossier",
       "Voir la base élèves",
-      "Dossiers actifs",
-      "Élèves bi-cursus",
-      "Responsables liés",
-      "Dossiers affichés",
       "À régulariser via inscription",
-      "Aucun responsable",
       "Aucun élève enregistré.",
       "Archiver",
+      "Réinitialiser",
       "Actif",
       "Inactif",
       "Archivé",
+      "Élève",
+      "Recherche rapide",
       "Identité",
       "Coordonnées utiles",
       "Scolarité administrative",
       "Informations complémentaires",
       "Dossier consulté",
       "À vérifier",
-      "2 responsables",
       "3 dossier(s)"
     ];
 

@@ -4,7 +4,6 @@ import {
   ACADEMIC_TRACK_OPTIONS,
   ENROLLMENT_STATUS_LABELS
 } from "../../shared/constants/domain";
-import { WorkflowGuide } from "../../shared/components/workflow-guide";
 import type {
   AcademicTrack,
   ClassItem,
@@ -51,6 +50,13 @@ const formatEnrollmentStatusLabel = (value?: string): string => {
   return ENROLLMENT_STATUS_UI_LABELS[normalized] || formatLookupLabel(ENROLLMENT_STATUS_LABELS, value);
 };
 
+const getEnrollmentStatusClassName = (value?: string): string => {
+  const normalized = (value || "").trim().toUpperCase();
+  if (normalized === "ENROLLED" || normalized === "COMPLETED") return "status-pill is-success";
+  if (normalized === "PENDING") return "status-pill is-warning";
+  return "status-pill is-muted";
+};
+
 const formatAcademicTrackLabel = (value?: string): string =>
   value === "ARABOPHONE" ? "Arabophone" : "Francophone";
 
@@ -76,6 +82,19 @@ const formatDate = (value: string, locale: string): string => {
   return new Intl.DateTimeFormat(locale).format(date);
 };
 
+const getStudentDisplayName = (student?: Student): string =>
+  student?.fullName || `${student?.firstName || ""} ${student?.lastName || ""}`.trim();
+
+const getEnrollmentStudentName = (enrollment: Enrollment, student?: Student): string =>
+  enrollment.studentName || getStudentDisplayName(student) || "Élève à vérifier";
+
+const getEnrollmentInitials = (enrollment: Enrollment, student?: Student): string => {
+  const source = getEnrollmentStudentName(enrollment, student);
+  const parts = source.trim().split(/\s+/u).filter(Boolean);
+  if (parts.length === 0) return "IN";
+  return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || parts[0]?.charAt(1) || ""}`.toUpperCase();
+};
+
 export function EnrollmentsScreen({
   api,
   initialEnrollments,
@@ -90,19 +109,22 @@ export function EnrollmentsScreen({
   onNotice
 }: EnrollmentsScreenProps): JSX.Element {
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
+  const [enrollmentSearch, setEnrollmentSearch] = useState("");
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const {
     deleteEnrollment,
+    editingEnrollmentId,
     enrollmentErrors,
     enrollmentFilters,
     enrollmentForm,
     enrollments,
-    enrollmentSteps,
     enrollmentWorkflowStep,
-    loadEnrollments,
     resetEnrollmentFilters,
+    resetEnrollmentForm,
     setEnrollmentFilters,
     setEnrollmentForm,
     setEnrollmentWorkflowStep,
+    startEnrollmentEdit,
     submitEnrollment
   } = useEnrollmentsData({
     api,
@@ -117,26 +139,32 @@ export function EnrollmentsScreen({
     onNotice
   });
 
-  const schoolYearById = new Map(schoolYears.map((item) => [item.id, item]));
-  const classById = new Map(classes.map((item) => [item.id, item]));
-  const studentById = new Map(students.map((item) => [item.id, item]));
-
-  const scrollToEnrollments = (stepId: string): void => {
-    setEnrollmentWorkflowStep(stepId);
-    const targetByStep: Record<string, string> = {
-      create: "enrollments-create",
-      list: "enrollments-list"
-    };
-    const target = targetByStep[stepId];
-    if (!target) return;
-    window.setTimeout(() => {
-      document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
-  };
+  const schoolYearById = useMemo(() => new Map(schoolYears.map((item) => [item.id, item])), [schoolYears]);
+  const classById = useMemo(() => new Map(classes.map((item) => [item.id, item])), [classes]);
+  const studentById = useMemo(() => new Map(students.map((item) => [item.id, item])), [students]);
 
   const displayedEnrollments = useMemo(
     () =>
       enrollments.filter((item) => {
+        const localClass = classById.get(item.classId);
+        const localStudent = studentById.get(item.studentId);
+        const schoolYear = item.schoolYearCode || schoolYearById.get(item.schoolYearId)?.code || "";
+        const studentName = getEnrollmentStudentName(item, localStudent);
+        const matricule = localStudent?.matricule || "";
+        const classLabel = item.classLabel || localClass?.label || localClass?.code || "";
+        const searchPayload = [
+          schoolYear,
+          studentName,
+          matricule,
+          classLabel,
+          formatAcademicTrackLabel(item.track),
+          formatEnrollmentStatusLabel(item.enrollmentStatus)
+        ]
+          .join(" ")
+          .toLowerCase();
+        const query = enrollmentSearch.trim().toLowerCase();
+
+        if (query && !searchPayload.includes(query)) return false;
         if (enrollmentFilters.schoolYearId && item.schoolYearId !== enrollmentFilters.schoolYearId) return false;
         if (enrollmentFilters.classId && item.classId !== enrollmentFilters.classId) return false;
         if (enrollmentFilters.studentId && item.studentId !== enrollmentFilters.studentId) return false;
@@ -149,77 +177,85 @@ export function EnrollmentsScreen({
         }
         return true;
       }),
-    [enrollmentFilters, enrollments]
+    [classById, enrollmentFilters, enrollmentSearch, enrollments, schoolYearById, studentById]
   );
+
   const activeEnrollments = enrollments.filter((item) => item.enrollmentStatus.trim().toUpperCase() === "ENROLLED");
   const activeStudentCount = new Set(activeEnrollments.map((item) => item.studentId)).size;
-  const configuredTrackCount = new Set(classes.map((item) => item.track)).size || ACADEMIC_TRACK_OPTIONS.length;
-  const filteredEnrollmentLabel = enrollmentFilters.schoolYearId
-    ? schoolYearById.get(enrollmentFilters.schoolYearId)?.code || "Filtre actif"
-    : "Toutes les années";
+  const hasListFilters =
+    enrollmentSearch.trim().length > 0 ||
+    enrollmentFilters.schoolYearId.length > 0 ||
+    enrollmentFilters.classId.length > 0 ||
+    enrollmentFilters.studentId.length > 0 ||
+    enrollmentFilters.track.length > 0 ||
+    enrollmentFilters.enrollmentStatus.length > 0;
+
+  const openEnrollmentForm = (): void => {
+    setSelectedEnrollmentId(null);
+    resetEnrollmentForm();
+    setEnrollmentWorkflowStep("create");
+  };
+
+  const showEnrollmentList = (): void => {
+    resetEnrollmentForm();
+    setEnrollmentWorkflowStep("list");
+  };
+
+  const resetListFilters = (): void => {
+    setEnrollmentSearch("");
+    void resetEnrollmentFilters();
+  };
+
+  const closeActionMenu = (): void => setOpenActionMenuId(null);
+
+  const toggleActionMenu = (enrollmentId: string): void => {
+    setOpenActionMenuId((current) => (current === enrollmentId ? null : enrollmentId));
+  };
+
+  const selectedEnrollment = selectedEnrollmentId
+    ? enrollments.find((enrollment) => enrollment.id === selectedEnrollmentId) || null
+    : null;
+  const editingEnrollment = editingEnrollmentId
+    ? enrollments.find((enrollment) => enrollment.id === editingEnrollmentId) || null
+    : null;
 
   return (
-    <WorkflowGuide
-      title="Inscriptions"
-      steps={enrollmentSteps}
-      activeStepId={enrollmentWorkflowStep}
-      onStepChange={scrollToEnrollments}
-    >
-      <>
-        <section data-step-id="list" className="panel table-panel workflow-section module-modern module-overview-shell">
-          <div className="table-header">
-            <div>
-              <p className="section-kicker">Admissions</p>
-              <h2>Suivi des inscriptions</h2>
-            </div>
-            <span className="module-header-badge">{filteredEnrollmentLabel}</span>
-          </div>
-          <p className="section-lead">Gérez les inscriptions et placements académiques des élèves.</p>
-          <div className="module-overview-grid">
-            <article className="module-overview-card">
-              <span>Inscriptions</span>
-              <strong>{enrollments.length}</strong>
-              <small>Dossiers rattachés aux classes</small>
-            </article>
-            <article className="module-overview-card">
-              <span>Élèves inscrits</span>
-              <strong>{activeStudentCount}</strong>
-              <small>Élèves actifs</small>
-            </article>
-            <article className="module-overview-card">
-              <span>Cursus</span>
-              <strong>{configuredTrackCount}</strong>
-              <small>Francophone / Arabophone</small>
-            </article>
-            <article className="module-overview-card">
-              <span>Classes</span>
-              <strong>{classes.length}</strong>
-              <small>Classes disponibles</small>
-            </article>
-          </div>
-          <div className="module-inline-strip">
-            <span className="module-inline-pill">
-              {pluralize(schoolYears.length, "année configurée", "années configurées")}
-            </span>
-            <span className="module-inline-pill">{pluralize(configuredTrackCount, "cursus actif", "cursus actifs")}</span>
-          </div>
-        </section>
+    <div className="enrollments-v3-shell">
+      <header className="enrollments-v3-page-header">
+        <div>
+          <h1>Inscriptions</h1>
+          <p>Gérez les admissions, placements et rattachements académiques des élèves.</p>
+        </div>
+        {enrollmentWorkflowStep === "create" ? (
+          <button type="button" className="button-ghost" onClick={showEnrollmentList}>
+            Liste des inscriptions
+          </button>
+        ) : (
+          <button type="button" onClick={openEnrollmentForm}>
+            Nouvelle inscription
+          </button>
+        )}
+      </header>
 
+      {enrollmentWorkflowStep === "create" ? (
         <section
           id="enrollments-create"
           data-step-id="create"
-          data-active-step={enrollmentWorkflowStep === "create" ? "true" : undefined}
-          className="panel editor-panel workflow-section module-modern"
+          data-active-step="true"
+          className="panel editor-panel module-modern enrollments-v3-form-card"
         >
-          <div className="table-header">
+          <div className="enrollments-v3-table-head">
             <div>
-              <p className="section-kicker">Création</p>
-              <h2>Nouvelle inscription</h2>
+              <h2>{editingEnrollment ? "Modifier inscription" : "Nouvelle inscription"}</h2>
+              <p>
+                {editingEnrollment
+                  ? "Ajustez le placement, la date et le statut de l'inscription sélectionnée."
+                  : "Rattachez un élève à une année scolaire, un cursus et une classe."}
+              </p>
             </div>
-            <span className="module-header-badge">Placement académique</span>
+            <span className="students-overview-status">Placement académique</span>
           </div>
-          <p className="section-lead">Rattachez un élève à une année scolaire, un cursus et une classe.</p>
-          <form className="form-grid module-form" onSubmit={(event) => void submitEnrollment(event)}>
+          <form className="form-grid module-form enrollments-v3-form-grid" onSubmit={(event) => void submitEnrollment(event)}>
             <label>
               {renderRequiredLabel("Année scolaire")}
               <select
@@ -324,39 +360,32 @@ export function EnrollmentsScreen({
               </select>
               {fieldError(enrollmentErrors, "enrollmentStatus")}
             </label>
-            <div className="notice-card notice-info enrollment-placement-help">
-              <strong>Type de placement</strong>
-              <p>Le placement principal est déterminé automatiquement selon le contexte académique de l'élève.</p>
+            <div className="notice-card notice-info enrollments-v3-form-note">
+              <strong>Placement académique</strong>
+              <p>Le placement principal est déterminé automatiquement selon le contexte scolaire de l'élève.</p>
             </div>
-            <button type="submit">Créer inscription</button>
+            <div className="actions span-2">
+              <button type="submit">{editingEnrollment ? "Mettre à jour" : "Créer inscription"}</button>
+              <button type="button" className="button-ghost" onClick={showEnrollmentList}>
+                Voir la liste
+              </button>
+            </div>
           </form>
         </section>
-
-        <section
-          id="enrollments-list"
-          data-step-id="list"
-          data-active-step={enrollmentWorkflowStep === "list" ? "true" : undefined}
-          className="panel table-panel workflow-section module-modern"
-        >
-          <div className="table-header">
-            <div>
-              <p className="section-kicker">Suivi</p>
-              <h2>Liste des inscriptions</h2>
-            </div>
-            <span className="module-header-badge">
-              {pluralize(displayedEnrollments.length, "inscription", "inscriptions")}
-            </span>
-          </div>
-          <p className="section-lead">Recherchez et gérez les inscriptions par année, classe, élève ou cursus.</p>
-          <form
-            className="filter-grid module-filter"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void loadEnrollments(enrollmentFilters);
-            }}
-          >
-            <label>
-              Année scolaire
+      ) : (
+        <>
+          <section className="panel enrollments-v3-filter-card" aria-label="Filtres inscriptions">
+            <label className="enrollments-v3-search-field">
+              <span>Recherche rapide</span>
+              <input
+                className="search-input"
+                placeholder="Nom, matricule, classe ou année..."
+                value={enrollmentSearch}
+                onChange={(event) => setEnrollmentSearch(event.target.value)}
+              />
+            </label>
+            <label className="enrollments-v3-filter-field">
+              <span>Année scolaire</span>
               <select
                 value={enrollmentFilters.schoolYearId}
                 onChange={(event) =>
@@ -371,15 +400,15 @@ export function EnrollmentsScreen({
                 ))}
               </select>
             </label>
-            <label>
-              Classe
+            <label className="enrollments-v3-filter-field">
+              <span>Classe</span>
               <select
                 value={enrollmentFilters.classId}
                 onChange={(event) =>
                   setEnrollmentFilters((prev) => ({ ...prev, classId: event.target.value }))
                 }
               >
-                <option value="">Toutes</option>
+                <option value="">Toutes les classes</option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code}
@@ -387,47 +416,15 @@ export function EnrollmentsScreen({
                 ))}
               </select>
             </label>
-            <label>
-              Élève
-              <select
-                value={enrollmentFilters.studentId}
-                onChange={(event) =>
-                  setEnrollmentFilters((prev) => ({ ...prev, studentId: event.target.value }))
-                }
-              >
-                <option value="">Tous</option>
-                {students.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.matricule} - {item.firstName} {item.lastName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Cursus
-              <select
-                value={enrollmentFilters.track}
-                onChange={(event) =>
-                  setEnrollmentFilters((prev) => ({ ...prev, track: event.target.value }))
-                }
-              >
-                <option value="">Tous</option>
-                {ACADEMIC_TRACK_OPTIONS.map((track) => (
-                  <option key={track} value={track}>
-                    {formatAcademicTrackLabel(track)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Statut
+            <label className="enrollments-v3-filter-field">
+              <span>Statut</span>
               <select
                 value={enrollmentFilters.enrollmentStatus}
                 onChange={(event) =>
                   setEnrollmentFilters((prev) => ({ ...prev, enrollmentStatus: event.target.value }))
                 }
               >
-                <option value="">Tous</option>
+                <option value="">Tous les statuts</option>
                 {ENROLLMENT_STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
                     {formatEnrollmentStatusLabel(status)}
@@ -435,93 +432,183 @@ export function EnrollmentsScreen({
                 ))}
               </select>
             </label>
-            <div className="actions">
-              <button type="submit">Filtrer</button>
-              <button type="button" className="button-ghost" onClick={() => void resetEnrollmentFilters()}>
-                Réinitialiser
-              </button>
+            <button type="button" className="button-ghost" onClick={resetListFilters} disabled={!hasListFilters}>
+              Réinitialiser
+            </button>
+          </section>
+
+          <section
+            id="enrollments-list"
+            data-step-id="list"
+            data-active-step="true"
+            className="panel table-panel module-modern enrollments-v3-table-card"
+          >
+            <div className="enrollments-v3-table-head">
+              <div>
+                <h2>Liste des inscriptions ({displayedEnrollments.length})</h2>
+                <p>{activeStudentCount} élève(s) actif(s), placements issus des dossiers validés.</p>
+              </div>
+              <span className="students-overview-status">
+                {pluralize(enrollments.length, "dossier", "dossiers")}
+              </span>
             </div>
-          </form>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Année</th>
-                  <th>Élève</th>
-                  <th>Cursus</th>
-                  <th>Classe</th>
-                  <th>Type de placement</th>
-                  <th>Statut</th>
-                  <th>Date d'inscription</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayedEnrollments.length === 0 ? (
+            <div className="table-wrap">
+              <table className="enrollments-v3-table" data-responsive-table="true">
+                <thead>
                   <tr>
-                    <td colSpan={8} className="empty-row">
-                      Aucune inscription trouvée.
-                    </td>
+                    <th>Élève</th>
+                    <th>Année</th>
+                    <th>Classe / cursus</th>
+                    <th>Placement</th>
+                    <th>Date</th>
+                    <th>Statut</th>
+                    <th className="enrollments-v3-actions-heading" aria-label="Actions"></th>
                   </tr>
-                ) : (
-                  displayedEnrollments.map((item) => {
-                    const localClass = classById.get(item.classId);
-                    const localStudent = studentById.get(item.studentId);
-                    const fallbackStudent = localStudent
-                      ? `${localStudent.firstName} ${localStudent.lastName}`.trim()
-                      : "-";
-                    return (
-                      <tr key={item.id}>
-                        <td>{item.schoolYearCode || schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
-                        <td>{item.studentName || fallbackStudent}</td>
-                        <td>{formatAcademicTrackLabel(item.track)}</td>
-                        <td>{item.classLabel || localClass?.label || "-"}</td>
-                        <td>{formatPlacementTypeLabel(Boolean(item.isPrimary))}</td>
-                        <td>{formatEnrollmentStatusLabel(item.enrollmentStatus)}</td>
-                        <td>{formatDate(item.enrollmentDate, locale)}</td>
-                        <td>
-                          <div className="row-actions enrollment-row-actions">
-                            <button type="button" className="button-ghost" onClick={() => setSelectedEnrollmentId(item.id)}>
-                              Voir
-                            </button>
-                            <button
-                              type="button"
-                              className="button-danger"
-                              onClick={() => void deleteEnrollment(item.id)}
-                            >
-                              Supprimer
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-          {selectedEnrollmentId ? (
-            <div className="notice-card notice-info enrollment-detail-card">
-              {(() => {
-                const item = enrollments.find((enrollment) => enrollment.id === selectedEnrollmentId);
-                if (!item) return <p>Aucune inscription sélectionnée.</p>;
-                const localClass = classById.get(item.classId);
-                const localStudent = studentById.get(item.studentId);
-                return (
-                  <>
-                    <strong>Détail du placement académique</strong>
-                    <p>
-                      {(item.studentName || `${localStudent?.firstName || ""} ${localStudent?.lastName || ""}`.trim() || "-")} ·{" "}
-                      {formatAcademicTrackLabel(item.track)} · {item.classLabel || localClass?.label || "-"} ·{" "}
-                      {formatPlacementTypeLabel(Boolean(item.isPrimary))}
-                    </p>
-                  </>
-                );
-              })()}
+                </thead>
+                <tbody>
+                  {displayedEnrollments.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="empty-row">
+                        Aucune inscription trouvée.
+                      </td>
+                    </tr>
+                  ) : (
+                    displayedEnrollments.map((item) => {
+                      const localClass = classById.get(item.classId);
+                      const localStudent = studentById.get(item.studentId);
+                      const studentName = getEnrollmentStudentName(item, localStudent);
+                      const schoolYear = item.schoolYearCode || schoolYearById.get(item.schoolYearId)?.code || "-";
+                      const classLabel = item.classLabel || localClass?.label || localClass?.code || "-";
+
+                      return (
+                        <tr key={item.id}>
+                          <td data-label="Élève">
+                            <div className="enrollments-v3-student-cell">
+                              <span className="enrollments-v3-avatar">{getEnrollmentInitials(item, localStudent)}</span>
+                              <div>
+                                <strong>{studentName}</strong>
+                                <small>{localStudent?.matricule || "Matricule à compléter"}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td data-label="Année" className="enrollments-v3-muted-cell">
+                            {schoolYear}
+                          </td>
+                          <td data-label="Classe / cursus">
+                            <div className="enrollments-v3-class-cell">
+                              <strong>{classLabel}</strong>
+                              <span className="enrollments-v3-class-badge">{formatAcademicTrackLabel(item.track)}</span>
+                            </div>
+                          </td>
+                          <td data-label="Placement" className="enrollments-v3-muted-cell">
+                            {formatPlacementTypeLabel(Boolean(item.isPrimary))}
+                          </td>
+                          <td data-label="Date" className="enrollments-v3-muted-cell">
+                            {formatDate(item.enrollmentDate, locale)}
+                          </td>
+                          <td data-label="Statut">
+                            <span className={getEnrollmentStatusClassName(item.enrollmentStatus)}>
+                              {formatEnrollmentStatusLabel(item.enrollmentStatus)}
+                            </span>
+                          </td>
+                          <td data-label="Actions">
+                            <div className="enrollments-v3-action-cell">
+                              <button
+                                type="button"
+                                className="enrollments-v3-more-button"
+                                aria-label={`Actions inscription ${studentName}`}
+                                aria-expanded={openActionMenuId === item.id}
+                                onClick={() => toggleActionMenu(item.id)}
+                              >
+                                <span aria-hidden="true">...</span>
+                              </button>
+                              {openActionMenuId === item.id ? (
+                                <div className="enrollments-v3-action-menu" role="menu">
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => {
+                                      closeActionMenu();
+                                      setSelectedEnrollmentId(item.id);
+                                    }}
+                                  >
+                                    Voir
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => {
+                                      closeActionMenu();
+                                      setSelectedEnrollmentId(null);
+                                      startEnrollmentEdit(item);
+                                    }}
+                                  >
+                                    Modifier
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="is-danger"
+                                    onClick={() => {
+                                      closeActionMenu();
+                                      void deleteEnrollment(item.id);
+                                    }}
+                                  >
+                                    Supprimer
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          ) : null}
-        </section>
-      </>
-    </WorkflowGuide>
+            {selectedEnrollment ? (
+              <aside className="enrollments-v3-detail-panel" aria-label="Inscription consultée">
+                <div className="table-header">
+                  <div>
+                    <p className="section-kicker">Inscription consultée</p>
+                    <h3>{getEnrollmentStudentName(selectedEnrollment, studentById.get(selectedEnrollment.studentId))}</h3>
+                  </div>
+                  <span className={getEnrollmentStatusClassName(selectedEnrollment.enrollmentStatus)}>
+                    {formatEnrollmentStatusLabel(selectedEnrollment.enrollmentStatus)}
+                  </span>
+                </div>
+                <div className="students-detail-grid">
+                  <div>
+                    <span>Année</span>
+                    <strong>
+                      {selectedEnrollment.schoolYearCode ||
+                        schoolYearById.get(selectedEnrollment.schoolYearId)?.code ||
+                        "-"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Classe</span>
+                    <strong>
+                      {selectedEnrollment.classLabel ||
+                        classById.get(selectedEnrollment.classId)?.label ||
+                        "-"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Cursus</span>
+                    <strong>{formatAcademicTrackLabel(selectedEnrollment.track)}</strong>
+                  </div>
+                  <div>
+                    <span>Placement</span>
+                    <strong>{formatPlacementTypeLabel(Boolean(selectedEnrollment.isPrimary))}</strong>
+                  </div>
+                </div>
+              </aside>
+            ) : null}
+          </section>
+        </>
+      )}
+    </div>
   );
 }
