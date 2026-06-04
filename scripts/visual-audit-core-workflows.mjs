@@ -178,6 +178,20 @@ async function capture(page, name, options = {}) {
   screenshots.push(filePath);
 }
 
+async function captureScrolledTable(page, tableWrapSelector, label) {
+  const tableWrap = page.locator(tableWrapSelector).first();
+  if (!(await tableWrap.isVisible().catch(() => false))) return;
+
+  await tableWrap.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
+  await page.waitForTimeout(250);
+  await capture(page, label, { fullPage: true });
+  await tableWrap.evaluate((element) => {
+    element.scrollLeft = 0;
+  });
+}
+
 async function getScreenText(page) {
   const screenHost = page.locator(".screen-host").first();
   if (await screenHost.count()) return screenHost.innerText();
@@ -410,6 +424,9 @@ async function runStudents(browser, viewportName, theme) {
   await auditRequiredText(page, label, ["Élèves", "Ajouter un élève"]);
   await auditForbiddenText(page, label, ["Identifiant interne", "source de verite", "Resultat filtre"]);
   await capture(page, label, { fullPage: viewportName !== "desktop" });
+  if (viewportName.startsWith("mobile")) {
+    await captureScrolledTable(page, ".students-v3-table-card .table-wrap", `students-table-right-${viewportName}-${theme}`);
+  }
   await context.close();
 }
 
@@ -430,6 +447,10 @@ async function runEnrollments(browser, viewportName, theme) {
     "Vue v2"
   ]);
   await capture(page, label, { fullPage: viewportName !== "desktop" });
+
+  if (viewportName.startsWith("mobile")) {
+    await captureScrolledTable(page, ".enrollments-v3-table-card .table-wrap", `enrollments-table-right-${viewportName}-${theme}`);
+  }
 
   if (viewportName === "desktopNarrow" && theme === "dark") {
     const tableWrap = page.locator(".enrollments-v3-table-card .table-wrap").first();
@@ -467,6 +488,9 @@ async function runTeachers(browser, viewportName, theme) {
   await auditRequiredText(page, label, ["Enseignants", "Base enseignants", "Recherche rapide", "Aminata Coulibaly"]);
   await auditForbiddenText(page, label, ["Registre enseignants", "Module enseignants", "Actions", "Workflow"]);
   await capture(page, label, { fullPage: viewportName !== "desktop" });
+  if (viewportName.startsWith("mobile")) {
+    await captureScrolledTable(page, ".teachers-v3-table-card .table-wrap", `teachers-table-right-${viewportName}-${theme}`);
+  }
 
   if (viewportName === "desktop" && theme === "light") {
     const actionMenuTrigger = page.locator(".teachers-v3-more-button").first();
@@ -496,17 +520,21 @@ async function main() {
     await runProfile(browser, "desktop", "dark");
     await runProfile(browser, "tablet", "light");
     await runProfile(browser, "mobile", "light");
+    await runProfile(browser, "mobile", "dark");
 
     await runPilotage(browser, "desktop", "light");
     await runPilotage(browser, "desktop", "dark");
     await runPilotage(browser, "tablet", "light");
     await runPilotage(browser, "mobile", "light");
+    await runPilotage(browser, "mobile", "dark");
 
     await runGrades(browser, "desktop", "light");
     await runGrades(browser, "mobile", "light");
+    await runGrades(browser, "mobile", "dark");
 
     await runFinance(browser, "desktop", "light");
     await runFinance(browser, "mobile", "light");
+    await runFinance(browser, "mobile", "dark");
     await runStudents(browser, "desktop", "light");
     await runStudents(browser, "desktop", "dark");
     await runStudents(browser, "mobile", "light");
@@ -521,6 +549,7 @@ async function main() {
     await runTeachers(browser, "desktop", "light");
     await runTeachers(browser, "desktop", "dark");
     await runTeachers(browser, "mobile", "light");
+    await runTeachers(browser, "mobile", "dark");
   } finally {
     await browser.close();
   }
