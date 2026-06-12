@@ -15,6 +15,7 @@ import {
   parseOptionalNumber,
   renderFieldLabel
 } from "../utils/reference-ui";
+import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 
 export function CyclesSection(): JSX.Element {
@@ -193,7 +194,7 @@ export function CyclesSection(): JSX.Element {
               </form>
             </div>
             <div className="table-wrap">
-              <table>
+              <table data-responsive-table="true">
                 <thead>
                   <tr>
                     <th>Annee</th>
@@ -216,9 +217,10 @@ export function CyclesSection(): JSX.Element {
                         <td>{item.sortOrder}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/cycles/${item.id}`, "Cycle supprime.")}>
-                            Supprimer
-                          </button>
+                          <ReferenceActionMenu
+                            label={`Options cycle ${item.label}`}
+                            onDelete={() => void deleteRef(`/cycles/${item.id}`, "Cycle supprime.")}
+                          />
                         </td>
                       </tr>
                     ))

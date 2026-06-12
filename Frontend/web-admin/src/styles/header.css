@@ -630,25 +630,47 @@
 
 .mosquee-construction-page {
   display: grid;
+  gap: clamp(1rem, 2vw, 1.25rem);
+}
+
+.mosquee-v3-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: clamp(1rem, 2.4vw, 1.5rem);
+}
+
+.mosquee-v3-hero h2,
+.mosquee-v3-card h3,
+.mosquee-v3-roadmap h3 {
+  margin: 0;
+}
+
+.mosquee-v3-hero p:not(.section-kicker),
+.mosquee-v3-card p:not(.section-kicker) {
+  max-width: 56rem;
+  margin: 0.55rem 0 0;
+  color: var(--flexadm-surface-copy-soft);
+  line-height: 1.65;
+}
+
+.mosquee-v3-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.mosquee-construction-frame {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(1rem, 2.4vw, 1.5rem);
-  background:
-    radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 24%),
-    linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #eef2ff 100%);
+.mosquee-v3-card,
+.mosquee-v3-roadmap {
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+  padding: clamp(1rem, 2vw, 1.25rem);
 }
 
-.mosquee-construction-image {
-  width: min(100%, 70rem);
-  height: auto;
-  display: block;
-  border-radius: 1rem;
-  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.14);
+.mosquee-v3-card {
+  min-height: 12rem;
 }
 
 :root[data-theme="dark"] .global-header-shell {
@@ -683,8 +705,7 @@
 :root[data-theme="dark"] .header-preference-button,
 :root[data-theme="dark"] .header-mobile-user,
 :root[data-theme="dark"] .header-dropdown-menu,
-:root[data-theme="dark"] .header-dropdown-group-toggle,
-:root[data-theme="dark"] .mosquee-construction-frame {
+:root[data-theme="dark"] .header-dropdown-group-toggle {
   background: rgba(15, 23, 42, 0.82);
   border-color: rgba(51, 65, 85, 0.95);
 }
@@ -733,12 +754,6 @@
 :root[data-theme="dark"] .header-dropdown-menu {
   background: rgba(15, 23, 42, 0.96);
   box-shadow: 0 24px 54px rgba(2, 8, 23, 0.42);
-}
-
-:root[data-theme="dark"] .mosquee-construction-frame {
-  background:
-    radial-gradient(circle at top right, rgba(45, 212, 191, 0.14), transparent 24%),
-    linear-gradient(135deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.9) 100%);
 }
 
 @media (max-width: 1360px) {
@@ -844,8 +859,12 @@
     min-width: 0;
   }
 
-  .mosquee-construction-frame {
-    padding: 0.85rem;
+  .mosquee-v3-hero {
+    flex-direction: column;
+  }
+
+  .mosquee-v3-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 
 import {
   ACCOUNT_TYPE_LABELS,
@@ -74,6 +74,14 @@ const formatUserAttachment = (item: UserAccount): string => {
   return "Staff interne";
 };
 
+const getUserInitials = (item: UserAccount): string => {
+  const source = formatUserFullName(item) !== EMPTY_VALUE_LABEL ? formatUserFullName(item) : item.username;
+  const parts = source.trim().split(/\s+/u).filter(Boolean);
+  const first = parts[0]?.charAt(0) || "";
+  const second = parts[1]?.charAt(0) || parts[0]?.charAt(1) || "";
+  return `${first}${second}`.toUpperCase() || "GS";
+};
+
 const fieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
   errors[key] ? <span className="field-error">{errors[key]}</span> : null;
 
@@ -88,6 +96,7 @@ export function IamScreen({
   onNotice,
   onUsersChange
 }: IamScreenProps): JSX.Element {
+  const [openUserActionMenuId, setOpenUserActionMenuId] = useState<string | null>(null);
   const {
     accountParents,
     accountTeachers,
@@ -144,13 +153,14 @@ export function IamScreen({
 
   return (
     <WorkflowGuide
+      className="module-v3-workflow"
       title="Utilisateurs & droits"
       steps={iamSteps}
       activeStepId={iamWorkflowStep}
       onStepChange={goToStep}
     >
-      <>
-        <section id="iam-accounts" data-step-id="accounts" className="panel editor-panel workflow-section">
+      <div className="iam-v3-shell module-v3-shell">
+        <section id="iam-accounts" data-step-id="accounts" className="panel editor-panel workflow-section module-modern iam-v3-form-card">
           <h2>{editingUserId ? "Modifier l'utilisateur" : "Créer l'utilisateur"}</h2>
           <form className="iam-account-form" onSubmit={(event) => void submitUser(event)}>
             <fieldset className="iam-form-section">
@@ -386,9 +396,14 @@ export function IamScreen({
           </form>
         </section>
 
-        <section data-step-id="accounts" className="panel table-panel workflow-section">
-          <div className="table-header">
-            <h2>Comptes utilisateurs</h2>
+        <section data-step-id="accounts" className="panel table-panel workflow-section module-modern iam-v3-table-card">
+          <div className="v3-table-head">
+            <div>
+              <p className="section-kicker">Accès</p>
+              <h2>Comptes utilisateurs</h2>
+              <p>Profils, rattachements métier et sécurité d’accès.</p>
+            </div>
+            <span className="v3-count-badge">{users.length} compte(s)</span>
           </div>
           <div className="table-wrap">
             <table data-responsive-table="true" data-testid="iam-users-table">
@@ -401,7 +416,7 @@ export function IamScreen({
                   <th>Rattachement</th>
                   <th>Statut</th>
                   <th>Dernière mise à jour</th>
-                  <th>Actions</th>
+                  <th aria-label="Actions"></th>
                 </tr>
               </thead>
               <tbody>
@@ -414,7 +429,15 @@ export function IamScreen({
                 ) : (
                   users.map((item) => (
                     <tr key={item.id}>
-                      <td data-label="Identifiant">{item.username}</td>
+                      <td data-label="Identifiant">
+                        <div className="v3-table-entity-cell">
+                          <span className="v3-avatar">{getUserInitials(item)}</span>
+                          <div>
+                            <strong>{item.username}</strong>
+                            <small>{item.email || "Email non renseigné"}</small>
+                          </div>
+                        </div>
+                      </td>
                       <td data-label="Nom complet">{formatUserFullName(item)}</td>
                       <td data-label="Type de personne">{item.accountType ? formatAccountTypeLabel(item.accountType) : EMPTY_VALUE_LABEL}</td>
                       <td data-label="Rôle d'accès">{formatRoleLabel(item.roleId || item.role)}</td>
@@ -426,21 +449,59 @@ export function IamScreen({
                       </td>
                       <td data-label="Dernière mise à jour">{new Date(item.updatedAt).toLocaleString(locale)}</td>
                       <td data-label="Actions">
-                        <div className="table-actions iam-user-actions">
-                          <button type="button" className="button-ghost" onClick={() => startEditUser(item)}>
-                            Modifier
+                        <div className="v3-action-cell">
+                          <button
+                            type="button"
+                            className="v3-more-button"
+                            aria-label={`Actions ${item.username}`}
+                            aria-expanded={openUserActionMenuId === item.id}
+                            onClick={() => setOpenUserActionMenuId((current) => (current === item.id ? null : item.id))}
+                          >
+                            <span aria-hidden="true">...</span>
                           </button>
-                          {item.status === "PENDING_ACTIVATION" ? (
-                            <button type="button" className="button-ghost" onClick={() => void resendUserActivation(item)}>
-                              Renvoyer l’activation
-                            </button>
+                          {openUserActionMenuId === item.id ? (
+                            <div className="v3-action-menu" role="menu">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenUserActionMenuId(null);
+                                  startEditUser(item);
+                                }}
+                              >
+                                Modifier
+                              </button>
+                              {item.status === "PENDING_ACTIVATION" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenUserActionMenuId(null);
+                                    void resendUserActivation(item);
+                                  }}
+                                >
+                                  Renvoyer l’activation
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenUserActionMenuId(null);
+                                  void toggleUserAccountStatus(item, !item.isActive);
+                                }}
+                              >
+                                {item.isActive ? "Désactiver" : "Réactiver"}
+                              </button>
+                              <button
+                                type="button"
+                                className="is-danger"
+                                onClick={() => {
+                                  setOpenUserActionMenuId(null);
+                                  void deleteUserAccount(item.id);
+                                }}
+                              >
+                                Supprimer
+                              </button>
+                            </div>
                           ) : null}
-                          <button type="button" className="button-ghost" onClick={() => void toggleUserAccountStatus(item, !item.isActive)}>
-                            {item.isActive ? "Désactiver" : "Réactiver"}
-                          </button>
-                          <button type="button" className="button-danger" onClick={() => void deleteUserAccount(item.id)}>
-                            Supprimer
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -451,7 +512,7 @@ export function IamScreen({
           </div>
         </section>
 
-        <section id="iam-permissions" data-step-id="permissions" className="panel table-panel workflow-section iam-permissions-panel">
+        <section id="iam-permissions" data-step-id="permissions" className="panel table-panel workflow-section module-modern iam-permissions-panel">
           <div className="table-header iam-permissions-header">
             <h2>Droits par profil</h2>
             <div className="inline-actions iam-permissions-actions">
@@ -484,7 +545,7 @@ export function IamScreen({
             Sélectionnez les actions autorisées pour chaque ressource.
           </p>
           <div className="table-wrap iam-permissions-wrap">
-            <table className="iam-permissions-table" data-testid="iam-permissions-table">
+            <table className="iam-permissions-table" data-responsive-table="true" data-testid="iam-permissions-table">
               <thead>
                 <tr>
                   <th>Ressource</th>
@@ -515,7 +576,7 @@ export function IamScreen({
             </table>
           </div>
         </section>
-      </>
+      </div>
     </WorkflowGuide>
   );
 }

@@ -1,5 +1,12 @@
+import { useState } from "react";
+
 import type { ParentRecord } from "../../../shared/types/app";
 import { SCHOOL_NAME, roleLabel, statusLabel, statusPillClassName } from "../parents-screen-model";
+
+const getParentInitials = (parent: ParentRecord): string => {
+  const parts = parent.fullName.trim().split(/\s+/u).filter(Boolean);
+  return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || parts[0]?.charAt(1) || ""}`.toUpperCase() || "RP";
+};
 
 export function ParentsListSection(props: {
   loading: boolean;
@@ -21,14 +28,16 @@ export function ParentsListSection(props: {
     selectedParent,
     shownParents
   } = props;
+  const [openParentActionMenuId, setOpenParentActionMenuId] = useState<string | null>(null);
 
   return (
     <>
-      <section className="panel table-panel workflow-section module-modern">
-        <div className="table-header">
+      <section className="panel table-panel workflow-section module-modern parents-v3-table-card">
+        <div className="v3-table-head">
           <div>
             <p className="section-kicker">Responsables</p>
             <h2>Liste des responsables</h2>
+            <p>Contacts parentaux, comptes portail et rattachements élèves.</p>
           </div>
           <div className="students-table-toolbar">
             <label className="students-search-field">
@@ -56,7 +65,7 @@ export function ParentsListSection(props: {
                 <th>Élèves liés</th>
                 <th>Portail</th>
                 <th>Statut</th>
-                <th>Actions</th>
+                <th aria-label="Actions"></th>
               </tr>
             </thead>
             <tbody>
@@ -67,7 +76,15 @@ export function ParentsListSection(props: {
               ) : (
                 shownParents.map((parent) => (
                   <tr key={parent.id}>
-                    <td data-label="Responsable">{parent.fullName}</td>
+                    <td data-label="Responsable">
+                      <div className="v3-table-entity-cell">
+                        <span className="v3-avatar">{getParentInitials(parent)}</span>
+                        <div>
+                          <strong>{parent.fullName}</strong>
+                          <small>{parent.profession || "Profession non renseignée"}</small>
+                        </div>
+                      </div>
+                    </td>
                     <td data-label="Rôle">{roleLabel(parent.parentalRole)}</td>
                     <td data-label="Téléphone">{parent.primaryPhone}</td>
                     <td data-label="Email">{parent.email || "-"}</td>
@@ -77,16 +94,23 @@ export function ParentsListSection(props: {
                       <span className={statusPillClassName(parent.status)}>{statusLabel(parent.status)}</span>
                     </td>
                     <td data-label="Actions">
-                      <div className="row-actions">
-                        <button type="button" className="button-ghost" onClick={() => onSelectParent(parent.id)}>
-                          Voir
+                      <div className="v3-action-cell">
+                        <button
+                          type="button"
+                          className="v3-more-button"
+                          aria-label={`Actions ${parent.fullName}`}
+                          aria-expanded={openParentActionMenuId === parent.id}
+                          onClick={() => setOpenParentActionMenuId((current) => (current === parent.id ? null : parent.id))}
+                        >
+                          <span aria-hidden="true">...</span>
                         </button>
-                        <button type="button" className="button-ghost" onClick={() => onEditParent(parent)}>
-                          Modifier
-                        </button>
-                        <button type="button" className="button-danger" onClick={() => onArchiveParent(parent.id)}>
-                          Archiver
-                        </button>
+                        {openParentActionMenuId === parent.id ? (
+                          <div className="v3-action-menu" role="menu">
+                            <button type="button" onClick={() => { setOpenParentActionMenuId(null); onSelectParent(parent.id); }}>Voir</button>
+                            <button type="button" onClick={() => { setOpenParentActionMenuId(null); onEditParent(parent); }}>Modifier</button>
+                            <button type="button" className="is-danger" onClick={() => { setOpenParentActionMenuId(null); onArchiveParent(parent.id); }}>Archiver</button>
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

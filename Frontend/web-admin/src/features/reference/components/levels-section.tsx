@@ -16,6 +16,7 @@ import {
   parseOptionalNumber,
   renderFieldLabel
 } from "../utils/reference-ui";
+import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 
 export function LevelsSection(): JSX.Element {
@@ -210,7 +211,7 @@ export function LevelsSection(): JSX.Element {
               </label>
             </div>
             <div className="table-wrap">
-              <table>
+              <table data-responsive-table="true">
                 <thead>
                   <tr>
                     <th>Cycle</th>
@@ -233,9 +234,10 @@ export function LevelsSection(): JSX.Element {
                         <td>{item.sortOrder}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/levels/${item.id}`, "Niveau supprime.")}>
-                            Supprimer
-                          </button>
+                          <ReferenceActionMenu
+                            label={`Options niveau ${item.label}`}
+                            onDelete={() => void deleteRef(`/levels/${item.id}`, "Niveau supprime.")}
+                          />
                         </td>
                       </tr>
                     ))

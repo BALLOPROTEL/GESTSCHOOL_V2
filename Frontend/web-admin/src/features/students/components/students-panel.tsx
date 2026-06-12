@@ -492,10 +492,10 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                           </span>
                         </td>
                         <td data-label="Actions">
-                          <div className="students-v3-action-cell">
+                          <div className="students-v3-action-cell v3-action-cell">
                             <button
                               type="button"
-                              className="students-v3-more-button"
+                              className="students-v3-more-button v3-more-button"
                               aria-label={`Actions pour ${getStudentDisplayName(item)}`}
                               aria-expanded={openActionMenuId === item.id}
                               onClick={() => toggleActionMenu(item.id)}
@@ -503,7 +503,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                               <span aria-hidden="true">...</span>
                             </button>
                             {openActionMenuId === item.id ? (
-                              <div className="students-v3-action-menu" role="menu">
+                              <div className="students-v3-action-menu v3-action-menu" role="menu">
                                 <button
                                   type="button"
                                   role="menuitem"

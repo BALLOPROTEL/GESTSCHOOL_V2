@@ -322,8 +322,14 @@ export function ParentsScreen({
   ];
 
   return (
-    <WorkflowGuide title="Parents" steps={steps} activeStepId={activeStep} onStepChange={setActiveStep}>
-      <div className="students-screen-shell parents-screen-shell">
+    <WorkflowGuide
+      title="Parents"
+      steps={steps}
+      activeStepId={activeStep}
+      onStepChange={setActiveStep}
+      className="module-v3-workflow"
+    >
+      <div className="students-screen-shell parents-screen-shell module-v3-shell">
         {activeStep === "list" ? (
           <ParentsListSection
             loading={loading}

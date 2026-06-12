@@ -438,6 +438,11 @@
   .students-v3-shell,
   .enrollments-v3-shell,
   .teachers-v3-shell,
+  .module-v3-shell,
+  .iam-v3-shell,
+  .rooms-screen-shell,
+  .parents-screen-shell,
+  .finance-v3-shell,
   .workflow-shell,
   .finance-screen-shell {
     gap: 0.95rem !important;
@@ -459,7 +464,8 @@
 
   .students-v3-page-header,
   .enrollments-v3-page-header,
-  .teachers-v3-page-header {
+  .teachers-v3-page-header,
+  .module-page-header {
     display: grid !important;
     grid-template-columns: 1fr !important;
     gap: 0.75rem !important;
@@ -468,7 +474,8 @@
 
   .students-v3-page-header h1,
   .enrollments-v3-page-header h1,
-  .teachers-v3-page-header h1 {
+  .teachers-v3-page-header h1,
+  .module-page-header h1 {
     font-size: clamp(1.65rem, 7vw, 2rem) !important;
     line-height: 1.12 !important;
   }
@@ -476,6 +483,7 @@
   .students-v3-page-header p,
   .enrollments-v3-page-header p,
   .teachers-v3-page-header p,
+  .module-page-header p,
   .section-lead {
     font-size: 0.94rem !important;
     line-height: 1.45 !important;
@@ -495,6 +503,10 @@
   .students-v3-table-card,
   .enrollments-v3-table-card,
   .teachers-v3-table-card,
+  .iam-v3-table-card,
+  .parents-screen-shell .module-modern,
+  .rooms-screen-shell .teachers-panel,
+  .module-modern,
   .students-v3-form-card,
   .enrollments-v3-form-card,
   .teachers-v3-kpi-card,
@@ -507,7 +519,9 @@
 
   .students-v3-filter-card,
   .enrollments-v3-filter-card,
-  .teachers-v3-filter-card {
+  .teachers-v3-filter-card,
+  .students-table-toolbar,
+  .filter-toolbar {
     grid-template-columns: 1fr !important;
     gap: 0.85rem !important;
   }
@@ -602,122 +616,37 @@
   }
 
   .table-header,
+  .v3-table-head,
   .students-v3-table-head,
   .enrollments-v3-table-head,
   .teachers-v3-table-head {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
     gap: 0.75rem !important;
     padding-bottom: 0.9rem !important;
   }
 
+  .table-header > div,
+  .v3-table-head > div,
+  .students-v3-table-head > div,
+  .enrollments-v3-table-head > div,
+  .teachers-v3-table-head > div {
+    min-width: 0 !important;
+  }
+
   .module-header-badge,
+  .v3-count-badge,
   .students-overview-status {
-    width: 100%;
-    min-height: 2.35rem;
+    width: auto;
+    max-width: 45%;
+    min-height: 2rem;
+    flex: 0 0 auto;
     justify-content: center;
     border-radius: 999px;
+    padding-inline: 0.72rem;
+    font-size: 0.74rem !important;
     white-space: nowrap;
-  }
-
-  :root .page:not(.page-auth) .table-wrap:has(> table) {
-    position: relative !important;
-    max-height: min(64dvh, 38rem) !important;
-    overflow: auto !important;
-    overscroll-behavior: contain !important;
-    -webkit-overflow-scrolling: touch;
-    border: 1px solid var(--mobile-card-border) !important;
-    border-radius: 0.95rem !important;
-    background:
-      linear-gradient(to right, transparent calc(100% - 2.5rem), color-mix(in srgb, var(--mobile-card-bg) 50%, transparent)),
-      var(--mobile-card-bg) !important;
-    box-shadow: var(--mobile-shadow) !important;
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, #2f64eb 55%, var(--mobile-card-border)) transparent;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table {
-    display: table !important;
-    width: max-content !important;
-    min-width: max(42rem, 100%) !important;
-    table-layout: auto !important;
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-    background: var(--mobile-card-bg) !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table thead {
-    position: static !important;
-    display: table-header-group !important;
-    width: auto !important;
-    height: auto !important;
-    overflow: visible !important;
-    clip: auto !important;
-    clip-path: none !important;
-    white-space: nowrap !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table tbody {
-    display: table-row-group !important;
-    width: auto !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table tr {
-    position: relative;
-    display: table-row !important;
-    width: auto !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table th {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 2 !important;
-    padding: 0.78rem 0.9rem !important;
-    border-bottom: 1px solid var(--mobile-card-border) !important;
-    background: var(--mobile-card-soft) !important;
-    color: var(--mobile-card-muted) !important;
-    font-size: 0.68rem !important;
-    font-weight: 900 !important;
-    letter-spacing: 0.04em !important;
-    line-height: 1.2 !important;
-    text-align: left !important;
-    text-transform: uppercase !important;
-    white-space: nowrap !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table td {
-    display: table-cell !important;
-    width: auto !important;
-    min-width: 0 !important;
-    padding: 0.78rem 0.9rem !important;
-    border: 0 !important;
-    border-bottom: 1px solid color-mix(in srgb, var(--mobile-card-border) 78%, transparent) !important;
-    background: transparent !important;
-    color: var(--mobile-card-text) !important;
-    font-size: 0.88rem !important;
-    line-height: 1.35 !important;
-    vertical-align: middle !important;
-    white-space: nowrap !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table td::before {
-    content: none !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table td:first-child {
-    padding-top: 0.78rem !important;
-    font: inherit !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table td:last-child {
-    padding-bottom: 0.78rem !important;
-    border-bottom: 1px solid color-mix(in srgb, var(--mobile-card-border) 78%, transparent) !important;
   }
 
   :is(.students-v3-table, .enrollments-v3-table, .teachers-v3-table) td:has(.students-v3-student-cell),
@@ -734,14 +663,33 @@
 
   .students-v3-student-cell,
   .enrollments-v3-student-cell,
-  .teachers-v3-teacher-cell {
-    min-width: 11rem !important;
+  .teachers-v3-teacher-cell,
+  .v3-table-entity-cell {
+    min-width: 13.75rem !important;
+    max-width: none !important;
     gap: 0.72rem !important;
   }
 
   .students-v3-student-cell strong,
   .enrollments-v3-student-cell strong,
   .teachers-v3-teacher-cell strong,
+  .v3-table-entity-cell strong {
+    color: var(--mobile-card-text) !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .students-v3-student-cell small,
+  .enrollments-v3-student-cell small,
+  .teachers-v3-teacher-cell small,
+  .v3-table-entity-cell small {
+    color: var(--mobile-card-muted) !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
   .students-v3-class-cell strong,
   .enrollments-v3-class-cell strong,
   .teachers-v3-stack-cell strong {
@@ -751,9 +699,6 @@
     text-overflow: ellipsis !important;
   }
 
-  .students-v3-student-cell small,
-  .enrollments-v3-student-cell small,
-  .teachers-v3-teacher-cell small,
   .students-v3-muted-cell,
   .enrollments-v3-muted-cell,
   .teachers-v3-muted-cell,
@@ -766,7 +711,8 @@
 
   .students-v3-avatar,
   .enrollments-v3-avatar,
-  .teachers-v3-avatar {
+  .teachers-v3-avatar,
+  .v3-avatar {
     width: 2.45rem !important;
     height: 2.45rem !important;
     flex-basis: 2.45rem !important;
@@ -785,31 +731,18 @@
     border-radius: 999px !important;
     line-height: 1.1 !important;
     white-space: nowrap !important;
+    overflow: hidden !important;
+    overflow-wrap: normal !important;
+    text-overflow: ellipsis !important;
+    word-break: keep-all !important;
     writing-mode: horizontal-tb !important;
     text-orientation: mixed !important;
   }
 
-  :root .page:not(.page-auth) .table-wrap > table td[data-label="Actions"],
-  :root .page:not(.page-auth) .table-wrap > table td:has(> .table-actions),
-  :root .page:not(.page-auth) .table-wrap > table td:has(> .actions),
-  :root .page:not(.page-auth) .table-wrap > table td:has(> button) {
-    position: relative;
-    display: table-cell !important;
-    padding-top: 0.78rem !important;
-    border-bottom: 1px solid color-mix(in srgb, var(--mobile-card-border) 78%, transparent) !important;
-    text-align: right !important;
-  }
-
-  :root .page:not(.page-auth) .table-wrap > table td[data-label="Actions"]::before,
-  :root .page:not(.page-auth) .table-wrap > table td:has(> .table-actions)::before,
-  :root .page:not(.page-auth) .table-wrap > table td:has(> .actions)::before,
-  :root .page:not(.page-auth) .table-wrap > table td:has(> button)::before {
-    content: none !important;
-  }
-
   .students-v3-action-cell,
   .enrollments-v3-action-cell,
-  .teachers-v3-action-cell {
+  .teachers-v3-action-cell,
+  .v3-action-cell {
     display: flex !important;
     align-items: center !important;
     position: relative !important;
@@ -818,7 +751,8 @@
 
   .students-v3-more-button,
   .enrollments-v3-more-button,
-  .teachers-v3-more-button {
+  .teachers-v3-more-button,
+  .v3-more-button {
     width: 2.75rem !important;
     min-width: 2.75rem !important;
     height: 2.75rem !important;
@@ -831,40 +765,42 @@
 
   .students-v3-action-menu,
   .enrollments-v3-action-menu,
-  .teachers-v3-action-menu {
+  .teachers-v3-action-menu,
+  .v3-action-menu {
     top: calc(100% + 0.45rem) !important;
-    right: 0 !important;
+    right: 0.35rem !important;
     left: auto !important;
     min-width: min(13rem, calc(100vw - 3rem)) !important;
-    z-index: 55 !important;
+    z-index: 110 !important;
   }
 
-  .table-wrap td > .actions {
-    display: flex !important;
-    grid-template-columns: none !important;
-    gap: 0.5rem !important;
+  .table-wrap table[data-responsive-table="true"] td:has(.v3-more-button[aria-expanded="true"]),
+  .table-wrap table[data-responsive-table="true"] td:has(.v3-action-menu) {
+    z-index: 100 !important;
+    overflow: visible !important;
   }
 
-  .table-wrap td > button,
-  .table-wrap td > .button-ghost,
-  .table-wrap td > .actions > button {
-    width: auto !important;
-    min-height: var(--mobile-touch-target) !important;
-    white-space: nowrap !important;
-  }
-
-  td.empty-row,
-  td[colspan] {
-    display: table-cell !important;
-    padding: 1.2rem !important;
-    border: 1px dashed var(--mobile-card-border) !important;
-    border-radius: 0.95rem !important;
+  .table-wrap table[data-responsive-table="true"] td:last-child .finance-safe-note {
+    max-width: calc(var(--table-sticky-action-width) - 0.75rem) !important;
     text-align: center !important;
   }
 
-  td.empty-row::before,
-  td[colspan]::before {
-    content: none !important;
+  @media (max-width: 420px) {
+    .table-header,
+    .v3-table-head,
+    .students-v3-table-head,
+    .enrollments-v3-table-head,
+    .teachers-v3-table-head {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .module-header-badge,
+    .v3-count-badge,
+    .students-overview-status {
+      max-width: 100%;
+      justify-self: start;
+    }
   }
 
   .app-footer-minimal {
@@ -877,6 +813,37 @@
   }
 }
 
+@media (max-width: 1180px) and (min-width: 761px) {
+  .table-wrap table[data-responsive-table="true"] td:first-child {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    box-shadow: none !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:has(.v3-more-button[aria-expanded="true"]),
+  .table-wrap table[data-responsive-table="true"] td:has(.v3-action-menu) {
+    z-index: 100 !important;
+    overflow: visible !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] .v3-action-menu {
+    right: 0.35rem !important;
+    min-width: min(13rem, calc(100vw - 3rem)) !important;
+    z-index: 110 !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:last-child .finance-safe-note {
+    max-width: 3.2rem !important;
+    overflow: hidden !important;
+    overflow-wrap: normal !important;
+    text-align: center !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+  }
+}
+
 @media (max-width: 420px) {
   .global-brand-copy strong,
   .global-brand-copy small {
@@ -885,5 +852,61 @@
 
   :root .page:not(.page-auth) .table-wrap > table {
     min-width: max(40rem, 100%) !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  :root .page:not(.page-auth) :where(.module-header-badge, .v3-count-badge, .students-overview-status) {
+    min-height: 1.9rem !important;
+    padding: 0.28rem 0.68rem !important;
+    border: 1px solid var(--gs-v3-module-border, var(--mobile-card-border)) !important;
+    background: var(--gs-v3-module-surface-soft, var(--mobile-card-soft)) !important;
+    color: var(--gs-v3-module-text, var(--mobile-card-text)) !important;
+  }
+
+  :root .page:not(.page-auth) :where(
+    .students-v3-more-button,
+    .enrollments-v3-more-button,
+    .teachers-v3-more-button,
+    .v3-more-button
+  ) {
+    width: 2.45rem !important;
+    min-width: 2.45rem !important;
+    height: 2.45rem !important;
+    min-height: 2.45rem !important;
+    border: 0 !important;
+    border-radius: 0.78rem !important;
+    background: transparent !important;
+    color: var(--gs-v3-module-text, var(--mobile-card-text)) !important;
+    box-shadow: none !important;
+  }
+
+  :root .page:not(.page-auth) :where(
+    .students-v3-more-button,
+    .enrollments-v3-more-button,
+    .teachers-v3-more-button,
+    .v3-more-button
+  ):is(:hover, :focus-visible, [aria-expanded="true"]) {
+    background: var(--gs-v3-module-action-hover, var(--mobile-card-soft)) !important;
+    color: var(--gs-v3-module-text, var(--mobile-card-text)) !important;
+  }
+
+  :root .page:not(.page-auth) .table-wrap table[data-responsive-table="true"] :where(th:last-child, td:last-child) {
+    background: var(--gs-v3-module-surface, var(--mobile-card-bg)) !important;
+  }
+
+  :root .page:not(.page-auth) .table-wrap table[data-responsive-table="true"] th:last-child {
+    background: var(--gs-v3-module-surface-soft, var(--mobile-card-soft)) !important;
+  }
+
+  :root .page:not(.page-auth) :where(
+    .students-v3-action-menu,
+    .enrollments-v3-action-menu,
+    .teachers-v3-action-menu,
+    .v3-action-menu
+  ) {
+    border-color: var(--gs-v3-module-border, var(--mobile-card-border)) !important;
+    background: var(--gs-v3-module-surface, var(--mobile-card-bg)) !important;
+    box-shadow: var(--gs-v3-module-menu-shadow, var(--mobile-shadow)) !important;
   }
 }

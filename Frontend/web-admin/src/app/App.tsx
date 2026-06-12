@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 
 import type {
   AcademicTrack,
@@ -45,7 +45,6 @@ import {
   SCREEN_DEFS,
   hasScreenAccess
 } from "./navigation/screen-registry";
-import { decorateResponsiveTables } from "./shell/responsive-tables";
 import { GlobalToastLayer } from "./shell/global-toast-layer";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
 import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, useDomTranslation } from "../shared/i18n";
@@ -61,8 +60,7 @@ import {
   loadReferenceData,
   loadReportCardsData,
   loadStudentsData,
-  loadUsersData,
-  resolveBootstrapNeeds
+  loadUsersData
 } from "./app-data-loaders";
 import {
   DEFAULT_CURRENCY,
@@ -101,8 +99,10 @@ import {
   ReportsScreen
 } from "./lazy-screens";
 import { useAppPreferences } from "./use-app-preferences";
-import { isLocalPreviewEnabled, isLocalPreviewRoute, isLocalPreviewSession } from "./preview/preview-mode";
+import { isLocalPreviewEnabled, isLocalPreviewSession } from "./preview/preview-mode";
 import { useAuthFlows } from "./use-auth-flows";
+import { useAppShellEffects } from "./use-app-shell-effects";
+import { useAppBootstrap } from "./use-app-bootstrap";
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
@@ -338,28 +338,6 @@ export function App(): JSX.Element {
     sessionRef,
     setTab
   });
-  const bootstrapSessionKeyRef = useRef<string | null>(null);
-  const bootstrapSessionInFlightRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const root = appRootRef.current;
-    if (!root) return;
-
-    decorateResponsiveTables(root);
-
-    const observer = new MutationObserver(() => {
-      decorateResponsiveTables(root);
-    });
-
-    observer.observe(root, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
-
-    return () => observer.disconnect();
-  }, [session, tab, uiLanguage]);
-
   const enterPreview = useCallback(async () => {
     if (!localPreviewEnabled) {
       setError("Le mode aperçu local est désactivé en production.");
@@ -424,83 +402,6 @@ export function App(): JSX.Element {
     const activeYear = schoolYears.find((item) => item.isActive) || schoolYears[0];
     return activeYear?.label || activeYear?.code || "2025-2026";
   }, [currentRole, parentChildren, parentTimetable, schoolYears, teacherClasses]);
-
-  useEffect(() => {
-    if (!localPreviewEnabled || session || !isLocalPreviewRoute()) {
-      return;
-    }
-
-    void enterPreview();
-  }, [enterPreview, localPreviewEnabled, session]);
-
-  useEffect(() => {
-    if (isPreviewSession || (localPreviewEnabled && isLocalPreviewRoute())) {
-      return;
-    }
-
-    void ensureApiAvailable();
-  }, [ensureApiAvailable, isPreviewSession, localPreviewEnabled]);
-
-  useEffect(() => {
-    if (isPreviewSession || (localPreviewEnabled && isLocalPreviewRoute())) {
-      return undefined;
-    }
-
-    if (!apiConnection.nextRetryAt || apiConnection.status === "online") {
-      return undefined;
-    }
-
-    const delay = Math.max(250, apiConnection.nextRetryAt - Date.now());
-    const timer = window.setTimeout(() => {
-      void ensureApiAvailable();
-    }, delay);
-
-    return () => window.clearTimeout(timer);
-  }, [apiConnection.nextRetryAt, apiConnection.status, ensureApiAvailable, isPreviewSession, localPreviewEnabled]);
-
-  useEffect(() => {
-    if (!notice) {
-      return undefined;
-    }
-
-    const timer = window.setTimeout(() => setNotice(null), 4200);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
-
-  useEffect(() => {
-    if (!error) {
-      return undefined;
-    }
-
-    const timer = window.setTimeout(() => setError(null), 5200);
-    return () => window.clearTimeout(timer);
-  }, [error]);
-
-  useEffect(() => {
-    if (session && !lastSyncAt) {
-      setLastSyncAt(new Date().toISOString());
-    }
-  }, [lastSyncAt, session]);
-
-  useEffect(() => {
-    if (!currentRole) return;
-    if (hasScreenAccess(currentRole, tab)) return;
-    setTab(ROLE_HOME_SCREEN[currentRole] || "dashboard");
-  }, [currentRole, tab]);
-
-  useEffect(() => {
-    setMobileTasksOpen(false);
-  }, [session?.user.username, tab]);
-
-  useEffect(() => {
-    if (!session) return undefined;
-
-    const frame = window.requestAnimationFrame(() => {
-      appRootRef.current?.querySelector<HTMLElement>(".app-shell-content")?.scrollTo({ top: 0, left: 0 });
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [session, tab]);
 
   const loadStudents = useCallback(async () => {
     if (!sessionRef.current) return;
@@ -591,80 +492,36 @@ export function App(): JSX.Element {
     teacherOverview?.notificationsCount
   ]);
 
-  useEffect(() => {
-    if (!session || !currentRole) {
-      bootstrapSessionKeyRef.current = null;
-      bootstrapSessionInFlightRef.current = null;
-      if (!(localPreviewEnabled && isLocalPreviewRoute())) {
-        clearData();
-      }
-      return;
-    }
+  useAppShellEffects({
+    apiAvailable,
+    apiConnection,
+    appRootRef,
+    currentRole,
+    ensureApiAvailable,
+    enterPreview,
+    error,
+    isPreviewSession,
+    lastSyncAt,
+    loadHeaderNotificationCount,
+    localPreviewEnabled,
+    notice,
+    session,
+    setError,
+    setHeaderNotificationCount,
+    setLastSyncAt,
+    setMobileTasksOpen,
+    setNotice,
+    setTab,
+    tab,
+    uiLanguage
+  });
 
-    if (isPreviewSession) {
-      return;
-    }
-
-    if (!apiAvailable) {
-      void ensureApiAvailable();
-      return;
-    }
-
-    const { needReference, needStudents } = resolveBootstrapNeeds(currentRole);
-
-    const sessionKey = `${session.user.username}:${session.tenantId}:${currentRole}`;
-    if (
-      bootstrapSessionKeyRef.current === sessionKey ||
-      bootstrapSessionInFlightRef.current === sessionKey
-    ) {
-      return;
-    }
-
-    bootstrapSessionInFlightRef.current = sessionKey;
-    let cancelled = false;
-
-    const bootstrapData = async (): Promise<void> => {
-      try {
-        if (needReference) await loadReference();
-        if (needStudents) await loadStudents();
-        if (
-          currentRole === "ADMIN" &&
-          (hasScreenAccess(currentRole, "iam") ||
-            hasScreenAccess(currentRole, "parents") ||
-            hasScreenAccess(currentRole, "reports"))
-        ) {
-          await loadUsers();
-        } else {
-          setUsers([]);
-        }
-        if (hasScreenAccess(currentRole, "enrollments")) await loadEnrollments();
-        if (hasScreenAccess(currentRole, "finance")) await loadFinance();
-        if (hasScreenAccess(currentRole, "grades")) {
-          await loadReportCards();
-        }
-        if (!cancelled) {
-          bootstrapSessionKeyRef.current = sessionKey;
-        }
-      } finally {
-        if (bootstrapSessionInFlightRef.current === sessionKey) {
-          bootstrapSessionInFlightRef.current = null;
-        }
-      }
-    };
-
-    void bootstrapData();
-
-    return () => {
-      cancelled = true;
-      if (bootstrapSessionInFlightRef.current === sessionKey) {
-        bootstrapSessionInFlightRef.current = null;
-      }
-    };
-  }, [
+  useAppBootstrap({
     apiAvailable,
     clearData,
     currentRole,
     ensureApiAvailable,
+    isPreviewSession,
     loadEnrollments,
     loadFinance,
     loadReference,
@@ -673,38 +530,8 @@ export function App(): JSX.Element {
     loadUsers,
     localPreviewEnabled,
     session,
-    isPreviewSession
-  ]);
-
-  useEffect(() => {
-    if (isPreviewSession) {
-      return undefined;
-    }
-
-    if (!session || !currentRole || !apiAvailable) {
-      setHeaderNotificationCount(0);
-      if (session && currentRole && !apiAvailable) {
-        void ensureApiAvailable();
-      }
-      return;
-    }
-
-    let isCancelled = false;
-    const syncHeaderNotifications = async (): Promise<void> => {
-      await loadHeaderNotificationCount();
-      if (isCancelled) return;
-    };
-
-    void syncHeaderNotifications();
-    const timer = window.setInterval(() => {
-      void syncHeaderNotifications();
-    }, 45_000);
-
-    return () => {
-      isCancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [apiAvailable, currentRole, ensureApiAvailable, loadHeaderNotificationCount, session, isPreviewSession]);
+    setUsers
+  });
 
   const formatAmount = (value: number): string =>
     new Intl.NumberFormat(currentLanguageMeta.locale, { maximumFractionDigits: 0 }).format(value);

@@ -66,21 +66,3 @@
 .parents-screen-shell .button-danger {
   min-height: 2.35rem;
 }
-
-@media (max-width: 760px) {
-  :root:not([data-theme="dark"]) .parents-screen-shell .table-wrap table[data-responsive-table="true"] tr {
-    border-color: color-mix(in srgb, var(--flexadm-surface-border) 72%, transparent);
-    background: #ffffff !important;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  }
-
-  :root:not([data-theme="dark"]) .parents-screen-shell .table-wrap table[data-responsive-table="true"] td,
-  :root:not([data-theme="dark"]) .parents-screen-shell .table-wrap table[data-responsive-table="true"] td:first-child {
-    border-bottom-color: color-mix(in srgb, var(--flexadm-surface-border) 52%, transparent);
-    color: #0f172a !important;
-  }
-
-  :root:not([data-theme="dark"]) .parents-screen-shell .table-wrap table[data-responsive-table="true"] td::before {
-    color: #64748b !important;
-  }
-}

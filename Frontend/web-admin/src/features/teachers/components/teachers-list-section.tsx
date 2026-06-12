@@ -188,10 +188,10 @@ export function TeachersListSection(props: {
                     <span className={statusPillClass(teacher.status)}>{t(teacherStatusLabel(teacher.status))}</span>
                   </td>
                   <td data-label={t("Actions")}>
-                    <div className="teachers-v3-action-cell">
+                    <div className="teachers-v3-action-cell v3-action-cell">
                       <button
                         type="button"
-                        className="teachers-v3-more-button"
+                        className="teachers-v3-more-button v3-more-button"
                         aria-label={`${t("Actions enseignant")} ${teacher.fullName}`}
                         aria-expanded={openActionMenuId === teacher.id}
                         onClick={() => toggleActionMenu(teacher.id)}
@@ -199,7 +199,7 @@ export function TeachersListSection(props: {
                         <span aria-hidden="true">...</span>
                       </button>
                       {openActionMenuId === teacher.id ? (
-                        <div className="teachers-v3-action-menu" role="menu">
+                        <div className="teachers-v3-action-menu v3-action-menu" role="menu">
                           <button
                             type="button"
                             role="menuitem"

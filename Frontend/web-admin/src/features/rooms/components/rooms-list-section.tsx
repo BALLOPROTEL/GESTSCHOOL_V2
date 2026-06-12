@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 
 import type { RoomRecord, RoomTypeRecord } from "../../../shared/types/app";
 import {
@@ -10,6 +10,15 @@ import {
   statusLabel,
   trackLabel
 } from "../rooms-screen-model";
+
+const getRoomInitials = (room: RoomRecord): string =>
+  (room.code || room.name)
+    .trim()
+    .split(/\s+/u)
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "SL";
 
 export function RoomsListSection(props: {
   filters: RoomFilters;
@@ -37,11 +46,16 @@ export function RoomsListSection(props: {
     rooms,
     setFilters
   } = props;
+  const [openRoomActionMenuId, setOpenRoomActionMenuId] = useState<string | null>(null);
 
   return (
-    <section className="panel table-panel workflow-section module-modern teachers-panel">
-      <div className="table-header">
-        <div><p className="section-kicker">Registre salles</p><h2>Salles, capacités et usages</h2></div>
+    <section className="panel table-panel workflow-section module-modern teachers-panel rooms-v3-table-card">
+      <div className="v3-table-head">
+        <div>
+          <p className="section-kicker">Registre salles</p>
+          <h2>Salles, capacités et usages</h2>
+          <p>Capacité, cursus, occupation et disponibilité des ressources physiques.</p>
+        </div>
         <button type="button" onClick={onAddRoom}>Ajouter une salle</button>
       </div>
       <div className="filter-grid module-filter teachers-filter-grid">
@@ -65,12 +79,45 @@ export function RoomsListSection(props: {
         </div>
       </div>
       <div className="table-wrap">
-        <table>
-          <thead><tr><th>Code</th><th>Nom</th><th>Type</th><th>Capacité</th><th>Cursus</th><th>Bâtiment</th><th>Occupation</th><th>Statut</th><th>Actions</th></tr></thead>
-          <tbody>{rooms.length === 0 ? <tr><td colSpan={9} className="empty-row">{loading ? "Chargement..." : "Aucune salle enregistrée."}</td></tr> : rooms.map((room) => (
+        <table data-responsive-table="true">
+          <thead><tr><th>Salle</th><th>Type</th><th>Capacité</th><th>Cursus</th><th>Bâtiment</th><th>Occupation</th><th>Statut</th><th aria-label="Actions"></th></tr></thead>
+          <tbody>{rooms.length === 0 ? <tr><td colSpan={8} className="empty-row">{loading ? "Chargement..." : "Aucune salle enregistrée."}</td></tr> : rooms.map((room) => (
             <tr key={room.id}>
-                <td>{room.code}</td><td>{room.name}</td><td>{room.roomTypeName || "-"}</td><td>{room.capacity}</td><td>{room.isSharedBetweenCurricula ? "Partagée" : trackLabel(room.defaultTrack)}</td><td>{room.building || SCHOOL_NAME}</td><td>{room.activeAssignmentsCount ? `${room.activeAssignmentsCount} affectation(s)` : "Aucune"}</td><td><span className="status-pill">{statusLabel(room.status)}</span></td>
-              <td><div className="table-actions"><button type="button" className="button-ghost" onClick={() => onOpenDetail(room.id)}>Voir</button><button type="button" className="button-ghost" onClick={() => onEditRoom(room)}>Modifier</button><button type="button" className="button-danger" onClick={() => onArchiveRoom(room.id)}>Supprimer</button></div></td>
+              <td data-label="Salle">
+                <div className="v3-table-entity-cell">
+                  <span className="v3-avatar">{getRoomInitials(room)}</span>
+                  <div>
+                    <strong>{room.name}</strong>
+                    <small>{room.code}</small>
+                  </div>
+                </div>
+              </td>
+              <td data-label="Type">{room.roomTypeName || "-"}</td>
+              <td data-label="Capacité">{room.capacity}</td>
+              <td data-label="Cursus">{room.isSharedBetweenCurricula ? "Partagée" : trackLabel(room.defaultTrack)}</td>
+              <td data-label="Bâtiment" className="v3-muted-cell">{room.building || SCHOOL_NAME}</td>
+              <td data-label="Occupation">{room.activeAssignmentsCount ? `${room.activeAssignmentsCount} affectation(s)` : "Aucune"}</td>
+              <td data-label="Statut"><span className="status-pill">{statusLabel(room.status)}</span></td>
+              <td data-label="Actions">
+                <div className="v3-action-cell">
+                  <button
+                    type="button"
+                    className="v3-more-button"
+                    aria-label={`Actions ${room.name}`}
+                    aria-expanded={openRoomActionMenuId === room.id}
+                    onClick={() => setOpenRoomActionMenuId((current) => (current === room.id ? null : room.id))}
+                  >
+                    <span aria-hidden="true">...</span>
+                  </button>
+                  {openRoomActionMenuId === room.id ? (
+                    <div className="v3-action-menu" role="menu">
+                      <button type="button" onClick={() => { setOpenRoomActionMenuId(null); onOpenDetail(room.id); }}>Voir</button>
+                      <button type="button" onClick={() => { setOpenRoomActionMenuId(null); onEditRoom(room); }}>Modifier</button>
+                      <button type="button" className="is-danger" onClick={() => { setOpenRoomActionMenuId(null); onArchiveRoom(room.id); }}>Supprimer</button>
+                    </div>
+                  ) : null}
+                </div>
+              </td>
             </tr>
           ))}</tbody>
         </table>

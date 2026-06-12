@@ -15,6 +15,7 @@ import {
   hasFieldErrors,
   renderFieldLabel
 } from "../utils/reference-ui";
+import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 
 export function PeriodsSection(): JSX.Element {
@@ -262,7 +263,7 @@ export function PeriodsSection(): JSX.Element {
               </label>
             </div>
             <div className="table-wrap">
-              <table>
+              <table data-responsive-table="true">
                 <thead>
                   <tr>
                     <th>Annee</th>
@@ -285,9 +286,10 @@ export function PeriodsSection(): JSX.Element {
                         <td>{item.startDate} au {item.endDate}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/academic-periods/${item.id}`, "Periode supprimee.")}>
-                            Supprimer
-                          </button>
+                          <ReferenceActionMenu
+                            label={`Options periode ${item.label}`}
+                            onDelete={() => void deleteRef(`/academic-periods/${item.id}`, "Periode supprimee.")}
+                          />
                         </td>
                       </tr>
                     ))

@@ -1,11 +1,12 @@
 /* Lot 3 - canonical responsive tables and lists
-   Tables keep their dense grid on desktop/tablet, then become readable cards on phones. */
+   Tables keep their dense grid everywhere and use horizontal scroll on phones. */
 
 :root {
   --table-card-gap: 0.72rem;
   --table-card-padding: 0.86rem;
   --table-card-radius: 1rem;
   --table-label-width: minmax(6.4rem, 0.42fr);
+  --table-action-menu-width: 11.25rem;
 }
 
 .table-panel,
@@ -67,8 +68,206 @@
   gap: 0.42rem;
 }
 
-.iam-user-actions {
-  min-width: min(100%, 18rem);
+.v3-table-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.module-v3-shell {
+  display: grid;
+  gap: clamp(1rem, 1.35vw, 1.35rem);
+}
+
+.v3-table-head h2 {
+  margin: 0;
+}
+
+.v3-table-head p {
+  margin: 0.28rem 0 0;
+  color: var(--flexadm-surface-copy-soft, var(--ink-500));
+  font-weight: 700;
+}
+
+.v3-count-badge {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--flexadm-surface-border, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--flexadm-surface-raised, #f8fafc) 82%, transparent);
+  color: var(--flexadm-surface-copy, var(--ink-900));
+  font-size: 0.8rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.v3-table-entity-cell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.72rem;
+  align-items: center;
+  min-width: 12rem;
+}
+
+.v3-table-entity-cell strong,
+.v3-cell-stack strong {
+  display: block;
+  color: var(--flexadm-surface-copy, var(--ink-900));
+  font-weight: 900;
+}
+
+.v3-table-entity-cell small,
+.v3-cell-stack small,
+.v3-muted-cell {
+  display: block;
+  color: var(--flexadm-surface-copy-soft, var(--ink-500));
+  font-weight: 700;
+}
+
+.v3-avatar {
+  width: 2.35rem;
+  height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, #2f64eb 13%, var(--flexadm-surface-raised, #eef2ff));
+  color: #2f64eb;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.v3-action-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-wrap th[aria-label="Actions"],
+.table-wrap td:has(.v3-action-cell) {
+  width: 4.6rem;
+  min-width: 4.6rem;
+  max-width: 4.6rem;
+  text-align: center;
+}
+
+.v3-more-button {
+  width: 2.35rem;
+  height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0.65rem;
+  background: transparent !important;
+  color: var(--flexadm-surface-copy, var(--ink-900)) !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.v3-more-button:hover,
+.v3-more-button[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--flexadm-surface-raised, #f1f5f9) 88%, transparent) !important;
+}
+
+.v3-more-button:active {
+  transform: translateY(1px);
+}
+
+.v3-more-button span {
+  min-width: 1.35rem;
+  display: inline-block;
+  margin-top: -0.4rem;
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.v3-action-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0.25rem;
+  z-index: 30;
+  min-width: min(var(--table-action-menu-width), calc(100vw - 2rem));
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.35rem;
+  border: 1px solid var(--flexadm-surface-border, var(--line));
+  border-radius: 0.8rem;
+  background: var(--flexadm-surface, #ffffff);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+}
+
+.table-wrap td:has(.v3-more-button[aria-expanded="true"]),
+.table-wrap td:has(.v3-action-menu) {
+  z-index: 70 !important;
+}
+
+.v3-action-menu button {
+  width: 100%;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.65rem;
+  border: 0 !important;
+  border-radius: 0.55rem;
+  background: transparent !important;
+  color: var(--flexadm-surface-copy, var(--ink-900)) !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-align: left;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.v3-action-menu button:hover {
+  background: color-mix(in srgb, var(--flexadm-surface-raised, #f8fafc) 88%, transparent) !important;
+  color: var(--flexadm-primary, #2f64eb) !important;
+}
+
+.reference-shell .table-wrap .v3-action-menu {
+  top: auto;
+  bottom: calc(100% + 0.35rem);
+}
+
+.v3-action-menu button.is-danger {
+  color: #dc2626 !important;
+}
+
+.v3-action-menu-note {
+  display: block;
+  padding: 0.45rem 0.65rem;
+  color: var(--flexadm-surface-copy-soft, var(--ink-500));
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.finance-safe-note {
+  overflow-wrap: normal !important;
+  text-overflow: ellipsis;
+  word-break: keep-all !important;
+}
+
+:root[data-theme="dark"] .v3-avatar {
+  background: color-mix(in srgb, #2dd4bf 16%, var(--flexadm-surface-raised, #111827));
+  color: #7dd3fc;
+}
+
+:root[data-theme="dark"] .v3-action-menu {
+  background: var(--flexadm-surface, #111827);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
 }
 
 .table-actions > button,
@@ -260,6 +459,82 @@
     min-width: max(100%, 72rem);
   }
 
+  .table-wrap table[data-responsive-table="true"] th:first-child,
+  .table-wrap table[data-responsive-table="true"] td:first-child {
+    left: auto !important;
+    width: auto !important;
+    min-width: 12rem !important;
+    max-width: none !important;
+    box-shadow: none !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:first-child {
+    position: static !important;
+    z-index: auto !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] th:last-child,
+  .table-wrap table[data-responsive-table="true"] td:last-child {
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 3 !important;
+    width: 4.4rem !important;
+    min-width: 4.4rem !important;
+    max-width: 4.4rem !important;
+    background: var(--flexadm-surface, #ffffff) !important;
+    box-shadow: -1px 0 0 color-mix(in srgb, var(--flexadm-surface-border, var(--line)) 82%, transparent);
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:has(.v3-more-button[aria-expanded="true"]),
+  .table-wrap table[data-responsive-table="true"] td:has(.v3-action-menu) {
+    z-index: 90 !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] .v3-action-menu {
+    right: 0.3rem !important;
+    z-index: 95 !important;
+  }
+
+  .reference-shell .table-wrap table[data-responsive-table="true"] .v3-action-menu {
+    top: auto !important;
+    bottom: calc(100% + 0.4rem) !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] th:last-child {
+    z-index: 4 !important;
+    background: var(--flexadm-surface-raised, #f8fafc) !important;
+  }
+
+  .iam-permissions-table th:first-child {
+    left: auto !important;
+    width: auto !important;
+    min-width: 12rem !important;
+    max-width: none !important;
+    box-shadow: none !important;
+  }
+
+  .iam-permissions-table td:first-child {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    width: auto !important;
+    min-width: 12rem !important;
+    max-width: none !important;
+    box-shadow: none !important;
+  }
+
+  :root[data-theme="dark"] .table-wrap table[data-responsive-table="true"] th:last-child,
+  :root[data-theme="dark"] .table-wrap table[data-responsive-table="true"] td:last-child,
+  [data-theme="dark"] .table-wrap table[data-responsive-table="true"] th:last-child,
+  [data-theme="dark"] .table-wrap table[data-responsive-table="true"] td:last-child {
+    background: var(--flexadm-surface, #06131d) !important;
+  }
+
+  :root[data-theme="dark"] .table-wrap table[data-responsive-table="true"] th:last-child,
+  [data-theme="dark"] .table-wrap table[data-responsive-table="true"] th:last-child {
+    background: var(--flexadm-surface-raised, #102333) !important;
+  }
+
   .table-actions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(6.8rem, 1fr));
@@ -272,13 +547,25 @@
 }
 
 @media (max-width: 760px) {
+  :root {
+    --table-sticky-action-width: 3.9rem;
+  }
+
   .table-wrap {
-    max-height: none !important;
-    overflow: visible !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
+    position: relative !important;
+    max-height: min(64dvh, 38rem) !important;
+    overflow: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) !important;
+    border-radius: 0.95rem !important;
+    background:
+      linear-gradient(to right, transparent calc(100% - 2.5rem), color-mix(in srgb, var(--mobile-card-bg, var(--flexadm-surface, #ffffff)) 50%, transparent)),
+      var(--mobile-card-bg, var(--flexadm-surface, #ffffff)) !important;
+    box-shadow: var(--mobile-shadow, 0 12px 30px rgba(15, 23, 42, 0.08)) !important;
+    isolation: isolate;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, #2f64eb 55%, var(--mobile-card-border, var(--flexadm-surface-border, var(--line)))) transparent;
   }
 
   .table-wrap::before {
@@ -286,156 +573,232 @@
   }
 
   .table-wrap table[data-responsive-table="true"] {
-    display: block;
-    width: 100%;
-    min-width: 0 !important;
-    border: 0;
-    background: transparent;
+    display: table !important;
+    width: max-content !important;
+    min-width: max(42rem, 100%) !important;
+    table-layout: auto !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background: var(--mobile-card-bg, var(--flexadm-surface, #ffffff)) !important;
   }
 
   .table-wrap table[data-responsive-table="true"] thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
+    position: static !important;
+    display: table-header-group !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    clip: auto !important;
+    clip-path: none !important;
+    white-space: nowrap !important;
   }
 
   .table-wrap table[data-responsive-table="true"] tbody {
-    display: grid;
-    gap: var(--table-card-gap);
-    width: 100%;
+    display: table-row-group !important;
+    width: auto !important;
   }
 
   .table-wrap table[data-responsive-table="true"] tr {
-    display: grid;
-    width: 100%;
-    min-width: 0;
-    gap: 0;
-    padding: var(--table-card-padding);
-    border: 1px solid color-mix(in srgb, var(--flexadm-surface-border, var(--line)) 48%, transparent);
-    border-radius: var(--table-card-radius);
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--flexadm-surface-raised, var(--panel)) 96%, #0dd3d0) 0%, color-mix(in srgb, var(--flexadm-surface, var(--panel-soft)) 96%, #020b12) 100%);
-    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.12);
+    position: relative;
+    display: table-row !important;
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .table-wrap table[data-responsive-table="true"] tr:has(.empty-row) {
     padding: 0;
-    border-style: dashed;
-    background: color-mix(in srgb, var(--flexadm-surface-raised, var(--panel-soft)) 64%, transparent);
+    background: transparent;
     box-shadow: none;
   }
 
-  .table-wrap table[data-responsive-table="true"] td {
-    display: grid;
-    grid-template-columns: var(--table-label-width) minmax(0, 1fr);
-    gap: 0.76rem;
-    align-items: start;
-    width: 100%;
-    min-width: 0;
-    padding: 0.58rem 0;
-    border: 0;
-    border-bottom: 1px solid color-mix(in srgb, var(--flexadm-surface-border, var(--line)) 32%, transparent);
-    background: transparent !important;
-    color: var(--flexadm-surface-copy, var(--ink-900));
-    font-size: 0.84rem;
-    line-height: 1.45;
+  .table-wrap table[data-responsive-table="true"] th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    padding: 0.78rem 0.9rem !important;
+    border-bottom: 1px solid var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) !important;
+    background: var(--mobile-card-soft, var(--flexadm-surface-raised, #f8fafc)) !important;
+    color: var(--mobile-card-muted, var(--flexadm-surface-copy-soft, #64748b)) !important;
+    font-size: 0.68rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.04em !important;
+    line-height: 1.2 !important;
+    text-align: left !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] th:first-child {
+    left: auto !important;
+    z-index: 2 !important;
+    width: auto !important;
+    min-width: 12rem !important;
+    max-width: none !important;
+    box-shadow: none !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] th:first-child {
+    background: var(--mobile-card-soft, var(--flexadm-surface-raised, #f8fafc)) !important;
   }
 
   .table-wrap table[data-responsive-table="true"] td:first-child {
-    padding-top: 0;
-    color: var(--flexadm-surface-copy, var(--ink-900));
-    font-family: "Sora", "Manrope", sans-serif;
-    font-size: 0.9rem;
-    font-weight: 850;
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    width: auto !important;
+    min-width: 12rem !important;
+    max-width: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] th:last-child,
+  .table-wrap table[data-responsive-table="true"] td:last-child {
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 3 !important;
+    width: var(--table-sticky-action-width) !important;
+    min-width: var(--table-sticky-action-width) !important;
+    max-width: var(--table-sticky-action-width) !important;
+    background: var(--mobile-card-bg, var(--flexadm-surface, #ffffff)) !important;
+    box-shadow: -1px 0 0 color-mix(in srgb, var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) 82%, transparent);
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:has(.v3-more-button[aria-expanded="true"]),
+  .table-wrap table[data-responsive-table="true"] td:has(.v3-action-menu) {
+    z-index: 100 !important;
+    overflow: visible !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] .v3-action-menu {
+    right: 0.35rem !important;
+    z-index: 110 !important;
+    max-width: calc(100vw - 3rem) !important;
+  }
+
+  .reference-shell .table-wrap table[data-responsive-table="true"] .v3-action-menu {
+    top: auto !important;
+    bottom: calc(100% + 0.45rem) !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] th:last-child {
+    z-index: 5 !important;
+    background: var(--mobile-card-soft, var(--flexadm-surface-raised, #f8fafc)) !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td {
+    display: table-cell !important;
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0.78rem 0.9rem !important;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) 78%, transparent) !important;
+    background: transparent !important;
+    color: var(--mobile-card-text, var(--flexadm-surface-copy, var(--ink-900))) !important;
+    font-size: 0.88rem !important;
+    line-height: 1.35 !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:first-child {
+    padding-top: 0.78rem !important;
+    color: var(--mobile-card-text, var(--flexadm-surface-copy, var(--ink-900))) !important;
+    font: inherit !important;
   }
 
   .table-wrap table[data-responsive-table="true"] td:last-child {
-    padding-bottom: 0;
-    border-bottom: 0;
+    padding-bottom: 0.78rem !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) 78%, transparent) !important;
   }
 
   .table-wrap table[data-responsive-table="true"] td::before {
-    content: attr(data-label);
-    min-width: 0;
-    color: color-mix(in srgb, var(--flexadm-surface-copy-soft, var(--ink-500)) 82%, transparent);
-    font-size: 0.68rem;
-    font-weight: 900;
-    letter-spacing: 0.1em;
-    line-height: 1.35;
-    text-transform: uppercase;
+    content: none !important;
   }
 
   .table-wrap table[data-responsive-table="true"] td.empty-row,
   .table-wrap table[data-responsive-table="true"] td[colspan] {
-    display: block;
-    width: 100%;
-    padding: 1.25rem;
-    border: 0;
-    text-align: center;
+    display: table-cell !important;
+    position: static !important;
+    width: auto !important;
+    min-width: min(18rem, calc(100vw - 5.5rem)) !important;
+    max-width: min(26rem, calc(100vw - 5.5rem)) !important;
+    padding: 1.2rem !important;
+    border: 1px dashed var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) !important;
+    border-radius: 0.95rem !important;
+    color: var(--mobile-card-muted, var(--flexadm-surface-copy-soft, #64748b)) !important;
+    font-weight: 800 !important;
+    text-align: left !important;
+    white-space: normal !important;
   }
 
   .table-wrap table[data-responsive-table="true"] td.empty-row::before,
   .table-wrap table[data-responsive-table="true"] td[colspan]::before {
-    content: none;
+    content: none !important;
   }
 
   .table-wrap table[data-responsive-table="true"] td:has(.table-actions),
   .table-wrap table[data-responsive-table="true"] td:has(button),
   .table-wrap table[data-responsive-table="true"] td:has(.button-ghost),
   .table-wrap table[data-responsive-table="true"] td[data-label*="Action"] {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
+    position: relative;
+    display: table-cell !important;
+    padding-top: 0.78rem !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) 78%, transparent) !important;
+    text-align: right !important;
   }
 
   .table-wrap table[data-responsive-table="true"] td:has(.table-actions)::before,
   .table-wrap table[data-responsive-table="true"] td:has(button)::before,
   .table-wrap table[data-responsive-table="true"] td:has(.button-ghost)::before,
   .table-wrap table[data-responsive-table="true"] td[data-label*="Action"]::before {
-    padding-bottom: 0.1rem;
+    content: none !important;
   }
 
   .table-actions,
   .table-wrap td > .actions {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(8.2rem, 1fr));
-    gap: 0.48rem;
-    width: 100%;
+    display: flex !important;
+    grid-template-columns: none !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 0.5rem !important;
+    width: auto !important;
   }
 
   .table-actions > button,
   .table-wrap td > button,
   .table-wrap td > .button-ghost,
   .table-wrap td > .actions > button {
-    width: 100%;
-    min-height: var(--form-touch-height, 2.86rem);
-    white-space: normal;
+    width: auto !important;
+    min-height: var(--mobile-touch-target, var(--form-touch-height, 2.86rem)) !important;
+    white-space: nowrap !important;
+  }
+
+  .table-wrap table[data-responsive-table="true"] td:last-child .finance-safe-note {
+    max-width: calc(var(--table-sticky-action-width) - 0.75rem) !important;
+    overflow: hidden !important;
+    text-align: center !important;
   }
 
   .status-pill,
   .module-inline-pill,
   .module-header-badge {
     max-width: 100%;
-    white-space: normal;
+    white-space: nowrap !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
   }
 }
 
 @media (max-width: 420px) {
-  :root {
-    --table-label-width: minmax(5.7rem, 0.4fr);
-  }
-
-  .table-wrap table[data-responsive-table="true"] tr {
-    padding: 0.72rem;
-    border-radius: 0.9rem;
-  }
-
-  .table-wrap table[data-responsive-table="true"] td {
-    grid-template-columns: 1fr;
-    gap: 0.24rem;
-    padding-block: 0.52rem;
+  :root .page:not(.page-auth) .table-wrap > table,
+  .table-wrap table[data-responsive-table="true"] {
+    min-width: max(40rem, 100%) !important;
   }
 }

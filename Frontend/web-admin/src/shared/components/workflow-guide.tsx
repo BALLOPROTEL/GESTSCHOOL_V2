@@ -8,10 +8,11 @@ type WorkflowGuideProps = {
   activeStepId: string;
   onStepChange: (stepId: string) => void;
   children: ReactNode;
+  className?: string;
 };
 
 export function WorkflowGuide(props: WorkflowGuideProps): JSX.Element {
-  const { title, steps, activeStepId, onStepChange, children } = props;
+  const { title, steps, activeStepId, onStepChange, children, className } = props;
   const activeStep = steps.find((step) => step.id === activeStepId) || steps[0];
 
   const walk = (currentNode: ReactNode): ReactNode =>
@@ -51,7 +52,7 @@ export function WorkflowGuide(props: WorkflowGuideProps): JSX.Element {
   const managedChildren = walk(children);
 
   return (
-    <section className="workflow-shell workflow-shell-compact">
+    <section className={["workflow-shell workflow-shell-compact", className].filter(Boolean).join(" ")}>
       {steps.length > 1 ? (
         <div className="workflow-tabs" role="tablist" aria-label={title}>
           {steps.map((step) => (

@@ -4,6 +4,7 @@ import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { PrismaService } from "../database/prisma.service";
 import { RedisService } from "../infrastructure/redis/redis.service";
 import { Public } from "../security/public.decorator";
+import { RateLimit } from "../security/rate-limit.decorator";
 
 @ApiTags("health")
 @Controller("health")
@@ -15,6 +16,7 @@ export class HealthController {
 
   @Public()
   @Get()
+  @RateLimit({ bucket: "health", max: 300, windowMs: 60_000 })
   @ApiOperation({ summary: "Basic liveness endpoint" })
   getHealth(): { status: string; service: string; timestamp: string } {
     return {
@@ -26,6 +28,7 @@ export class HealthController {
 
   @Public()
   @Get("live")
+  @RateLimit({ bucket: "health-live", max: 300, windowMs: 60_000 })
   @ApiOperation({ summary: "Liveness probe" })
   getLiveness(): { status: string; uptimeSeconds: number } {
     return {
@@ -36,6 +39,7 @@ export class HealthController {
 
   @Public()
   @Get("ready")
+  @RateLimit({ bucket: "health-ready", max: 120, windowMs: 60_000 })
   @ApiOperation({ summary: "Readiness probe with database and Redis checks" })
   async getReadiness(): Promise<{
     status: string;

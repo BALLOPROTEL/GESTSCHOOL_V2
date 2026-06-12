@@ -1255,6 +1255,7 @@ describe("critical frontend flows", () => {
     expect(screen.getByText("Envoyer l’email d’activation immédiatement")).toBeInTheDocument();
     expect(screen.getByText("Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.")).toBeInTheDocument();
     expect(screen.getAllByText("En attente d’activation").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Actions parent.pending" }));
     expect(screen.getByRole("button", { name: "Renvoyer l’activation" })).toBeInTheDocument();
     expect(screen.queryByText(/mot de passe temporaire/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/tenant/i)).not.toBeInTheDocument();

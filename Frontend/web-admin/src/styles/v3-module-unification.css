@@ -1,0 +1,203 @@
+/* V3 consistency lock: every business module shares the same product surface,
+   action menu treatment and table chrome in light and dark modes. */
+
+:root {
+  --gs-v3-module-surface: #ffffff;
+  --gs-v3-module-surface-soft: #f8fafc;
+  --gs-v3-module-border: #dbe5ef;
+  --gs-v3-module-text: #0f172a;
+  --gs-v3-module-muted: #64748b;
+  --gs-v3-module-action-hover: #f1f5f9;
+  --gs-v3-module-menu-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+
+  --erp-surface: var(--gs-v3-module-surface);
+  --erp-surface-raised: var(--gs-v3-module-surface);
+  --erp-border: var(--gs-v3-module-border);
+  --ui-panel-surface: var(--gs-v3-module-surface);
+  --ui-panel-surface-soft: var(--gs-v3-module-surface-soft);
+  --ui-panel-border: var(--gs-v3-module-border);
+  --flexadm-surface: var(--gs-v3-module-surface);
+  --flexadm-surface-raised: var(--gs-v3-module-surface-soft);
+  --flexadm-surface-border: var(--gs-v3-module-border);
+  --flexadm-card-line: var(--gs-v3-module-border);
+  --flexadm-surface-copy: var(--gs-v3-module-text);
+  --flexadm-surface-copy-soft: var(--gs-v3-module-muted);
+}
+
+:root[data-theme="dark"] {
+  --gs-v3-module-surface: #0f172a;
+  --gs-v3-module-surface-soft: #111c2e;
+  --gs-v3-module-border: rgba(148, 163, 184, 0.24);
+  --gs-v3-module-text: #f8fafc;
+  --gs-v3-module-muted: #94a3b8;
+  --gs-v3-module-action-hover: rgba(148, 163, 184, 0.14);
+  --gs-v3-module-menu-shadow: 0 18px 42px rgba(2, 8, 23, 0.42);
+
+  --erp-surface: var(--gs-v3-module-surface);
+  --erp-surface-raised: var(--gs-v3-module-surface);
+  --erp-border: var(--gs-v3-module-border);
+  --ui-panel-surface: var(--gs-v3-module-surface);
+  --ui-panel-surface-soft: var(--gs-v3-module-surface-soft);
+  --ui-panel-border: var(--gs-v3-module-border);
+  --flexadm-surface: var(--gs-v3-module-surface);
+  --flexadm-surface-raised: var(--gs-v3-module-surface-soft);
+  --flexadm-surface-border: var(--gs-v3-module-border);
+  --flexadm-card-line: var(--gs-v3-module-border);
+  --flexadm-surface-copy: var(--gs-v3-module-text);
+  --flexadm-surface-copy-soft: var(--gs-v3-module-muted);
+}
+
+:root .page:not(.page-auth) :where(
+  .dashboard-panel-shell,
+  .dashboard-visual-panel,
+  .kpi-card-flex,
+  .metric-card,
+  .module-modern,
+  .module-form,
+  .module-filter,
+  .module-card,
+  .module-overview-card,
+  .module-overview-shell,
+  .workflow-section,
+  .table-panel,
+  .editor-panel,
+  .card-panel,
+  .reference-card,
+  .students-v3-kpi-card,
+  .students-v3-filter-card,
+  .students-v3-table-card,
+  .students-v3-form-card,
+  .enrollments-v3-filter-card,
+  .enrollments-v3-table-card,
+  .enrollments-v3-form-card,
+  .teachers-v3-kpi-card,
+  .teachers-v3-filter-card,
+  .teachers-v3-table-card,
+  .iam-v3-table-card,
+  .iam-v3-form-card,
+  .rooms-screen-shell .teachers-panel,
+  .parents-screen-shell .module-modern,
+  .finance-screen-shell .module-modern,
+  .finance-v3-shell .module-modern,
+  .messages-list-panel,
+  .messages-conversation-panel,
+  .messages-side-card
+) {
+  background: var(--gs-v3-module-surface) !important;
+  border-color: var(--gs-v3-module-border) !important;
+}
+
+:root .page:not(.page-auth) :where(
+  .students-v3-table-card .table-wrap,
+  .enrollments-v3-table-card .table-wrap,
+  .teachers-v3-table-card .table-wrap,
+  .iam-v3-table-card .table-wrap,
+  .module-modern .table-wrap,
+  .table-panel .table-wrap
+) {
+  background: var(--gs-v3-module-surface) !important;
+  border-color: var(--gs-v3-module-border) !important;
+}
+
+:root .page:not(.page-auth) :where(.module-header-badge, .v3-count-badge, .students-overview-status) {
+  border-color: var(--gs-v3-module-border) !important;
+  background: var(--gs-v3-module-surface-soft) !important;
+  color: var(--gs-v3-module-text) !important;
+  box-shadow: none !important;
+}
+
+:root .page:not(.page-auth) :where(
+  .v3-more-button,
+  .students-v3-more-button,
+  .enrollments-v3-more-button,
+  .teachers-v3-more-button
+) {
+  width: 2.35rem !important;
+  min-width: 2.35rem !important;
+  height: 2.35rem !important;
+  min-height: 2.35rem !important;
+  border: 0 !important;
+  border-radius: 0.72rem !important;
+  background: transparent !important;
+  color: var(--gs-v3-module-text) !important;
+  box-shadow: none !important;
+}
+
+:root .page:not(.page-auth) :where(
+  .v3-more-button,
+  .students-v3-more-button,
+  .enrollments-v3-more-button,
+  .teachers-v3-more-button
+):is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: var(--gs-v3-module-action-hover) !important;
+  color: var(--gs-v3-module-text) !important;
+}
+
+:root .page:not(.page-auth) :where(
+  .v3-action-menu,
+  .students-v3-action-menu,
+  .enrollments-v3-action-menu,
+  .teachers-v3-action-menu
+) {
+  border-color: var(--gs-v3-module-border) !important;
+  background: var(--gs-v3-module-surface) !important;
+  box-shadow: var(--gs-v3-module-menu-shadow) !important;
+}
+
+:root .page:not(.page-auth) :where(
+  .v3-action-menu,
+  .students-v3-action-menu,
+  .enrollments-v3-action-menu,
+  .teachers-v3-action-menu
+) button {
+  color: var(--gs-v3-module-text) !important;
+}
+
+:root .page:not(.page-auth) :where(
+  .v3-action-menu,
+  .students-v3-action-menu,
+  .enrollments-v3-action-menu,
+  .teachers-v3-action-menu
+) button:hover {
+  background: var(--gs-v3-module-action-hover) !important;
+}
+
+:root .page:not(.page-auth) .table-wrap table[data-responsive-table="true"] :where(th:last-child, td:last-child) {
+  background: var(--gs-v3-module-surface) !important;
+  border-color: var(--gs-v3-module-border) !important;
+}
+
+:root .page:not(.page-auth) .table-wrap table[data-responsive-table="true"] th:last-child {
+  background: var(--gs-v3-module-surface-soft) !important;
+}
+
+:root .page:not(.page-auth) :where(
+  .table-wrap thead th,
+  .table-wrap table[data-responsive-table="true"] th,
+  .students-v3-table th,
+  .enrollments-v3-table th,
+  .teachers-v3-table th,
+  .module-modern table th,
+  .table-panel table th
+) {
+  background: var(--gs-v3-module-surface-soft) !important;
+  color: var(--gs-v3-module-muted) !important;
+  border-color: var(--gs-v3-module-border) !important;
+}
+
+:root .page:not(.page-auth) :where(
+  .table-wrap tbody tr:hover td,
+  .students-v3-table tr:hover td,
+  .enrollments-v3-table tr:hover td,
+  .teachers-v3-table tr:hover td,
+  .module-modern table tr:hover td,
+  .table-panel table tr:hover td
+) {
+  background: color-mix(in srgb, var(--gs-v3-module-surface-soft) 72%, transparent) !important;
+}
+
+:root[data-theme="dark"] .page:not(.page-auth) .table-wrap td:last-child :where(button, .button-ghost):not(.v3-more-button):not(.students-v3-more-button):not(.enrollments-v3-more-button):not(.teachers-v3-more-button) {
+  border-color: var(--gs-v3-module-border) !important;
+  background: var(--gs-v3-module-surface-soft) !important;
+  color: var(--gs-v3-module-text) !important;
+}

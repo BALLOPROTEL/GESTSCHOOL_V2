@@ -189,6 +189,7 @@ describe("FinanceScreen", () => {
 
     await user.click(screen.getByRole("tab", { name: "Plans de frais" }));
     expect(screen.queryByText("Supprimer")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Informations plan Frais CM2" }));
     expect(screen.getByText((content) => content.includes("2 facture(s) liée(s)"))).toBeInTheDocument();
   });
 

@@ -148,6 +148,7 @@ export function ReferenceScreen({
       <div className="reference-shell">
         <div id="reference-workflow" className="reference-workflow-shell">
           <WorkflowGuide
+            className="module-v3-workflow"
             title="Referentiel academique"
             steps={referenceSteps}
             activeStepId={state.referenceWorkflowStep}

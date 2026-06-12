@@ -42,6 +42,21 @@ import type {
   TimetableSlot
 } from "./types/school-life";
 
+type LoadWarningKey = "attendance" | "attachments" | "timetable" | "notifications";
+
+type LoadOptions = {
+  notify?: boolean;
+};
+
+type RowAction = {
+  danger?: boolean;
+  label: string;
+  onSelect: () => void;
+};
+
+const loadWarningText = (error: unknown, fallback: string): string =>
+  error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
+
 export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   const {
     api,
@@ -61,6 +76,12 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   const [rooms, setRooms] = useState<RoomRef[]>([]);
   const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignmentRef[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loadWarnings, setLoadWarnings] = useState<Record<LoadWarningKey, string | null>>({
+    attendance: null,
+    attachments: null,
+    timetable: null,
+    notifications: null
+  });
 
   const [attendanceFilters, setAttendanceFilters] = useState({
     classId: "",
@@ -121,6 +142,55 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     targetAddress: "",
     scheduledAt: ""
   });
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+
+  const clearLoadWarning = useCallback((key: LoadWarningKey) => {
+    setLoadWarnings((prev) => (prev[key] ? { ...prev, [key]: null } : prev));
+  }, []);
+
+  const rememberLoadWarning = useCallback((key: LoadWarningKey, message: string) => {
+    setLoadWarnings((prev) => ({ ...prev, [key]: message }));
+  }, []);
+
+  const renderLoadWarning = (key: LoadWarningKey, label: string): JSX.Element | null =>
+    loadWarnings[key] ? (
+      <div className="notice-card notice-info" role="status">
+        <strong>{label}</strong>
+        <p>Les donnees sont temporairement indisponibles. Vous pouvez continuer a consulter l'ecran puis reessayer.</p>
+      </div>
+    ) : null;
+
+  const renderActionMenu = (id: string, label: string, actions: RowAction[]): JSX.Element => (
+    <div className="v3-action-cell">
+      <button
+        type="button"
+        className="v3-more-button"
+        aria-label={label}
+        aria-expanded={openActionMenuId === id}
+        onClick={() => setOpenActionMenuId((current) => (current === id ? null : id))}
+      >
+        <span aria-hidden="true">...</span>
+      </button>
+      {openActionMenuId === id ? (
+        <div className="v3-action-menu" role="menu">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              role="menuitem"
+              className={action.danger ? "is-danger" : undefined}
+              onClick={() => {
+                setOpenActionMenuId(null);
+                action.onSelect();
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 
   useEffect(() => {
     if (!attendanceForm.studentId && students[0]) {
@@ -176,18 +246,22 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   }, [attendanceRecords, selectedAttendanceId]);
 
   const loadAttendance = useCallback(
-    async (filters = attendanceFilters) => {
+    async (filters = attendanceFilters, options: LoadOptions = {}) => {
       try {
         setAttendanceRecords(await fetchAttendance(api, filters));
+        clearLoadWarning("attendance");
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur lors du chargement des absences.");
+        const message = loadWarningText(error, "Erreur lors du chargement des absences.");
+        setAttendanceRecords([]);
+        rememberLoadWarning("attendance", message);
+        if (options.notify) onError(message);
       }
     },
-    [api, attendanceFilters, onError]
+    [api, attendanceFilters, clearLoadWarning, onError, rememberLoadWarning]
   );
 
   const loadAttendanceAttachments = useCallback(
-    async (attendanceId = selectedAttendanceId) => {
+    async (attendanceId = selectedAttendanceId, options: LoadOptions = {}) => {
       if (!attendanceId) {
         setAttendanceAttachments([]);
         return;
@@ -195,11 +269,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
       try {
         setAttendanceAttachments(await fetchAttendanceAttachments(api, attendanceId));
+        clearLoadWarning("attachments");
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur lors du chargement des justificatifs.");
+        const message = loadWarningText(error, "Erreur lors du chargement des justificatifs.");
+        setAttendanceAttachments([]);
+        rememberLoadWarning("attachments", message);
+        if (options.notify) onError(message);
       }
     },
-    [api, onError, selectedAttendanceId]
+    [api, clearLoadWarning, onError, rememberLoadWarning, selectedAttendanceId]
   );
 
   useEffect(() => {
@@ -213,46 +291,63 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   }, [focusSection, loadAttendanceAttachments, selectedAttendanceId]);
 
   const loadTimetableSlots = useCallback(
-    async (filters = timetableFilters) => {
+    async (filters = timetableFilters, options: LoadOptions = {}) => {
       try {
         setTimetableSlots(await fetchTimetableSlots(api, filters));
+        clearLoadWarning("timetable");
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur lors du chargement de l emploi du temps.");
+        const message = loadWarningText(error, "Erreur lors du chargement de l emploi du temps.");
+        setTimetableSlots([]);
+        rememberLoadWarning("timetable", message);
+        if (options.notify) onError(message);
       }
     },
-    [api, onError, timetableFilters]
+    [api, clearLoadWarning, onError, rememberLoadWarning, timetableFilters]
   );
 
   const loadTimetableGrid = useCallback(
-    async (filters = timetableFilters) => {
+    async (filters = timetableFilters, options: LoadOptions = {}) => {
       try {
         setTimetableGrid(await fetchTimetableGrid(api, filters));
+        clearLoadWarning("timetable");
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur lors du chargement de la grille d emploi du temps.");
+        const message = loadWarningText(error, "Erreur lors du chargement de la grille d emploi du temps.");
+        setTimetableGrid(null);
+        rememberLoadWarning("timetable", message);
+        if (options.notify) onError(message);
       }
     },
-    [api, onError, timetableFilters]
+    [api, clearLoadWarning, onError, rememberLoadWarning, timetableFilters]
   );
 
-  const loadTimetableReferences = useCallback(async () => {
+  const loadTimetableReferences = useCallback(async (options: LoadOptions = {}) => {
     try {
       const references = await fetchTimetableReferences(api);
       setRooms(references.rooms);
       setTeacherAssignments(references.teacherAssignments);
+      clearLoadWarning("timetable");
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors du chargement des references emploi du temps.");
+      const message = loadWarningText(error, "Erreur lors du chargement des references emploi du temps.");
+      setRooms([]);
+      setTeacherAssignments([]);
+      rememberLoadWarning("timetable", message);
+      if (options.notify) onError(message);
     }
-  }, [api, onError]);
+  }, [api, clearLoadWarning, onError, rememberLoadWarning]);
 
   const loadNotifications = useCallback(
-    async (filters = notificationFilters) => {
+    async (filters = notificationFilters, options: LoadOptions = {}) => {
       try {
         setNotifications(await fetchNotifications(api, filters));
+        clearLoadWarning("notifications");
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur lors du chargement des notifications.");
+        const message = loadWarningText(error, "Erreur lors du chargement des notifications.");
+        setNotifications([]);
+        rememberLoadWarning("notifications", message);
+        if (options.notify) onError(message);
       }
     },
-    [api, notificationFilters, onError]
+    [api, clearLoadWarning, notificationFilters, onError, rememberLoadWarning]
   );
 
   useEffect(() => {
@@ -308,8 +403,8 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     onNotice("Absence enregistree.");
     setAttendanceForm((prev) => ({ ...prev, reason: "" }));
     setSelectedAttendanceId(created.id);
-    await loadAttendance(attendanceFilters);
-    await loadNotifications(notificationFilters);
+    await loadAttendance(attendanceFilters, { notify: true });
+    await loadNotifications(notificationFilters, { notify: true });
   };
 
   const deleteAttendance = async (id: string): Promise<void> => {
@@ -323,20 +418,20 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     }
 
     onNotice("Absence supprimee.");
-    await loadAttendance(attendanceFilters);
-    await loadNotifications(notificationFilters);
+    await loadAttendance(attendanceFilters, { notify: true });
+    await loadNotifications(notificationFilters, { notify: true });
   };
 
   const applyAttendanceFilters = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    await loadAttendance(attendanceFilters);
-    await loadNotifications(notificationFilters);
+    await loadAttendance(attendanceFilters, { notify: true });
+    await loadNotifications(notificationFilters, { notify: true });
   };
 
   const resetAttendanceFilters = async (): Promise<void> => {
     const next = { classId: "", studentId: "", status: "", fromDate: "", toDate: "" };
     setAttendanceFilters(next);
-    await loadAttendance(next);
+    await loadAttendance(next, { notify: true });
   };
 
   const submitAttendanceAttachment = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -369,8 +464,8 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
     onNotice("Justificatif ajoute.");
     setAttachmentForm((prev) => ({ ...prev, fileName: "", fileUrl: "" }));
-    await loadAttendance(attendanceFilters);
-    await loadAttendanceAttachments(selectedAttendanceId);
+    await loadAttendance(attendanceFilters, { notify: true });
+    await loadAttendanceAttachments(selectedAttendanceId, { notify: true });
   };
 
   const removeAttendanceAttachment = async (attachmentId: string): Promise<void> => {
@@ -391,8 +486,8 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     }
 
     onNotice("Justificatif supprime.");
-    await loadAttendance(attendanceFilters);
-    await loadAttendanceAttachments(selectedAttendanceId);
+    await loadAttendance(attendanceFilters, { notify: true });
+    await loadAttendanceAttachments(selectedAttendanceId, { notify: true });
   };
 
   const submitAttendanceValidation = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -420,8 +515,8 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       comment: updated.validationComment || ""
     });
     onNotice("Validation mise a jour.");
-    await loadAttendance(attendanceFilters);
-    await loadAttendanceAttachments(selectedAttendanceId);
+    await loadAttendance(attendanceFilters, { notify: true });
+    await loadAttendanceAttachments(selectedAttendanceId, { notify: true });
   };
 
   const submitBulkAttendance = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -458,8 +553,8 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     }
 
     setBulkAttendanceForm((prev) => ({ ...prev, studentIds: [], reason: "" }));
-    await loadAttendance(attendanceFilters);
-    await loadNotifications(notificationFilters);
+    await loadAttendance(attendanceFilters, { notify: true });
+    await loadNotifications(notificationFilters, { notify: true });
   };
   const submitTimetableSlot = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -483,8 +578,8 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
     onNotice("Cours ajoute a l'emploi du temps.");
     setTimetableForm((prev) => ({ ...prev, roomId: "", teacherAssignmentId: "" }));
-    await loadTimetableSlots(timetableFilters);
-    await loadTimetableGrid(timetableFilters);
+    await loadTimetableSlots(timetableFilters, { notify: true });
+    await loadTimetableGrid(timetableFilters, { notify: true });
   };
 
   const deleteTimetableSlot = async (id: string): Promise<void> => {
@@ -498,21 +593,21 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     }
 
     onNotice("Cours supprime.");
-    await loadTimetableSlots(timetableFilters);
-    await loadTimetableGrid(timetableFilters);
+    await loadTimetableSlots(timetableFilters, { notify: true });
+    await loadTimetableGrid(timetableFilters, { notify: true });
   };
 
   const applyTimetableFilters = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    await loadTimetableSlots(timetableFilters);
-    await loadTimetableGrid(timetableFilters);
+    await loadTimetableSlots(timetableFilters, { notify: true });
+    await loadTimetableGrid(timetableFilters, { notify: true });
   };
 
   const resetTimetableFilters = async (): Promise<void> => {
     const next = { classId: "", dayOfWeek: "" };
     setTimetableFilters(next);
-    await loadTimetableSlots(next);
-    await loadTimetableGrid(next);
+    await loadTimetableSlots(next, { notify: true });
+    await loadTimetableGrid(next, { notify: true });
   };
 
   const submitNotification = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -545,7 +640,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       targetAddress: "",
       scheduledAt: ""
     }));
-    await loadNotifications(notificationFilters);
+    await loadNotifications(notificationFilters, { notify: true });
   };
 
   const dispatchPendingNotifications = async (): Promise<void> => {
@@ -558,7 +653,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       return;
     }
     onNotice(`${payload.dispatchedCount} notification(s) envoyee(s).`);
-    await loadNotifications(notificationFilters);
+    await loadNotifications(notificationFilters, { notify: true });
   };
   const markNotificationAsSent = async (id: string): Promise<void> => {
     if (rejectReadOnly()) return;
@@ -570,18 +665,18 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     }
 
     onNotice("Notification marquee comme envoyee.");
-    await loadNotifications(notificationFilters);
+    await loadNotifications(notificationFilters, { notify: true });
   };
 
   const applyNotificationFilters = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    await loadNotifications(notificationFilters);
+    await loadNotifications(notificationFilters, { notify: true });
   };
 
   const resetNotificationFilters = async (): Promise<void> => {
     const next = { status: "", channel: "", deliveryStatus: "" };
     setNotificationFilters(next);
-    await loadNotifications(next);
+    await loadNotifications(next, { notify: true });
   };
 
   const selectedAttendance = attendanceRecords.find((item) => item.id === selectedAttendanceId) || null;
@@ -662,6 +757,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       <section data-step-id="absences" className="panel editor-panel workflow-section module-modern">
         <h2>Absences</h2>
         <p className="section-lead">Saisissez un pointage individuel clair, lisible et rapidement exploitable.</p>
+        {renderLoadWarning("attendance", "Journal des absences indisponible")}
         <form className="form-grid module-form" onSubmit={(event) => void submitAttendance(event)}>
           <label>
             Eleve
@@ -738,6 +834,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <h2>Journal des absences</h2>
           <span className="subtle">Filtre rapide, puis actions sur chaque ligne.</span>
         </div>
+        {renderLoadWarning("attendance", "Journal des absences indisponible")}
         <form className="filter-grid module-filter" onSubmit={(event) => void applyAttendanceFilters(event)}>
           <label>Classe<select value={attendanceFilters.classId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">Toutes</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
           <label>Eleve<select value={attendanceFilters.studentId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">Tous</option>{students.map((item) => <option key={item.id} value={item.id}>{item.matricule}</option>)}</select></label>
@@ -747,7 +844,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetAttendanceFilters()}>Reinitialiser</button></div>
         </form>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr><th>Date</th><th>Eleve</th><th>Classe</th><th>Statut</th><th>Justif.</th><th>Validation</th><th>Pieces</th><th>Motif</th><th>Action</th></tr>
             </thead>
@@ -769,7 +866,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                     </td>
                     <td>{item.attachments?.length ?? 0}</td>
                     <td>{item.reason || "-"}</td>
-                    <td><button type="button" className="button-danger" onClick={() => void deleteAttendance(item.id)}>Supprimer</button></td>
+                    <td>
+                      {renderActionMenu(`attendance-${item.id}`, `Actions absence ${item.studentName || item.id}`, [
+                        { label: "Supprimer", danger: true, onSelect: () => void deleteAttendance(item.id) }
+                      ])}
+                    </td>
                   </tr>
                 ))
               )}
@@ -781,6 +882,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       <section data-step-id="validation" className="panel editor-panel workflow-section module-modern">
         <h2>Justificatifs & validation</h2>
         <p className="section-lead">Centralisez validation et pieces justificatives sans ouvrir plusieurs ecrans.</p>
+        {renderLoadWarning("attachments", "Justificatifs indisponibles")}
         <h3>Validation</h3>
         <form className="form-grid module-form" onSubmit={(event) => void submitAttendanceValidation(event)}>
           <div className="split-grid">
@@ -869,7 +971,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
         <h3>Liste des justificatifs</h3>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr><th>Fichier</th><th>MIME</th><th>Ajoute le</th><th>Action</th></tr>
             </thead>
@@ -884,7 +986,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                     <td><a href={item.fileUrl} target="_blank" rel="noreferrer">{item.fileName}</a></td>
                     <td>{item.mimeType || "-"}</td>
                     <td>{new Date(item.createdAt).toLocaleString(locale)}</td>
-                    <td><button type="button" className="button-danger" onClick={() => void removeAttendanceAttachment(item.id)}>Supprimer</button></td>
+                    <td>
+                      {renderActionMenu(`attachment-${item.id}`, `Actions justificatif ${item.fileName}`, [
+                        { label: "Supprimer", danger: true, onSelect: () => void removeAttendanceAttachment(item.id) }
+                      ])}
+                    </td>
                   </tr>
                 ))
               )}
@@ -909,6 +1015,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       <section data-step-id="timetable" className="panel editor-panel workflow-section module-modern">
         <h2>Emploi du temps</h2>
         <p className="section-lead">Composez des creneaux lisibles puis controlez la semaine complete en un seul coup d'oeil.</p>
+        {renderLoadWarning("timetable", "References emploi du temps indisponibles")}
         <form className="form-grid module-form" onSubmit={(event) => void submitTimetableSlot(event)}>
           <label>Classe<select value={timetableForm.classId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, classId: event.target.value }))} required>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
           <label>Matiere<select value={timetableForm.subjectId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, subjectId: event.target.value }))} required>{subjects.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
@@ -926,13 +1033,14 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <h2>Grille d'emploi du temps</h2>
           <span className="subtle">Recherche par classe et par jour.</span>
         </div>
+        {renderLoadWarning("timetable", "Grille emploi du temps indisponible")}
         <form className="filter-grid module-filter" onSubmit={(event) => void applyTimetableFilters(event)}>
           <label>Classe<select value={timetableFilters.classId} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">Toutes</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
           <label>Jour<select value={timetableFilters.dayOfWeek} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, dayOfWeek: event.target.value }))}><option value="">Tous</option>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
           <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetTimetableFilters()}>Reinitialiser</button></div>
         </form>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr><th>Jour</th><th>Heure</th><th>Classe</th><th>Matiere</th><th>Salle</th><th>Enseignant</th><th>Action</th></tr>
             </thead>
@@ -948,7 +1056,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                     <td>{item.subjectLabel || "-"}</td>
                     <td>{item.room || "-"}</td>
                     <td>{item.teacherName || "-"}</td>
-                    <td><button type="button" className="button-danger" onClick={() => void deleteTimetableSlot(item.id)}>Supprimer</button></td>
+                    <td>
+                      {renderActionMenu(`timetable-${item.id}`, `Actions cours ${item.subjectLabel || item.id}`, [
+                        { label: "Supprimer", danger: true, onSelect: () => void deleteTimetableSlot(item.id) }
+                      ])}
+                    </td>
                   </tr>
                 ))
               )}
@@ -998,6 +1110,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           </div>
         </div>
         <p className="section-lead">Programmez les messages importants avec un flux plus propre pour les equipes.</p>
+        {renderLoadWarning("notifications", "Notifications indisponibles")}
         <form className="form-grid module-form" onSubmit={(event) => void submitNotification(event)}>
           <label>Titre<input value={notificationForm.title} onChange={(event) => setNotificationForm((prev) => ({ ...prev, title: event.target.value }))} required /></label>
           <label>Message<input value={notificationForm.message} onChange={(event) => setNotificationForm((prev) => ({ ...prev, message: event.target.value }))} required /></label>
@@ -1015,6 +1128,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <h2>Historique notifications</h2>
           <span className="subtle">Suivi des envois, statuts et relances.</span>
         </div>
+        {renderLoadWarning("notifications", "Historique notifications indisponible")}
         <form className="filter-grid module-filter" onSubmit={(event) => void applyNotificationFilters(event)}>
           <label>Statut<select value={notificationFilters.status} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option><option value="PENDING">{labelFromMap(notificationStatusLabels, "PENDING")}</option><option value="SCHEDULED">{labelFromMap(notificationStatusLabels, "SCHEDULED")}</option><option value="SENT">{labelFromMap(notificationStatusLabels, "SENT")}</option><option value="FAILED">{labelFromMap(notificationStatusLabels, "FAILED")}</option></select></label>
           <label>Canal<select value={notificationFilters.channel} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, channel: event.target.value }))}><option value="">Tous</option><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
@@ -1022,7 +1136,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetNotificationFilters()}>Reinitialiser</button></div>
         </form>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr><th>Titre</th><th>Canal</th><th>Statut</th><th>Distribution</th><th>Cible</th><th>Fournisseur</th><th>Tentatives</th><th>Planifiee</th><th>Envoyee</th><th>Action</th></tr>
             </thead>
@@ -1041,7 +1155,13 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                     <td>{item.attempts}</td>
                     <td>{item.scheduledAt ? new Date(item.scheduledAt).toLocaleString(locale) : "-"}</td>
                     <td>{item.sentAt ? new Date(item.sentAt).toLocaleString(locale) : item.nextAttemptAt ? `Nouvelle tentative ${new Date(item.nextAttemptAt).toLocaleString(locale)}` : "-"}</td>
-                    <td>{item.status !== "SENT" ? <button type="button" className="button-ghost" onClick={() => void markNotificationAsSent(item.id)}>Marquer comme envoyee</button> : null}</td>
+                    <td>
+                      {item.status !== "SENT"
+                        ? renderActionMenu(`notification-${item.id}`, `Actions notification ${item.title}`, [
+                            { label: "Marquer comme envoyee", onSelect: () => void markNotificationAsSent(item.id) }
+                          ])
+                        : <span className="subtle">Envoyee</span>}
+                    </td>
                   </tr>
                 ))
               )}

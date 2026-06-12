@@ -2006,24 +2006,6 @@ tbody tr:hover td {
   color: var(--erp-button-danger-text);
 }
 
-@media (max-width: 760px) {
-  :root:not([data-theme="dark"]) .students-list-panel .table-wrap table[data-responsive-table="true"] tr {
-    border-color: color-mix(in srgb, var(--erp-border) 72%, transparent);
-    background: #ffffff !important;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  }
-
-  :root:not([data-theme="dark"]) .students-list-panel .table-wrap table[data-responsive-table="true"] td,
-  :root:not([data-theme="dark"]) .students-list-panel .table-wrap table[data-responsive-table="true"] td:first-child {
-    border-bottom-color: color-mix(in srgb, var(--erp-border) 52%, transparent);
-    color: #0f172a !important;
-  }
-
-  :root:not([data-theme="dark"]) .students-list-panel .table-wrap table[data-responsive-table="true"] td::before {
-    color: #64748b !important;
-  }
-}
-
 :root:not([data-theme="dark"]) .students-detail-panel .students-detail-grid > div {
   border-color: color-mix(in srgb, var(--erp-border) 68%, transparent);
   background: #ffffff;

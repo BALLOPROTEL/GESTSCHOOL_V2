@@ -323,8 +323,8 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   };
 
   return (
-    <WorkflowGuide title="Salles" steps={steps} activeStepId={activeStep} onStepChange={setActiveStep}>
-      <div className="rooms-screen-shell">
+    <WorkflowGuide className="module-v3-workflow" title="Salles" steps={steps} activeStepId={activeStep} onStepChange={setActiveStep}>
+      <div className="rooms-screen-shell module-v3-shell">
       {activeStep === "list" ? (
         <RoomsListSection
           filters={filters}
@@ -411,7 +411,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <div className="actions"><button type="submit">Créer l'affectation</button></div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>Salle</th><th>Type</th><th>Classe</th><th>Matière</th><th>Cursus</th><th>Année</th><th>Période</th><th>Statut</th><th>Action</th></tr></thead>
+            <table data-responsive-table="true"><thead><tr><th>Salle</th><th>Type</th><th>Classe</th><th>Matière</th><th>Cursus</th><th>Année</th><th>Période</th><th>Statut</th><th>Action</th></tr></thead>
               <tbody>{selectedAssignments.length === 0 ? <tr><td colSpan={9} className="empty-row">Aucune affectation enregistrée.</td></tr> : selectedAssignments.map((item) => (
                 <tr key={item.id}><td>{item.roomLabel}</td><td>{assignmentTypeLabel(item.assignmentType)}</td><td>{item.classLabel || item.levelLabel || item.cycleLabel || "-"}</td><td>{item.subjectLabel || "-"}</td><td>{trackLabel(item.track)}</td><td>{item.schoolYearCode}</td><td>{item.periodLabel || "-"}</td><td><span className="status-pill">{statusLabel(item.status)}</span></td><td><button type="button" className="button-ghost" onClick={() => void archiveResource(`/rooms/assignments/${item.id}`, "Affectation salle archivée.")}>Archiver</button></td></tr>
               ))}</tbody>
@@ -435,7 +435,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <div className="actions"><button type="submit">Déclarer une indisponibilité</button></div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>Salle</th><th>Jour</th><th>Début</th><th>Fin</th><th>Type</th><th>Année</th><th>Période</th><th>Action</th></tr></thead>
+            <table data-responsive-table="true"><thead><tr><th>Salle</th><th>Jour</th><th>Début</th><th>Fin</th><th>Type</th><th>Année</th><th>Période</th><th>Action</th></tr></thead>
               <tbody>{selectedAvailabilities.length === 0 ? <tr><td colSpan={8} className="empty-row">Aucune indisponibilité enregistrée.</td></tr> : selectedAvailabilities.map((item) => (
                 <tr key={item.id}><td>{item.roomLabel}</td><td>{dayLabel(item.dayOfWeek)}</td><td>{item.startTime || "-"}</td><td>{item.endTime || "-"}</td><td>{availabilityTypeLabel(item.availabilityType)}</td><td>{item.schoolYearCode || "-"}</td><td>{item.periodLabel || "-"}</td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/rooms/availabilities/${item.id}`, "Indisponibilité supprimée.")}>Supprimer</button></td></tr>
               ))}</tbody>
@@ -448,7 +448,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">Occupation</p><h2>Synthèse d'occupation par salle</h2></div></div>
           <div className="table-wrap">
-            <table><thead><tr><th>Salle</th><th>Type</th><th>Capacité</th><th>Cursus</th><th>Affectations</th><th>FR</th><th>AR</th><th>Partage</th><th>Classes</th><th>Matières</th><th>Statut</th></tr></thead>
+            <table data-responsive-table="true"><thead><tr><th>Salle</th><th>Type</th><th>Capacité</th><th>Cursus</th><th>Affectations</th><th>FR</th><th>AR</th><th>Partage</th><th>Classes</th><th>Matières</th><th>Statut</th></tr></thead>
               <tbody>{occupancy.length === 0 ? <tr><td colSpan={11} className="empty-row">Aucune occupation calculée pour le moment.</td></tr> : occupancy.map((item) => (
                 <tr key={item.roomId}><td>{item.roomLabel}</td><td>{item.roomTypeName || "-"}</td><td>{item.capacity}</td><td>{item.isSharedBetweenCurricula ? "Partagée" : trackLabel(item.defaultTrack)}</td><td>{item.assignmentsCount}</td><td>{item.francophoneAssignmentsCount}</td><td>{item.arabophoneAssignmentsCount}</td><td>{item.sharedAssignmentsCount}</td><td>{item.classes.join(", ") || "-"}</td><td>{item.subjects.join(", ") || "-"}</td><td><span className="status-pill">{statusLabel(item.status)}</span></td></tr>
               ))}</tbody>
@@ -468,7 +468,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <div className="actions"><button type="submit">Ajouter le type</button></div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>Code</th><th>Nom</th><th>Description</th><th>Statut</th></tr></thead>
+            <table data-responsive-table="true"><thead><tr><th>Code</th><th>Nom</th><th>Description</th><th>Statut</th></tr></thead>
               <tbody>{roomTypes.length === 0 ? <tr><td colSpan={4} className="empty-row">Aucun type de salle enregistré.</td></tr> : roomTypes.map((type) => (
                 <tr key={type.id}><td>{type.code}</td><td>{type.name}</td><td>{type.description || "-"}</td><td><span className="status-pill">{statusLabel(type.status)}</span></td></tr>
               ))}</tbody>

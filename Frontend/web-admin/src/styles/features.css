@@ -3236,6 +3236,12 @@ tbody tr:hover td {
   font-weight: 800;
 }
 
+.students-search-field > span {
+  display: inline-block;
+  white-space: nowrap;
+  word-spacing: 0.12rem;
+}
+
 .students-search-field .search-input {
   width: 100%;
 }

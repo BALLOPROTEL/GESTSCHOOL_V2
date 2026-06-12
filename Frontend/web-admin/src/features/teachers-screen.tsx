@@ -619,7 +619,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
             <div className="actions"><button type="submit">Ajouter la compétence</button></div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>Enseignant</th><th>Matière</th><th>Cursus</th><th>Cycle</th><th>Niveau</th><th>Qualification</th><th>Statut</th><th>Actions</th></tr></thead>
+            <table data-responsive-table="true"><thead><tr><th>Enseignant</th><th>Matière</th><th>Cursus</th><th>Cycle</th><th>Niveau</th><th>Qualification</th><th>Statut</th><th>Actions</th></tr></thead>
               <tbody>{selectedTeacherSkills.length === 0 ? <tr><td colSpan={8} className="empty-row">Aucune compétence enregistrée.</td></tr> : selectedTeacherSkills.map((skill) => (
                 <tr key={skill.id}><td>{skill.teacherName}</td><td>{skill.subjectLabel}</td><td>{trackLabel(skill.track)}</td><td>{skill.cycleLabel || "Tous"}</td><td>{skill.levelLabel || "Tous"}</td><td>{skill.qualification || "-"}</td><td><span className={statusPillClass(skill.status)}>{teacherStatusLabel(skill.status)}</span></td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/skills/${skill.id}`, "Compétence supprimée.", "Confirmer la suppression de cette compétence ?")}>Supprimer</button></td></tr>
               ))}</tbody>
@@ -649,7 +649,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
             <div className="actions"><button type="submit">Créer l'affectation</button></div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>Enseignant</th><th>Matière</th><th>Cursus</th><th>Classe</th><th>Année</th><th>Période</th><th>Charge horaire</th><th>Titulaire</th><th>Statut</th><th>Actions</th></tr></thead>
+            <table data-responsive-table="true"><thead><tr><th>Enseignant</th><th>Matière</th><th>Cursus</th><th>Classe</th><th>Année</th><th>Période</th><th>Charge horaire</th><th>Titulaire</th><th>Statut</th><th>Actions</th></tr></thead>
               <tbody>{selectedTeacherAssignments.length === 0 ? <tr><td colSpan={10} className="empty-row">Aucune affectation enregistrée.</td></tr> : selectedTeacherAssignments.map((item) => (
                 <tr key={item.id}><td>{item.teacherName}</td><td>{item.subjectLabel}</td><td>{trackLabel(item.track)}</td><td>{item.classLabel}</td><td>{item.schoolYearCode}</td><td>{item.periodLabel || "-"}</td><td>{item.workloadHours ?? 0} h</td><td>{item.isHomeroomTeacher ? "Oui" : "Non"}</td><td><span className={statusPillClass(item.status)}>{teacherStatusLabel(item.status)}</span></td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/assignments/${item.id}`, "Affectation supprimée.", "Confirmer la suppression de cette affectation ?")}>Supprimer</button></td></tr>
               ))}</tbody>
@@ -662,7 +662,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">Charge pédagogique</p><h2>Synthèse par enseignant</h2></div></div>
           <div className="table-wrap">
-            <table><thead><tr><th>Matricule</th><th>Enseignant</th><th>Affectations</th><th>Total horaire</th><th>Francophone</th><th>Arabophone</th><th>Classes</th><th>Matières</th><th>Statut</th></tr></thead>
+            <table data-responsive-table="true"><thead><tr><th>Matricule</th><th>Enseignant</th><th>Affectations</th><th>Total horaire</th><th>Francophone</th><th>Arabophone</th><th>Classes</th><th>Matières</th><th>Statut</th></tr></thead>
               <tbody>{workloads.length === 0 ? <tr><td colSpan={9} className="empty-row"><span>Aucune charge calculée.</span><small>Ajoutez des affectations pour calculer la charge des enseignants.</small></td></tr> : workloads.map((item) => (
                 <tr key={item.teacherId}><td>{item.matricule}</td><td>{item.teacherName}</td><td>{item.assignmentsCount}</td><td>{item.workloadHoursTotal} h</td><td>{item.francophoneHoursTotal} h</td><td>{item.arabophoneHoursTotal} h</td><td>{item.classes.join(", ") || "-"}</td><td>{item.subjects.join(", ") || "-"}</td><td><span className={statusPillClass(item.status)}>{teacherStatusLabel(item.status)}</span></td></tr>
               ))}</tbody>
@@ -723,7 +723,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
             </div>
           </form>
           <div className="table-wrap">
-            <table><thead><tr><th>{translate("Enseignant")}</th><th>{translate("Type")}</th><th>{translate("Nom du document")}</th><th>{translate("Ajouté le")}</th><th>{translate("Statut")}</th><th>{translate("Actions")}</th></tr></thead>
+            <table data-responsive-table="true"><thead><tr><th>{translate("Enseignant")}</th><th>{translate("Type")}</th><th>{translate("Nom du document")}</th><th>{translate("Ajouté le")}</th><th>{translate("Statut")}</th><th>{translate("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherDocuments.length === 0 ? <tr><td colSpan={6} className="empty-row">{translate("Aucun document enregistré.")}</td></tr> : selectedTeacherDocuments.map((document) => (
                 <tr key={document.id}><td>{document.teacherName}</td><td>{translateDocumentType(document.documentType)}</td><td><a href={document.fileUrl} target="_blank" rel="noreferrer">{document.documentName || document.originalName}</a></td><td>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, translate("Document supprimé."), translate("Confirmer la suppression de ce document ?"))}>{translate("Supprimer")}</button></td></tr>
               ))}</tbody>

@@ -24,6 +24,7 @@ import "./styles/responsive.css";
 import "./styles/erp-refinement.css";
 import "./styles/premium-v3-foundation.css";
 import "./styles/mobile-product.css";
+import "./styles/v3-module-unification.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

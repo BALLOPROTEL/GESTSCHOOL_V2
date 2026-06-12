@@ -17,6 +17,7 @@ import {
   parseOptionalNumber,
   renderFieldLabel
 } from "../utils/reference-ui";
+import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 
 export function ClassesSection(): JSX.Element {
@@ -318,7 +319,7 @@ export function ClassesSection(): JSX.Element {
               </label>
             </div>
             <div className="table-wrap">
-              <table>
+              <table data-responsive-table="true">
                 <thead>
                   <tr>
                     <th>Annee</th>
@@ -341,9 +342,10 @@ export function ClassesSection(): JSX.Element {
                         <td>{item.actualCapacity ?? item.capacity ?? "-"} / {item.capacity ?? "-"}</td>
                         <td>{formatReferenceStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}>
-                            Supprimer
-                          </button>
+                          <ReferenceActionMenu
+                            label={`Options classe ${item.label}`}
+                            onDelete={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}
+                          />
                         </td>
                       </tr>
                     ))

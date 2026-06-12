@@ -512,10 +512,10 @@ export function EnrollmentsScreen({
                             </span>
                           </td>
                           <td data-label="Actions">
-                            <div className="enrollments-v3-action-cell">
+                            <div className="enrollments-v3-action-cell v3-action-cell">
                               <button
                                 type="button"
-                                className="enrollments-v3-more-button"
+                                className="enrollments-v3-more-button v3-more-button"
                                 aria-label={`Actions inscription ${studentName}`}
                                 aria-expanded={openActionMenuId === item.id}
                                 onClick={() => toggleActionMenu(item.id)}
@@ -523,7 +523,7 @@ export function EnrollmentsScreen({
                                 <span aria-hidden="true">...</span>
                               </button>
                               {openActionMenuId === item.id ? (
-                                <div className="enrollments-v3-action-menu" role="menu">
+                                <div className="enrollments-v3-action-menu v3-action-menu" role="menu">
                                   <button
                                     type="button"
                                     role="menuitem"

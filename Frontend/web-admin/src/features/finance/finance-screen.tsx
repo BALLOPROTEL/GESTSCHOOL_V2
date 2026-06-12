@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 
 import { WorkflowGuide } from "../../shared/components/workflow-guide";
 import type {
@@ -83,6 +83,9 @@ export function FinanceScreen({
   onError,
   onNotice
 }: FinanceScreenProps): JSX.Element {
+  const [openFeePlanActionMenuId, setOpenFeePlanActionMenuId] = useState<string | null>(null);
+  const [openInvoiceActionMenuId, setOpenInvoiceActionMenuId] = useState<string | null>(null);
+  const [openPaymentActionMenuId, setOpenPaymentActionMenuId] = useState<string | null>(null);
   const {
     feePlanErrors,
     feePlanForm,
@@ -160,13 +163,14 @@ export function FinanceScreen({
   const planInvoiceCount = (feePlanId: string): number => invoices.filter((item) => item.feePlanId === feePlanId).length;
 
   return (
-    <>
+    <div className="finance-v3-shell module-v3-shell">
       <header className="finance-mobile-heading">
         <h1>Comptabilité</h1>
         <p>Suivez le recouvrement, les factures et les paiements de l’établissement.</p>
       </header>
 
       <WorkflowGuide
+        className="module-v3-workflow"
         title="Comptabilité"
         steps={financeSteps}
         activeStepId={financeWorkflowStep}
@@ -371,7 +375,7 @@ export function FinanceScreen({
                 <th>Montant total</th>
                 <th>Devise</th>
                 <th>Statut</th>
-                <th>Actions</th>
+                <th aria-label="Actions"></th>
               </tr>
             </thead>
             <tbody>
@@ -394,11 +398,26 @@ export function FinanceScreen({
                       <td data-label="Devise">{formatCurrencyLabel(item.currency)}</td>
                       <td data-label="Statut"><span className="status-pill is-success">Actif</span></td>
                       <td data-label="Actions">
-                        {usageCount > 0 ? (
-                          <span className="finance-safe-note">{usageCount} facture(s) liée(s)</span>
-                        ) : (
-                          <span className="finance-safe-note">Protégé</span>
-                        )}
+                        <div className="v3-action-cell">
+                          <button
+                            type="button"
+                            className="v3-more-button"
+                            aria-label={`Informations plan ${item.label}`}
+                            aria-expanded={openFeePlanActionMenuId === item.id}
+                            onClick={() =>
+                              setOpenFeePlanActionMenuId((current) => (current === item.id ? null : item.id))
+                            }
+                          >
+                            <span aria-hidden="true">...</span>
+                          </button>
+                          {openFeePlanActionMenuId === item.id ? (
+                            <div className="v3-action-menu" role="menu">
+                              <span className="v3-action-menu-note">
+                                {usageCount > 0 ? `${usageCount} facture(s) liée(s)` : "Plan protégé"}
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -513,7 +532,7 @@ export function FinanceScreen({
                 <th>Reste</th>
                 <th>Date d’échéance</th>
                 <th>Statut</th>
-                <th>Actions</th>
+                <th aria-label="Actions"></th>
               </tr>
             </thead>
             <tbody>
@@ -547,21 +566,44 @@ export function FinanceScreen({
                         <span className="finance-safe-note">Annulée</span>
                       ) : item.remainingAmount <= 0 ? (
                         <span className="finance-safe-note">Soldée</span>
-                      ) : item.amountPaid > 0 ? (
-                        <button
-                          type="button"
-                          className="button-ghost"
-                          onClick={() => {
-                            setFinanceWorkflowStep("payments");
-                            setPaymentForm((previous) => ({ ...previous, invoiceId: item.id }));
-                          }}
-                        >
-                          Enregistrer paiement
-                        </button>
                       ) : (
-                        <button type="button" className="button-danger" onClick={() => void voidInvoice(item.id)}>
-                          Annuler
-                        </button>
+                        <div className="v3-action-cell">
+                          <button
+                            type="button"
+                            className="v3-more-button"
+                            aria-label={`Actions facture ${item.invoiceNo}`}
+                            aria-expanded={openInvoiceActionMenuId === item.id}
+                            onClick={() => setOpenInvoiceActionMenuId((current) => (current === item.id ? null : item.id))}
+                          >
+                            <span aria-hidden="true">...</span>
+                          </button>
+                          {openInvoiceActionMenuId === item.id ? (
+                            <div className="v3-action-menu" role="menu">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenInvoiceActionMenuId(null);
+                                  setFinanceWorkflowStep("payments");
+                                  setPaymentForm((previous) => ({ ...previous, invoiceId: item.id }));
+                                }}
+                              >
+                                Enregistrer paiement
+                              </button>
+                              {item.amountPaid <= 0 ? (
+                                <button
+                                  type="button"
+                                  className="is-danger"
+                                  onClick={() => {
+                                    setOpenInvoiceActionMenuId(null);
+                                    void voidInvoice(item.id);
+                                  }}
+                                >
+                                  Annuler
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -684,7 +726,7 @@ export function FinanceScreen({
                 <th>Référence</th>
                 <th>Date</th>
                 <th>Statut</th>
-                <th>Actions</th>
+                <th aria-label="Actions"></th>
               </tr>
             </thead>
             <tbody>
@@ -707,9 +749,30 @@ export function FinanceScreen({
                     <td data-label="Statut"><span className="status-pill is-success">Enregistré</span></td>
                     <td data-label="Actions">
                       {remoteEnabled ? (
-                        <button type="button" className="button-ghost" onClick={() => void openReceipt(item.id)}>
-                          Reçu en PDF
-                        </button>
+                        <div className="v3-action-cell">
+                          <button
+                            type="button"
+                            className="v3-more-button"
+                            aria-label={`Actions paiement ${item.receiptNo}`}
+                            aria-expanded={openPaymentActionMenuId === item.id}
+                            onClick={() => setOpenPaymentActionMenuId((current) => (current === item.id ? null : item.id))}
+                          >
+                            <span aria-hidden="true">...</span>
+                          </button>
+                          {openPaymentActionMenuId === item.id ? (
+                            <div className="v3-action-menu" role="menu">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenPaymentActionMenuId(null);
+                                  void openReceipt(item.id);
+                                }}
+                              >
+                                Reçu en PDF
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
                       ) : (
                         <span className="finance-safe-note">PDF non disponible en aperçu</span>
                       )}
@@ -722,6 +785,6 @@ export function FinanceScreen({
         </div>
       </section>
       </WorkflowGuide>
-    </>
+    </div>
   );
 }

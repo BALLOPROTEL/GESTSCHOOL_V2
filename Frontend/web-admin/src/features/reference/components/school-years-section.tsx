@@ -14,6 +14,7 @@ import {
   parseOptionalNumber,
   renderFieldLabel
 } from "../utils/reference-ui";
+import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 
 export function SchoolYearsSection(): JSX.Element {
@@ -183,7 +184,7 @@ export function SchoolYearsSection(): JSX.Element {
               </form>
             </div>
             <div className="table-wrap">
-              <table>
+              <table data-responsive-table="true">
                 <thead>
                   <tr>
                     <th>Libelle</th>
@@ -204,9 +205,10 @@ export function SchoolYearsSection(): JSX.Element {
                         <td>{item.startDate} au {item.endDate}</td>
                         <td>{formatSchoolYearStatusLabel(item.status)}</td>
                         <td>
-                          <button type="button" className="button-danger" onClick={() => void deleteRef(`/school-years/${item.id}`, "Annee scolaire supprimee.")}>
-                            Supprimer
-                          </button>
+                          <ReferenceActionMenu
+                            label={`Options annee scolaire ${item.label || item.code}`}
+                            onDelete={() => void deleteRef(`/school-years/${item.id}`, "Annee scolaire supprimee.")}
+                          />
                         </td>
                       </tr>
                     ))

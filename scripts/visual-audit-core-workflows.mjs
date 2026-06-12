@@ -7,6 +7,8 @@ const { chromium } = require("playwright");
 
 const baseUrl = process.env.VISUAL_AUDIT_URL || "http://127.0.0.1:5180";
 const outputRoot = process.env.VISUAL_AUDIT_OUTPUT || "/tmp/gestschool-core-visual-audit";
+const auditScope = (process.env.VISUAL_AUDIT_SCOPE || "full").trim().toLowerCase();
+const isCiAudit = auditScope === "ci";
 const runId = new Date().toISOString().replace(/[:.]/gu, "-");
 const outputDir = path.join(outputRoot, runId);
 
@@ -17,12 +19,40 @@ const storageKeys = {
 };
 
 const viewports = {
+  desktopLarge: { width: 1920, height: 1080 },
   desktop: { width: 1440, height: 900 },
+  laptop: { width: 1366, height: 768 },
   desktopNarrow: { width: 1220, height: 760 },
   tablet: { width: 768, height: 1024 },
+  tabletWide: { width: 1024, height: 768 },
   mobile: { width: 414, height: 896 },
-  mobileSmall: { width: 390, height: 844 }
+  mobileSmall: { width: 360, height: 800 }
 };
+
+const requiredViewportThemes = [
+  ["desktopLarge", "light"],
+  ["desktopLarge", "dark"],
+  ["desktop", "light"],
+  ["desktop", "dark"],
+  ["laptop", "light"],
+  ["laptop", "dark"],
+  ["tabletWide", "light"],
+  ["tabletWide", "dark"],
+  ["tablet", "light"],
+  ["tablet", "dark"],
+  ["mobile", "light"],
+  ["mobile", "dark"],
+  ["mobileSmall", "light"],
+  ["mobileSmall", "dark"]
+];
+
+const ciViewportThemes = [
+  ["desktop", "light"],
+  ["tablet", "dark"],
+  ["mobile", "light"]
+];
+
+const activeViewportThemes = isCiAudit ? ciViewportThemes : requiredViewportThemes;
 
 const screenshots = [];
 const findings = [];
@@ -38,8 +68,8 @@ const safeName = (value) =>
     .replace(/[^a-z0-9]+/gu, "-")
     .replace(/^-|-$/gu, "");
 
-const isExpectedLocalApiHealthFailure = (value) =>
-  value.includes("/api/v1/health/live") && value.includes("127.0.0.1");
+const isExpectedLocalApiFailure = (value) =>
+  value.includes("127.0.0.1") && value.includes("/api/v1/");
 
 async function createContext(browser, viewport, theme = "light") {
   const context = await browser.newContext({
@@ -71,7 +101,7 @@ async function createContext(browser, viewport, theme = "light") {
       const location = message.location();
       const source = location.url ? ` (${location.url}:${location.lineNumber})` : "";
       const entry = `${message.text()}${source}`;
-      if (isExpectedLocalApiHealthFailure(entry)) {
+      if (isExpectedLocalApiFailure(entry)) {
         ignoredLocalApiErrors.push(entry);
         return;
       }
@@ -81,7 +111,7 @@ async function createContext(browser, viewport, theme = "light") {
     page.on("response", (response) => {
       if (response.status() < 400) return;
       const entry = `HTTP ${response.status()} ${response.url()}`;
-      if (isExpectedLocalApiHealthFailure(entry)) {
+      if (isExpectedLocalApiFailure(entry)) {
         ignoredLocalApiErrors.push(entry);
         return;
       }
@@ -183,13 +213,30 @@ async function captureScrolledTable(page, tableWrapSelector, label) {
   if (!(await tableWrap.isVisible().catch(() => false))) return;
 
   await tableWrap.evaluate((element) => {
-    element.scrollLeft = element.scrollWidth;
+    const scrollContainer =
+      element instanceof HTMLTableElement
+        ? element.closest(".table-wrap") ?? element.parentElement ?? element
+        : element;
+    scrollContainer.scrollLeft = scrollContainer.scrollWidth;
   });
   await page.waitForTimeout(250);
   await capture(page, label, { fullPage: true });
   await tableWrap.evaluate((element) => {
-    element.scrollLeft = 0;
+    const scrollContainer =
+      element instanceof HTMLTableElement
+        ? element.closest(".table-wrap") ?? element.parentElement ?? element
+        : element;
+    scrollContainer.scrollLeft = 0;
   });
+}
+
+async function captureFirstActionMenu(page, triggerSelector, menuSelector, label) {
+  const actionMenuTrigger = page.locator(triggerSelector).first();
+  if (!(await actionMenuTrigger.isVisible().catch(() => false))) return;
+  await actionMenuTrigger.click({ timeout: 5_000 });
+  await page.waitForSelector(menuSelector, { timeout: 5_000 });
+  await page.waitForTimeout(200);
+  await capture(page, label, { fullPage: true });
 }
 
 async function getScreenText(page) {
@@ -411,6 +458,14 @@ async function runFinance(browser, viewportName, theme) {
   await auditRequiredText(page, label, ["Comptabilité", "Console de recouvrement"]);
   await auditForbiddenText(page, label, ["Finance v2", "ACTIVE", "INACTIVE", "ARCHIVED", "Recharger comptabilite"]);
   await capture(page, label, { fullPage: viewportName !== "desktop" });
+
+  if (viewportName.startsWith("mobile") || viewportName.startsWith("tablet")) {
+    await clickTab(page, /Plans de frais/u);
+    await captureScrolledTable(page, ".finance-v3-shell .table-wrap", `finance-fee-plans-table-right-${viewportName}-${theme}`);
+    await clickTab(page, /Factures/u);
+    await captureScrolledTable(page, ".finance-v3-shell .table-wrap", `finance-invoices-table-right-${viewportName}-${theme}`);
+    await captureFirstActionMenu(page, ".finance-v3-shell .v3-more-button", ".finance-v3-shell .v3-action-menu", `finance-actions-${viewportName}-${theme}`);
+  }
   await context.close();
 }
 
@@ -424,8 +479,9 @@ async function runStudents(browser, viewportName, theme) {
   await auditRequiredText(page, label, ["Élèves", "Ajouter un élève"]);
   await auditForbiddenText(page, label, ["Identifiant interne", "source de verite", "Resultat filtre"]);
   await capture(page, label, { fullPage: viewportName !== "desktop" });
-  if (viewportName.startsWith("mobile")) {
+  if (viewportName.startsWith("mobile") || viewportName.startsWith("tablet")) {
     await captureScrolledTable(page, ".students-v3-table-card .table-wrap", `students-table-right-${viewportName}-${theme}`);
+    await captureFirstActionMenu(page, ".students-v3-more-button", ".students-v3-action-menu", `students-actions-${viewportName}-${theme}`);
   }
   await context.close();
 }
@@ -448,8 +504,9 @@ async function runEnrollments(browser, viewportName, theme) {
   ]);
   await capture(page, label, { fullPage: viewportName !== "desktop" });
 
-  if (viewportName.startsWith("mobile")) {
+  if (viewportName.startsWith("mobile") || viewportName.startsWith("tablet")) {
     await captureScrolledTable(page, ".enrollments-v3-table-card .table-wrap", `enrollments-table-right-${viewportName}-${theme}`);
+    await captureFirstActionMenu(page, ".enrollments-v3-more-button", ".enrollments-v3-action-menu", `enrollments-actions-${viewportName}-${theme}`);
   }
 
   if (viewportName === "desktopNarrow" && theme === "dark") {
@@ -488,8 +545,9 @@ async function runTeachers(browser, viewportName, theme) {
   await auditRequiredText(page, label, ["Enseignants", "Base enseignants", "Recherche rapide", "Aminata Coulibaly"]);
   await auditForbiddenText(page, label, ["Registre enseignants", "Module enseignants", "Actions", "Workflow"]);
   await capture(page, label, { fullPage: viewportName !== "desktop" });
-  if (viewportName.startsWith("mobile")) {
+  if (viewportName.startsWith("mobile") || viewportName.startsWith("tablet")) {
     await captureScrolledTable(page, ".teachers-v3-table-card .table-wrap", `teachers-table-right-${viewportName}-${theme}`);
+    await captureFirstActionMenu(page, ".teachers-v3-more-button", ".teachers-v3-action-menu", `teachers-actions-${viewportName}-${theme}`);
   }
 
   if (viewportName === "desktop" && theme === "light") {
@@ -504,52 +562,155 @@ async function runTeachers(browser, viewportName, theme) {
   await context.close();
 }
 
+const moduleOverviewScenarios = [
+  {
+    key: "iam",
+    nav: /Utilisateurs & droits/u,
+    expected: /Comptes utilisateurs/u,
+    required: ["Comptes utilisateurs", "Droits par profil"],
+    tableSelector: '[data-testid="iam-users-table"]'
+  },
+  {
+    key: "rooms",
+    nav: /Salles/u,
+    expected: /Salles, capacités et usages/u,
+    required: ["Salles", "Salles, capacités et usages", "Ajouter une salle"],
+    tableSelector: ".rooms-v3-table-card .table-wrap"
+  },
+  {
+    key: "parents",
+    nav: /Parents/u,
+    expected: /Liste des responsables/u,
+    required: ["Liste des responsables"],
+    tableSelector: ".parents-v3-table-card .table-wrap"
+  },
+  {
+    key: "attendance",
+    nav: /Absences/u,
+    expected: /Absences/u,
+    required: ["Absences", "Journal des absences"],
+    tableSelector: ".school-life-root .table-wrap"
+  },
+  {
+    key: "timetable",
+    nav: /Emploi du temps/u,
+    expected: /Emploi du temps/u,
+    required: ["Emploi du temps", "Grille d'emploi du temps"],
+    tableSelector: ".school-life-root .table-wrap"
+  },
+  {
+    key: "notifications",
+    nav: /Notifications/u,
+    expected: /Notifications/u,
+    required: ["Notifications", "Historique notifications"],
+    tableSelector: ".school-life-root .table-wrap"
+  },
+  {
+    key: "reference",
+    nav: /Référentiel/u,
+    expected: /Annee scolaire|Annees/u,
+    required: ["Annee scolaire", "Libelle de l'annee scolaire"],
+    tableSelector: ".reference-shell .table-wrap"
+  },
+  {
+    key: "reports",
+    nav: /Rapports & conformité/u,
+    expected: /Filtrer la fenetre de pilotage/u,
+    required: ["Filtrer la fenetre de pilotage", "Indicateurs executifs"],
+    tableSelector: ".table-wrap"
+  },
+  {
+    key: "mosquee",
+    nav: /Mosquée/u,
+    expected: /Mosquée|Mosquee/u,
+    required: [],
+    tableSelector: null
+  }
+];
+
+async function runModuleOverview(browser, viewportName, theme, scenario) {
+  const context = await createContext(browser, viewports[viewportName], theme);
+  const page = await context.newPage();
+  await openPreview(page);
+  await openModule(page, scenario.nav, scenario.expected);
+  const label = `${scenario.key}-${viewportName}-${theme}`;
+  await auditNoHorizontalOverflow(page, label);
+  await auditRequiredText(page, label, scenario.required);
+  await auditForbiddenText(page, label, ["FlexAdmin", "Vue v2", "UI-only"]);
+  await capture(page, label, { fullPage: viewportName !== "desktop" });
+
+  if (scenario.tableSelector && (viewportName.startsWith("mobile") || viewportName.startsWith("tablet"))) {
+    await captureScrolledTable(page, scenario.tableSelector, `${scenario.key}-table-right-${viewportName}-${theme}`);
+    await captureFirstActionMenu(page, ".screen-host .v3-more-button", ".screen-host .v3-action-menu", `${scenario.key}-actions-${viewportName}-${theme}`);
+  }
+
+  if (viewportName === "desktop" && theme === "light") {
+    const actionMenuTrigger = page.locator(".v3-more-button").first();
+    if (await actionMenuTrigger.isVisible().catch(() => false)) {
+      await actionMenuTrigger.click({ timeout: 5_000 });
+      await page.waitForSelector(".v3-action-menu", { timeout: 5_000 });
+      await capture(page, `${scenario.key}-actions-desktop-light`);
+    }
+  }
+
+  await context.close();
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   try {
-    await runDashboard(browser, "desktop", "light");
-    await runDashboard(browser, "desktop", "dark");
-    await runDashboard(browser, "tablet", "light");
-    await runDashboard(browser, "mobile", "light");
-    await runDashboard(browser, "mobile", "dark");
+    for (const [viewportName, theme] of activeViewportThemes) {
+      await runDashboard(browser, viewportName, theme);
+    }
+
     await runHeaderLanguage(browser, "light");
-    await runHeaderLanguage(browser, "dark");
+    if (!isCiAudit) {
+      await runHeaderLanguage(browser, "dark");
+    }
 
-    await runProfile(browser, "desktop", "light");
-    await runProfile(browser, "desktop", "dark");
-    await runProfile(browser, "tablet", "light");
-    await runProfile(browser, "mobile", "light");
-    await runProfile(browser, "mobile", "dark");
+    for (const [viewportName, theme] of activeViewportThemes) {
+      await runProfile(browser, viewportName, theme);
+      await runFinance(browser, viewportName, theme);
+      await runStudents(browser, viewportName, theme);
+      if (!isCiAudit) {
+        await runPilotage(browser, viewportName, theme);
+        await runGrades(browser, viewportName, theme);
+      }
+    }
 
-    await runPilotage(browser, "desktop", "light");
-    await runPilotage(browser, "desktop", "dark");
-    await runPilotage(browser, "tablet", "light");
-    await runPilotage(browser, "mobile", "light");
-    await runPilotage(browser, "mobile", "dark");
-
-    await runGrades(browser, "desktop", "light");
-    await runGrades(browser, "mobile", "light");
-    await runGrades(browser, "mobile", "dark");
-
-    await runFinance(browser, "desktop", "light");
-    await runFinance(browser, "mobile", "light");
-    await runFinance(browser, "mobile", "dark");
-    await runStudents(browser, "desktop", "light");
-    await runStudents(browser, "desktop", "dark");
-    await runStudents(browser, "mobile", "light");
-    await runStudents(browser, "mobile", "dark");
     await runEnrollments(browser, "desktop", "light");
-    await runEnrollments(browser, "desktop", "dark");
-    await runEnrollments(browser, "desktopNarrow", "light");
-    await runEnrollments(browser, "desktopNarrow", "dark");
-    await runEnrollments(browser, "mobile", "light");
-    await runEnrollments(browser, "mobile", "dark");
-    await runEnrollments(browser, "mobileSmall", "light");
-    await runTeachers(browser, "desktop", "light");
-    await runTeachers(browser, "desktop", "dark");
-    await runTeachers(browser, "mobile", "light");
-    await runTeachers(browser, "mobile", "dark");
+    if (!isCiAudit) {
+      await runEnrollments(browser, "desktop", "dark");
+      await runEnrollments(browser, "desktopNarrow", "light");
+      await runEnrollments(browser, "desktopNarrow", "dark");
+    }
+    for (const [viewportName, theme] of activeViewportThemes) {
+      if (viewportName !== "desktop") {
+        await runEnrollments(browser, viewportName, theme);
+      }
+      await runTeachers(browser, viewportName, theme);
+    }
+
+    const activeModuleScenarios = isCiAudit
+      ? moduleOverviewScenarios.filter((scenario) =>
+          ["iam", "rooms", "parents"].includes(scenario.key)
+        )
+      : moduleOverviewScenarios;
+    for (const scenario of activeModuleScenarios) {
+      for (const [viewportName, theme] of activeViewportThemes) {
+        try {
+          await runModuleOverview(browser, viewportName, theme, scenario);
+        } catch (error) {
+          findings.push({
+            label: `${scenario.key}-${viewportName}-${theme}`,
+            priority: "P1",
+            type: "module-capture",
+            message: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+    }
   } finally {
     await browser.close();
   }
@@ -574,6 +735,7 @@ async function main() {
 
   const report = {
     baseUrl,
+    auditScope,
     outputDir,
     screenshots,
     findings,

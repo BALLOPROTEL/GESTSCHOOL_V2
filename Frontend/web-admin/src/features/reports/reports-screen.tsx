@@ -87,6 +87,7 @@ export function ReportsScreen({
 
   return (
     <WorkflowGuide
+      className="module-v3-workflow"
       title="Rapports avances et conformite"
       steps={reportSteps}
       activeStepId={reportWorkflowStep}
@@ -325,7 +326,7 @@ export function ReportsScreen({
           </div>
         </form>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
                 <th>Date</th>
