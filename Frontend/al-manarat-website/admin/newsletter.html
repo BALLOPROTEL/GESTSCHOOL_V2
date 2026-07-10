@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Newsletter — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div><div class="sidebar-brand-name">Al Manarat</div><div class="sidebar-brand-sub">Dashboard Admin</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarUsername">Admin</div><div class="sidebar-user-role" id="sidebarRole">Super Admin</div></div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title"><h1>Newsletter</h1><p>Gérer les abonnés</p></div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="exportCSV()">📥 Exporter CSV</button>
+      </div>
+    </header>
+
+    <div class="admin-content">
+      <!-- Stat card -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
+        <div class="stat-card">
+          <div class="stat-card-icon teal">📧</div>
+          <div class="stat-card-body">
+            <div class="stat-card-value" id="totalCount">—</div>
+            <div class="stat-card-label">Inscrits actifs</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon green">📈</div>
+          <div class="stat-card-body">
+            <div class="stat-card-value" id="thisMonthCount">—</div>
+            <div class="stat-card-label">Ce mois-ci</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon gold">🎯</div>
+          <div class="stat-card-body">
+            <div class="stat-card-value" id="lastWeekCount">—</div>
+            <div class="stat-card-label">Cette semaine</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <h3>Liste des abonnés</h3>
+          <input type="search" id="searchInput" class="search-input" placeholder="🔍 Filtrer par email..." />
+        </div>
+        <div id="tableContainer">
+          <div class="page-loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    let allSubs = [];
+
+    function thisMonth(date) {
+      const d = new Date(date), now = new Date();
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }
+    function thisWeek(date) {
+      return (Date.now() - new Date(date).getTime()) < 7*24*60*60*1000;
+    }
+
+    async function loadSubscribers() {
+      try {
+        allSubs = await API.adminGetNewsletter();
+        document.getElementById('totalCount').textContent = allSubs.length;
+        document.getElementById('thisMonthCount').textContent = allSubs.filter(s => thisMonth(s.createdAt)).length;
+        document.getElementById('lastWeekCount').textContent  = allSubs.filter(s => thisWeek(s.createdAt)).length;
+        renderTable(allSubs);
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    function renderTable(subs) {
+      if (!subs.length) {
+        document.getElementById('tableContainer').innerHTML = `
+          <div class="empty-state"><div class="empty-state-icon">📧</div><h3>Aucun abonné</h3></div>`;
+        return;
+      }
+      document.getElementById('tableContainer').innerHTML = `
+        <table class="admin-table">
+          <thead><tr><th>#</th><th>Email</th><th>Date d'inscription</th><th>Action</th></tr></thead>
+          <tbody>
+            ${subs.map((s,i) => `
+              <tr>
+                <td class="td-meta">${i+1}</td>
+                <td style="font-weight:500">${Admin.escape(s.email)}</td>
+                <td class="td-meta">${Admin.formatDate(s.createdAt)}</td>
+                <td>
+                  <button class="btn-icon btn-icon-delete" title="Désabonner" onclick="unsubscribe('${s._id}','${Admin.escape(s.email)}')">🗑️</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    async function unsubscribe(id, email) {
+      if (!await Admin.confirm(`Désabonner ${email} de la newsletter ?`)) return;
+      try {
+        await API.adminDeleteSubscriber(id);
+        Admin.showToast('Abonné retiré');
+        loadSubscribers();
+      } catch (e) { Admin.showToast(e.message, 'error'); }
+    }
+
+    function exportCSV() {
+      const token = localStorage.getItem('am_token');
+      // Use fetch with auth header
+      fetch(API.url('/newsletter/admin/export'), { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(r => r.blob())
+        .then(b => {
+          const url = URL.createObjectURL(b);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `newsletter-${new Date().toISOString().split('T')[0]}.csv`;
+          link.click();
+          Admin.showToast('Export CSV téléchargé !');
+        }).catch(e => Admin.showToast('Erreur export: ' + e.message, 'error'));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.init();
+      loadSubscribers();
+      document.getElementById('searchInput').addEventListener('input', function() {
+        const s = this.value.toLowerCase();
+        renderTable(s ? allSubs.filter(x => x.email.toLowerCase().includes(s)) : allSubs);
+      });
+    });
+  </script>
+</body>
+</html>

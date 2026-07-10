@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidature — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div><div class="sidebar-brand-name">Al Manarat</div><div class="sidebar-brand-sub">Dashboard Admin</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarUsername">Admin</div><div class="sidebar-user-role" id="sidebarRole">Super Admin</div></div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title"><h1>Détail candidature</h1><p id="appSubtitle">Chargement...</p></div>
+      <div class="topbar-actions">
+        <a href="/admin-site/candidatures.html" class="btn btn-outline btn-sm">← Retour</a>
+      </div>
+    </header>
+
+    <div class="admin-content" id="mainContent">
+      <div class="page-loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const appId  = params.get('id');
+
+    async function loadApplication() {
+      if (!appId) { document.getElementById('mainContent').innerHTML = '<div class="alert alert-error">ID manquant</div>'; return; }
+      try {
+        const a = await API.adminGetApplication(appId);
+        document.getElementById('appSubtitle').textContent = `${a.student_first_name} ${a.student_last_name} — reçue le ${Admin.formatDate(a.createdAt)}`;
+
+        document.getElementById('mainContent').innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
+
+            <div>
+              <!-- Infos élève -->
+              <div class="admin-panel" style="margin-bottom:16px">
+                <div class="admin-panel-title">👦 Informations de l'élève</div>
+                <div class="detail-grid">
+                  <div class="detail-item"><label>Prénom</label><p>${Admin.escape(a.student_first_name)}</p></div>
+                  <div class="detail-item"><label>Nom</label><p>${Admin.escape(a.student_last_name)}</p></div>
+                  <div class="detail-item"><label>Date de naissance</label><p>${Admin.escape(a.student_dob)}</p></div>
+                  <div class="detail-item"><label>Niveau souhaité</label><p><span class="badge badge-blue">${Admin.escape(a.level)}</span></p></div>
+                  <div class="detail-item"><label>Cursus</label><p>${Admin.escape(a.cursus || '—')}</p></div>
+                </div>
+              </div>
+              <!-- Infos parent -->
+              <div class="admin-panel" style="margin-bottom:16px">
+                <div class="admin-panel-title">👨‍👩‍👦 Informations du parent / tuteur</div>
+                <div class="detail-grid">
+                  <div class="detail-item"><label>Nom complet</label><p>${Admin.escape(a.parent_name)}</p></div>
+                  <div class="detail-item"><label>Téléphone</label><p><a href="tel:${Admin.escape(a.phone)}" style="color:var(--emerald-600)">${Admin.escape(a.phone)}</a></p></div>
+                  <div class="detail-item"><label>Email</label><p>${a.email ? `<a href="mailto:${Admin.escape(a.email)}" style="color:var(--emerald-600)">${Admin.escape(a.email)}</a>` : '—'}</p></div>
+                  <div class="detail-item"><label>Adresse</label><p>${Admin.escape(a.address || '—')}</p></div>
+                </div>
+              </div>
+              <!-- Message -->
+              ${a.message ? `<div class="admin-panel" style="margin-bottom:16px">
+                <div class="admin-panel-title">💬 Message complémentaire</div>
+                <p style="font-size:.9rem;line-height:1.7">${Admin.escape(a.message)}</p>
+              </div>` : ''}
+              <!-- Documents -->
+              ${a.documents && a.documents.length ? `<div class="admin-panel">
+                <div class="admin-panel-title">📎 Documents joints (${a.documents.length})</div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  ${a.documents.map((d,i) => `<a href="${d}" download class="btn btn-outline btn-sm" style="width:fit-content">📄 Document ${i+1}</a>`).join('')}
+                </div>
+              </div>` : ''}
+            </div>
+
+            <!-- Status panel -->
+            <div>
+              <div class="admin-panel">
+                <div class="admin-panel-title">📋 Gestion du dossier</div>
+                <div style="margin-bottom:20px">${Admin.getStatusBadge(a.status)}</div>
+                <div class="form-group" style="margin-bottom:14px">
+                  <label>Changer le statut</label>
+                  <select id="newStatus" class="form-control">
+                    <option value="new" ${a.status==='new'?'selected':''}>🆕 Nouvelle</option>
+                    <option value="in_progress" ${a.status==='in_progress'?'selected':''}>⏳ En cours</option>
+                    <option value="accepted" ${a.status==='accepted'?'selected':''}>✅ Acceptée</option>
+                    <option value="refused" ${a.status==='refused'?'selected':''}>❌ Refusée</option>
+                    <option value="incomplete" ${a.status==='incomplete'?'selected':''}>📝 À compléter</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom:20px">
+                  <label>Notes internes</label>
+                  <textarea id="adminNotes" class="form-control" rows="5" placeholder="Notes visibles uniquement par les administrateurs...">${Admin.escape(a.admin_notes || '')}</textarea>
+                </div>
+                <button type="button" class="btn btn-primary btn-block" onclick="saveStatus()">💾 Sauvegarder</button>
+              </div>
+
+              <div class="admin-panel" style="margin-top:16px">
+                <div class="admin-panel-title">📅 Historique</div>
+                <div class="detail-item" style="margin-bottom:8px"><label>Reçue le</label><p>${Admin.formatDate(a.createdAt)}</p></div>
+                <div class="detail-item"><label>Mise à jour</label><p>${Admin.formatDate(a.updatedAt)}</p></div>
+              </div>
+            </div>
+          </div>`;
+      } catch (e) {
+        document.getElementById('mainContent').innerHTML = `<div class="alert alert-error">Erreur: ${e.message}</div>`;
+      }
+    }
+
+    async function saveStatus() {
+      const status = document.getElementById('newStatus').value;
+      const notes  = document.getElementById('adminNotes').value;
+      try {
+        await API.adminUpdateApplication(appId, { status, admin_notes: notes });
+        Admin.showToast('Candidature mise à jour !');
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.init();
+      loadApplication();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paramètres — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div><div class="sidebar-brand-name">Al Manarat</div><div class="sidebar-brand-sub">Dashboard Admin</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarUsername">Admin</div><div class="sidebar-user-role" id="sidebarRole">Super Admin</div></div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title"><h1>Paramètres</h1><p>Configuration générale du site</p></div>
+    </header>
+
+    <div class="admin-content">
+      <div id="mainContent">
+        <div class="page-loader"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    async function loadSettings() {
+      try {
+        const s = await API.adminGetSettings();
+        document.getElementById('mainContent').innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+            <!-- Infos école -->
+            <div class="admin-panel">
+              <div class="admin-panel-title">🕌 Informations de l'école</div>
+              <div class="form-group" style="margin-bottom:14px"><label>Nom de l'école</label><input type="text" id="s-school_name" class="form-control" value="${Admin.escape(s.school_name||'')}" /></div>
+              <div class="form-group" style="margin-bottom:14px"><label>Slogan / sous-titre</label><input type="text" id="s-school_slogan" class="form-control" value="${Admin.escape(s.school_slogan||'')}" /></div>
+              <div class="form-group" style="margin-bottom:14px"><label>Année de fondation</label><input type="text" id="s-school_founded" class="form-control" value="${Admin.escape(s.school_founded||'')}" /></div>
+              <div class="form-group" style="margin-bottom:14px"><label>Adresse</label><input type="text" id="s-school_address" class="form-control" value="${Admin.escape(s.school_address||'')}" /></div>
+              <div class="form-row" style="margin-bottom:14px">
+                <div class="form-group"><label>Téléphone 1</label><input type="text" id="s-school_phone" class="form-control" value="${Admin.escape(s.school_phone||'')}" /></div>
+                <div class="form-group"><label>Téléphone 2</label><input type="text" id="s-school_phone2" class="form-control" value="${Admin.escape(s.school_phone2||'')}" /></div>
+              </div>
+              <div class="form-row" style="margin-bottom:14px">
+                <div class="form-group"><label>Email principal</label><input type="email" id="s-school_email" class="form-control" value="${Admin.escape(s.school_email||'')}" /></div>
+                <div class="form-group"><label>Email inscriptions</label><input type="email" id="s-school_email2" class="form-control" value="${Admin.escape(s.school_email2||'')}" /></div>
+              </div>
+              <div class="form-group" style="margin-bottom:20px"><label>Horaires d'ouverture</label><input type="text" id="s-school_hours" class="form-control" value="${Admin.escape(s.school_hours||'')}" /></div>
+              <button type="button" class="btn btn-primary" onclick="saveSettings()">💾 Sauvegarder les infos</button>
+            </div>
+
+            <div>
+              <!-- Réseaux sociaux -->
+              <div class="admin-panel" style="margin-bottom:20px">
+                <div class="admin-panel-title">📱 Réseaux sociaux</div>
+                <div class="form-group" style="margin-bottom:14px"><label>Facebook URL</label><input type="url" id="s-facebook_url" class="form-control" value="${Admin.escape(s.facebook_url||'')}" placeholder="https://facebook.com/..." /></div>
+                <div class="form-group" style="margin-bottom:14px"><label>WhatsApp URL</label><input type="url" id="s-whatsapp_url" class="form-control" value="${Admin.escape(s.whatsapp_url||'')}" placeholder="https://wa.me/..." /></div>
+                <div class="form-group" style="margin-bottom:20px"><label>YouTube URL</label><input type="url" id="s-youtube_url" class="form-control" value="${Admin.escape(s.youtube_url||'')}" placeholder="https://youtube.com/..." /></div>
+                <button type="button" class="btn btn-primary" onclick="saveSettings()">💾 Sauvegarder</button>
+              </div>
+
+              <!-- Mot de passe -->
+              <div class="admin-panel">
+                <div class="admin-panel-title">🔐 Sécurité — Changer le mot de passe</div>
+                <div class="form-group" style="margin-bottom:14px"><label>Mot de passe actuel</label><input type="password" id="curPw" class="form-control" /></div>
+                <div class="form-group" style="margin-bottom:14px"><label>Nouveau mot de passe</label><input type="password" id="newPw" class="form-control" /></div>
+                <div class="form-group" style="margin-bottom:20px"><label>Confirmer le nouveau</label><input type="password" id="newPw2" class="form-control" /></div>
+                <button type="button" class="btn btn-primary" onclick="changePassword()">🔑 Changer le mot de passe</button>
+              </div>
+            </div>
+          </div>`;
+      } catch (e) { Admin.showToast('Erreur chargement: ' + e.message, 'error'); }
+    }
+
+    async function saveSettings() {
+      const keys = ['school_name','school_slogan','school_founded','school_address','school_phone','school_phone2',
+                    'school_email','school_email2','school_hours','facebook_url','whatsapp_url','youtube_url'];
+      const data = {};
+      for (const k of keys) {
+        const el = document.getElementById(`s-${k}`);
+        if (el) data[k] = el.value;
+      }
+      try {
+        await API.adminSaveSettings(data);
+        Admin.showToast('Paramètres sauvegardés !');
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    async function changePassword() {
+      const cur  = document.getElementById('curPw').value;
+      const nw   = document.getElementById('newPw').value;
+      const nw2  = document.getElementById('newPw2').value;
+      if (!cur || !nw) { Admin.showToast('Tous les champs sont requis', 'error'); return; }
+      if (nw !== nw2)  { Admin.showToast('Les mots de passe ne correspondent pas', 'error'); return; }
+      if (nw.length < 8) { Admin.showToast('Minimum 8 caractères', 'error'); return; }
+      try {
+        await API.adminChangePassword({ currentPassword: cur, newPassword: nw });
+        Admin.showToast('Mot de passe modifié ! Veuillez vous reconnecter.');
+        setTimeout(() => Admin.logout(), 2000);
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.init();
+      loadSettings();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tableau de bord — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+  <style>
+    .recent-table td { padding:10px 14px; }
+    .welcome-banner {
+      background: linear-gradient(135deg, var(--emerald-700), var(--emerald-900));
+      border-radius: var(--radius-lg); padding: 24px 28px; color:#fff;
+      margin-bottom: 24px; display:flex; align-items:center; gap:20px;
+    }
+    .welcome-icon { font-size:2.5rem; flex-shrink:0; }
+    .welcome-text h2 { font-size:1.3rem; font-weight:700; margin-bottom:4px; }
+    .welcome-text p  { font-size:.9rem; opacity:.8; }
+    .shortcut-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:24px; }
+    .shortcut-btn {
+      background:#fff; border:1.5px solid #e9f0ec; border-radius:var(--radius-md);
+      padding:16px 14px; text-align:center; cursor:pointer; transition:var(--transition);
+      text-decoration:none; color:var(--color-text); display:block;
+    }
+    .shortcut-btn:hover { border-color:var(--emerald-400); transform:translateY(-2px); box-shadow:var(--shadow-md); }
+    .shortcut-btn-icon { font-size:1.6rem; margin-bottom:6px; }
+    .shortcut-btn-label { font-size:.8rem; font-weight:600; }
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    @media(max-width:768px) { .two-col { grid-template-columns:1fr; } .welcome-banner { flex-direction:column; text-align:center; } }
+  </style>
+</head>
+<body class="admin-body">
+
+  <!-- SIDEBAR -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div>
+        <div class="sidebar-brand-name">Al Manarat</div>
+        <div class="sidebar-brand-sub">Dashboard Admin</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUsername">Admin</div>
+          <div class="sidebar-user-role" id="sidebarRole">Super Admin</div>
+        </div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title">
+        <h1>Tableau de bord</h1>
+        <p id="todayDate">Chargement...</p>
+      </div>
+      <div class="topbar-actions">
+        <a href="/index.html" target="_blank" class="btn btn-outline btn-sm">🌐 Voir le site</a>
+        <a href="#" id="gestschoolBtn" target="_blank" class="btn btn-outline btn-sm" style="display:none">🏫 GestSchool</a>
+      </div>
+    </header>
+
+    <div class="admin-content">
+
+      <!-- Welcome banner -->
+      <div class="welcome-banner">
+        <div class="welcome-icon">🕌</div>
+        <div class="welcome-text">
+          <h2 id="welcomeMsg">Bonjour, Admin !</h2>
+          <p>Gérez le contenu, les candidatures et les messages de l'école Al Manarat Islamiyat.</p>
+        </div>
+      </div>
+
+      <!-- Quick shortcuts -->
+      <div class="shortcut-grid">
+        <a href="/admin-site/article-form.html" class="shortcut-btn"><div class="shortcut-btn-icon">✏️</div><div class="shortcut-btn-label">Nouvel article</div></a>
+        <a href="/admin-site/evenement-form.html" class="shortcut-btn"><div class="shortcut-btn-icon">📅</div><div class="shortcut-btn-label">Nouvel événement</div></a>
+        <a href="/admin-site/galerie.html" class="shortcut-btn"><div class="shortcut-btn-icon">🖼️</div><div class="shortcut-btn-label">Uploader photos</div></a>
+        <a href="/admin-site/candidatures.html" class="shortcut-btn"><div class="shortcut-btn-icon">📋</div><div class="shortcut-btn-label">Candidatures</div></a>
+        <a href="/admin-site/messages.html" class="shortcut-btn"><div class="shortcut-btn-icon">✉️</div><div class="shortcut-btn-label">Messages</div></div></a>
+        <a href="/admin-site/contenus.html" class="shortcut-btn" style="border-color:var(--emerald-300);background:var(--emerald-50)"><div class="shortcut-btn-icon">🎨</div><div class="shortcut-btn-label">Contenu pages</div></a>
+        <a href="/admin-site/parametres.html" class="shortcut-btn"><div class="shortcut-btn-icon">⚙️</div><div class="shortcut-btn-label">Paramètres</div></a>
+      </div>
+
+      <!-- Stats grid -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-card-icon green">📝</div><div class="stat-card-body"><div class="stat-card-value" id="s-articles">—</div><div class="stat-card-label">Articles publiés</div></div></div>
+        <div class="stat-card"><div class="stat-card-icon blue">📅</div><div class="stat-card-body"><div class="stat-card-value" id="s-events">—</div><div class="stat-card-label">Événements</div></div></div>
+        <div class="stat-card"><div class="stat-card-icon gold">🖼️</div><div class="stat-card-body"><div class="stat-card-value" id="s-gallery">—</div><div class="stat-card-label">Photos galerie</div></div></div>
+        <div class="stat-card"><div class="stat-card-icon purple">📋</div><div class="stat-card-body"><div class="stat-card-value" id="s-apps">—</div><div class="stat-card-label">Candidatures</div></div></div>
+        <div class="stat-card"><div class="stat-card-icon red">✉️</div><div class="stat-card-body"><div class="stat-card-value" id="s-msgs">—</div><div class="stat-card-label">Messages non lus</div></div></div>
+        <div class="stat-card"><div class="stat-card-icon teal">📧</div><div class="stat-card-body"><div class="stat-card-value" id="s-nl">—</div><div class="stat-card-label">Inscrits newsletter</div></div></div>
+      </div>
+
+      <!-- Two column layout -->
+      <div class="two-col">
+
+        <!-- Recent applications -->
+        <div class="admin-table-wrap">
+          <div class="admin-table-header">
+            <h3>📋 Nouvelles candidatures</h3>
+            <a href="/admin-site/candidatures.html" class="btn btn-outline btn-sm">Voir tout</a>
+          </div>
+          <div id="recentApps">
+            <div class="page-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Recent messages -->
+        <div class="admin-table-wrap">
+          <div class="admin-table-header">
+            <h3>✉️ Derniers messages</h3>
+            <a href="/admin-site/messages.html" class="btn btn-outline btn-sm">Voir tout</a>
+          </div>
+          <div id="recentMsgs">
+            <div class="page-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      Admin.init();
+
+      // Date
+      const now = new Date();
+      document.getElementById('todayDate').textContent = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+      // Welcome with username
+      const user = Admin.getUser();
+      if (user) document.getElementById('welcomeMsg').textContent = `Bonjour, ${user.username} !`;
+
+      // GestSchool button — show if URL configured
+      try {
+        const sett = await API.getPublicSettings();
+        if (sett.gestschool_url) {
+          const btn = document.getElementById('gestschoolBtn');
+          btn.href = sett.gestschool_url;
+          btn.style.display = '';
+        }
+        // Dynamic logo in sidebar
+        if (sett.logo_path) {
+          const sbl = document.getElementById('adminSidebar').querySelector('.sidebar-brand-logo');
+          if (sbl) { sbl.src = sett.logo_path; sbl.style.display = ''; }
+        }
+      } catch {}
+
+      // Load stats
+      try {
+        const stats = await API.getStats();
+        document.getElementById('s-articles').textContent = stats.articles || 0;
+        document.getElementById('s-events').textContent   = stats.events   || 0;
+        document.getElementById('s-gallery').textContent  = stats.gallery  || 0;
+        document.getElementById('s-apps').textContent     = stats.applications || 0;
+        document.getElementById('s-msgs').textContent     = stats.contacts_unread || 0;
+        document.getElementById('s-nl').textContent       = stats.newsletter || 0;
+
+        // Recent applications
+        const appsHtml = stats.latest_applications && stats.latest_applications.length > 0
+          ? `<table class="admin-table"><thead><tr><th>Élève</th><th>Niveau</th><th>Statut</th><th>Date</th></tr></thead><tbody>
+              ${stats.latest_applications.map(a => `
+                <tr style="cursor:pointer" onclick="location.href='/admin-site/candidature-detail.html?id=${a._id}'">
+                  <td class="td-title">${Admin.escape(a.student_first_name)} ${Admin.escape(a.student_last_name)}</td>
+                  <td>${Admin.escape(a.level)}</td>
+                  <td>${Admin.getStatusBadge(a.status)}</td>
+                  <td class="td-meta">${Admin.timeAgo(a.createdAt)}</td>
+                </tr>`).join('')}
+            </tbody></table>`
+          : `<div class="empty-state"><div class="empty-state-icon">📭</div><h3>Aucune candidature</h3></div>`;
+        document.getElementById('recentApps').innerHTML = appsHtml;
+
+        // Recent messages
+        const msgsHtml = stats.latest_messages && stats.latest_messages.length > 0
+          ? `<table class="admin-table"><thead><tr><th>Nom</th><th>Sujet</th><th>Lu</th><th>Date</th></tr></thead><tbody>
+              ${stats.latest_messages.map(m => `
+                <tr style="cursor:pointer;${!m.is_read?'font-weight:600':''}" onclick="location.href='/admin-site/messages.html'">
+                  <td>${Admin.escape(m.name)}</td>
+                  <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${Admin.escape(m.subject || m.message.substring(0,40))}</td>
+                  <td>${m.is_read ? '<span class="badge badge-gray">Lu</span>' : '<span class="badge badge-red">Non lu</span>'}</td>
+                  <td class="td-meta">${Admin.timeAgo(m.createdAt)}</td>
+                </tr>`).join('')}
+            </tbody></table>`
+          : `<div class="empty-state"><div class="empty-state-icon">📭</div><h3>Aucun message</h3></div>`;
+        document.getElementById('recentMsgs').innerHTML = msgsHtml;
+
+      } catch (e) {
+        Admin.showToast('Erreur lors du chargement des statistiques', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

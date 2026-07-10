@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidatures — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div><div class="sidebar-brand-name">Al Manarat</div><div class="sidebar-brand-sub">Dashboard Admin</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarUsername">Admin</div><div class="sidebar-user-role" id="sidebarRole">Super Admin</div></div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title"><h1>Candidatures</h1><p>Gérer les dossiers d'admission</p></div>
+    </header>
+
+    <div class="admin-content">
+      <!-- Stat mini-bar -->
+      <div id="statsBar" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:20px"></div>
+
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <h3>Dossiers reçus <span id="appCount" style="color:var(--color-text-muted);font-weight:400;font-size:.85rem"></span></h3>
+          <div class="admin-table-actions">
+            <input type="search" id="searchInput" class="search-input" placeholder="🔍 Rechercher par nom..." />
+            <select id="filterStatus" class="filter-select">
+              <option value="">Tous les statuts</option>
+              <option value="new">Nouvelles</option>
+              <option value="in_progress">En cours</option>
+              <option value="accepted">Acceptées</option>
+              <option value="refused">Refusées</option>
+              <option value="incomplete">À compléter</option>
+            </select>
+            <select id="filterLevel" class="filter-select">
+              <option value="">Tous niveaux</option>
+              <option value="prescolaire">Préscolaire</option>
+              <option value="primaire">Primaire</option>
+              <option value="secondaire">Secondaire</option>
+              <option value="lycee">Lycée</option>
+            </select>
+          </div>
+        </div>
+        <div id="tableContainer">
+          <div class="page-loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    let allApps = [];
+
+    async function loadApplications() {
+      try {
+        allApps = await API.adminGetApplications();
+        renderStats();
+        renderTable(allApps);
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    function renderStats() {
+      const counts = { new:0, in_progress:0, accepted:0, refused:0, incomplete:0 };
+      allApps.forEach(a => counts[a.status] = (counts[a.status]||0)+1);
+      const items = [
+        { key:'new', label:'Nouvelles', icon:'🆕', cls:'red' },
+        { key:'in_progress', label:'En cours', icon:'⏳', cls:'gold' },
+        { key:'accepted', label:'Acceptées', icon:'✅', cls:'green' },
+        { key:'refused', label:'Refusées', icon:'❌', cls:'red' },
+        { key:'incomplete', label:'À compléter', icon:'📝', cls:'blue' },
+      ];
+      document.getElementById('statsBar').innerHTML = items.map(i => `
+        <div class="stat-card" style="cursor:pointer" onclick="document.getElementById('filterStatus').value='${i.key}';applyFilters()">
+          <div class="stat-card-icon ${i.cls}">${i.icon}</div>
+          <div class="stat-card-body"><div class="stat-card-value">${counts[i.key]||0}</div><div class="stat-card-label">${i.label}</div></div>
+        </div>`).join('');
+    }
+
+    function renderTable(apps) {
+      document.getElementById('appCount').textContent = `(${apps.length})`;
+      if (!apps.length) {
+        document.getElementById('tableContainer').innerHTML = `
+          <div class="empty-state"><div class="empty-state-icon">📋</div><h3>Aucune candidature</h3></div>`;
+        return;
+      }
+      document.getElementById('tableContainer').innerHTML = `
+        <table class="admin-table">
+          <thead><tr><th>Élève</th><th>Niveau</th><th>Cursus</th><th>Parent / Tuteur</th><th>Téléphone</th><th>Statut</th><th>Date</th><th></th></tr></thead>
+          <tbody>
+            ${apps.map(a => `
+              <tr style="cursor:pointer" onclick="location.href='/admin-site/candidature-detail.html?id=${a._id}'">
+                <td class="td-title" style="font-weight:600">${Admin.escape(a.student_first_name)} ${Admin.escape(a.student_last_name)}</td>
+                <td><span class="badge badge-blue">${Admin.escape(a.level)}</span></td>
+                <td class="td-meta">${Admin.escape(a.cursus || '—')}</td>
+                <td>${Admin.escape(a.parent_name)}</td>
+                <td class="td-meta">${Admin.escape(a.phone)}</td>
+                <td>${Admin.getStatusBadge(a.status)}</td>
+                <td class="td-meta">${Admin.formatDateShort(a.createdAt)}</td>
+                <td><span style="color:var(--emerald-600)">→</span></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function applyFilters() {
+      const s = document.getElementById('searchInput').value.toLowerCase();
+      const status = document.getElementById('filterStatus').value;
+      const level  = document.getElementById('filterLevel').value;
+      renderTable(allApps.filter(a =>
+        (!s || `${a.student_first_name} ${a.student_last_name} ${a.parent_name}`.toLowerCase().includes(s)) &&
+        (!status || a.status === status) &&
+        (!level  || a.level  === level)
+      ));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.init();
+      loadApplications();
+      document.getElementById('searchInput').addEventListener('input', applyFilters);
+      document.getElementById('filterStatus').addEventListener('change', applyFilters);
+      document.getElementById('filterLevel').addEventListener('change', applyFilters);
+    });
+  </script>
+</body>
+</html>

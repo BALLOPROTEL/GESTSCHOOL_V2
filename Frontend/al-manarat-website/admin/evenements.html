@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Événements — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div><div class="sidebar-brand-name">Al Manarat</div><div class="sidebar-brand-sub">Dashboard Admin</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarUsername">Admin</div><div class="sidebar-user-role" id="sidebarRole">Super Admin</div></div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title"><h1>Événements</h1><p>Gérer le calendrier des événements</p></div>
+      <div class="topbar-actions">
+        <a href="/admin-site/evenement-form.html" class="btn btn-primary btn-sm">📅 Nouvel événement</a>
+      </div>
+    </header>
+
+    <div class="admin-content">
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <h3>Tous les événements <span id="evCount" style="color:var(--color-text-muted);font-weight:400;font-size:.85rem"></span></h3>
+          <div class="admin-table-actions">
+            <select class="filter-select" id="filterStatus">
+              <option value="">Tous</option>
+              <option value="upcoming">À venir</option>
+              <option value="past">Passés</option>
+            </select>
+          </div>
+        </div>
+        <div id="tableContainer">
+          <div class="page-loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    let allEvents = [];
+
+    async function loadEvents() {
+      try {
+        allEvents = await API.adminGetEvents();
+        renderTable(allEvents);
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    function renderTable(events) {
+      document.getElementById('evCount').textContent = `(${events.length})`;
+      if (!events.length) {
+        document.getElementById('tableContainer').innerHTML = `
+          <div class="empty-state"><div class="empty-state-icon">📅</div><h3>Aucun événement</h3><p>Créez votre premier événement</p></div>`;
+        return;
+      }
+      document.getElementById('tableContainer').innerHTML = `
+        <table class="admin-table">
+          <thead><tr><th>Titre</th><th>Date</th><th>Lieu</th><th>Statut</th><th>En avant</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${events.map(ev => `
+              <tr>
+                <td class="td-title">${Admin.escape(ev.title)}</td>
+                <td>${ev.date ? new Date(ev.date).toLocaleDateString('fr-FR') : '—'}</td>
+                <td class="td-meta">${Admin.escape(ev.location || '—')}</td>
+                <td>${Admin.getStatusBadge(ev.status)}</td>
+                <td>${ev.is_featured ? '<span class="badge badge-gold">⭐ Oui</span>' : '<span class="badge badge-gray">Non</span>'}</td>
+                <td>
+                  <div class="table-actions">
+                    <button class="btn-icon btn-icon-edit" title="Modifier" onclick="location.href='/admin-site/evenement-form.html?id=${ev._id}'">✏️</button>
+                    <button class="btn-icon btn-icon-delete" title="Supprimer" onclick="deleteEvent('${ev._id}')">🗑️</button>
+                  </div>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    async function deleteEvent(id) {
+      if (!await Admin.confirm('Supprimer cet événement définitivement ?')) return;
+      try {
+        await API.adminDeleteEvent(id);
+        Admin.showToast('Événement supprimé');
+        loadEvents();
+      } catch (e) { Admin.showToast(e.message, 'error'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.init();
+      loadEvents();
+      document.getElementById('filterStatus').addEventListener('change', function() {
+        renderTable(this.value ? allEvents.filter(e => e.status === this.value) : allEvents);
+      });
+    });
+  </script>
+</body>
+</html>

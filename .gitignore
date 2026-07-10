@@ -59,6 +59,11 @@ id_ed25519.pub
 *.tar.gz
 *.zip
 
+# Al Manarat public website runtime data
+Frontend/al-manarat-website/data/
+Frontend/al-manarat-website/uploads/
+Frontend/al-manarat-website/server/node_modules/
+
 # OS/editor
 .DS_Store
 Thumbs.db

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestion du site public — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+  <link rel="stylesheet" href="/css/admin-content-manager.css" />
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" id="sidebarLogo" onerror="this.style.display='none'" />
+      <div>
+        <div class="sidebar-brand-name">Al Manarat</div>
+        <div class="sidebar-brand-sub">Dashboard Admin</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link active"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUsername">Admin</div>
+          <div class="sidebar-user-role" id="sidebarRole">Super Admin</div>
+        </div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <main class="admin-main content-manager-admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title">
+        <h1>Gestion du site public</h1>
+        <p>Modifiez les pages, sections, blocs et éléments globaux depuis une interface unique.</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline btn-sm" type="button" data-action="reload-current">Recharger</button>
+        <a href="/index.html" target="_blank" class="btn btn-outline btn-sm">Voir le site</a>
+      </div>
+    </header>
+
+    <div class="admin-content content-manager-shell">
+      <div class="content-manager-layout">
+        <aside class="content-page-rail">
+          <div class="rail-title">Pages du site</div>
+          <div class="rail-list" id="cmsPageRail"></div>
+          <button class="rail-global-btn" type="button" data-action="select-global">
+            <span>Paramètres globaux du site</span>
+            <small>Logo, menu, footer, contacts</small>
+          </button>
+        </aside>
+
+        <section class="content-editor-panel" id="cmsEditorRoot">
+          <div class="cms-empty-panel">
+            <div class="spinner"></div>
+            <h3>Chargement de l’éditeur</h3>
+            <p>Connexion au CMS structuré en cours.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script src="/js/admin-content-manager.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Article — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+  <style>
+    .cover-preview { width:100%; height:180px; object-fit:cover; border-radius:var(--radius-md); margin-top:8px; display:none; }
+    .cover-preview.show { display:block; }
+  </style>
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div><div class="sidebar-brand-name">Al Manarat</div><div class="sidebar-brand-sub">Dashboard Admin</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarUsername">Admin</div><div class="sidebar-user-role" id="sidebarRole">Super Admin</div></div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title"><h1 id="pageTitle">Nouvel article</h1><p>Rédiger et publier du contenu</p></div>
+      <div class="topbar-actions">
+        <a href="/admin-site/articles.html" class="btn btn-outline btn-sm">← Retour</a>
+      </div>
+    </header>
+
+    <div class="admin-content">
+      <div class="admin-form-layout">
+        <!-- Main form -->
+        <div>
+          <div class="admin-panel">
+            <div class="admin-panel-title">📝 Contenu de l'article</div>
+            <form id="articleForm">
+              <div class="form-group" style="margin-bottom:16px">
+                <label for="title">Titre *</label>
+                <input type="text" id="title" class="form-control" placeholder="Titre de l'article" required />
+              </div>
+              <div class="form-group" style="margin-bottom:16px">
+                <label for="excerpt">Résumé court</label>
+                <textarea id="excerpt" class="form-control" rows="2" placeholder="Courte description affichée dans les listes..."></textarea>
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label>Contenu complet *</label>
+                <div id="editor" class="editor-area" contenteditable="true" placeholder="Rédigez le contenu complet de l'article..."></div>
+                <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+                  <button type="button" class="btn btn-outline btn-sm" onclick="execCmd('bold')"><b>G</b></button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="execCmd('italic')"><i>I</i></button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="execCmd('insertUnorderedList')">• Liste</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="execCmd('formatBlock','h3')">H3</button>
+                  <button type="button" class="btn btn-outline btn-sm" onclick="execCmd('formatBlock','p')">¶ Texte</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Sidebar settings -->
+        <div>
+          <div class="admin-panel">
+            <div class="admin-panel-title">⚙️ Paramètres</div>
+            <div class="form-group" style="margin-bottom:14px">
+              <label for="category">Catégorie</label>
+              <select id="category" class="form-control">
+                <option value="general">Général</option>
+                <option value="resultats">Résultats scolaires</option>
+                <option value="admissions">Admissions</option>
+                <option value="evenements">Événements</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:14px">
+              <label for="author">Auteur</label>
+              <input type="text" id="author" class="form-control" placeholder="Administration" value="Administration" />
+            </div>
+            <div class="form-group" style="margin-bottom:14px">
+              <label for="status">Statut</label>
+              <select id="status" class="form-control">
+                <option value="draft">Brouillon</option>
+                <option value="published">Publié</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:20px">
+              <label>Image de couverture</label>
+              <input type="file" id="coverImage" accept="image/*" class="form-control" style="padding:6px" />
+              <img id="coverPreview" class="cover-preview" alt="Preview" />
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <button type="button" class="btn btn-primary btn-block" onclick="saveArticle('published')">🚀 Publier</button>
+              <button type="button" class="btn btn-outline btn-block" onclick="saveArticle('draft')">💾 Sauvegarder brouillon</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    let articleId = null;
+    const params = new URLSearchParams(window.location.search);
+
+    function execCmd(cmd, val = null) {
+      document.execCommand(cmd, false, val);
+      document.getElementById('editor').focus();
+    }
+
+    // Cover image preview
+    document.getElementById('coverImage').addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const prev = document.getElementById('coverPreview');
+        prev.src = e.target.result;
+        prev.classList.add('show');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    async function loadArticle(id) {
+      try {
+        const arts = await API.adminGetArticles();
+        const art = arts.find(a => a._id === id);
+        if (!art) { Admin.showToast('Article introuvable', 'error'); return; }
+
+        document.getElementById('pageTitle').textContent = 'Modifier l\'article';
+        document.getElementById('title').value    = art.title;
+        document.getElementById('excerpt').value  = art.excerpt || '';
+        document.getElementById('editor').innerHTML = art.content;
+        document.getElementById('category').value = art.category;
+        document.getElementById('author').value   = art.author;
+        document.getElementById('status').value   = art.status;
+
+        if (art.cover_image) {
+          const prev = document.getElementById('coverPreview');
+          prev.src = art.cover_image;
+          prev.classList.add('show');
+        }
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    async function saveArticle(forceStatus = null) {
+      const title   = document.getElementById('title').value.trim();
+      const content = document.getElementById('editor').innerHTML.trim();
+      if (!title || !content || content === '<br>') {
+        Admin.showToast('Titre et contenu requis', 'error'); return;
+      }
+
+      const fd = new FormData();
+      fd.append('title',    title);
+      fd.append('excerpt',  document.getElementById('excerpt').value);
+      fd.append('content',  content);
+      fd.append('category', document.getElementById('category').value);
+      fd.append('author',   document.getElementById('author').value || 'Administration');
+      fd.append('status',   forceStatus || document.getElementById('status').value);
+      const cover = document.getElementById('coverImage').files[0];
+      if (cover) fd.append('cover_image', cover);
+
+      try {
+        if (articleId) {
+          await API.adminUpdateArticle(articleId, fd);
+        } else {
+          await API.adminCreateArticle(fd);
+        }
+        Admin.showToast(forceStatus === 'published' ? 'Article publié !' : 'Article sauvegardé !');
+        setTimeout(() => window.location.href = '/admin-site/articles.html', 800);
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.init();
+      articleId = params.get('id');
+      if (articleId) loadArticle(articleId);
+    });
+  </script>
+</body>
+</html>

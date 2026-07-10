@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Événements — Al Manarat Islamiyat</title>
+  <meta name="description" content="Calendrier des événements de l'École Al Manarat Islamiyat." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .page-hero { background:linear-gradient(135deg,var(--emerald-900),var(--emerald-800)); padding:80px 0 60px; position:relative; overflow:hidden; }
+    .page-hero::before { content:''; position:absolute; inset:0; background:repeating-conic-gradient(rgba(255,255,255,.03) 0% 25%,transparent 0% 50%) 0 0/50px 50px; }
+    .page-hero-inner { position:relative; z-index:1; }
+    .breadcrumb { display:flex; align-items:center; gap:8px; font-size:.82rem; color:rgba(255,255,255,.6); margin-bottom:12px; }
+    .breadcrumb a { color:var(--emerald-400); }
+    .page-hero h1 { font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; color:#fff; margin:0; }
+    .page-hero p { font-size:1rem; color:rgba(255,255,255,.75); margin-top:10px; }
+
+    .events-section { padding:60px 0; }
+    .tab-bar { display:flex; gap:0; border:1.5px solid var(--color-border); border-radius:var(--radius-md); overflow:hidden; display:inline-flex; margin-bottom:36px; }
+    .tab-btn { padding:10px 24px; font-size:.9rem; font-weight:600; font-family:var(--font-body); border:none; background:#fff; color:var(--color-text-muted); cursor:pointer; transition:var(--transition); }
+    .tab-btn.active { background:var(--emerald-600); color:#fff; }
+
+    /* Featured event */
+    .event-featured { background:linear-gradient(135deg,var(--emerald-700),var(--emerald-900)); border-radius:var(--radius-xl); padding:40px; color:#fff; margin-bottom:36px; display:grid; grid-template-columns:auto 1fr; gap:32px; align-items:center; }
+    .event-featured-date { background:rgba(255,255,255,.1); border:2px solid rgba(255,255,255,.2); border-radius:var(--radius-md); padding:16px 20px; text-align:center; min-width:80px; }
+    .event-featured-date .day { font-size:2.5rem; font-weight:800; line-height:1; }
+    .event-featured-date .month { font-size:.8rem; text-transform:uppercase; opacity:.8; letter-spacing:.1em; }
+    .event-featured-badge { background:var(--gold-400); color:var(--gold-900); font-size:.7rem; font-weight:800; padding:3px 10px; border-radius:var(--radius-pill); margin-bottom:10px; display:inline-block; }
+    .event-featured h2 { font-size:1.6rem; font-weight:800; margin-bottom:8px; }
+    .event-featured-meta { font-size:.9rem; opacity:.8; display:flex; gap:16px; flex-wrap:wrap; }
+
+    /* Event card */
+    .events-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:20px; }
+    .event-card { background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-lg); overflow:hidden; display:grid; grid-template-columns:80px 1fr; transition:var(--transition); text-decoration:none; color:inherit; }
+    .event-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
+    .event-card-date { background:linear-gradient(180deg,var(--emerald-600),var(--emerald-800)); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px 8px; }
+    .event-card-date .day { font-size:1.6rem; font-weight:800; line-height:1; }
+    .event-card-date .month { font-size:.65rem; text-transform:uppercase; opacity:.8; letter-spacing:.08em; margin-top:2px; }
+    .event-card-body { padding:16px; }
+    .event-card-title { font-size:.95rem; font-weight:700; margin-bottom:6px; line-height:1.3; }
+    .event-card-meta { font-size:.78rem; color:var(--color-text-muted); display:flex; flex-direction:column; gap:2px; }
+
+    @media(max-width:560px) { .event-featured { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="/index.html" class="nav-logo">
+        <img src="/assets/logo.png" alt="Logo Al Manarat" class="nav-logo-img" onerror="this.style.display='none'" />
+        <div class="nav-logo-text"><span class="logo-arabic">المنارات الإسلامية</span><span class="logo-french">Al Manarat Islamiyat</span></div>
+      </a>
+      <nav class="nav-links" id="navLinks">
+        <a href="/index.html" class="nav-link">Accueil</a>
+        <a href="/pages/a-propos.html" class="nav-link">À propos</a>
+        <a href="/pages/scolarite.html" class="nav-link">Scolarité</a>
+        <a href="/pages/evenements.html" class="nav-link active">Événements</a>
+        <a href="/pages/actualites.html" class="nav-link">Actualités</a>
+        <a href="/pages/galerie.html" class="nav-link">Galerie</a>
+        <a href="/pages/contact.html" class="nav-link">Contact</a>
+        <a href="/pages/admissions.html" class="nav-cta">S'inscrire</a>
+      </nav>
+      <button class="nav-burger" id="navBurger"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <section class="page-hero" data-cms-section="header">
+    <div class="container page-hero-inner">
+      <div class="breadcrumb"><a href="/index.html">Accueil</a><span>/</span><span>Événements</span></div>
+      <h1>Calendrier des événements</h1>
+      <p>Conférences, cérémonies, tournois — ne manquez rien !</p>
+    </div>
+  </section>
+
+  <section class="events-section" data-cms-section="intro">
+    <div class="container">
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tabUpcoming">📅 À venir</button>
+        <button class="tab-btn" id="tabPast">📜 Passés</button>
+      </div>
+      <div id="featuredZone"></div>
+      <div id="eventsGrid" class="events-grid"></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-top">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="footer-logo">
+            <img src="/assets/logo.png" alt="Logo Al Manarat" class="footer-logo-img nav-logo-img" onerror="this.style.display='none'" />
+            <div>
+              <div class="footer-logo-arabic">المنارات الإسلامية</div>
+              <div class="footer-logo-name">Al Manarat Islamiyat</div>
+            </div>
+          </div>
+          <p class="footer-tagline" id="footerTagline">
+            "Demandez le savoir, de la naissance jusqu'à la mort." — Hadith du Prophète ﷺ
+          </p>
+          <div class="footer-social-slot" style="margin-top:14px"></div>
+        </div>
+        <div class="footer-col">
+          <h4>Navigation</h4>
+          <ul>
+            <li><a href="/pages/a-propos.html">À Propos</a></li>
+            <li><a href="/pages/scolarite.html">Scolarité</a></li>
+            <li><a href="/pages/evenements.html">Événements</a></li>
+            <li><a href="/pages/actualites.html">Actualités</a></li>
+            <li><a href="/pages/galerie.html">Galerie</a></li>
+            <li><a href="/pages/admissions.html">Admissions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <ul>
+            <li>📍 <span id="f-address">Liberté 6, Dakar</span></li>
+            <li>📞 <span id="f-phone">+221 77 123 45 67</span></li>
+            <li>✉️ <span id="f-email">info@almanarat.sn</span></li>
+            <li>🕐 <span id="f-hours">Lun-Ven: 8h-16h</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container footer-bottom-content">
+        <p id="footerCopyright">© 2025 Al Manarat Islamiyat. Tous droits réservés.</p>
+      </div>
+    </div>
+  </footer>
+
+  <button class="back-to-top" id="backToTop">↑</button>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/social-icons.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+    let currentStatus = 'upcoming';
+    let allEvents = [];
+
+    function getDateParts(dateStr) {
+      const d = new Date(dateStr);
+      return { day: d.getDate(), month: MONTHS_FR[d.getMonth()] };
+    }
+
+    async function loadEvents() {
+      try {
+        const data = await API.getEvents({ status: currentStatus });
+        allEvents = Array.isArray(data) ? data : data.events || data.value || [];
+        renderEvents(allEvents);
+      } catch (e) {
+        document.getElementById('eventsGrid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">📅</div><h3>Erreur: ${e.message}</h3></div>`;
+      }
+    }
+
+    function renderEvents(events) {
+      // Featured
+      const featured = events.find(e => e.is_featured);
+      const featuredZone = document.getElementById('featuredZone');
+      if (featured) {
+        const dp = getDateParts(featured.date);
+        featuredZone.innerHTML = `
+          <div class="event-featured">
+            <div class="event-featured-date"><div class="day">${dp.day}</div><div class="month">${dp.month}</div></div>
+            <div>
+              <span class="event-featured-badge">⭐ Événement phare</span>
+              <h2>${featured.title}</h2>
+              <div class="event-featured-meta">
+                <span>🕐 ${featured.time || 'Horaire à confirmer'}</span>
+                <span>📍 ${featured.location || 'À confirmer'}</span>
+              </div>
+              <p style="margin-top:12px;opacity:.9;line-height:1.6">${featured.description || ''}</p>
+              <a href="/pages/evenement-detail.html?slug=${featured.slug}" style="display:inline-block;margin-top:16px;background:rgba(255,255,255,.15);color:#fff;padding:10px 20px;border-radius:var(--radius-sm);font-weight:600;text-decoration:none;font-size:.9rem;border:1px solid rgba(255,255,255,.3)">Voir les détails →</a>
+            </div>
+          </div>`;
+      } else { featuredZone.innerHTML = ''; }
+
+      // Regular events (exclude featured)
+      const regular = featured ? events.filter(e => e._id !== featured._id) : events;
+      if (!regular.length && !featured) {
+        document.getElementById('eventsGrid').innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">📅</div><h3>Aucun événement ${currentStatus==='upcoming'?'à venir':'passé'}</h3></div>`;
+        return;
+      }
+      document.getElementById('eventsGrid').innerHTML = regular.map(ev => {
+        const dp = getDateParts(ev.date);
+        return `<a href="/pages/evenement-detail.html?slug=${ev.slug}" class="event-card reveal">
+          <div class="event-card-date"><div class="day">${dp.day}</div><div class="month">${dp.month}</div></div>
+          <div class="event-card-body">
+            <div class="event-card-title">${ev.title}</div>
+            <div class="event-card-meta">
+              <span>🕐 ${ev.time || 'Horaire TBD'}</span>
+              <span>📍 ${ev.location || 'Lieu à confirmer'}</span>
+            </div>
+            ${ev.description ? `<p style="margin-top:6px;font-size:.82rem;color:var(--color-text-muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${ev.description}</p>` : ''}
+          </div>
+        </a>`;
+      }).join('');
+
+      const observer = new IntersectionObserver(entries => entries.forEach(e => e.isIntersecting && e.target.classList.add('visible')), { threshold:.1 });
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const navbar = document.getElementById('navbar');
+      const burger = document.getElementById('navBurger');
+      const links  = document.getElementById('navLinks');
+      window.addEventListener('scroll', () => navbar.classList.toggle('scrolled', window.scrollY > 60));
+      burger.addEventListener('click', () => { links.classList.toggle('open'); document.body.style.overflow = links.classList.contains('open')?'hidden':''; });
+      links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { links.classList.remove('open'); document.body.style.overflow=''; }));
+      const btt = document.getElementById('backToTop');
+      window.addEventListener('scroll', () => btt.classList.toggle('visible', window.scrollY > 400));
+      btt.addEventListener('click', () => window.scrollTo({top:0,behavior:'smooth'}));
+
+      document.getElementById('tabUpcoming').addEventListener('click', function() {
+        currentStatus = 'upcoming';
+        document.getElementById('tabUpcoming').classList.add('active');
+        document.getElementById('tabPast').classList.remove('active');
+        loadEvents();
+      });
+      document.getElementById('tabPast').addEventListener('click', function() {
+        currentStatus = 'past';
+        document.getElementById('tabPast').classList.add('active');
+        document.getElementById('tabUpcoming').classList.remove('active');
+        loadEvents();
+      });
+
+      loadEvents();
+      // Initialisation commune (logo, social icons, footer)
+      await initPublicPage();
+    });
+  </script>
+</body>
+</html>

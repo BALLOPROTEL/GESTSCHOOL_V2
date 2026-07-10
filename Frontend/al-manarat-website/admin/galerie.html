@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galerie — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+  <style>
+    .upload-form { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end; flex-wrap:wrap; }
+    @media(max-width:768px){ .upload-form { grid-template-columns:1fr 1fr; } }
+    .gal-thumb { width:100%; height:140px; object-fit:cover; display:block; border-radius:var(--radius-sm) var(--radius-sm) 0 0; background:var(--emerald-100); }
+    .gal-placeholder { width:100%; height:140px; display:flex; align-items:center; justify-content:center; font-size:2rem; background:var(--emerald-50); border-radius:var(--radius-sm) var(--radius-sm) 0 0; }
+  </style>
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div><div class="sidebar-brand-name">Al Manarat</div><div class="sidebar-brand-sub">Dashboard Admin</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarUsername">Admin</div><div class="sidebar-user-role" id="sidebarRole">Super Admin</div></div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title"><h1>Galerie</h1><p>Gérer les photos et médias</p></div>
+    </header>
+
+    <div class="admin-content">
+      <!-- Upload section -->
+      <div class="admin-panel" style="margin-bottom:20px">
+        <div class="admin-panel-title">📤 Ajouter des médias</div>
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-zone-icon">🖼️</div>
+          <p><strong>Cliquer pour sélectionner</strong> ou glisser-déposer des images</p>
+          <p style="font-size:.75rem;margin-top:4px;opacity:.6">JPG, PNG, WebP — max 20MB</p>
+          <input type="file" id="fileInput" accept="image/*" multiple style="display:none" />
+        </div>
+        <div id="uploadForm" style="display:none;margin-top:16px">
+          <div class="upload-form">
+            <div class="form-group">
+              <label>Titre *</label>
+              <input type="text" id="mediaTitle" class="form-control" placeholder="Titre du média" />
+            </div>
+            <div class="form-group">
+              <label>Catégorie</label>
+              <select id="mediaCategory" class="form-control">
+                <option value="general">Général</option>
+                <option value="evenements">Événements</option>
+                <option value="classes">Classes</option>
+                <option value="sport">Sport</option>
+                <option value="coran">Coran / Hifz</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="mediaDesc" class="form-control" placeholder="Courte description" />
+            </div>
+            <button type="button" class="btn btn-primary" onclick="uploadMedia()">⬆️ Uploader</button>
+          </div>
+          <div id="uploadPreview" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"></div>
+        </div>
+      </div>
+
+      <!-- Gallery grid -->
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <h3>Médiathèque <span id="galCount" style="color:var(--color-text-muted);font-weight:400;font-size:.85rem"></span></h3>
+          <select class="filter-select" id="filterCat">
+            <option value="">Toutes catégories</option>
+            <option value="general">Général</option>
+            <option value="evenements">Événements</option>
+            <option value="classes">Classes</option>
+            <option value="sport">Sport</option>
+            <option value="coran">Coran / Hifz</option>
+          </select>
+        </div>
+        <div style="padding:20px">
+          <div id="galleryGrid" class="admin-gallery-grid">
+            <div class="page-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    let allMedia = [];
+    let selectedFiles = [];
+
+    // Upload zone
+    const zone  = document.getElementById('uploadZone');
+    const input = document.getElementById('fileInput');
+
+    zone.addEventListener('click', () => input.click());
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+    input.addEventListener('change', () => handleFiles(input.files));
+
+    function handleFiles(files) {
+      selectedFiles = Array.from(files);
+      document.getElementById('uploadForm').style.display = 'block';
+      const preview = document.getElementById('uploadPreview');
+      preview.innerHTML = '';
+      selectedFiles.forEach(f => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--emerald-200)';
+          preview.appendChild(img);
+        };
+        reader.readAsDataURL(f);
+      });
+    }
+
+    async function uploadMedia() {
+      if (!selectedFiles.length) { Admin.showToast('Sélectionnez des fichiers', 'error'); return; }
+      const title = document.getElementById('mediaTitle').value.trim();
+      if (!title) { Admin.showToast('Titre requis', 'error'); return; }
+
+      try {
+        for (const file of selectedFiles) {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('title', title);
+          fd.append('category', document.getElementById('mediaCategory').value);
+          fd.append('description', document.getElementById('mediaDesc').value);
+          await API.adminUploadMedia(fd);
+        }
+        Admin.showToast(`${selectedFiles.length} fichier(s) uploadé(s) !`);
+        document.getElementById('uploadForm').style.display = 'none';
+        document.getElementById('mediaTitle').value = '';
+        selectedFiles = [];
+        loadGallery();
+      } catch (e) { Admin.showToast('Erreur upload: ' + e.message, 'error'); }
+    }
+
+    async function loadGallery() {
+      try {
+        allMedia = await API.adminGetGallery();
+        renderGrid(allMedia);
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    function renderGrid(media) {
+      document.getElementById('galCount').textContent = `(${media.length})`;
+      if (!media.length) {
+        document.getElementById('galleryGrid').innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🖼️</div><h3>Galerie vide</h3><p>Uploadez vos premières photos</p></div>`;
+        return;
+      }
+      document.getElementById('galleryGrid').innerHTML = media.map(m => `
+        <div class="admin-gallery-item">
+          ${m.file_type === 'image'
+            ? `<img class="admin-gallery-img" src="${m.file_path}" alt="${Admin.escape(m.title)}" onerror="this.style.display='none'" />`
+            : `<div class="gal-placeholder">🎬</div>`}
+          <div class="admin-gallery-actions">
+            <button class="btn-icon btn-icon-toggle" title="${m.is_published?'Masquer':'Publier'}" onclick="toggleMedia('${m._id}')">${m.is_published?'👁':'🔒'}</button>
+            <button class="btn-icon btn-icon-delete" title="Supprimer" onclick="deleteMedia('${m._id}')">🗑️</button>
+          </div>
+          <div class="admin-gallery-meta">
+            <div class="admin-gallery-title">${Admin.escape(m.title)}</div>
+            <div class="admin-gallery-cat">
+              ${m.category} &nbsp;
+              ${m.is_published ? '<span class="badge badge-green" style="font-size:.65rem">Publié</span>' : '<span class="badge badge-gray" style="font-size:.65rem">Masqué</span>'}
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    async function toggleMedia(id) {
+      try {
+        const r = await API.adminToggleMedia(id);
+        Admin.showToast(r.is_published ? 'Photo publiée' : 'Photo masquée');
+        loadGallery();
+      } catch (e) { Admin.showToast(e.message, 'error'); }
+    }
+
+    async function deleteMedia(id) {
+      if (!await Admin.confirm('Supprimer ce média définitivement ?')) return;
+      try {
+        await API.adminDeleteMedia(id);
+        Admin.showToast('Média supprimé');
+        loadGallery();
+      } catch (e) { Admin.showToast(e.message, 'error'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.init();
+      loadGallery();
+      document.getElementById('filterCat').addEventListener('change', function() {
+        renderGrid(this.value ? allMedia.filter(m => m.category === this.value) : allMedia);
+      });
+    });
+  </script>
+</body>
+</html>

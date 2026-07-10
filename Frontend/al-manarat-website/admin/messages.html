@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Messages — Admin Al Manarat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/shared.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+  <style>
+    .msg-panel { background:#fff; border:1.5px solid var(--emerald-100); border-radius:var(--radius-md); padding:20px; margin-top:16px; display:none; }
+    .msg-panel.open { display:block; animation:fadeInUp .2s ease; }
+  </style>
+</head>
+<body class="admin-body">
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo.png" alt="Logo" class="sidebar-brand-logo" onerror="this.style.display='none'" />
+      <div><div class="sidebar-brand-name">Al Manarat</div><div class="sidebar-brand-sub">Dashboard Admin</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Navigation</span>
+      <a href="/admin-site/dashboard.html" class="sidebar-link"><span class="sidebar-link-icon">📊</span> Tableau de bord</a>
+      <a href="/admin-site/articles.html" class="sidebar-link"><span class="sidebar-link-icon">📝</span> Articles</a>
+      <a href="/admin-site/evenements.html" class="sidebar-link"><span class="sidebar-link-icon">📅</span> Événements</a>
+      <a href="/admin-site/galerie.html" class="sidebar-link"><span class="sidebar-link-icon">🖼️</span> Galerie</a>
+      <span class="sidebar-section-title">Soumissions</span>
+      <a href="/admin-site/candidatures.html" class="sidebar-link"><span class="sidebar-link-icon">📋</span> Candidatures <span class="sidebar-badge" id="badgeCandidatures" style="display:none"></span></a>
+      <a href="/admin-site/messages.html" class="sidebar-link"><span class="sidebar-link-icon">✉️</span> Messages <span class="sidebar-badge" id="badgeMessages" style="display:none"></span></a>
+      <a href="/admin-site/newsletter.html" class="sidebar-link"><span class="sidebar-link-icon">📧</span> Newsletter</a>
+      <span class="sidebar-section-title">Configuration</span>
+      <a href="/admin-site/contenus.html" class="sidebar-link"><span class="sidebar-link-icon">🎨</span> Contenu pages</a>
+      <a href="/admin-site/parametres.html" class="sidebar-link"><span class="sidebar-link-icon">⚙️</span> Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarUsername">Admin</div><div class="sidebar-user-role" id="sidebarRole">Super Admin</div></div>
+      </div>
+      <button class="btn-logout" data-action="logout">🚪 Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <header class="admin-topbar">
+      <button class="btn-icon btn-burger" id="adminBurger">☰</button>
+      <div class="topbar-title">
+        <h1>Messages <span id="unreadBadge" style="display:inline-block;background:var(--red-500);color:#fff;font-size:.7rem;padding:2px 8px;border-radius:var(--radius-pill);vertical-align:middle;margin-left:6px;display:none"></span></h1>
+        <p>Messages reçus via le formulaire de contact</p>
+      </div>
+    </header>
+
+    <div class="admin-content">
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <h3>Boîte de réception</h3>
+          <div class="admin-table-actions">
+            <select id="filterRead" class="filter-select">
+              <option value="">Tous</option>
+              <option value="false">Non lus</option>
+              <option value="true">Lus</option>
+            </select>
+          </div>
+        </div>
+        <div id="tableContainer">
+          <div class="page-loader"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- Message detail panel -->
+      <div class="msg-panel" id="msgPanel">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">
+          <div>
+            <div style="font-weight:700;font-size:1rem" id="msgPanelName"></div>
+            <div style="font-size:.82rem;color:var(--color-text-muted)" id="msgPanelMeta"></div>
+          </div>
+          <button onclick="document.getElementById('msgPanel').classList.remove('open')" style="background:none;border:none;cursor:pointer;font-size:1.2rem">✕</button>
+        </div>
+        <div style="font-size:.92rem;line-height:1.7;color:var(--color-text);background:var(--emerald-50);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px" id="msgPanelBody"></div>
+        <div style="display:flex;gap:8px">
+          <a id="msgReplyBtn" href="#" class="btn btn-primary btn-sm">✉️ Répondre par email</a>
+          <a id="msgCallBtn" href="#" class="btn btn-outline btn-sm">📞 Appeler</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    let allMessages = [];
+
+    async function loadMessages() {
+      try {
+        allMessages = await API.adminGetContacts();
+        const unread = allMessages.filter(m => !m.is_read).length;
+        const badge = document.getElementById('unreadBadge');
+        if (unread > 0) { badge.textContent = unread + ' non lu(s)'; badge.style.display = 'inline-block'; }
+        renderTable(allMessages);
+      } catch (e) { Admin.showToast('Erreur: ' + e.message, 'error'); }
+    }
+
+    function renderTable(messages) {
+      if (!messages.length) {
+        document.getElementById('tableContainer').innerHTML = `
+          <div class="empty-state"><div class="empty-state-icon">📭</div><h3>Aucun message</h3></div>`;
+        return;
+      }
+      document.getElementById('tableContainer').innerHTML = `
+        <table class="admin-table">
+          <thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Sujet</th><th>Lu</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${messages.map(m => `
+              <tr style="cursor:pointer;${!m.is_read?'font-weight:600;background:#f0fdf4':''}" onclick="showMessage('${m._id}')">
+                <td>${Admin.escape(m.name)}</td>
+                <td class="td-meta">${Admin.escape(m.email || '—')}</td>
+                <td class="td-meta">${Admin.escape(m.phone || '—')}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${Admin.escape(m.subject || m.message.substring(0,40))}</td>
+                <td>${m.is_read ? '<span class="badge badge-gray">Lu</span>' : '<span class="badge badge-red">Non lu</span>'}</td>
+                <td class="td-meta">${Admin.timeAgo(m.createdAt)}</td>
+                <td onclick="event.stopPropagation()">
+                  <div class="table-actions">
+                    <button class="btn-icon btn-icon-toggle" title="${m.is_read?'Marquer non lu':'Marquer lu'}" onclick="toggleRead('${m._id}')">
+                      ${m.is_read ? '📬' : '✅'}
+                    </button>
+                    <button class="btn-icon btn-icon-delete" title="Supprimer" onclick="deleteMsg('${m._id}')">🗑️</button>
+                  </div>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function showMessage(id) {
+      const m = allMessages.find(x => x._id === id);
+      if (!m) return;
+      document.getElementById('msgPanelName').textContent = m.name + (m.subject ? ` — ${m.subject}` : '');
+      document.getElementById('msgPanelMeta').textContent = `${m.email || ''}  ${m.phone || ''}  |  ${Admin.formatDate(m.createdAt)}`;
+      document.getElementById('msgPanelBody').textContent = m.message;
+      document.getElementById('msgReplyBtn').href = `mailto:${m.email || ''}?subject=Re: ${encodeURIComponent(m.subject||'Votre message')}`;
+      document.getElementById('msgCallBtn').href = `tel:${m.phone || ''}`;
+      document.getElementById('msgPanel').classList.add('open');
+      document.getElementById('msgPanel').scrollIntoView({ behavior:'smooth', block:'start' });
+      // Auto mark as read
+      if (!m.is_read) toggleRead(id);
+    }
+
+    async function toggleRead(id) {
+      try {
+        await API.adminToggleRead(id);
+        loadMessages();
+      } catch (e) { Admin.showToast(e.message, 'error'); }
+    }
+
+    async function deleteMsg(id) {
+      if (!await Admin.confirm('Supprimer ce message définitivement ?')) return;
+      try {
+        await API.adminDeleteContact(id);
+        Admin.showToast('Message supprimé');
+        document.getElementById('msgPanel').classList.remove('open');
+        loadMessages();
+      } catch (e) { Admin.showToast(e.message, 'error'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.init();
+      loadMessages();
+      document.getElementById('filterRead').addEventListener('change', function() {
+        const v = this.value;
+        if (!v) renderTable(allMessages);
+        else renderTable(allMessages.filter(m => String(m.is_read) === v));
+      });
+    });
+  </script>
+</body>
+</html>
