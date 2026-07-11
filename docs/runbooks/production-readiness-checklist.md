@@ -52,6 +52,8 @@ rg "password|secret|token|service_role|apikey|Authorization" README.md docs Back
 ## 3. Base de donnees, migrations et sauvegardes
 
 - `DATABASE_URL` et `DIRECT_URL` ciblent la bonne base.
+- Si Supabase est utilise, `DATABASE_URL` peut utiliser le transaction pooler avec l'utilisateur `postgres.<project-ref>`, mais `DIRECT_URL` doit rester une connexion directe/session pour Prisma migrate.
+- Si Render affiche `tenant/user postgres.<project-ref> not found`, corriger les variables Render `DATABASE_URL` / `DIRECT_URL` avant d'investiguer CORS : l'API ne demarre pas.
 - Les migrations Prisma sont appliquees avec `migrate deploy`, pas `db push`.
 - Une sauvegarde complete est realisee avant toute migration.
 - Une restauration de cette sauvegarde est testee dans une base separee.

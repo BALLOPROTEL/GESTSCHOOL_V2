@@ -46,6 +46,23 @@ Backend/runtime:
 - `EMAIL_BRAND_LOGO_URL` optional. Leave empty to use `${AUTH_PUBLIC_BASE_URL}/logo.png` in activation and reset-password emails.
 - `MONITORING_METRICS_TOKEN`
 
+Postgres / Supabase:
+- `DATABASE_URL` is the runtime connection used by Prisma Client.
+- `DIRECT_URL` is the direct migration connection used by Prisma migrate.
+- If Supabase is used with the transaction pooler, `DATABASE_URL` must use the tenant-qualified pooler username:
+
+```env
+DATABASE_URL=postgresql://postgres.<project-ref>:<password>@<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+```
+
+- `DIRECT_URL` must not use the transaction pooler. Use the direct database host or the Supabase session pooler:
+
+```env
+DIRECT_URL=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
+```
+
+If Render logs contain `tenant/user postgres.<project-ref> not found`, the API is not a CORS problem: the `DATABASE_URL` tenant-qualified username, project ref, host, database name or password is wrong in Render.
+
 Supabase Storage:
 - `STORAGE_PROVIDER=supabase`
 - `FILE_STORAGE_DRIVER=SUPABASE`
