@@ -32,22 +32,13 @@ import type {
   UserSelfProfile
 } from "../shared/types/app";
 import { AppSidebar } from "../shared/components/app-sidebar";
+import { HeaderNavigation } from "./navigation/header-navigation";
 import {
-  HeaderNavigation,
-  type HeaderNavigationAction,
-  type HeaderNavigationGroup,
-  type HeaderPreferenceAction,
-  type HeaderUserAction
-} from "./navigation/header-navigation";
-import {
-  ROLE_CONTEXT_LABELS,
-  ROLE_HOME_SCREEN,
-  SCREEN_DEFS,
   hasScreenAccess
 } from "./navigation/screen-registry";
 import { GlobalToastLayer } from "./shell/global-toast-layer";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
-import { UI_LANGUAGE_META, UI_LANGUAGE_ORDER, useDomTranslation } from "../shared/i18n";
+import { useDomTranslation } from "../shared/i18n";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
 import { AppContextBar, AppFooter, PreviewLocalNotice } from "./app-shell-panels";
@@ -68,9 +59,7 @@ import {
   SCHOOL_NAME
 } from "./app-config";
 import {
-  formatAccountStatusLabel,
-  formatRoleLabel,
-  getInitials
+  formatRoleLabel
 } from "./app-formatters";
 import {
   ActivityScreen,
@@ -103,6 +92,7 @@ import { isLocalPreviewEnabled, isLocalPreviewSession } from "./preview/preview-
 import { useAuthFlows } from "./use-auth-flows";
 import { useAppShellEffects } from "./use-app-shell-effects";
 import { useAppBootstrap } from "./use-app-bootstrap";
+import { createAppNavigationModel, createHeaderSessionModel } from "./app-navigation-model";
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<ScreenId>("dashboard");
@@ -1030,181 +1020,53 @@ export function App(): JSX.Element {
     return renderDashboard();
   };
 
-  const activeScreen = SCREEN_DEFS.find((entry) => entry.id === tab) ?? SCREEN_DEFS[0];
-  const isEnrollmentsContext = tab === "enrollments";
-  const sessionUserAccount =
-    users.find((item) => item.id === session?.user.id) ||
-    users.find((item) => item.username === session?.user.username) ||
-    users.find((item) => Boolean(item.email && item.email === session?.user.username));
-  const headerAccount = currentProfile?.user || sessionUserAccount;
-  const headerDisplayName =
-    headerAccount?.displayName ||
-    session?.user.displayName ||
-    session?.user.username ||
-    "Utilisateur";
-  const headerEmail =
-    headerAccount?.email ||
-    session?.user.email ||
-    (session?.user.username?.includes("@") ? session.user.username : undefined);
-  const profileInitial = getInitials(headerDisplayName || headerEmail);
-  const profileContextLabel = currentRole ? ROLE_CONTEXT_LABELS[currentRole] : "Session";
-  const headerTenantLabel = currentProfile?.context.tenantName || SCHOOL_NAME;
-  const headerStatusLabel = formatAccountStatusLabel(headerAccount?.status || session?.user.status || "ACTIVE");
-  const lastSyncLabel = lastSyncAt
-    ? new Date(lastSyncAt).toLocaleString(currentLanguageMeta.locale)
-    : "Non synchronise";
-  const dashboardTarget =
-    currentRole && hasScreenAccess(currentRole, "dashboard")
-      ? "dashboard"
-      : currentRole
-        ? ROLE_HOME_SCREEN[currentRole] || "dashboard"
-        : "dashboard";
-  const buildHeaderAction = (screen: ScreenId, label: string): HeaderNavigationAction => {
-    const allowed = currentRole ? hasScreenAccess(currentRole, screen) : false;
-    return {
-      id: screen,
-      label,
-      active: tab === screen,
-      disabled: !allowed,
-      helperText: allowed ? undefined : "Accès restreint",
-      onSelect: () => {
-        if (!allowed) return;
-        setTab(screen);
-      }
-    };
-  };
-  const dashboardAction: HeaderNavigationAction = {
-    id: dashboardTarget,
-    label: "Tableau de bord",
-    active: tab === dashboardTarget,
-    disabled: !currentRole,
-    onSelect: () => setTab(dashboardTarget)
-  };
-  const messagingEnabled = false;
-  const scolariteActions: HeaderNavigationAction[] = [
-    buildHeaderAction("enrollments", "Inscriptions"),
-    buildHeaderAction("iam", "Utilisateurs & droits"),
-    buildHeaderAction("teachers", "Enseignants"),
-    buildHeaderAction("rooms", "Salles"),
-    buildHeaderAction("students", "Élèves"),
-    buildHeaderAction("parents", "Parents"),
-    buildHeaderAction("finance", "Comptabilité")
-  ];
-  const schoolLifeActions: HeaderNavigationAction[] = [
-    buildHeaderAction("grades", "Notes & bulletins"),
-    messagingEnabled ? buildHeaderAction("messages", "Messagerie") : null,
-    buildHeaderAction("schoolLifeOverview", "Pilotage"),
-    buildHeaderAction("schoolLifeAttendance", "Absences"),
-    buildHeaderAction("schoolLifeTimetable", "Emploi du temps"),
-    buildHeaderAction("schoolLifeNotifications", "Notifications")
-  ].filter((item): item is HeaderNavigationAction => item !== null);
-  const settingsActions: HeaderNavigationAction[] = [
-    buildHeaderAction("reference", "Référentiel"),
-    buildHeaderAction("reports", "Rapports & conformité")
-  ];
-  const settingsGroups: HeaderNavigationGroup[] = [
-    {
-      id: "mosquee-management",
-      label: "Gestion mosquée",
-      items: [buildHeaderAction("mosquee", "Mosquée")]
-    }
-  ];
-  const portalActions: HeaderNavigationAction[] = [
-    currentRole === "ENSEIGNANT" ? buildHeaderAction("teacherPortal", "Portail enseignant") : null,
-    currentRole === "PARENT" ? buildHeaderAction("parentPortal", "Portail parent") : null,
-    currentRole === "STUDENT" ? buildHeaderAction("studentPortal", "Portail élève") : null
-  ].filter((item): item is HeaderNavigationAction => item !== null);
-  const isTeachersContext = tab === "teachers";
-  const sidebarGroups =
-    currentRole === "ENSEIGNANT" || currentRole === "PARENT" || currentRole === "STUDENT"
-      ? [{ id: "portal", title: "Accès rapide", items: portalActions }]
-      : [
-          { id: "pilotage", title: "Pilotage", items: [dashboardAction] },
-          { id: "scolarite", title: "Scolarité", items: scolariteActions },
-          { id: "school-life", title: "Vie scolaire", items: schoolLifeActions },
-          {
-            id: "settings",
-            title: "Paramètres",
-            items: [...settingsActions, ...settingsGroups.flatMap((group) => group.items)]
-          }
-        ];
-  const preferenceActions: HeaderPreferenceAction[] = [
-    {
-      id: "language",
-      label: "Sélectionner la langue",
-      helperText: `Langue active : ${currentLanguageMeta.label}`,
-      iconSrc: currentLanguageMeta.iconSrc,
-      onSelect: () => selectLanguage(uiLanguage),
-      options: UI_LANGUAGE_ORDER.map((language) => ({
-        id: language,
-        label: UI_LANGUAGE_META[language].label,
-        active: language === uiLanguage,
-        helperText: language === uiLanguage ? "Langue active" : "Changer la langue",
-        iconSrc: UI_LANGUAGE_META[language].iconSrc,
-        onSelect: () => selectLanguage(language)
-      }))
-    },
-    {
-      id: "theme",
-      label: "Changer le mode",
-      helperText: themeMode === "dark" ? "Activer le mode clair" : "Activer le mode sombre",
-      iconSrc: themeMode === "light" ? "/mode-clair.png" : "/mode-sombre.png",
-      onSelect: toggleThemeMode
-    }
-  ];
-  const headerUserActions: HeaderUserAction[] = [
-    {
-      id: "profile",
-      icon: "profile",
-      label: "Mon profil",
-      onSelect: () => setTab("profile")
-    },
-    {
-      id: "preferences",
-      icon: "settings",
-      label: "Préférences",
-      onSelect: () => setTab("preferences")
-    },
-    {
-      id: "activity",
-      icon: "activity",
-      label: "Journal d’activité",
-      onSelect: () => setTab("activity")
-    },
-    {
-      id: "billing",
-      icon: "billing",
-      label: "Facturation",
-      onSelect: () => setTab("billing")
-    }
-  ];
-  const notificationTarget: ScreenId =
-    currentRole === "ENSEIGNANT"
-      ? "teacherPortal"
-      : currentRole === "PARENT"
-        ? "parentPortal"
-        : currentRole === "STUDENT"
-          ? "studentPortal"
-          : currentRole && hasScreenAccess(currentRole, "schoolLifeNotifications")
-            ? "schoolLifeNotifications"
-            : dashboardTarget;
-  const messageTarget: ScreenId =
-    currentRole && hasScreenAccess(currentRole, "messages") ? "messages" : dashboardTarget;
-  const headerMessageCount =
-    currentRole && hasScreenAccess(currentRole, "messages")
-      ? 0
-      : 0;
-  const notificationActive =
-    notificationTarget === "schoolLifeNotifications"
-      ? tab === "schoolLifeNotifications"
-      : tab === notificationTarget;
-  const messageActive = messageTarget === "messages" ? tab === "messages" : tab === messageTarget;
-  const headerSearchSubmit = (): void => {
-    if (!moduleQueryInput.trim()) return;
-    if (currentRole && hasScreenAccess(currentRole, "dashboard")) {
-      setTab("dashboard");
-    }
-  };
+  const {
+    activeScreen,
+    dashboardAction,
+    headerMessageCount,
+    headerSearchSubmit,
+    headerUserActions,
+    isEnrollmentsContext,
+    isTeachersContext,
+    messageActive,
+    messageTarget,
+    notificationActive,
+    notificationTarget,
+    preferenceActions,
+    schoolLifeActions,
+    scolariteActions,
+    settingsActions,
+    settingsGroups,
+    sidebarGroups
+  } = createAppNavigationModel({
+    currentLanguageMeta,
+    currentRole,
+    moduleQueryInput,
+    selectLanguage,
+    selectScreen: setTab,
+    tab,
+    themeMode,
+    toggleThemeMode,
+    uiLanguage
+  });
+  const {
+    avatarInitial: profileInitial,
+    avatarUrl: headerAvatarUrl,
+    contextLabel: profileContextLabel,
+    displayName: headerDisplayName,
+    email: headerEmail,
+    lastSyncLabel,
+    statusLabel: headerStatusLabel,
+    tenantLabel: headerTenantLabel
+  } = createHeaderSessionModel({
+    currentProfile,
+    currentRole,
+    lastSyncAt,
+    locale: currentLanguageMeta.locale,
+    schoolName: SCHOOL_NAME,
+    session,
+    users
+  });
   return (
     <main
       ref={appRootRef}
@@ -1266,7 +1128,7 @@ export function App(): JSX.Element {
               onUserLogout={() => void logout()}
               user={{
                 avatar: profileInitial,
-                avatarUrl: headerAccount?.avatarUrl,
+                avatarUrl: headerAvatarUrl,
                 email: headerEmail,
                 roleLabel: currentRoleLabel,
                 username: headerDisplayName
@@ -1307,7 +1169,7 @@ export function App(): JSX.Element {
                 }}
                 user={{
                   avatar: profileInitial,
-                  avatarUrl: headerAccount?.avatarUrl,
+                  avatarUrl: headerAvatarUrl,
                   contextLabel: profileContextLabel,
                   email: headerEmail,
                   roleLabel: currentRoleLabel,
