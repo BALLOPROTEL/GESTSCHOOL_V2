@@ -22,6 +22,51 @@ describe("production environment validator", () => {
     expect(validateProductionEnv(validEnv())).toEqual({ errors: [], warnings: [] });
   });
 
+  it("temporarily accepts only the known historical tenant id with an explicit warning", () => {
+    const result = validateProductionEnv({
+      ...validEnv(),
+      DEFAULT_TENANT_ID: "00000000-0000-0000-0000-000000000001",
+      ALLOW_LEGACY_DEFAULT_TENANT_ID: "true"
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([
+      expect.stringContaining("historical non-versioned tenant UUID")
+    ]);
+  });
+
+  it("rejects the historical tenant id unless compatibility is explicitly enabled", () => {
+    const result = validateProductionEnv({
+      ...validEnv(),
+      DEFAULT_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+    });
+
+    expect(result.errors).toEqual([
+      expect.stringContaining("ALLOW_LEGACY_DEFAULT_TENANT_ID=true")
+    ]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("rejects every other UUID-shaped non-versioned tenant id", () => {
+    const result = validateProductionEnv({
+      ...validEnv(),
+      DEFAULT_TENANT_ID: "11111111-1111-0111-8111-111111111111"
+    });
+
+    expect(result.errors).toContain("DEFAULT_TENANT_ID must be a valid versioned UUID.");
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("rejects a missing production tenant id", () => {
+    const env = validEnv();
+    delete env.DEFAULT_TENANT_ID;
+
+    const result = validateProductionEnv(env);
+
+    expect(result.errors).toContain("DEFAULT_TENANT_ID is required in production.");
+    expect(result.warnings).toEqual([]);
+  });
+
   it("does not enforce production-only variables in development", () => {
     expect(validateProductionEnv({ NODE_ENV: "development" })).toEqual({
       errors: [],
@@ -42,7 +87,7 @@ describe("production environment validator", () => {
       expect.arrayContaining([
         "JWT_SECRET must be a non-placeholder secret of at least 32 characters.",
         "PASSWORD_RESET_SECRET must be a non-placeholder secret of at least 32 characters.",
-        "DEFAULT_TENANT_ID must be a valid UUID.",
+        "DEFAULT_TENANT_ID must be a valid versioned UUID.",
         "CORS_ORIGINS must not contain * in production."
       ])
     );
