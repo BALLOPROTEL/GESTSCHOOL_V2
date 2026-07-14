@@ -206,6 +206,20 @@ describe("Auth + access guards (e2e)", () => {
     expect(afterRefreshAuditCount).toBe(beforeRefreshAuditCount + 1);
   });
 
+  it("allows only one concurrent refresh-token rotation", async () => {
+    const tokens = await login(context.app, "admin@gestschool.local", "admin12345");
+    const attempts = await Promise.all([
+      request(context.app.getHttpServer())
+        .post("/api/v1/auth/refresh")
+        .send({ refreshToken: tokens.refreshToken }),
+      request(context.app.getHttpServer())
+        .post("/api/v1/auth/refresh")
+        .send({ refreshToken: tokens.refreshToken })
+    ]);
+
+    expect(attempts.map((response) => response.status).sort()).toEqual([201, 401]);
+  });
+
   it("POST /auth/logout should revoke refresh token", async () => {
     const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
 
@@ -218,6 +232,88 @@ describe("Auth + access guards (e2e)", () => {
       .post("/api/v1/auth/refresh")
       .send({ refreshToken: adminTokens.refreshToken })
       .expect(401);
+
+    await request(context.app.getHttpServer())
+      .get("/api/v1/users/me")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .expect(401);
+  });
+
+  it("rejects a cryptographically valid access token after the account is disabled", async () => {
+    const user = await context.prisma.user.create({
+      data: {
+        tenantId: TENANT_ID,
+        username: "disabled-session@gestschool.local",
+        email: "disabled-session@gestschool.local",
+        passwordHash: await hash("DisabledSession123!", 10),
+        role: UserRole.SCOLARITE,
+        status: "ACTIVE",
+        isActive: true
+      }
+    });
+    const tokens = await login(
+      context.app,
+      "disabled-session@gestschool.local",
+      "DisabledSession123!"
+    );
+
+    await context.prisma.user.update({
+      where: { id: user.id },
+      data: { status: "DISABLED", isActive: false, disabledAt: new Date() }
+    });
+
+    await request(context.app.getHttpServer())
+      .get("/api/v1/users/me")
+      .set("Authorization", `Bearer ${tokens.accessToken}`)
+      .expect(401);
+  });
+
+  it("revokes the current access token when all user sessions are closed", async () => {
+    const tokens = await login(context.app, "parent@gestschool.local", "parent1234");
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/users/me/logout-all-devices")
+      .set("Authorization", `Bearer ${tokens.accessToken}`)
+      .expect(201);
+
+    await request(context.app.getHttpServer())
+      .get("/api/v1/users/me")
+      .set("Authorization", `Bearer ${tokens.accessToken}`)
+      .expect(401);
+  });
+
+  it("rejects invalid tenant identifiers on sensitive authentication endpoints", async () => {
+    const invalidTenantId = "11111111-1111-0111-8111-111111111111";
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({
+        username: "admin@gestschool.local",
+        password: "admin12345",
+        tenantId: invalidTenantId
+      })
+      .expect(400);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/forgot-password")
+      .send({ username: "admin@gestschool.local", tenantId: invalidTenantId })
+      .expect(400);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/resend-activation")
+      .send({ username: "admin@gestschool.local", tenantId: invalidTenantId })
+      .expect(400);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/auth/first-connection")
+      .send({
+        username: "admin@gestschool.local",
+        temporaryPassword: "TemporaryPassword123!",
+        newPassword: "DefinitivePassword123!",
+        confirmPassword: "DefinitivePassword123!",
+        tenantId: invalidTenantId
+      })
+      .expect(400);
   });
 
   it("POST /auth/login should reject pending activation accounts", async () => {

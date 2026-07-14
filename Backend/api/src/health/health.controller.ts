@@ -28,7 +28,6 @@ export class HealthController {
 
   @Public()
   @Get("live")
-  @RateLimit({ bucket: "health-live", max: 300, windowMs: 60_000 })
   @ApiOperation({ summary: "Liveness probe" })
   getLiveness(): { status: string; uptimeSeconds: number } {
     return {

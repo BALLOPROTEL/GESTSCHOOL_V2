@@ -25,6 +25,34 @@ Consumers aligned on the same runtime rules:
 - `jwt-auth.guard.ts`
 - `auth.service.ts` password reset secret fallback path
 
+## Access-token session policy
+
+Each access token now carries a `sid` matching the primary key of its persisted
+refresh-token session. For every protected request, the authentication guard
+performs one database query that verifies together:
+
+- the current user still exists and belongs to the token tenant;
+- `status=ACTIVE`, `is_active=true`, and `deleted_at IS NULL`;
+- the session exists, belongs to the same user and tenant, is not revoked, and
+  has not expired.
+
+Logout, logout-all, password changes, administrative password resets, account
+deactivation, archival, and soft deletion revoke the corresponding persisted
+sessions. Revocation therefore invalidates both the refresh token and associated
+access token on the next protected request. Access tokens issued before this
+policy do not contain `sid` and are rejected; users must authenticate again after
+deployment.
+
+The added query is intentionally not cached because immediate revocation is the
+security requirement. On the disposable PostgreSQL test database, the equivalent
+query measured 0.069 ms execution time (1.926 ms planning time) on an empty test
+dataset. Both lookup identifiers are primary keys. Production latency and query
+volume must still be observed after deployment.
+
+There is currently no canonical `Tenant` model/table with an active or suspended
+state. The guard can prove tenant consistency between token, user, and session,
+but cannot validate a tenant lifecycle state that does not exist in the schema.
+
 ## E2E database safety policy
 
 Backend e2e tests now require:

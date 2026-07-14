@@ -292,3 +292,131 @@ Le controle final `pnpm audit` sans `--prod` reste en echec avec 52 constats : 1
 | undici 7.25.0 | Haute | `jsdom > undici` | Reseau simule des tests frontend, absent du bundle | Mettre a jour jsdom/undici compatible et relancer les tests frontend avant le LOT 10 |
 
 `pnpm outdated -r` confirme que les corrections potentielles de cet outillage sont pour partie des mises a jour mineures, mais que plusieurs dernieres versions proposees sont majeures (Prisma 7, React 19, Redis 6, Vite 8, ESLint 10 et TypeScript 7). Elles ne sont pas introduites dans ce lot de securisation production. Leur mise a niveau doit etre separee, testee et ne doit pas reposer sur un override transitoire non maitrise.
+
+## LOT 3 - Authentification, proxy et rate limiting
+
+- Date : 2026-07-14
+- Statut : termine localement, deploiement de la correction non effectue
+- Commit propose : `fix(api): harden authentication and rate limiting`
+
+### Diagnostic confirme
+
+- Le rate limiter lisait directement `X-Forwarded-For` avant l'adresse resolue par
+  Express. Un client direct pouvait donc choisir sa cle de limitation.
+- Aucun proxy de confiance n'etait configure explicitement.
+- Redis etait optionnel et le fallback memoire restait possible en production.
+  Plusieurs instances auraient alors applique des compteurs independants.
+- `RATE_LIMIT_DISABLED` pouvait court-circuiter le guard dans tous les
+  environnements.
+- Un access token cryptographiquement valide restait utilisable apres logout,
+  desactivation du compte ou changement du mot de passe, jusqu'a son expiration.
+- Le validateur de production ne controlait pas Redis, le proxy, issuer/audience
+  JWT, le driver de stockage ni les credentials des providers actifs.
+- Certains DTO d'authentification acceptaient un `tenantId` sans validation UUID
+  coherente et les routes de statut acceptaient un token non borne.
+- Express exposait `X-Powered-By` et aucun socle d'en-tetes API n'etait applique.
+
+### Corrections appliquees
+
+- `TRUST_PROXY_HOPS` configure explicitement Express ; valeur locale/test `0`,
+  valeur Render `1`. Le rate limiter utilise uniquement `request.ip` resolu par
+  Express et ignore les en-tetes transmis directement.
+- Redis est obligatoire au demarrage en production. Une panne Redis provoque un
+  HTTP 503 sur les routes limitees, sans fallback memoire silencieux. Le fallback
+  reste disponible uniquement hors production.
+- L'increment Redis et la pose de l'expiration sont atomiques dans un script Lua.
+- `RATE_LIMIT_DISABLED=true` est refuse par le validateur et ne desactive jamais
+  le guard lorsque le processus a demarre en production.
+- Les limites sensibles sont renforcees : login 5/5 min, forgot-password et
+  resend-activation 3/15 min, reset/activation/first-connection 5/15 min.
+- Chaque access token contient desormais `sid`, identifiant de la session
+  `RefreshToken`. Une seule requete SQL par requete protegee verifie utilisateur,
+  tenant, statut du compte et session non revoquee/non expiree.
+- Logout, logout-all, rotation refresh, changement/reinitialisation de mot de
+  passe, desactivation, archivage et suppression revoquent les sessions
+  persistantes. La rotation concurrente du meme refresh token est atomique.
+- Les erreurs sont distinguees : jeton/session invalide HTTP 401, impossibilite
+  de verifier l'etat en base HTTP 503.
+- Les tenant IDs des flux login, forgot-password, resend-activation et premiere
+  connexion utilisent le validateur commun. Seul le tenant historique exact du
+  LOT 1 reste accepte avec son opt-in strict.
+- Les query tokens de statut sont bornes entre 32 et 512 caracteres.
+- `X-Powered-By` est desactive. L'API ajoute `nosniff`, `DENY`, `no-referrer`, une
+  Permissions-Policy restrictive et HSTS en production. Aucune CSP web
+  incompatible avec une API JSON n'a ete ajoutee.
+- `/health/live` reste independant de Redis ; `/health/ready` verifie PostgreSQL
+  et Redis. La preuve fournie par l'operateur montre `database=up` et `redis=up`
+  sur Render avant deploiement du code de ce lot.
+
+### Migration, performances et rollback
+
+Aucune migration n'est requise : `RefreshToken.id` est deja un UUID primaire et
+devient le `sid`. Les anciens access tokens sans `sid` seront refuses apres le
+deploiement ; les utilisateurs devront se reconnecter.
+
+Le controle de session ajoute exactement une requete SQL aux routes protegees.
+Sur la base de test jetable, la requete equivalente a mesure 0,069 ms d'execution
+et 1,926 ms de planification sur un jeu vide. `users.id` et
+`refresh_tokens.id` sont des cles primaires. La latence P95/P99 devra etre
+observee en production ; aucun cache n'est ajoute afin de conserver la revocation
+immediate.
+
+Rollback applicatif : redeployer ensemble l'ancien emetteur de tokens et l'ancien
+guard. Aucune restauration de base n'est necessaire. Les sessions deja revoquees
+restent revoquees et les sessions avec UUID explicite restent des lignes valides.
+
+### Configuration Render requise
+
+- `REDIS_URL` : URL privee du Key Value Render, deja configuree par l'operateur ;
+- `TRUST_PROXY_HOPS=1` ;
+- `RATE_LIMIT_DISABLED=false` ;
+- `JWT_ISSUER=gestschool` ;
+- `JWT_AUDIENCE=gestschool-clients` ;
+- `JWT_SECRET` et `PASSWORD_RESET_SECRET` non factices, au moins 32 caracteres ;
+- `FILE_STORAGE_DRIVER=SUPABASE`, `STORAGE_PROVIDER=supabase`, URL et service-role
+  Supabase presentes ;
+- credentials Brevo presents puisque `OUTBOX_IN_PROCESS_ENABLED=true` active le
+  traitement des notifications.
+
+La ressource Redis doit rester dans la meme region que l'API et utiliser
+`noeviction`. Sa valeur secrete ne doit jamais etre journalisee ni commitee.
+
+### Validations
+
+| Controle | Resultat |
+| --- | --- |
+| Tests proxy autorise/non autorise et XFF usurpe | OK |
+| Redis disponible simule / indisponible en production / absent en test | OK |
+| Desactivation interdite en production, validateur et guard | OK |
+| Validateur production complet et configurations dangereuses | OK |
+| Tenant historique exact, UUID versionne et UUID invalide | OK |
+| Headers HTTP et absence de `X-Powered-By` | OK |
+| Rotation refresh concurrente | OK, une reussite et un rejet |
+| Compte desactive avec ancien access token | OK, HTTP 401 |
+| Logout et logout-all avec ancien access token | OK, HTTP 401 |
+| `pnpm --filter @gestschool/api test:unit` | OK, 10 suites et 39 tests |
+| `pnpm --filter @gestschool/api lint` | OK |
+| `pnpm --filter @gestschool/api build` | OK |
+| `pnpm --filter @gestschool/api test:e2e:db:fresh` | OK, 7 suites et 46 tests |
+| `git diff --check` | OK avant journalisation finale |
+
+Le premier lancement E2E dans le bac a sable a retourne `Schema engine error` a
+cause de l'isolation de PostgreSQL local. La relance autorisee sur la base dediee
+`gestschool_test` a applique/verifie les 30 migrations et passe les 46 tests.
+Aucun echec n'a ete masque.
+
+### Limites et verdict
+
+- Le schema ne contient pas de table `Tenant` canonique avec un statut actif,
+  suspendu ou supprime. Le guard garantit la coherence tenant entre token,
+  utilisateur et session, mais ne peut pas controler un etat metier inexistant.
+- La disponibilite des routes limitees depend volontairement de Redis en
+  production. C'est un fail-closed de securite, avec risque de HTTP 503 pendant
+  une panne Redis.
+- La mesure SQL locale ne remplace pas une observation de charge production.
+- Le code du lot n'est ni committe, ni pousse, ni deploye.
+
+Verdict du LOT 3 : **GO local avec reserve de deploiement**. Les garanties proxy,
+rate limiting et revocation sont testees. La validation production finale exige
+un deploiement avec les variables ci-dessus puis le controle de `/health/live`,
+`/health/ready`, d'un login, d'un logout et d'une desactivation reelle.

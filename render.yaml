@@ -23,6 +23,10 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: RATE_LIMIT_DISABLED
+        value: "false"
       - key: JWT_ISSUER
         value: gestschool
       - key: JWT_AUDIENCE

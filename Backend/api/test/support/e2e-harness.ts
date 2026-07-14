@@ -1,5 +1,6 @@
 import { type INestApplication, ValidationPipe } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { hash } from "bcryptjs";
 import * as request from "supertest";
@@ -7,6 +8,7 @@ import * as request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { BackgroundTasksService } from "../../src/background/background-tasks.service";
 import { PrismaService } from "../../src/database/prisma.service";
+import { configureHttpPlatform } from "../../src/security/http-platform.config";
 import { UserRole } from "../../src/security/roles.enum";
 
 export const TENANT_ID = "00000000-0000-0000-0000-000000000001";
@@ -46,6 +48,7 @@ export function configureE2eEnvironment(): void {
   }
 
   process.env.DATABASE_URL = testDatabaseUrl;
+  process.env.NODE_ENV = "test";
   process.env.DIRECT_URL = process.env.TEST_DIRECT_URL?.trim() || testDatabaseUrl;
   process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
   process.env.JWT_ISSUER = process.env.JWT_ISSUER || "gestschool-test";
@@ -53,6 +56,8 @@ export function configureE2eEnvironment(): void {
   process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1h";
   process.env.REFRESH_TOKEN_TTL_DAYS = process.env.REFRESH_TOKEN_TTL_DAYS || "30";
   process.env.DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || TENANT_ID;
+  process.env.ALLOW_LEGACY_DEFAULT_TENANT_ID = "true";
+  process.env.TRUST_PROXY_HOPS = "0";
   process.env.REDIS_URL = "";
   process.env.NOTIFICATIONS_WORKER_ENABLED = "false";
   process.env.OUTBOX_IN_PROCESS_ENABLED = "false";
@@ -71,6 +76,7 @@ export async function createE2eApp(): Promise<E2eAppContext> {
   }).compile();
 
   const app = moduleFixture.createNestApplication();
+  configureHttpPlatform(app, app.get(ConfigService));
   app.setGlobalPrefix("api/v1");
   app.useGlobalPipes(
     new ValidationPipe({

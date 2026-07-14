@@ -27,6 +27,35 @@ function validateProductionEnv(env) {
     }
   }
 
+  function booleanValue(name, fallback = false) {
+    const raw = String(env[name] ?? fallback).trim().toLowerCase();
+    return raw === "true" || raw === "1" || raw === "yes";
+  }
+
+  function requireCredential(name, minimumLength = 16) {
+    const value = requireEnv(name);
+    if (value && (value.length < minimumLength || PLACEHOLDER_PATTERN.test(value))) {
+      errors.push(`${name} must be a non-placeholder credential.`);
+    }
+    return value;
+  }
+
+  function parseServiceUrl(name, protocols) {
+    const raw = requireEnv(name);
+    if (!raw) return null;
+    try {
+      const parsed = new URL(raw);
+      if (!protocols.includes(parsed.protocol)) {
+        errors.push(`${name} must use one of: ${protocols.join(", ")}.`);
+      }
+      if (!parsed.hostname) errors.push(`${name} must include a host.`);
+      return parsed;
+    } catch {
+      errors.push(`${name} must be a valid URL.`);
+      return null;
+    }
+  }
+
   function parsePostgresUrl(name) {
     const raw = requireEnv(name);
     if (!raw) return null;
@@ -54,6 +83,79 @@ function validateProductionEnv(env) {
   const corsOriginsRaw = requireEnv("CORS_ORIGINS");
   requireSecret("JWT_SECRET");
   requireSecret("PASSWORD_RESET_SECRET");
+  const jwtIssuer = requireEnv("JWT_ISSUER");
+  const jwtAudience = requireEnv("JWT_AUDIENCE");
+  if (jwtIssuer && PLACEHOLDER_PATTERN.test(jwtIssuer)) {
+    errors.push("JWT_ISSUER must not be a placeholder value.");
+  }
+  if (jwtAudience && PLACEHOLDER_PATTERN.test(jwtAudience)) {
+    errors.push("JWT_AUDIENCE must not be a placeholder value.");
+  }
+
+  parseServiceUrl("REDIS_URL", ["redis:", "rediss:"]);
+  if (booleanValue("RATE_LIMIT_DISABLED")) {
+    errors.push("RATE_LIMIT_DISABLED must not be enabled in production.");
+  }
+
+  const proxyHopsRaw = requireEnv("TRUST_PROXY_HOPS");
+  const proxyHops = Number(proxyHopsRaw);
+  if (!/^\d+$/.test(proxyHopsRaw) || !Number.isInteger(proxyHops) || proxyHops < 1 || proxyHops > 5) {
+    errors.push("TRUST_PROXY_HOPS must be an integer between 1 and 5 in production.");
+  }
+
+  const storageDriver = requireEnv("FILE_STORAGE_DRIVER").toUpperCase();
+  const storageProvider = String(env.STORAGE_PROVIDER || storageDriver).trim().toUpperCase();
+  if (storageDriver && storageDriver !== "SUPABASE") {
+    errors.push("FILE_STORAGE_DRIVER must be SUPABASE in production.");
+  }
+  if (storageProvider && storageProvider !== "SUPABASE") {
+    errors.push("STORAGE_PROVIDER must be supabase in production.");
+  }
+  if (storageDriver === "SUPABASE" || storageProvider === "SUPABASE") {
+    parseServiceUrl("SUPABASE_URL", ["https:"]);
+    requireCredential("SUPABASE_SERVICE_ROLE_KEY", 32);
+  }
+
+  const notificationsEnabled =
+    booleanValue("NOTIFICATIONS_WORKER_ENABLED") || booleanValue("OUTBOX_IN_PROCESS_ENABLED");
+  if (notificationsEnabled) {
+    const emailProvider = String(
+      env.NOTIFICATIONS_EMAIL_PROVIDER || env.NOTIFY_EMAIL_PROVIDER || ""
+    )
+      .trim()
+      .toUpperCase();
+    const smsProvider = String(
+      env.NOTIFICATIONS_SMS_PROVIDER || env.NOTIFY_SMS_PROVIDER || ""
+    )
+      .trim()
+      .toUpperCase();
+    const allowedProviders = ["BREVO", "WEBHOOK"];
+
+    if (!allowedProviders.includes(emailProvider)) {
+      errors.push("NOTIFICATIONS_EMAIL_PROVIDER must be BREVO or WEBHOOK when notifications are enabled.");
+    }
+    if (!allowedProviders.includes(smsProvider)) {
+      errors.push("NOTIFICATIONS_SMS_PROVIDER must be BREVO or WEBHOOK when notifications are enabled.");
+    }
+    if (emailProvider === "BREVO" || smsProvider === "BREVO") {
+      requireCredential("BREVO_API_KEY", 16);
+    }
+    if (emailProvider === "BREVO") {
+      requireEnv("BREVO_SENDER_EMAIL");
+    }
+    if (smsProvider === "BREVO" && !booleanValue("BREVO_SMS_DRY_RUN", true)) {
+      requireEnv("BREVO_SMS_SENDER");
+      if (!booleanValue("ALLOW_REAL_SMS")) {
+        errors.push("ALLOW_REAL_SMS must be true when BREVO_SMS_DRY_RUN is false.");
+      }
+    }
+    if (emailProvider === "WEBHOOK") {
+      parseServiceUrl("NOTIFY_EMAIL_WEBHOOK_URL", ["https:"]);
+    }
+    if (smsProvider === "WEBHOOK") {
+      parseServiceUrl("NOTIFY_SMS_WEBHOOK_URL", ["https:"]);
+    }
+  }
 
   const defaultTenantId = requireEnv("DEFAULT_TENANT_ID");
   if (defaultTenantId && !VERSIONED_UUID_PATTERN.test(defaultTenantId)) {

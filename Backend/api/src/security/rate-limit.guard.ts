@@ -4,7 +4,9 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  ServiceUnavailableException
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
 
 import { RedisService } from "../infrastructure/redis/redis.service";
@@ -18,11 +20,23 @@ type RateLimitEntry = {
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   private readonly store = new Map<string, RateLimitEntry>();
+  private readonly production: boolean;
+  private readonly disabled: boolean;
 
   constructor(
     private readonly reflector: Reflector,
-    private readonly redisService: RedisService
-  ) {}
+    private readonly redisService: RedisService,
+    configService: ConfigService
+  ) {
+    this.production =
+      configService.get<string>("NODE_ENV", "development").trim().toLowerCase() ===
+      "production";
+    const disabledValue = configService
+      .get<string>("RATE_LIMIT_DISABLED", "")
+      .trim()
+      .toLowerCase();
+    this.disabled = ["1", "true", "yes"].includes(disabledValue);
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     if (this.isDisabledForCurrentProcess()) {
@@ -40,8 +54,6 @@ export class RateLimitGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<{
       ip?: string;
-      headers?: Record<string, string | string[] | undefined>;
-      socket?: { remoteAddress?: string };
     }>();
     const response = context.switchToHttp().getResponse<{
       setHeader(name: string, value: number | string): void;
@@ -59,6 +71,12 @@ export class RateLimitGuard implements CanActivate {
         );
       }
       return true;
+    }
+
+    if (this.isProduction()) {
+      throw new ServiceUnavailableException(
+        "Rate limiting is temporarily unavailable. Please retry later."
+      );
     }
 
     const current = this.store.get(key);
@@ -84,23 +102,7 @@ export class RateLimitGuard implements CanActivate {
     return true;
   }
 
-  private resolveClientKey(request: {
-    ip?: string;
-    headers?: Record<string, string | string[] | undefined>;
-    socket?: { remoteAddress?: string };
-  }): string {
-    const forwardedFor = request.headers?.["x-forwarded-for"];
-    const firstForwarded = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
-    const forwardedIp = firstForwarded?.split(",")[0]?.trim();
-    if (forwardedIp) {
-      return forwardedIp;
-    }
-
-    const socketIp = request.socket?.remoteAddress?.trim();
-    if (socketIp) {
-      return socketIp;
-    }
-
+  private resolveClientKey(request: { ip?: string }): string {
     const directIp = request.ip?.trim();
     if (directIp) {
       return directIp;
@@ -135,8 +137,11 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private isDisabledForCurrentProcess(): boolean {
-    const value = (process.env.RATE_LIMIT_DISABLED || "").trim().toLowerCase();
-    return value === "1" || value === "true" || value === "yes";
+    return !this.production && this.disabled;
+  }
+
+  private isProduction(): boolean {
+    return this.production;
   }
 
   private applyHeaders(

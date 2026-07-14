@@ -10,6 +10,7 @@ import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResendActivationDto } from "./dto/resend-activation.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { FirstConnectionDto } from "./dto/first-connection.dto";
+import { TokenStatusQueryDto } from "./dto/token-status-query.dto";
 import {
   AuthService,
   type AuthTokensResponse,
@@ -25,7 +26,7 @@ export class AuthController {
 
   @Public()
   @Post("login")
-  @RateLimit({ bucket: "auth-login", max: 5, windowMs: 60_000 })
+  @RateLimit({ bucket: "auth-login", max: 5, windowMs: 300_000 })
   @ApiOperation({ summary: "JWT login endpoint" })
   async login(@Body() body: LoginDto): Promise<AuthTokensResponse> {
     return this.authService.login(body);
@@ -50,7 +51,7 @@ export class AuthController {
 
   @Public()
   @Post("forgot-password")
-  @RateLimit({ bucket: "auth-forgot-password", max: 5, windowMs: 600_000 })
+  @RateLimit({ bucket: "auth-forgot-password", max: 3, windowMs: 900_000 })
   @ApiOperation({ summary: "Generate a password reset token" })
   async forgotPassword(@Body() body: ForgotPasswordDto): Promise<ForgotPasswordResponse> {
     return this.authService.forgotPassword(body);
@@ -58,7 +59,7 @@ export class AuthController {
 
   @Public()
   @Post("reset-password")
-  @RateLimit({ bucket: "auth-reset-password", max: 5, windowMs: 600_000 })
+  @RateLimit({ bucket: "auth-reset-password", max: 5, windowMs: 900_000 })
   @ApiOperation({ summary: "Reset user password with reset token" })
   async resetPassword(@Body() body: ResetPasswordDto): Promise<MessageResponse> {
     return this.authService.resetPassword(body);
@@ -66,7 +67,7 @@ export class AuthController {
 
   @Public()
   @Post("activate")
-  @RateLimit({ bucket: "auth-activate", max: 5, windowMs: 600_000 })
+  @RateLimit({ bucket: "auth-activate", max: 5, windowMs: 900_000 })
   @ApiOperation({ summary: "Activate account and set definitive password" })
   async activate(@Body() body: ActivateAccountDto): Promise<MessageResponse> {
     return this.authService.activateAccount(body);
@@ -74,7 +75,7 @@ export class AuthController {
 
   @Public()
   @Post("resend-activation")
-  @RateLimit({ bucket: "auth-resend-activation", max: 5, windowMs: 600_000 })
+  @RateLimit({ bucket: "auth-resend-activation", max: 3, windowMs: 900_000 })
   @ApiOperation({ summary: "Resend account activation email when eligible" })
   async resendActivation(@Body() body: ResendActivationDto): Promise<ForgotPasswordResponse> {
     return this.authService.resendActivation(body);
@@ -84,21 +85,21 @@ export class AuthController {
   @Get("activation-status")
   @RateLimit({ bucket: "auth-activation-status", max: 30, windowMs: 60_000 })
   @ApiOperation({ summary: "Check account activation token status" })
-  async activationStatus(@Query("token") token = ""): Promise<TokenStatusResponse> {
-    return this.authService.activationStatus(token);
+  async activationStatus(@Query() query: TokenStatusQueryDto): Promise<TokenStatusResponse> {
+    return this.authService.activationStatus(query.token);
   }
 
   @Public()
   @Get("reset-status")
   @RateLimit({ bucket: "auth-reset-status", max: 30, windowMs: 60_000 })
   @ApiOperation({ summary: "Check password reset token status" })
-  async resetStatus(@Query("token") token = ""): Promise<TokenStatusResponse> {
-    return this.authService.resetStatus(token);
+  async resetStatus(@Query() query: TokenStatusQueryDto): Promise<TokenStatusResponse> {
+    return this.authService.resetStatus(query.token);
   }
 
   @Public()
   @Post("first-connection")
-  @RateLimit({ bucket: "auth-first-connection", max: 5, windowMs: 600_000 })
+  @RateLimit({ bucket: "auth-first-connection", max: 5, windowMs: 900_000 })
   @ApiOperation({ summary: "Complete first connection with temporary password" })
   async completeFirstConnection(@Body() body: FirstConnectionDto): Promise<MessageResponse> {
     return this.authService.completeFirstConnection(body);

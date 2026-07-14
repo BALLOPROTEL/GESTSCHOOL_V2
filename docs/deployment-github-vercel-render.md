@@ -34,6 +34,9 @@ Ce mode est acceptable pour Render free et petite charge. Il n'est pas recommand
 Backend/runtime:
 - `NODE_ENV=production`
 - `HOST=0.0.0.0`
+- `TRUST_PROXY_HOPS=1`
+- `RATE_LIMIT_DISABLED=false`
+- `REDIS_URL` fourni par le service Key Value Render de la meme region
 - `DATABASE_URL`
 - `DIRECT_URL`
 - `CORS_ORIGINS=https://gestschool.vercel.app`
@@ -45,6 +48,23 @@ Backend/runtime:
 - `AUTH_PUBLIC_BASE_URL` must be a public HTTPS frontend URL in production. The API rejects local URLs such as `localhost` for activation and password reset emails.
 - `EMAIL_BRAND_LOGO_URL` optional. Leave empty to use `${AUTH_PUBLIC_BASE_URL}/logo.png` in activation and reset-password emails.
 - `MONITORING_METRICS_TOKEN`
+
+### Proxy et rate limiting Render
+
+L'API ne lit jamais directement `X-Forwarded-For`. Express resout `request.ip`
+apres application de `TRUST_PROXY_HOPS`. Le service web Render public est place
+derriere un proxy de confiance, donc la valeur attendue est strictement `1`.
+Ne pas augmenter cette valeur sans cartographier une nouvelle chaine de proxies :
+un nombre de sauts trop grand permettrait a un client de fournir une adresse
+transmise qui serait consideree comme fiable.
+
+Redis est obligatoire en production. L'API refuse de demarrer sans `REDIS_URL`
+et refuse les requetes limitees avec HTTP 503 si Redis devient indisponible ; le
+fallback memoire est reserve au developpement et aux tests. La sonde
+`/api/v1/health/live` reste independante de Redis, tandis que
+`/api/v1/health/ready` verifie PostgreSQL et Redis. La politique Render du service
+Key Value doit rester `noeviction` afin de ne pas supprimer silencieusement les
+compteurs de limitation sous pression memoire.
 
 Postgres / Supabase:
 - `DATABASE_URL` is the runtime connection used by Prisma Client.

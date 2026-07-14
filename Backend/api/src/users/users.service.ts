@@ -409,6 +409,16 @@ export class UsersService {
         }
       });
 
+      await transaction.refreshToken.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null
+        },
+        data: {
+          revokedAt: new Date()
+        }
+      });
+
       await this.auditService.enqueueLog(
         {
           tenantId,
@@ -713,7 +723,12 @@ export class UsersService {
           });
         }
 
-        if (payload.isActive === false || statusPatch === "INACTIVE" || statusPatch === "ARCHIVED" || payload.password) {
+        if (
+          payload.isActive === false ||
+          statusPatch === "INACTIVE" ||
+          statusPatch === "ARCHIVED" ||
+          payload.password
+        ) {
           await transaction.refreshToken.updateMany({
             where: {
               userId: existing.id,

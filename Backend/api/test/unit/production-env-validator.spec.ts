@@ -12,9 +12,20 @@ const validEnv = (): NodeJS.ProcessEnv => ({
   DATABASE_URL: "postgresql://gestschool:password@db.example.com:5432/gestschool",
   DIRECT_URL: "postgresql://gestschool:password@db-direct.example.com:5432/gestschool",
   CORS_ORIGINS: "https://gestschool.vercel.app",
+  REDIS_URL: "rediss://default:redis-password@redis.example.com:6379",
+  TRUST_PROXY_HOPS: "1",
+  RATE_LIMIT_DISABLED: "false",
+  JWT_ISSUER: "gestschool",
+  JWT_AUDIENCE: "gestschool-clients",
   JWT_SECRET: strongSecret,
   PASSWORD_RESET_SECRET: `${strongSecret}-reset`,
-  DEFAULT_TENANT_ID: "00000000-0000-4000-8000-000000000001"
+  DEFAULT_TENANT_ID: "00000000-0000-4000-8000-000000000001",
+  FILE_STORAGE_DRIVER: "SUPABASE",
+  STORAGE_PROVIDER: "supabase",
+  SUPABASE_URL: "https://project-ref.supabase.co",
+  SUPABASE_SERVICE_ROLE_KEY: `${strongSecret}-supabase`,
+  NOTIFICATIONS_WORKER_ENABLED: "false",
+  OUTBOX_IN_PROCESS_ENABLED: "false"
 });
 
 describe("production environment validator", () => {
@@ -131,6 +142,60 @@ describe("production environment validator", () => {
       expect.arrayContaining([
         "CORS_ORIGINS entry http://gestschool.vercel.app must use https:// in production.",
         "CORS_ORIGINS entry https://school.example.com/app must be an origin without path, query or fragment."
+      ])
+    );
+  });
+
+  it("requires Redis, a bounded trusted proxy and active rate limiting", () => {
+    const env = validEnv();
+    delete env.REDIS_URL;
+    delete env.TRUST_PROXY_HOPS;
+    env.RATE_LIMIT_DISABLED = "true";
+
+    const result = validateProductionEnv(env);
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "REDIS_URL is required in production.",
+        "RATE_LIMIT_DISABLED must not be enabled in production.",
+        "TRUST_PROXY_HOPS is required in production.",
+        "TRUST_PROXY_HOPS must be an integer between 1 and 5 in production."
+      ])
+    );
+  });
+
+  it("rejects incomplete JWT and unsafe production storage configuration", () => {
+    const result = validateProductionEnv({
+      ...validEnv(),
+      JWT_ISSUER: "",
+      JWT_AUDIENCE: "placeholder",
+      FILE_STORAGE_DRIVER: "LOCAL",
+      STORAGE_PROVIDER: "local"
+    });
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "JWT_ISSUER is required in production.",
+        "JWT_AUDIENCE must not be a placeholder value.",
+        "FILE_STORAGE_DRIVER must be SUPABASE in production.",
+        "STORAGE_PROVIDER must be supabase in production."
+      ])
+    );
+  });
+
+  it("requires provider credentials only when notification processing is enabled", () => {
+    const result = validateProductionEnv({
+      ...validEnv(),
+      OUTBOX_IN_PROCESS_ENABLED: "true",
+      NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
+      NOTIFICATIONS_SMS_PROVIDER: "BREVO",
+      BREVO_SMS_DRY_RUN: "true"
+    });
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "BREVO_API_KEY is required in production.",
+        "BREVO_SENDER_EMAIL is required in production."
       ])
     );
   });

@@ -37,6 +37,18 @@ describe("HTTP platform boundaries (e2e)", () => {
     expect(response.body.statusCode).toBe(400);
   });
 
+  it("sets API security headers and hides the Express implementation", async () => {
+    const response = await request(context.app.getHttpServer())
+      .get("/api/v1/health/live")
+      .expect(200);
+
+    expect(response.headers["x-powered-by"]).toBeUndefined();
+    expect(response.headers["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers["x-frame-options"]).toBe("DENY");
+    expect(response.headers["referrer-policy"]).toBe("no-referrer");
+    expect(response.headers["content-security-policy"]).toBeUndefined();
+  });
+
   it("returns a structured 404 for unmatched routes", async () => {
     const response = await request(context.app.getHttpServer())
       .get("/api/v1/students/00000000-0000-4000-8000-000000000999/unexpected")

@@ -4,6 +4,7 @@ import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 import { AppModule } from "./app.module";
+import { configureHttpPlatform } from "./security/http-platform.config";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
@@ -14,6 +15,7 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger("Bootstrap");
 
   const configService = app.get(ConfigService);
+  configureHttpPlatform(app, configService);
   const nodeEnv = configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
   const corsOriginsRaw = configService.get<string>("CORS_ORIGINS", "").trim();
   if (nodeEnv === "production" && !corsOriginsRaw) {

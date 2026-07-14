@@ -5,6 +5,7 @@ export type AuthenticatedUser = {
   username: string;
   role: UserRole;
   tenantId: string;
+  sid: string;
   iat?: number;
   exp?: number;
 };

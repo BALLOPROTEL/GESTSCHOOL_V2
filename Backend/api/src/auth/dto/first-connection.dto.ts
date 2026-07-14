@@ -7,6 +7,7 @@ import {
   PASSWORD_POLICY_MESSAGE,
   PASSWORD_POLICY_REGEX
 } from "../../common/password-policy";
+import { IsAllowedTenantId } from "../../common/tenant-id.validator";
 
 export class FirstConnectionDto {
   @ApiProperty({ example: "enseignant@gestschool.local" })
@@ -19,8 +20,7 @@ export class FirstConnectionDto {
     example: "00000000-0000-0000-0000-000000000001"
   })
   @IsOptional()
-  @IsString()
-  @MinLength(3)
+  @IsAllowedTenantId()
   tenantId?: string;
 
   @ApiProperty({ example: "temporaryPass123" })

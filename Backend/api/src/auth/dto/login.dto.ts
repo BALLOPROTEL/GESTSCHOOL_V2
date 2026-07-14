@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, Matches, MinLength } from "class-validator";
+import { IsOptional, IsString, MinLength } from "class-validator";
+
+import { IsAllowedTenantId } from "../../common/tenant-id.validator";
 
 export class LoginDto {
   @ApiProperty({ example: "admin@gestschool.local" })
@@ -16,6 +18,6 @@ export class LoginDto {
     description: "Optional tenant UUID. Defaults to DEFAULT_TENANT_ID."
   })
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  @IsAllowedTenantId()
   tenantId?: string;
 }

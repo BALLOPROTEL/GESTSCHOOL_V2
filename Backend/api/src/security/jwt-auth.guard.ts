@@ -2,12 +2,14 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
 
+import { PrismaService } from "../database/prisma.service";
 import { IS_PUBLIC_KEY } from "./public.decorator";
 import { type AuthenticatedUser } from "./authenticated-user.interface";
 import { getJwtRuntimeConfig } from "./jwt-config.util";
@@ -17,7 +19,8 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -41,18 +44,68 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException("Missing Authorization Bearer token.");
     }
 
+    const jwtConfig = getJwtRuntimeConfig(this.configService);
+    let payload: AuthenticatedUser;
     try {
-      const jwtConfig = getJwtRuntimeConfig(this.configService);
-      const payload = await this.jwtService.verifyAsync<AuthenticatedUser>(token, {
+      payload = await this.jwtService.verifyAsync<AuthenticatedUser>(token, {
         secret: jwtConfig.secret,
         issuer: jwtConfig.issuer,
         audience: jwtConfig.audience
       });
-      request.user = payload;
-      return true;
     } catch {
       throw new UnauthorizedException("Invalid or expired token.");
     }
+
+    if (!payload.sid || !payload.sub || !payload.tenantId) {
+      throw new UnauthorizedException("Session identifier is missing.");
+    }
+
+    let currentUser: {
+      tenantId: string;
+      username: string;
+      role: string;
+    } | null;
+    try {
+      const now = new Date();
+      currentUser = await this.prisma.user.findFirst({
+        where: {
+          id: payload.sub,
+          tenantId: payload.tenantId,
+          status: "ACTIVE",
+          isActive: true,
+          deletedAt: null,
+          refreshTokens: {
+            some: {
+              id: payload.sid,
+              tenantId: payload.tenantId,
+              revokedAt: null,
+              expiresAt: { gt: now }
+            }
+          }
+        },
+        select: {
+          tenantId: true,
+          username: true,
+          role: true
+        }
+      });
+    } catch {
+      throw new ServiceUnavailableException(
+        "Authentication state is temporarily unavailable."
+      );
+    }
+
+    if (!currentUser) {
+      throw new UnauthorizedException("Session is no longer active.");
+    }
+
+    request.user = {
+      ...payload,
+      username: currentUser.username,
+      role: currentUser.role as AuthenticatedUser["role"],
+      tenantId: currentUser.tenantId
+    };
+    return true;
   }
 
   private extractBearerToken(

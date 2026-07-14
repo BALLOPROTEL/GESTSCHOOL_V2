@@ -14,6 +14,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     const redisUrl = this.getRedisUrl();
     if (!redisUrl) {
       this.status = "disabled";
+      if (this.isProduction()) {
+        throw new Error("REDIS_URL is required in production.");
+      }
       return;
     }
 
@@ -51,9 +54,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.status = "connected";
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unable to connect to Redis";
-      this.logger.warn(`Redis unavailable at startup: ${message}`);
       this.status = "degraded";
       this.client = client;
+      if (this.isProduction()) {
+        if (client.isOpen) {
+          client.destroy();
+        }
+        throw new Error(`Redis unavailable at startup: ${message}`);
+      }
+      this.logger.warn(`Redis unavailable at startup: ${message}`);
     }
   }
 
@@ -108,11 +117,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const namespacedKey = this.qualifyKey(key);
-      const count = await client.incr(namespacedKey);
-      if (count === 1) {
-        await client.pExpire(namespacedKey, windowMs);
-      }
-      return count;
+      const result = await client.eval(
+        "local count = redis.call('INCR', KEYS[1]); " +
+          "if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]); end; " +
+          "return count;",
+        {
+          keys: [namespacedKey],
+          arguments: [String(Math.max(1_000, windowMs))]
+        }
+      );
+      return Number(result);
     } catch {
       this.status = "degraded";
       return null;
@@ -168,5 +182,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   private getRedisUrl(): string {
     return this.configService.get<string>("REDIS_URL", "").trim();
+  }
+
+  private isProduction(): boolean {
+    return (
+      this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase() ===
+      "production"
+    );
   }
 }

@@ -114,13 +114,9 @@ export class AuthService {
 
   async refresh(refreshToken: string): Promise<AuthTokensResponse> {
     const tokenHash = this.hashToken(refreshToken);
-    const refreshRecord = await this.prisma.refreshToken.findFirst({
+    const refreshRecord = await this.prisma.refreshToken.findUnique({
       where: {
-        tokenHash,
-        revokedAt: null,
-        expiresAt: {
-          gt: new Date()
-        }
+        tokenHash
       },
       include: {
         user: true
@@ -136,10 +132,17 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token.");
     }
 
-    await this.prisma.refreshToken.update({
-      where: { id: refreshRecord.id },
+    const revoked = await this.prisma.refreshToken.updateMany({
+      where: {
+        id: refreshRecord.id,
+        revokedAt: null,
+        expiresAt: { gt: new Date() }
+      },
       data: { revokedAt: new Date() }
     });
+    if (revoked.count !== 1) {
+      throw new UnauthorizedException("Invalid refresh token.");
+    }
 
     const tokens = await this.issueTokens(refreshRecord.user);
     await this.logAuthAudit(
@@ -794,12 +797,18 @@ export class AuthService {
         ? refreshDaysCandidate
         : 30;
 
+    const sessionId = randomUUID();
+    const rawRefreshToken = randomBytes(48).toString("base64url");
+    const refreshTokenHash = this.hashToken(rawRefreshToken);
+    const expiresAt = new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000);
+
     const accessToken = await this.jwtService.signAsync(
       {
         sub: user.id,
         username: user.username,
         role: user.role,
-        tenantId: user.tenantId
+        tenantId: user.tenantId,
+        sid: sessionId
       },
       {
         expiresIn: expiresInSeconds,
@@ -808,12 +817,9 @@ export class AuthService {
       }
     );
 
-    const rawRefreshToken = randomBytes(48).toString("base64url");
-    const refreshTokenHash = this.hashToken(rawRefreshToken);
-    const expiresAt = new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000);
-
     await this.prisma.refreshToken.create({
       data: {
+        id: sessionId,
         tenantId: user.tenantId,
         userId: user.id,
         tokenHash: refreshTokenHash,
