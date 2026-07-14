@@ -174,3 +174,121 @@ Deux lancements Prisma dans le bac a sable ont retourne `Schema engine error`; l
 - Le drapeau Render est volontairement temporaire et doit etre retire en meme temps que la future migration canonique.
 
 Verdict du LOT 1 : **GO pour lever le blocage du validateur sans casser les donnees connues, avec reserve obligatoire**. La migration definitive vers un UUID versionne reste **NO-GO** tant que la production releve du scenario D. Le LOT 2 ne doit pas commencer avant validation de ce compromis ou fourniture d'un acces production en lecture seule.
+
+## LOT 2 - Dependances de production
+
+- Date : 2026-07-14
+- Statut : termine
+- Commit propose : `fix(deps): remediate production dependency vulnerabilities`
+
+### Diagnostic initial
+
+`pnpm audit --prod` signalait 16 avis : 8 hauts et 8 moderes. Ils concernaient uniquement l'API NestJS. Le Web Admin React n'avait aucune dependance de production dans les chemins vulnerables.
+
+Les imports applicatifs ne referencent directement aucun des paquets transitifs concernes. Leur exposition reelle etait la suivante :
+
+- Multer est execute par `FileInterceptor` sur `POST /api/v1/users/me/avatar` ; le chemin multipart etait directement expose aux utilisateurs authentifies.
+- `path-to-regexp` est execute par le routeur NestJS/Express pour toutes les routes API, dont les routes parametrees publiques et authentifiees.
+- `qs` etait apporte par Express/body-parser. Les endpoints acceptent des query strings ; les DTO scalaires et le `ValidationPipe` global constituent la limite applicative.
+- `file-type` est charge transitivement par `@nestjs/common`, sans import direct dans GestSchool.
+- lodash et js-yaml etaient utilises par la configuration NestJS et Swagger, sans template lodash ni parsing YAML controle par un utilisateur dans le code GestSchool.
+- Effect et defu etaient charges par la configuration Prisma CLI, pas par une logique metier importee dans le serveur compile. Ils restaient toutefois presents dans le graphe marque production par le peer Prisma de `@prisma/client`.
+
+### Tableau avant/apres des 16 avis
+
+| Avis | Severite | Chaine initiale | Version avant | Version apres | Resultat |
+| --- | --- | --- | --- | --- | --- |
+| GHSA-xf7r-hgr6-v32p - nettoyage de fichiers temporaires Multer | Haute | `API > @nestjs/platform-express > multer` | 2.0.2 | 2.2.0 | Corrige |
+| GHSA-v52c-386h-88mc - epuisement de ressources Multer | Haute | `API > @nestjs/platform-express > multer` | 2.0.2 | 2.2.0 | Corrige |
+| GHSA-5528-5vmv-3xc2 - recursion Multer | Haute | `API > @nestjs/platform-express > multer` | 2.0.2 | 2.2.0 | Corrige |
+| GHSA-72gw-mp4g-v24j - champs multipart imbriques Multer | Haute | `API > @nestjs/platform-express > multer` | 2.0.2 | 2.2.0 | Corrige |
+| GHSA-3p4h-7m6x-2hcm - upload interrompu Multer | Moderee | `API > @nestjs/platform-express > multer` | 2.0.2 | 2.2.0 | Corrige |
+| GHSA-5v7r-6r5c-r473 - boucle infinie file-type | Moderee | `API > @nestjs/common > file-type` | 21.3.0 | 21.3.4 | Corrige |
+| GHSA-j47w-4g3g-c36v - decompression excessive file-type | Moderee | `API > @nestjs/common > file-type` | 21.3.0 | 21.3.4 | Corrige |
+| GHSA-q8mj-m7cp-5q26 - DoS qs | Moderee | `API > @nestjs/platform-express > express > qs` | 6.15.0 | 6.15.3 | Corrige |
+| GHSA-j3q9-mxjg-w52f - DoS path-to-regexp | Haute | `API > @nestjs/core > path-to-regexp` | 8.3.0 | 8.4.2 | Corrige |
+| GHSA-27v5-c462-wpq7 - ReDoS path-to-regexp | Moderee | `API > @nestjs/core > path-to-regexp` | 8.3.0 | 8.4.2 | Corrige |
+| GHSA-36xv-jgw5-4q75 - neutralisation de sortie NestJS Core | Moderee | `API > @nestjs/core` | 11.1.13 | 11.1.28 | Corrige |
+| GHSA-r5fr-rjxr-66jc - injection via lodash template | Haute | `API > @nestjs/config > lodash` | 4.17.23 | 4.18.1 | Corrige |
+| GHSA-f23m-r3pf-42rh - pollution de prototype lodash | Moderee | `API > @nestjs/config > lodash` | 4.17.23 | 4.18.1 | Corrige |
+| GHSA-h67p-54hq-rp68 - complexite quadratique js-yaml | Moderee | `API > @nestjs/swagger > js-yaml` | 4.1.1 | retire du graphe de production | Corrige |
+| GHSA-737v-mqg7-c878 - pollution de prototype defu | Haute | `API > @prisma/client > prisma > @prisma/config > c12 > defu` | 6.1.4 | 6.1.7 | Corrige |
+| GHSA-38f7-945m-qr2g - contamination AsyncLocalStorage Effect | Haute | `API > @prisma/client > prisma > @prisma/config > effect` | 3.18.4 | 3.21.0 | Corrige |
+
+### Corrections et compatibilite
+
+Les mises a jour ont ete appliquees par groupes, sans override et sans `--force` :
+
+- uploads : `@nestjs/common` et `@nestjs/platform-express` 11.1.13 vers 11.1.28 ;
+- framework : `@nestjs/core` et `@nestjs/testing` 11.1.13 vers 11.1.28 ;
+- utilitaires/documentation : `@nestjs/config` 4.0.3 vers 4.0.4 et `@nestjs/swagger` 11.2.6 vers 11.4.5 ;
+- Prisma : `prisma` et `@prisma/client` 6.19.2 vers 6.19.3.
+
+Aucune mise a jour majeure n'a ete necessaire. Le saut Prisma 7.8.0 a ete explicitement evite : Prisma 6.19.3 fournit deja Effect 3.21.0 et permet la resolution de defu 6.1.7. Les contrats API et le schema Prisma n'ont pas change ; aucune migration n'est requise.
+
+Le lockfile a ete regenere par pnpm pour ces versions et leurs transitives compatibles. Le controle CI execute desormais `pnpm audit --prod --audit-level high` apres `pnpm install --frozen-lockfile`. Le rapport natif complet reste visible dans les logs et le job bloque uniquement les niveaux haut et critique.
+
+### Tests ajoutes
+
+- Upload avatar multipart valide conserve.
+- Rejet d'un avatar depassant 2 Mo : HTTP 413.
+- Rejet de plusieurs fichiers avatar : HTTP 400.
+- Rejet d'un MIME declare interdit : HTTP 400.
+- Rejet d'une requete multipart malformee sans erreur serveur : HTTP 400.
+- Rejet d'un parametre de route UUID malforme : HTTP 400.
+- Erreur 404 structuree sur route inconnue.
+- Rejet d'une query string imbriquee lorsque le DTO attend un UUID scalaire : HTTP 400.
+- Rejet des proprietes de corps non autorisees par le `ValidationPipe` global : HTTP 400.
+
+La validation de la signature binaire des avatars n'est pas ajoutee dans ce lot : elle fait partie du LOT 4, qui doit traiter ensemble coherence MIME/extension, limites par type et stockage prive. Le comportement actuel n'a pas ete presente comme plus fort qu'il ne l'est.
+
+### Validations par groupe
+
+Chaque groupe a passe l'installation figee, Prisma Generate, lint/build/tests unitaires API, E2E PostgreSQL, lint/tests/build/smoke frontend.
+
+| Controle final | Resultat |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | OK |
+| `pnpm --filter @gestschool/api prisma:generate` | OK, Prisma Client 6.19.3 |
+| `pnpm --filter @gestschool/api lint` | OK |
+| `pnpm --filter @gestschool/api build` | OK |
+| `pnpm --filter @gestschool/api test:unit` | OK, 6 suites et 25 tests |
+| `pnpm --filter @gestschool/api test:e2e:db:fresh` | OK, 7 suites et 41 tests |
+| `pnpm --filter @gestschool/web-admin lint` | OK |
+| `pnpm --filter @gestschool/web-admin test` | OK, 15 fichiers et 64 tests |
+| `pnpm --filter @gestschool/web-admin build` | OK |
+| `pnpm --filter @gestschool/web-admin test:smoke` | OK |
+| `pnpm audit --prod` | OK, aucune vulnerabilite connue |
+
+Un premier E2E sans `TEST_DATABASE_URL` a ete refuse par le garde-fou attendu. Une premiere migration Prisma executee dans le bac a sable a retourne `Schema engine error` car l'acces reseau local etait isole ; la relance autorisee vers la base dediee `gestschool_test` a confirme les 30 migrations et tous les tests. Aucun echec applicatif n'a ete masque.
+
+### Verdict et risques residuels
+
+Verdict du LOT 2 : **GO**. Les dependances de production ne contiennent plus de vulnerabilite connue au moment du controle, et aucune fonctionnalite n'a ete retiree pour obtenir ce resultat.
+
+Risques residuels : les dependances de developpement doivent rester surveillees par `pnpm audit` non bloquant tant qu'elles n'affectent pas l'artefact de production. Le gate CI de ce lot est volontairement limite a la production et aux niveaux haut/critique, conformement au perimetre. Toute future alerte moderee de production devra etre documentee avec son exposition et une echeance.
+
+### Audit complet et outillage de developpement
+
+Le controle final `pnpm audit` sans `--prod` reste en echec avec 52 constats : 1 critique, 28 hauts, 18 moderes et 5 faibles. `pnpm audit --prod` ne retrouve aucun de ces chemins : ils appartiennent aux outils de compilation, lint ou test, qui ne sont pas installes dans l'artefact de production. Ils ne sont donc pas melanges au verdict production, mais restent une dette de securite explicite.
+
+| Paquet de developpement | Severite maximale | Chemin principal | Exposition constatee | Traitement et echeance |
+| --- | --- | --- | --- | --- |
+| handlebars 4.7.8 | Critique | `ts-jest > handlebars` | Compilation des tests uniquement ; aucune execution serveur | Mettre a jour ts-jest/sa chaine vers handlebars >=4.7.9 avant le LOT 10 |
+| minimatch 3.1.2/9.0.5/10.2.1 | Haute | Nest CLI et TypeScript ESLint | Globs de build/lint locaux et CI | Mettre a jour Nest CLI et TypeScript ESLint en versions 11.x/8.x compatibles avant le LOT 10 |
+| rollup 4.57.1 | Haute | `vite > rollup` | Bundling frontend, absent du bundle navigateur produit | Mettre a jour Vite 7.x et verrouiller rollup >=4.59.0 avant le LOT 10 |
+| serialize-javascript 6.0.2 | Haute | `Nest CLI > webpack > terser-webpack-plugin` | Minification du build API uniquement | Suivre la mise a jour Nest CLI/webpack avant le LOT 10 |
+| ajv 6.12.6/8.17.1 | Moderee | `Nest CLI > fork-ts-checker` et Angular Devkit | Validation de schemas des outils de build | Mettre a jour Nest CLI ; ne pas forcer AJV hors contraintes parentes, avant le LOT 10 |
+| flatted 3.3.3 | Haute | `eslint > file-entry-cache` | Cache de lint local/CI | Mettre a jour ESLint/file-entry-cache dans leur branche compatible avant le LOT 10 |
+| brace-expansion 1.1.12/2.0.2/5.0.2 | Moderee | Nest CLI et TypeScript ESLint via minimatch | Expansion de globs de build/lint | Traiter avec les parents minimatch, avant le LOT 10 |
+| picomatch 2.3.1/4.0.2/4.0.3 | Haute | Jest types et Nest CLI | Selection de fichiers de test/build | Mettre a jour Jest types et Nest CLI sans resolution globale, avant le LOT 10 |
+| vite 7.3.1 | Haute | dependance directe Web Admin | Serveur de developpement et build, jamais servi en production | Mettre a jour vers la derniere 7.x compatible et retester l'audit visuel avant le LOT 10 |
+| postcss 8.5.6 | Moderee | `vite > postcss` | Transformation CSS au build | Traiter via Vite/PostCSS compatible avant le LOT 10 |
+| fast-uri 3.1.0 | Haute | `Nest CLI > Angular Devkit > ajv` | Validation de schemas du CLI | Traiter via Nest CLI/Angular Devkit avant le LOT 10 |
+| qs 6.15.0 | Moderee | `supertest > superagent > qs` | Client HTTP E2E uniquement ; le runtime Express utilise 6.15.3 corrige | Mettre a jour Supertest/Superagent dans leur branche compatible avant le LOT 10 |
+| esbuild 0.27.3 | Faible | `vite > esbuild` | Serveur de developpement Windows uniquement | Traiter via Vite/esbuild compatible avant le LOT 10 |
+| form-data 4.0.5 | Haute | types Supertest/Superagent | Paquet rattache aux declarations/tests multipart | Mettre a jour les types Supertest/Superagent avant le LOT 10 |
+| @babel/core 7.29.0 | Faible | Jest/Istanbul | Instrumentation de couverture uniquement | Mettre a jour Jest/Istanbul/Babel avant le LOT 10 |
+| undici 7.25.0 | Haute | `jsdom > undici` | Reseau simule des tests frontend, absent du bundle | Mettre a jour jsdom/undici compatible et relancer les tests frontend avant le LOT 10 |
+
+`pnpm outdated -r` confirme que les corrections potentielles de cet outillage sont pour partie des mises a jour mineures, mais que plusieurs dernieres versions proposees sont majeures (Prisma 7, React 19, Redis 6, Vite 8, ESLint 10 et TypeScript 7). Elles ne sont pas introduites dans ce lot de securisation production. Leur mise a niveau doit etre separee, testee et ne doit pas reposer sur un override transitoire non maitrise.

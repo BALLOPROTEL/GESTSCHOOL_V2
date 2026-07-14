@@ -328,6 +328,61 @@ describe("Provider integrations (e2e)", () => {
     expect(profileResponse.body.user.avatarUrl).toBe(response.body.user.avatarUrl);
   });
 
+  it("rejects avatar uploads larger than the multipart limit", async () => {
+    const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/users/me/avatar")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .attach("file", Buffer.alloc(2 * 1024 * 1024 + 1, 0x61), {
+        filename: "avatar-too-large.png",
+        contentType: "image/png"
+      })
+      .expect(413);
+  });
+
+  it("rejects multiple avatar files in one multipart request", async () => {
+    const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/users/me/avatar")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .attach("file", Buffer.from([137, 80, 78, 71]), {
+        filename: "avatar-one.png",
+        contentType: "image/png"
+      })
+      .attach("file", Buffer.from([137, 80, 78, 71]), {
+        filename: "avatar-two.png",
+        contentType: "image/png"
+      })
+      .expect(400);
+  });
+
+  it("rejects avatar files with a forbidden declared MIME type", async () => {
+    const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/users/me/avatar")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .attach("file", Buffer.from("not-an-image"), {
+        filename: "avatar.txt",
+        contentType: "text/plain"
+      })
+      .expect(400);
+  });
+
+  it("rejects malformed multipart avatar requests without returning a server error", async () => {
+    const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+
+    const response = await request(context.app.getHttpServer())
+      .post("/api/v1/users/me/avatar")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .set("Content-Type", "multipart/form-data; boundary=broken-boundary")
+      .send("--broken-boundary\r\nContent-Disposition: form-data; name=\"file\"");
+
+    expect(response.status).toBe(400);
+  });
+
   it("dispatches Brevo email through provider API and keeps SMS in dry-run by default", async () => {
     const gateway = context.app.get(NotificationGatewayService);
 
