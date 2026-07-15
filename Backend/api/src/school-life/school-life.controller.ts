@@ -1,22 +1,29 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   ForbiddenException,
   Get,
+  Header,
   Headers,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
-  Req
+  Req,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { AcademicTrack } from "@prisma/client";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
+import { type UploadedFile as BufferedUpload } from "../storage/file-validation.service";
 import { Public } from "../security/public.decorator";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
@@ -26,7 +33,6 @@ import { UserRole } from "../security/roles.enum";
 import { isUnsafeSharedSecret, secureCompare } from "../security/secure-compare.util";
 import {
   BulkAttendanceDto,
-  CreateAttendanceAttachmentDto,
   CreateAttendanceDto,
   NotificationDeliveryEventDto,
   CreateNotificationDto,
@@ -168,20 +174,45 @@ export class SchoolLifeController {
   @Post("attendance/:id/attachments")
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("attendanceAttachment", "create")
-  @ApiOperation({ summary: "Add attendance attachment" })
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  @ApiOperation({ summary: "Validate and upload a private attendance attachment" })
   async addAttendanceAttachment(
     @Req() request: { user?: AuthenticatedUser },
     @Param("id", new ParseUUIDPipe()) id: string,
-    @Body() body: CreateAttendanceAttachmentDto,
+    @UploadedFile() file: BufferedUpload | undefined,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.schoolLifeService.addAttendanceAttachment(
       tenantId,
       id,
-      body,
+      this.requireUploadedFile(file),
       request.user?.sub
     );
+  }
+
+  @Get("attendance/:attendanceId/attachments/:attachmentId/content")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("attendanceAttachment", "read")
+  @Header("X-Content-Type-Options", "nosniff")
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "Download a private attendance attachment" })
+  async downloadAttendanceAttachment(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("attendanceId", new ParseUUIDPipe()) attendanceId: string,
+    @Param("attachmentId", new ParseUUIDPipe()) attachmentId: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<StreamableFile> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const download = await this.schoolLifeService.downloadAttendanceAttachment(
+      tenantId,
+      attendanceId,
+      attachmentId
+    );
+    return new StreamableFile(download.buffer, {
+      type: download.mimeType,
+      disposition: this.safeAttachmentDisposition(download.fileName)
+    });
   }
 
   @Delete("attendance/:attendanceId/attachments/:attachmentId")
@@ -195,7 +226,12 @@ export class SchoolLifeController {
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
-    await this.schoolLifeService.deleteAttendanceAttachment(tenantId, attendanceId, attachmentId);
+    await this.schoolLifeService.deleteAttendanceAttachment(
+      tenantId,
+      attendanceId,
+      attachmentId,
+      this.getActorUserId(request.user)
+    );
   }
 
   @Patch("attendance/:id/validation")
@@ -384,5 +420,20 @@ export class SchoolLifeController {
 
   private getTenantId(user: AuthenticatedUser | undefined, tenantHeader?: string): string {
     return resolveTenantContext(this.configService, user, tenantHeader);
+  }
+
+  private getActorUserId(user: AuthenticatedUser | undefined): string {
+    if (!user?.sub) throw new ForbiddenException("Authenticated user required.");
+    return user.sub;
+  }
+
+  private requireUploadedFile(file: BufferedUpload | undefined): BufferedUpload {
+    if (!file) throw new BadRequestException("Le fichier est requis.");
+    return file;
+  }
+
+  private safeAttachmentDisposition(fileName: string): string {
+    const fallback = fileName.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 180) || "document";
+    return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
   }
 }

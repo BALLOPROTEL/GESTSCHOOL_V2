@@ -24,6 +24,10 @@ const validEnv = (): NodeJS.ProcessEnv => ({
   STORAGE_PROVIDER: "supabase",
   SUPABASE_URL: "https://project-ref.supabase.co",
   SUPABASE_SERVICE_ROLE_KEY: `${strongSecret}-supabase`,
+  SUPABASE_STORAGE_BUCKET_DOCUMENTS: "gestschool-documents",
+  SUPABASE_STORAGE_BUCKET_AVATARS: "gestschool-avatars",
+  SUPABASE_STORAGE_AVATARS_PUBLIC: "false",
+  SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS: "300",
   NOTIFICATIONS_WORKER_ENABLED: "false",
   OUTBOX_IN_PROCESS_ENABLED: "false"
 });
@@ -179,6 +183,24 @@ describe("production environment validator", () => {
         "JWT_AUDIENCE must not be a placeholder value.",
         "FILE_STORAGE_DRIVER must be SUPABASE in production.",
         "STORAGE_PROVIDER must be supabase in production."
+      ])
+    );
+  });
+
+  it("requires distinct private storage buckets and a bounded signed URL lifetime", () => {
+    const result = validateProductionEnv({
+      ...validEnv(),
+      SUPABASE_STORAGE_BUCKET_DOCUMENTS: "shared-bucket",
+      SUPABASE_STORAGE_BUCKET_AVATARS: "shared-bucket",
+      SUPABASE_STORAGE_AVATARS_PUBLIC: "true",
+      SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS: "3600"
+    });
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "SUPABASE_STORAGE_BUCKET_DOCUMENTS and SUPABASE_STORAGE_BUCKET_AVATARS must be distinct.",
+        "SUPABASE_STORAGE_AVATARS_PUBLIC must be false in production.",
+        "SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS must be an integer between 60 and 900."
       ])
     );
   });

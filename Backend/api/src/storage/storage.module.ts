@@ -1,13 +1,17 @@
 import { Module } from "@nestjs/common";
 
+import { FileValidationService } from "./file-validation.service";
 import { LocalStorageProvider } from "./local-storage.provider";
 import { SupabaseStorageProvider } from "./supabase-storage.provider";
-import { StorageController } from "./storage.controller";
 import { StorageService } from "./storage.service";
 
 @Module({
-  controllers: [StorageController],
-  providers: [StorageService, LocalStorageProvider, SupabaseStorageProvider],
-  exports: [StorageService]
+  providers: [
+    StorageService,
+    FileValidationService,
+    LocalStorageProvider,
+    SupabaseStorageProvider
+  ],
+  exports: [StorageService, FileValidationService]
 })
 export class StorageModule {}

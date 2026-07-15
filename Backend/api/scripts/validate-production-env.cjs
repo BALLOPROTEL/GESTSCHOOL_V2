@@ -56,6 +56,14 @@ function validateProductionEnv(env) {
     }
   }
 
+  function requireStorageBucket(name) {
+    const value = requireEnv(name);
+    if (value && !/^[a-z0-9][a-z0-9._-]{1,80}$/.test(value)) {
+      errors.push(`${name} must be a valid Supabase bucket name.`);
+    }
+    return value;
+  }
+
   function parsePostgresUrl(name) {
     const raw = requireEnv(name);
     if (!raw) return null;
@@ -114,6 +122,30 @@ function validateProductionEnv(env) {
   if (storageDriver === "SUPABASE" || storageProvider === "SUPABASE") {
     parseServiceUrl("SUPABASE_URL", ["https:"]);
     requireCredential("SUPABASE_SERVICE_ROLE_KEY", 32);
+    const documentsBucket = requireStorageBucket("SUPABASE_STORAGE_BUCKET_DOCUMENTS");
+    const avatarsBucket = requireStorageBucket("SUPABASE_STORAGE_BUCKET_AVATARS");
+    if (documentsBucket && avatarsBucket && documentsBucket === avatarsBucket) {
+      errors.push(
+        "SUPABASE_STORAGE_BUCKET_DOCUMENTS and SUPABASE_STORAGE_BUCKET_AVATARS must be distinct."
+      );
+    }
+    if (booleanValue("SUPABASE_STORAGE_AVATARS_PUBLIC")) {
+      errors.push(
+        "SUPABASE_STORAGE_AVATARS_PUBLIC must be false in production."
+      );
+    }
+    const signedUrlTtlRaw = requireEnv("SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS");
+    const signedUrlTtl = Number(signedUrlTtlRaw);
+    if (
+      !/^\d+$/.test(signedUrlTtlRaw) ||
+      !Number.isInteger(signedUrlTtl) ||
+      signedUrlTtl < 60 ||
+      signedUrlTtl > 900
+    ) {
+      errors.push(
+        "SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS must be an integer between 60 and 900."
+      );
+    }
   }
 
   const notificationsEnabled =

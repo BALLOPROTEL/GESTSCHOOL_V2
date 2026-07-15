@@ -144,6 +144,7 @@ export class UsersController {
   }
 
   @Post("me/avatar")
+  @RequirePermission("avatar", "create")
   @RateLimit({ bucket: "users-me-avatar", max: 10, windowMs: 600_000 })
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
   @ApiOperation({ summary: "Upload the authenticated user's avatar" })
@@ -161,6 +162,7 @@ export class UsersController {
   }
 
   @Delete("me/avatar")
+  @RequirePermission("avatar", "delete")
   @RateLimit({ bucket: "users-me-avatar-delete", max: 10, windowMs: 600_000 })
   @ApiOperation({ summary: "Remove the authenticated user's avatar" })
   async removeMyAvatar(

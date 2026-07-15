@@ -1,9 +1,10 @@
 ﻿import { Injectable } from "@nestjs/common";
 import { AcademicTrack } from "@prisma/client";
 
+import { type UploadedFile as BufferedUpload } from "../storage/file-validation.service";
+
 import { NotificationsService } from "../notifications/notifications.service";
 import {
-  CreateAttendanceAttachmentDto,
   CreateAttendanceDto,
   CreateNotificationDto,
   CreateTimetableSlotDto,
@@ -95,23 +96,33 @@ export class SchoolLifeService {
   addAttendanceAttachment(
     tenantId: string,
     attendanceId: string,
-    payload: CreateAttendanceAttachmentDto,
+    file: BufferedUpload,
     uploadedByUserId?: string
   ): Promise<AttendanceAttachmentView> {
     return this.attendanceService.addAttendanceAttachment(
       tenantId,
       attendanceId,
-      payload,
+      file,
       uploadedByUserId
     );
+  }
+
+  downloadAttendanceAttachment(tenantId: string, attendanceId: string, attachmentId: string) {
+    return this.attendanceService.downloadAttendanceAttachment(tenantId, attendanceId, attachmentId);
   }
 
   deleteAttendanceAttachment(
     tenantId: string,
     attendanceId: string,
-    attachmentId: string
+    attachmentId: string,
+    actorUserId: string
   ): Promise<void> {
-    return this.attendanceService.deleteAttendanceAttachment(tenantId, attendanceId, attachmentId);
+    return this.attendanceService.deleteAttendanceAttachment(
+      tenantId,
+      attendanceId,
+      attachmentId,
+      actorUserId
+    );
   }
 
   updateAttendanceValidation(

@@ -23,7 +23,9 @@ import {
   type PermissionResource
 } from "../security/permissions.types";
 import { UserRole } from "../security/roles.enum";
+import { FileValidationService } from "../storage/file-validation.service";
 import { StorageService } from "../storage/storage.service";
+import { type StoredObjectReference } from "../storage/storage-provider";
 import { type AccountType, CreateUserDto, type UserStatus } from "./dto/create-user.dto";
 import {
   type RolePermissionItemDto,
@@ -127,7 +129,8 @@ export class UsersService {
     private readonly auditService: AuditService,
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
-    private readonly storageService: StorageService
+    private readonly storageService: StorageService,
+    private readonly fileValidationService: FileValidationService
   ) {}
 
   async list(tenantId: string): Promise<UserView[]> {
@@ -165,7 +168,6 @@ export class UsersService {
           firstName: this.optionalEmptyToNull(payload.firstName),
           lastName: this.optionalEmptyToNull(payload.lastName),
           phone: this.optionalEmptyToNull(payload.phone),
-          avatarUrl: payload.avatarUrl !== undefined ? this.optionalEmptyToNull(payload.avatarUrl) : undefined,
           updatedAt: now
         }
       });
@@ -182,7 +184,6 @@ export class UsersService {
             firstNameChanged: payload.firstName !== undefined,
             lastNameChanged: payload.lastName !== undefined,
             phoneChanged: payload.phone !== undefined,
-            avatarChanged: payload.avatarUrl !== undefined,
             preferencesChanged:
               payload.language !== undefined ||
               payload.theme !== undefined ||
@@ -212,66 +213,90 @@ export class UsersService {
     userId: string,
     file: { originalname: string; mimetype: string; size: number; buffer: Buffer }
   ): Promise<MyProfileView> {
-    const maxBytes = Number(process.env.USER_AVATAR_MAX_BYTES || 2 * 1024 * 1024);
-    const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-    if (!allowedMimeTypes.has(file.mimetype)) {
-      throw new BadRequestException("Format d’image non autorisé. Utilisez JPG, PNG ou WebP.");
-    }
-    if (!Number.isFinite(file.size) || file.size <= 0 || file.size > maxBytes) {
-      throw new BadRequestException("L’image doit peser 2 Mo maximum.");
-    }
-
     const existing = await this.requireUser(tenantId, userId);
-    const stored = await this.uploadAvatarToStorage(tenantId, userId, file);
-
-    const updated = await this.prisma.$transaction(async (transaction) => {
-      await transaction.user.update({
-        where: { id: existing.id },
-        data: {
-          avatarUrl: stored.fileUrl,
-          updatedAt: new Date()
+    const validated = await this.fileValidationService.validate(file, "avatar");
+    const stored = await this.uploadAvatarToStorage(tenantId, userId, validated);
+    const previousReference = this.avatarStorageReference(existing);
+    let updated: UserWithProfiles;
+    try {
+      updated = await this.prisma.$transaction(async (transaction) => {
+        const mutation = await transaction.user.updateMany({
+          where: {
+            id: existing.id,
+            tenantId,
+            updatedAt: existing.updatedAt,
+            avatarStorageDriver: existing.avatarStorageDriver,
+            avatarStorageBucket: existing.avatarStorageBucket,
+            avatarStorageKey: existing.avatarStorageKey
+          },
+          data: {
+            avatarUrl: null,
+            avatarStorageDriver: stored.driver,
+            avatarStorageBucket: stored.bucket,
+            avatarStorageKey: stored.key,
+            avatarMimeType: stored.mimeType,
+            avatarSize: stored.size,
+            updatedAt: new Date()
+          }
+        });
+        if (mutation.count !== 1) {
+          throw new ConflictException(
+            "Le profil a changé pendant l’upload. Rechargez la page puis réessayez."
+          );
         }
+
+        await this.auditService.enqueueLog(
+          {
+            tenantId,
+            userId,
+            action: "USER_AVATAR_UPDATED",
+            resource: "users",
+            resourceId: existing.id,
+            payload: {
+              driver: stored.driver,
+              bucket: stored.bucket,
+              key: stored.key,
+              mimeType: stored.mimeType,
+              size: stored.size
+            } as unknown as Prisma.InputJsonValue
+          },
+          transaction
+        );
+
+        return transaction.user.findUniqueOrThrow({
+          where: { id: existing.id },
+          include: this.userProfileInclude()
+        });
       });
+    } catch (error) {
+      await this.deleteStoredObjectAfterFailure(stored, "new avatar rollback");
+      throw error;
+    }
 
-      await this.auditService.enqueueLog(
-        {
-          tenantId,
-          userId,
-          action: "USER_AVATAR_UPDATED",
-          resource: "users",
-          resourceId: existing.id,
-          payload: {
-            driver: stored.driver,
-            bucket: stored.bucket,
-            key: stored.key,
-            mimeType: stored.mimeType,
-            size: stored.size
-          } as unknown as Prisma.InputJsonValue
-        },
-        transaction
-      );
-
-      return transaction.user.findUniqueOrThrow({
-        where: { id: existing.id },
-        include: this.userProfileInclude()
-      });
-    });
-
+    if (previousReference) {
+      try {
+        await this.storageService.deleteFile(previousReference);
+      } catch (error) {
+        await this.rollbackAvatarReplacement(existing, stored, error);
+        throw new ServiceUnavailableException(
+          "La photo précédente n'a pas pu être remplacée sans risque. Le profil a été restauré."
+        );
+      }
+    }
     return this.toMyProfileView(updated);
   }
 
   private async uploadAvatarToStorage(
     tenantId: string,
     userId: string,
-    file: { originalname: string; mimetype: string; buffer: Buffer }
+    file: Awaited<ReturnType<FileValidationService["validate"]>>
   ) {
     try {
-      return await this.storageService.uploadUserAvatar({
+      return await this.storageService.storeValidatedFile({
         tenantId,
-        userId,
-        fileName: file.originalname,
-        mimeType: file.mimetype,
-        buffer: file.buffer
+        bucketKind: "avatars",
+        scope: ["avatars", userId],
+        file
       });
     } catch (error) {
       this.logger.error(
@@ -347,11 +372,17 @@ export class UsersService {
 
   async removeMyAvatar(tenantId: string, userId: string): Promise<MyProfileView> {
     const existing = await this.requireUser(tenantId, userId);
+    const previousReference = this.avatarStorageReference(existing);
     const updated = await this.prisma.$transaction(async (transaction) => {
       await transaction.user.update({
         where: { id: existing.id },
         data: {
           avatarUrl: null,
+          avatarStorageDriver: null,
+          avatarStorageBucket: null,
+          avatarStorageKey: null,
+          avatarMimeType: null,
+          avatarSize: null,
           updatedAt: new Date()
         }
       });
@@ -374,7 +405,104 @@ export class UsersService {
       });
     });
 
+    if (previousReference) {
+      try {
+        await this.storageService.deleteFile(previousReference);
+      } catch (error) {
+        await this.restoreAvatarMetadata(existing, "USER_AVATAR_REMOVE_ROLLED_BACK", error);
+        throw new ServiceUnavailableException(
+          "La photo n'a pas pu être supprimée du stockage. Le profil a été restauré."
+        );
+      }
+    }
     return this.toMyProfileView(updated);
+  }
+
+  private async rollbackAvatarReplacement(
+    previous: User,
+    replacement: StoredObjectReference,
+    providerError: unknown
+  ): Promise<void> {
+    await this.restoreAvatarMetadata(previous, "USER_AVATAR_UPDATE_ROLLED_BACK", providerError);
+    await this.deleteStoredObjectAfterFailure(replacement, "replacement avatar rollback");
+  }
+
+  private async restoreAvatarMetadata(
+    previous: User,
+    auditAction: string,
+    providerError: unknown
+  ): Promise<void> {
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        await transaction.user.update({
+          where: { id: previous.id },
+          data: {
+            avatarUrl: previous.avatarUrl,
+            avatarStorageDriver: previous.avatarStorageDriver,
+            avatarStorageBucket: previous.avatarStorageBucket,
+            avatarStorageKey: previous.avatarStorageKey,
+            avatarMimeType: previous.avatarMimeType,
+            avatarSize: previous.avatarSize,
+            updatedAt: new Date()
+          }
+        });
+        await this.auditService.enqueueLog(
+          {
+            tenantId: previous.tenantId,
+            userId: previous.id,
+            action: auditAction,
+            resource: "users",
+            resourceId: previous.id,
+            payload: { reason: "storage_provider_failure" } as Prisma.InputJsonValue
+          },
+          transaction
+        );
+      });
+    } catch (rollbackError) {
+      this.logger.error(
+        `Critical avatar metadata rollback failure for user ${previous.id}`,
+        rollbackError instanceof Error ? rollbackError.stack : undefined
+      );
+      throw new ServiceUnavailableException(
+        "Le stockage et le profil n'ont pas pu être resynchronisés automatiquement."
+      );
+    } finally {
+      this.logger.error(
+        `Avatar storage operation failed for user ${previous.id}`,
+        providerError instanceof Error ? providerError.stack : undefined
+      );
+    }
+  }
+
+  private avatarStorageReference(user: User): StoredObjectReference | null {
+    const driver = user.avatarStorageDriver;
+    if (
+      (driver !== "LOCAL" && driver !== "SUPABASE") ||
+      !user.avatarStorageBucket ||
+      !user.avatarStorageKey
+    ) {
+      return null;
+    }
+    return {
+      driver,
+      bucket: user.avatarStorageBucket,
+      key: user.avatarStorageKey,
+      tenantId: user.tenantId
+    };
+  }
+
+  private async deleteStoredObjectAfterFailure(
+    reference: StoredObjectReference,
+    context: string
+  ): Promise<void> {
+    try {
+      await this.storageService.deleteFile(reference);
+    } catch (error) {
+      this.logger.error(
+        `Storage cleanup failed (${context}) for ${reference.driver}:${reference.bucket}/${reference.key}`,
+        error instanceof Error ? error.stack : undefined
+      );
+    }
   }
 
   async changeMyPassword(
@@ -554,7 +682,7 @@ export class UsersService {
             displayName: identity.displayName,
             firstName: identity.firstName,
             lastName: identity.lastName,
-            avatarUrl: identity.avatarUrl,
+            avatarUrl: null,
             establishmentId: payload.establishmentId || identity.establishmentId,
             staffFunction: this.emptyToNull(payload.staffFunction),
             department: this.emptyToNull(payload.department),
@@ -680,7 +808,6 @@ export class UsersService {
       displayName: identity?.displayName ?? this.optionalEmptyToNull(payload.displayName),
       firstName: identity?.firstName ?? this.optionalEmptyToNull(payload.firstName),
       lastName: identity?.lastName ?? this.optionalEmptyToNull(payload.lastName),
-      avatarUrl: identity?.avatarUrl ?? this.optionalEmptyToNull(payload.avatarUrl),
       establishmentId: payload.establishmentId ?? identity?.establishmentId,
       staffFunction: this.optionalEmptyToNull(payload.staffFunction),
       department: this.optionalEmptyToNull(payload.department),
@@ -1034,7 +1161,6 @@ export class UsersService {
     lastName: string | null;
     email: string | null;
     phone: string | null;
-    avatarUrl: string | null;
     establishmentId: string | null;
   }> {
     return this.resolveBusinessIdentity(tenantId, undefined, {
@@ -1048,7 +1174,6 @@ export class UsersService {
       lastName: payload.lastName,
       email: payload.email,
       phone: payload.phone,
-      avatarUrl: payload.avatarUrl,
       establishmentId: payload.establishmentId
     });
   }
@@ -1063,7 +1188,6 @@ export class UsersService {
     lastName: string | null;
     email: string | null;
     phone: string | null;
-    avatarUrl: string | null;
     establishmentId: string | null;
   }> {
     return this.resolveBusinessIdentity(tenantId, existing.id, {
@@ -1077,7 +1201,6 @@ export class UsersService {
       lastName: payload.lastName,
       email: payload.email,
       phone: payload.phone,
-      avatarUrl: payload.avatarUrl,
       establishmentId: payload.establishmentId
     });
   }
@@ -1096,7 +1219,6 @@ export class UsersService {
       lastName?: string;
       email?: string;
       phone?: string;
-      avatarUrl?: string;
       establishmentId?: string;
     }
   ): Promise<{
@@ -1105,7 +1227,6 @@ export class UsersService {
     lastName: string | null;
     email: string | null;
     phone: string | null;
-    avatarUrl: string | null;
     establishmentId: string | null;
   }> {
     if (payload.accountType === "TEACHER") {
@@ -1117,7 +1238,6 @@ export class UsersService {
           lastName: true,
           email: true,
           primaryPhone: true,
-          photoUrl: true,
           establishmentId: true,
           status: true,
           archivedAt: true,
@@ -1132,7 +1252,6 @@ export class UsersService {
         lastName: teacher.lastName,
         email: teacher.email,
         phone: teacher.primaryPhone,
-        avatarUrl: teacher.photoUrl,
         establishmentId: teacher.establishmentId
       };
     }
@@ -1160,7 +1279,6 @@ export class UsersService {
         lastName: parent.lastName,
         email: parent.email,
         phone: parent.primaryPhone,
-        avatarUrl: null,
         establishmentId: parent.establishmentId
       };
     }
@@ -1174,7 +1292,6 @@ export class UsersService {
           lastName: true,
           email: true,
           phone: true,
-          photoUrl: true,
           establishmentId: true,
           status: true,
           archivedAt: true,
@@ -1189,7 +1306,6 @@ export class UsersService {
         lastName: student.lastName,
         email: student.email,
         phone: student.phone,
-        avatarUrl: student.photoUrl,
         establishmentId: student.establishmentId
       };
     }
@@ -1204,7 +1320,6 @@ export class UsersService {
       lastName: this.emptyToNull(payload.lastName),
       email: this.emptyToNull(payload.email),
       phone: this.emptyToNull(payload.phone),
-      avatarUrl: this.emptyToNull(payload.avatarUrl),
       establishmentId: payload.establishmentId || null
     };
   }
@@ -1301,8 +1416,26 @@ export class UsersService {
     });
     const role = row.role as UserRole;
 
+    const user = this.toView(row);
+    const avatarReference = this.avatarStorageReference(row);
+    if (avatarReference && row.avatarMimeType) {
+      try {
+        user.avatarUrl = await this.storageService.createTemporaryAccessUrl(
+          avatarReference,
+          row.avatarMimeType
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Unable to create temporary avatar access for user ${row.id}: ${
+            error instanceof Error ? error.message : "unknown storage error"
+          }`
+        );
+        user.avatarUrl = undefined;
+      }
+    }
+
     return {
-      user: this.toView(row),
+      user,
       context: {
         tenantId: row.tenantId,
         tenantName: "Al Manarat Islamiyat",

@@ -1,3 +1,8 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { PDFDocument } from "pdf-lib";
 import * as request from "supertest";
 
 import {
@@ -18,8 +23,13 @@ jest.setTimeout(120_000);
 describe("Teachers + rooms management flows (e2e)", () => {
   let context: E2eAppContext;
   let baseline: AcademicBaseline;
+  let storageRoot: string;
 
   beforeAll(async () => {
+    storageRoot = await mkdtemp(join(tmpdir(), "gestschool-resource-e2e-"));
+    process.env.STORAGE_PROVIDER = "LOCAL";
+    process.env.FILE_STORAGE_DRIVER = "LOCAL";
+    process.env.FILE_STORAGE_LOCAL_ROOT = storageRoot;
     context = await createE2eApp();
     await cleanDatabase(context.prisma);
     await seedUsers(context.prisma);
@@ -35,9 +45,13 @@ describe("Teachers + rooms management flows (e2e)", () => {
 
   afterAll(async () => {
     await closeE2eApp(context);
+    await rm(storageRoot, { recursive: true, force: true });
+    delete process.env.STORAGE_PROVIDER;
+    delete process.env.FILE_STORAGE_DRIVER;
+    delete process.env.FILE_STORAGE_LOCAL_ROOT;
   });
 
-  it("should manage teacher profile, skill, assignment and document metadata", async () => {
+  it("should manage teacher profile, skill, assignment and a private validated document", async () => {
     const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
 
     const teacher = await request(context.app.getHttpServer())
@@ -84,54 +98,82 @@ describe("Teachers + rooms management flows (e2e)", () => {
 
     expect(assignment.body.teacherId).toBe(teacher.body.id);
 
-    const documentUpload = await request(context.app.getHttpServer())
-      .post(`/api/v1/teachers/${teacher.body.id}/documents/upload-descriptor`)
-      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
-      .send({
-        fileName: "contrat-awa-diallo.pdf",
-        mimeType: "application/pdf",
-        size: 238944
-      })
-      .expect(201);
-
-    expect(documentUpload.body.fileUrl).toContain(`/teachers/${teacher.body.id}/documents/`);
-
-    await request(context.app.getHttpServer())
-      .post(`/api/v1/teachers/${teacher.body.id}/documents/upload-descriptor`)
-      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
-      .send({
-        fileName: "script.sh",
-        mimeType: "text/x-sh",
-        size: 64
-      })
-      .expect(400);
-
-    await request(context.app.getHttpServer())
-      .post(`/api/v1/teachers/${teacher.body.id}/documents/upload-descriptor`)
-      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
-      .send({
-        fileName: "contrat-lourd.pdf",
-        mimeType: "application/pdf",
-        size: 10 * 1024 * 1024 + 1
-      })
-      .expect(400);
+    const pdf = await PDFDocument.create();
+    pdf.addPage([320, 240]);
+    const pdfBuffer = Buffer.from(await pdf.save());
 
     const document = await request(context.app.getHttpServer())
-      .post("/api/v1/teachers/documents")
+      .post(`/api/v1/teachers/${teacher.body.id}/documents`)
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
-      .send({
-        teacherId: teacher.body.id,
-        documentType: "CONTRAT",
-        documentName: "Contrat Awa Diallo",
-        fileUrl: documentUpload.body.fileUrl,
-        originalName: "contrat-awa-diallo.pdf",
-        mimeType: "application/pdf",
-        size: 238944,
-        status: "ACTIVE"
+      .field("documentType", "CONTRAT")
+      .field("documentName", "Contrat Awa Diallo")
+      .field("status", "ACTIVE")
+      .attach("file", pdfBuffer, {
+        filename: "contrat-awa-diallo.pdf",
+        contentType: "application/pdf"
       })
       .expect(201);
 
     expect(document.body.documentType).toBe("CONTRAT");
+    expect(document.body.fileUrl).toBe(`/api/v1/teachers/documents/${document.body.id}/content`);
+    expect(document.body.fileUrl).not.toContain("/tmp/");
+
+    await request(context.app.getHttpServer())
+      .post(`/api/v1/teachers/${teacher.body.id}/documents`)
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .field("documentType", "AUTRE")
+      .field("documentName", "Script interdit")
+      .attach("file", Buffer.from("#!/bin/sh\necho unsafe"), {
+        filename: "script.sh",
+        contentType: "text/x-sh"
+      })
+      .expect(400);
+
+    await request(context.app.getHttpServer())
+      .post(`/api/v1/teachers/${teacher.body.id}/documents`)
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .field("documentType", "CONTRAT")
+      .field("documentName", "Contrat lourd")
+      .attach("file", Buffer.alloc(10 * 1024 * 1024 + 1, 0x61), {
+        filename: "contrat-lourd.pdf",
+        contentType: "application/pdf"
+      })
+      .expect(413);
+
+    const teacherTokens = await login(context.app, "enseignant@gestschool.local", "teacher1234");
+    await request(context.app.getHttpServer())
+      .post(`/api/v1/teachers/${teacher.body.id}/documents`)
+      .set("Authorization", `Bearer ${teacherTokens.accessToken}`)
+      .field("documentType", "CONTRAT")
+      .field("documentName", "Document non autorisé")
+      .attach("file", pdfBuffer, {
+        filename: "non-autorise.pdf",
+        contentType: "application/pdf"
+      })
+      .expect(403);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/teachers/11111111-1111-4111-8111-111111111111/documents")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .field("documentType", "CONTRAT")
+      .field("documentName", "Ressource arbitraire")
+      .attach("file", pdfBuffer, {
+        filename: "arbitraire.pdf",
+        contentType: "application/pdf"
+      })
+      .expect(404);
+
+    await request(context.app.getHttpServer())
+      .get(`/api/v1/teachers/documents/${document.body.id}/content`)
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .expect("Content-Type", /application\/pdf/)
+      .expect("X-Content-Type-Options", "nosniff")
+      .expect("Cache-Control", "private, no-store")
+      .expect("Content-Disposition", /attachment/)
+      .expect(200)
+      .then((response) => {
+        expect(Buffer.compare(response.body, pdfBuffer)).toBe(0);
+      });
 
     const detail = await request(context.app.getHttpServer())
       .get(`/api/v1/teachers/${teacher.body.id}`)
@@ -149,6 +191,16 @@ describe("Teachers + rooms management flows (e2e)", () => {
       .expect(200);
 
     expect(workloads.body.some((item: { teacherId: string }) => item.teacherId === teacher.body.id)).toBe(true);
+
+    await request(context.app.getHttpServer())
+      .delete(`/api/v1/teachers/documents/${document.body.id}`)
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .expect(204);
+
+    await request(context.app.getHttpServer())
+      .get(`/api/v1/teachers/documents/${document.body.id}/content`)
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .expect(404);
   });
 
   it("should manage room type, room, assignment, availability and occupancy", async () => {

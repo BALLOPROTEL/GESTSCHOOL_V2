@@ -47,12 +47,6 @@ export class UpdateMyProfileDto {
   @MaxLength(30)
   phone?: string;
 
-  @ApiPropertyOptional({ example: "https://storage.example/avatar.png" })
-  @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  avatarUrl?: string;
-
   @ApiPropertyOptional({ enum: USER_LANGUAGE_VALUES })
   @IsOptional()
   @IsIn(USER_LANGUAGE_VALUES)

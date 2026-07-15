@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { AcademicTrack } from "@prisma/client";
 
+import { type UploadedFile as BufferedUpload } from "../storage/file-validation.service";
+
 import {
   CreateTeacherAssignmentDto,
   CreateTeacherDocumentDto,
-  CreateTeacherDocumentUploadDescriptorDto,
   CreateTeacherDto,
   CreateTeacherSkillDto,
   UpdateTeacherAssignmentDto,
@@ -83,16 +84,18 @@ export class TeachersService {
     return this.teachersDocumentsService.listDocuments(tenantId, teacherId);
   }
 
-  createDocumentUploadDescriptor(
+  createDocument(
     tenantId: string,
+    actorUserId: string,
     teacherId: string,
-    payload: CreateTeacherDocumentUploadDescriptorDto
+    payload: CreateTeacherDocumentDto,
+    file: BufferedUpload
   ) {
-    return this.teachersDocumentsService.createUploadDescriptor(tenantId, teacherId, payload);
+    return this.teachersDocumentsService.createDocument(tenantId, actorUserId, teacherId, payload, file);
   }
 
-  createDocument(tenantId: string, actorUserId: string, payload: CreateTeacherDocumentDto) {
-    return this.teachersDocumentsService.createDocument(tenantId, actorUserId, payload);
+  downloadDocument(tenantId: string, id: string) {
+    return this.teachersDocumentsService.downloadDocument(tenantId, id);
   }
 
   updateDocument(tenantId: string, actorUserId: string, id: string, payload: UpdateTeacherDocumentDto) {

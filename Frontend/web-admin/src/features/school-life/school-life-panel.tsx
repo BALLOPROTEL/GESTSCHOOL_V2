@@ -10,6 +10,7 @@ import {
   deleteAttendanceAttachment,
   deleteAttendanceById,
   deleteTimetableSlotById,
+  downloadAttendanceAttachment,
   dispatchPendingNotifications as dispatchPendingSchoolLifeNotifications,
   fetchAttendance,
   fetchAttendanceAttachments,
@@ -107,11 +108,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
   const [selectedAttendanceId, setSelectedAttendanceId] = useState("");
   const [attendanceAttachments, setAttendanceAttachments] = useState<AttendanceAttachment[]>([]);
-  const [attachmentForm, setAttachmentForm] = useState({
-    fileName: "",
-    fileUrl: "",
-    mimeType: "application/pdf"
-  });
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [validationForm, setValidationForm] = useState({
     status: "PENDING" as "PENDING" | "APPROVED" | "REJECTED",
     comment: ""
@@ -436,6 +433,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
   const submitAttendanceAttachment = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    const form = event.currentTarget;
     onError(null);
     if (rejectReadOnly()) return;
 
@@ -444,26 +442,21 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       return;
     }
 
-    const fileName = attachmentForm.fileName.trim();
-    const fileUrl = attachmentForm.fileUrl.trim();
-    if (!fileName || !fileUrl) {
-      onError("Renseigner le nom du fichier et son URL.");
+    if (!attachmentFile) {
+      onError("Sélectionner un fichier justificatif.");
       return;
     }
 
     try {
-      await createAttendanceAttachment(api, selectedAttendanceId, {
-        fileName,
-        fileUrl,
-        mimeType: attachmentForm.mimeType.trim() || undefined
-      });
+      await createAttendanceAttachment(api, selectedAttendanceId, attachmentFile);
     } catch (error) {
       onError(error instanceof Error ? error.message : "Erreur lors de l ajout du justificatif.");
       return;
     }
 
     onNotice("Justificatif ajoute.");
-    setAttachmentForm((prev) => ({ ...prev, fileName: "", fileUrl: "" }));
+    setAttachmentFile(null);
+    form.reset();
     await loadAttendance(attendanceFilters, { notify: true });
     await loadAttendanceAttachments(selectedAttendanceId, { notify: true });
   };
@@ -488,6 +481,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     onNotice("Justificatif supprime.");
     await loadAttendance(attendanceFilters, { notify: true });
     await loadAttendanceAttachments(selectedAttendanceId, { notify: true });
+  };
+
+  const downloadAttachment = async (attachment: AttendanceAttachment): Promise<void> => {
+    if (!selectedAttendanceId) return;
+    try {
+      await downloadAttendanceAttachment(api, selectedAttendanceId, attachment);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Téléchargement du justificatif impossible.");
+    }
   };
 
   const submitAttendanceValidation = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -932,38 +934,16 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
         <h3>Ajout de justificatif</h3>
         <form className="form-grid module-form" onSubmit={(event) => void submitAttendanceAttachment(event)}>
-          <div className="split-grid">
-            <label>
-              Nom du fichier
-              <input
-                value={attachmentForm.fileName}
-                onChange={(event) =>
-                  setAttachmentForm((prev) => ({ ...prev, fileName: event.target.value }))
-                }
-                disabled={!selectedAttendanceId}
-              />
-            </label>
-            <label>
-              URL du justificatif
-              <input
-                value={attachmentForm.fileUrl}
-                onChange={(event) =>
-                  setAttachmentForm((prev) => ({ ...prev, fileUrl: event.target.value }))
-                }
-                disabled={!selectedAttendanceId}
-              />
-            </label>
-            <label>
-              MIME type
-              <input
-                value={attachmentForm.mimeType}
-                onChange={(event) =>
-                  setAttachmentForm((prev) => ({ ...prev, mimeType: event.target.value }))
-                }
-                disabled={!selectedAttendanceId}
-              />
-            </label>
-          </div>
+          <label>
+            Fichier justificatif
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+              onChange={(event) => setAttachmentFile(event.target.files?.[0] || null)}
+              disabled={!selectedAttendanceId}
+              required
+            />
+          </label>
           <div className="actions">
             <button type="submit" disabled={!selectedAttendanceId}>Ajouter justificatif</button>
           </div>
@@ -983,7 +963,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               ) : (
                 attendanceAttachments.map((item) => (
                   <tr key={item.id}>
-                    <td><a href={item.fileUrl} target="_blank" rel="noreferrer">{item.fileName}</a></td>
+                    <td><button type="button" className="button-link" onClick={() => void downloadAttachment(item)}>{item.fileName}</button></td>
                     <td>{item.mimeType || "-"}</td>
                     <td>{new Date(item.createdAt).toLocaleString(locale)}</td>
                     <td>

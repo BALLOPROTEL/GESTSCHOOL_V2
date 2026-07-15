@@ -138,11 +138,6 @@ export class CreateUserDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  avatarUrl?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsUUID()
   establishmentId?: string;
 

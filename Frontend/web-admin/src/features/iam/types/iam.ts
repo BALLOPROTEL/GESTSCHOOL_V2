@@ -25,7 +25,6 @@ export type IamUserForm = {
   staffFunction: string;
   department: string;
   displayName: string;
-  avatarUrl: string;
   establishmentId: string;
   notes: string;
   mustChangePasswordAtFirstLogin: boolean;

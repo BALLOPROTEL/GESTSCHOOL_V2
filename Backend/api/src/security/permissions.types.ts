@@ -16,6 +16,8 @@ export const PERMISSION_RESOURCES = [
   "reportCards",
   "attendance",
   "attendanceAttachment",
+  "avatar",
+  "teacherDocument",
   "attendanceValidation",
   "timetable",
   "notifications",
@@ -78,6 +80,8 @@ export const ROLE_PERMISSION_MATRIX: RolePermissionMatrix = {
     reportCards: clone(CRUD),
     attendance: clone(CRUD),
     attendanceAttachment: clone(CRUD),
+    avatar: ["read", "create", "delete"],
+    teacherDocument: clone(CRUD),
     attendanceValidation: ["read", "validate"],
     timetable: clone(CRUD),
     notifications: clone(FULL_NOTIFICATIONS),
@@ -100,11 +104,14 @@ export const ROLE_PERMISSION_MATRIX: RolePermissionMatrix = {
     reportCards: ["read", "create"],
     attendance: clone(CRUD),
     attendanceAttachment: clone(CRUD),
+    avatar: ["read", "create", "delete"],
+    teacherDocument: clone(CRUD),
     attendanceValidation: ["read", "validate"],
     timetable: clone(CRUD),
     notifications: clone(FULL_NOTIFICATIONS)
   },
   [UserRole.ENSEIGNANT]: {
+    avatar: ["read", "create", "delete"],
     teacherPortal: ["read", "create", "update"],
     students: clone(READ_ONLY),
     grades: ["read", "create"],
@@ -113,11 +120,13 @@ export const ROLE_PERMISSION_MATRIX: RolePermissionMatrix = {
     notifications: ["read", "create"]
   },
   [UserRole.COMPTABLE]: {
+    avatar: ["read", "create", "delete"],
     finance: clone(CRUD),
     payments: clone(CRUD),
     mosquee: clone(CRUD)
   },
   [UserRole.PARENT]: {
+    avatar: ["read", "create", "delete"],
     parentPortal: clone(READ_ONLY),
     students: clone(READ_ONLY),
     grades: clone(READ_ONLY),
@@ -129,6 +138,7 @@ export const ROLE_PERMISSION_MATRIX: RolePermissionMatrix = {
     notifications: clone(READ_ONLY)
   },
   [UserRole.STUDENT]: {
+    avatar: ["read", "create", "delete"]
   }
 };
 

@@ -424,7 +424,7 @@ export class TeachersSupportService {
       teacherId: row.teacherId,
       teacherName: this.teacherName(row.teacher),
       documentType: row.documentType,
-      fileUrl: row.fileUrl,
+      fileUrl: row.storageKey ? `/api/v1/teachers/documents/${row.id}/content` : "",
       documentName: row.documentName || undefined,
       originalName: row.originalName,
       mimeType: row.mimeType || undefined,
@@ -460,7 +460,8 @@ export class TeachersSupportService {
     action: string,
     resource: string,
     resourceId?: string,
-    payload?: Prisma.InputJsonValue
+    payload?: Prisma.InputJsonValue,
+    client?: Prisma.TransactionClient
   ): Promise<void> {
     await this.auditService.enqueueLog({
       tenantId,
@@ -469,7 +470,7 @@ export class TeachersSupportService {
       resource,
       resourceId,
       payload
-    });
+    }, client || this.prisma);
   }
 
   handleKnownPrismaConflict(error: unknown, message: string): void {

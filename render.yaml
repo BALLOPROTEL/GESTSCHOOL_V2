@@ -105,20 +105,20 @@ services:
         value: supabase
       - key: FILE_STORAGE_DRIVER
         value: SUPABASE
-      - key: FILE_STORAGE_ALLOW_LOCAL_IN_PROD
-        value: "false"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_STORAGE_BUCKET_DOCUMENTS
         value: gestschool-documents
-      - key: SUPABASE_STORAGE_BUCKET_RECEIPTS
-        value: gestschool-receipts
-      - key: SUPABASE_STORAGE_BUCKET_REPORT_CARDS
-        value: gestschool-report-cards
       - key: SUPABASE_STORAGE_BUCKET_AVATARS
         value: gestschool-avatars
+      - key: SUPABASE_STORAGE_AVATARS_PUBLIC
+        value: "false"
+      - key: SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS
+        value: "300"
+      - key: SUPABASE_STORAGE_TIMEOUT_MS
+        value: "10000"
       - key: PAYMENT_PROVIDER
         value: paydunya
       - key: PAYDUNYA_MODE

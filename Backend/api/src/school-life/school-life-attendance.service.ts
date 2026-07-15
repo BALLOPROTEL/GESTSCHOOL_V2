@@ -1,22 +1,33 @@
+import { randomUUID } from "node:crypto";
+
 import {
   ConflictException,
   Injectable,
-  NotFoundException
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException
 } from "@nestjs/common";
 import {
   AcademicPlacementStatus,
   AcademicTrack,
   Prisma,
+  type AttendanceAttachment,
   type Classroom,
   type Student
 } from "@prisma/client";
 
 import { AcademicStructureService } from "../academic-structure/academic-structure.service";
+import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../database/prisma.service";
 import { ReferenceService } from "../reference/reference.service";
 import {
+  FileValidationService,
+  type UploadedFile as BufferedUpload
+} from "../storage/file-validation.service";
+import { type StorageDriver, type StoredObjectReference } from "../storage/storage-provider";
+import { StorageService } from "../storage/storage.service";
+import {
   BulkAttendanceDto,
-  CreateAttendanceAttachmentDto,
   CreateAttendanceDto,
   UpdateAttendanceDto,
   UpdateAttendanceValidationDto
@@ -35,11 +46,16 @@ import {
 
 @Injectable()
 export class SchoolLifeAttendanceService {
+  private readonly logger = new Logger(SchoolLifeAttendanceService.name);
+
   constructor(
     private readonly academicStructureService: AcademicStructureService,
+    private readonly auditService: AuditService,
     private readonly prisma: PrismaService,
     private readonly referenceService: ReferenceService,
-    private readonly notificationOrchestrator: SchoolLifeNotificationOrchestratorService
+    private readonly notificationOrchestrator: SchoolLifeNotificationOrchestratorService,
+    private readonly storageService: StorageService,
+    private readonly fileValidationService: FileValidationService
   ) {}
 
   async getAttendanceSummary(
@@ -447,6 +463,14 @@ export class SchoolLifeAttendanceService {
 
   async deleteAttendance(tenantId: string, id: string): Promise<void> {
     await this.requireAttendance(tenantId, id);
+    const attachmentCount = await this.prisma.attendanceAttachment.count({
+      where: { tenantId, attendanceId: id }
+    });
+    if (attachmentCount > 0) {
+      throw new ConflictException(
+        "Supprimez d'abord les justificatifs associés avant de supprimer cette absence."
+      );
+    }
     await this.prisma.attendance.delete({ where: { id } });
   }
 
@@ -470,46 +494,100 @@ export class SchoolLifeAttendanceService {
   async addAttendanceAttachment(
     tenantId: string,
     attendanceId: string,
-    payload: CreateAttendanceAttachmentDto,
+    file: BufferedUpload,
     uploadedByUserId?: string
   ): Promise<AttendanceAttachmentView> {
     await this.requireAttendance(tenantId, attendanceId);
-
-    const created = await this.prisma.attendanceAttachment.create({
-      data: {
-        tenantId,
-        attendanceId,
-        fileName: payload.fileName.trim(),
-        fileUrl: payload.fileUrl.trim(),
-        mimeType: payload.mimeType?.trim(),
-        uploadedByUserId: uploadedByUserId || null,
-        updatedAt: new Date()
-      }
+    const validated = await this.fileValidationService.validate(file, "attendance-attachment");
+    const stored = await this.storageService.storeValidatedFile({
+      tenantId,
+      bucketKind: "documents",
+      scope: ["attendance", attendanceId, "attachments"],
+      file: validated
     });
+    const id = randomUUID();
+    try {
+      const created = await this.prisma.$transaction(async (transaction) => {
+        const row = await transaction.attendanceAttachment.create({
+          data: {
+            id,
+            tenantId,
+            attendanceId,
+            fileName: stored.originalName,
+            fileUrl: `/api/v1/attendance/${attendanceId}/attachments/${id}/content`,
+            mimeType: stored.mimeType,
+            size: stored.size,
+            storageDriver: stored.driver,
+            storageBucket: stored.bucket,
+            storageKey: stored.key,
+            uploadedByUserId: uploadedByUserId || null,
+            updatedAt: new Date()
+          }
+        });
+        await this.auditService.enqueueLog(
+          {
+            tenantId,
+            userId: uploadedByUserId,
+            action: "ATTENDANCE_ATTACHMENT_CREATED",
+            resource: "attendance_attachments",
+            resourceId: row.id,
+            payload: { attendanceId, mimeType: row.mimeType, size: row.size }
+          },
+          transaction
+        );
+        return row;
+      });
+      return attendanceAttachmentView(created);
+    } catch (error) {
+      await this.deleteAfterFailedCreate(stored, error);
+      throw error;
+    }
+  }
 
-    return attendanceAttachmentView(created);
+  async downloadAttendanceAttachment(
+    tenantId: string,
+    attendanceId: string,
+    attachmentId: string
+  ): Promise<{ buffer: Buffer; mimeType: string; fileName: string }> {
+    await this.requireAttendance(tenantId, attendanceId);
+    const attachment = await this.requireAttendanceAttachment(tenantId, attendanceId, attachmentId);
+    const file = await this.storageService.readFile(this.storageReference(tenantId, attachment));
+    return {
+      buffer: file.buffer,
+      mimeType: attachment.mimeType || file.mimeType || "application/octet-stream",
+      fileName: attachment.fileName
+    };
   }
 
   async deleteAttendanceAttachment(
     tenantId: string,
     attendanceId: string,
-    attachmentId: string
+    attachmentId: string,
+    actorUserId: string
   ): Promise<void> {
     await this.requireAttendance(tenantId, attendanceId);
 
-    const attachment = await this.prisma.attendanceAttachment.findFirst({
-      where: {
-        id: attachmentId,
-        tenantId,
-        attendanceId
-      }
-    });
-
-    if (!attachment) {
-      throw new NotFoundException("Attendance attachment not found.");
-    }
-
+    const attachment = await this.requireAttendanceAttachment(tenantId, attendanceId, attachmentId);
+    const reference = this.storageReference(tenantId, attachment);
     await this.prisma.attendanceAttachment.delete({ where: { id: attachment.id } });
+    try {
+      await this.storageService.deleteFile(reference);
+    } catch (error) {
+      await this.restoreAttendanceAttachment(attachment, error);
+      throw new ServiceUnavailableException("Le justificatif n'a pas pu être supprimé du stockage.");
+    }
+    try {
+      await this.auditService.enqueueLog({
+        tenantId,
+        userId: actorUserId,
+        action: "ATTENDANCE_ATTACHMENT_DELETED",
+        resource: "attendance_attachments",
+        resourceId: attachment.id,
+        payload: { attendanceId }
+      });
+    } catch (error) {
+      this.logger.error("Attendance attachment deletion audit could not be enqueued.", error);
+    }
   }
 
   async updateAttendanceValidation(
@@ -650,6 +728,76 @@ export class SchoolLifeAttendanceService {
     if (normalized === "LATE") return "LATE";
     if (normalized === "EXCUSED") return "EXCUSED";
     return "PRESENT";
+  }
+
+  private async requireAttendanceAttachment(
+    tenantId: string,
+    attendanceId: string,
+    attachmentId: string
+  ): Promise<AttendanceAttachment> {
+    const attachment = await this.prisma.attendanceAttachment.findFirst({
+      where: { id: attachmentId, tenantId, attendanceId }
+    });
+    if (!attachment) throw new NotFoundException("Attendance attachment not found.");
+    return attachment;
+  }
+
+  private storageReference(tenantId: string, row: AttendanceAttachment): StoredObjectReference {
+    if (
+      (row.storageDriver !== "LOCAL" && row.storageDriver !== "SUPABASE") ||
+      !row.storageBucket ||
+      !row.storageKey
+    ) {
+      throw new NotFoundException(
+        "Le fichier historique n'est pas disponible dans le stockage sécurisé."
+      );
+    }
+    return {
+      tenantId,
+      driver: row.storageDriver as StorageDriver,
+      bucket: row.storageBucket,
+      key: row.storageKey
+    };
+  }
+
+  private async deleteAfterFailedCreate(
+    reference: StoredObjectReference,
+    originalError: unknown
+  ): Promise<void> {
+    try {
+      await this.storageService.deleteFile(reference);
+    } catch (cleanupError) {
+      this.logger.error("Attendance attachment cleanup failed after database error.", cleanupError);
+      this.logger.error("Original attendance attachment database error.", originalError);
+    }
+  }
+
+  private async restoreAttendanceAttachment(
+    attachment: AttendanceAttachment,
+    providerError: unknown
+  ): Promise<void> {
+    try {
+      await this.prisma.attendanceAttachment.create({
+        data: {
+          id: attachment.id,
+          tenantId: attachment.tenantId,
+          attendanceId: attachment.attendanceId,
+          fileName: attachment.fileName,
+          fileUrl: attachment.fileUrl,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+          storageDriver: attachment.storageDriver,
+          storageBucket: attachment.storageBucket,
+          storageKey: attachment.storageKey,
+          uploadedByUserId: attachment.uploadedByUserId,
+          createdAt: attachment.createdAt,
+          updatedAt: attachment.updatedAt
+        }
+      });
+    } catch (restoreError) {
+      this.logger.error("Attendance attachment rollback failed after storage deletion error.", restoreError);
+    }
+    this.logger.error("Attendance attachment storage deletion failed.", providerError);
   }
 
   private normalizeJustificationStatus(status: string): AttendanceJustificationStatus {

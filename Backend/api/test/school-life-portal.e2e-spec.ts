@@ -1,3 +1,8 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { PDFDocument } from "pdf-lib";
 import * as request from "supertest";
 
 import {
@@ -26,8 +31,13 @@ describe("School life + portal flows (e2e)", () => {
   let linkedRoomId: string;
   let linkedTimetableSlotId: string;
   let teacherAssignmentId: string;
+  let storageRoot: string;
 
   beforeAll(async () => {
+    storageRoot = await mkdtemp(join(tmpdir(), "gestschool-school-life-e2e-"));
+    process.env.STORAGE_PROVIDER = "LOCAL";
+    process.env.FILE_STORAGE_DRIVER = "LOCAL";
+    process.env.FILE_STORAGE_LOCAL_ROOT = storageRoot;
     context = await createE2eApp();
     await cleanDatabase(context.prisma);
     await seedUsers(context.prisma);
@@ -51,6 +61,10 @@ describe("School life + portal flows (e2e)", () => {
 
   afterAll(async () => {
     await closeE2eApp(context);
+    await rm(storageRoot, { recursive: true, force: true });
+    delete process.env.STORAGE_PROVIDER;
+    delete process.env.FILE_STORAGE_DRIVER;
+    delete process.env.FILE_STORAGE_LOCAL_ROOT;
   });
 
   it("should manage attendance, timetable conflicts and notification dispatch", async () => {
@@ -69,6 +83,69 @@ describe("School life + portal flows (e2e)", () => {
       .expect(201);
 
     expect(attendance.body.schoolYearId).toBe(baseline.schoolYearId);
+
+    const justification = await PDFDocument.create();
+    justification.addPage([240, 180]);
+    const justificationBuffer = Buffer.from(await justification.save());
+    const attachment = await request(context.app.getHttpServer())
+      .post(`/api/v1/attendance/${attendance.body.id}/attachments`)
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .attach("file", justificationBuffer, {
+        filename: "justificatif-medical.pdf",
+        contentType: "application/pdf"
+      })
+      .expect(201);
+
+    expect(attachment.body.fileUrl).toBe(
+      `/api/v1/attendance/${attendance.body.id}/attachments/${attachment.body.id}/content`
+    );
+
+    const teacherTokens = await login(context.app, "enseignant@gestschool.local", "teacher1234");
+    await request(context.app.getHttpServer())
+      .post(`/api/v1/attendance/${attendance.body.id}/attachments`)
+      .set("Authorization", `Bearer ${teacherTokens.accessToken}`)
+      .attach("file", justificationBuffer, {
+        filename: "non-autorise.pdf",
+        contentType: "application/pdf"
+      })
+      .expect(403);
+
+    await request(context.app.getHttpServer())
+      .post("/api/v1/attendance/11111111-1111-4111-8111-111111111111/attachments")
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .attach("file", justificationBuffer, {
+        filename: "ressource-arbitraire.pdf",
+        contentType: "application/pdf"
+      })
+      .expect(404);
+
+    await request(context.app.getHttpServer())
+      .get(`/api/v1/attendance/${attendance.body.id}/attachments/${attachment.body.id}/content`)
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .expect("Content-Type", /application\/pdf/)
+      .expect("X-Content-Type-Options", "nosniff")
+      .expect("Cache-Control", "private, no-store")
+      .expect("Content-Disposition", /attachment/)
+      .expect(200)
+      .then((response) => {
+        expect(Buffer.compare(response.body, justificationBuffer)).toBe(0);
+      });
+
+    await request(context.app.getHttpServer())
+      .get(`/api/v1/attendance/${attendance.body.id}/attachments/${attachment.body.id}/content`)
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .set("x-tenant-id", "11111111-1111-4111-8111-111111111111")
+      .expect(403);
+
+    await request(context.app.getHttpServer())
+      .delete(`/api/v1/attendance/${attendance.body.id}/attachments/${attachment.body.id}`)
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .expect(200);
+
+    await request(context.app.getHttpServer())
+      .get(`/api/v1/attendance/${attendance.body.id}/attachments/${attachment.body.id}/content`)
+      .set("Authorization", `Bearer ${scolariteTokens.accessToken}`)
+      .expect(404);
 
     const updatedAttendance = await request(context.app.getHttpServer())
       .patch(`/api/v1/attendance/${attendance.body.id}`)

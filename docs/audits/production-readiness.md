@@ -177,7 +177,7 @@ Verdict du LOT 1 : **GO pour lever le blocage du validateur sans casser les donn
 
 ## LOT 2 - Dependances de production
 
-- Date : 2026-07-14
+- Date : 2026-07-15
 - Statut : termine
 - Commit propose : `fix(deps): remediate production dependency vulnerabilities`
 
@@ -420,3 +420,125 @@ Verdict du LOT 3 : **GO local avec reserve de deploiement**. Les garanties proxy
 rate limiting et revocation sont testees. La validation production finale exige
 un deploiement avec les variables ci-dessus puis le controle de `/health/live`,
 `/health/ready`, d'un login, d'un logout et d'une desactivation reelle.
+
+## LOT 4 - Stockage et uploads
+
+- Date : 2026-07-14
+- Statut : implementation et validation locale terminees, deploiement bloque par les prerequis operateur
+- Commit propose : `fix(api): secure storage uploads and document access`
+
+### Diagnostic initial
+
+- `POST /storage/upload-descriptor` autorisait plusieurs buckets et chemins avec la
+  permission sans rapport `attendanceAttachment:create`. Le client choisissait le
+  type, le dossier et les identifiants de ressource.
+- Les providers `S3` et `WEBHOOK` retournaient des URI de succes sans enregistrer
+  aucun octet. Le descriptor signe permettait aussi de contourner la validation du
+  contenu par l'API.
+- Les avatars validaient surtout le MIME multipart et une signature partielle. Les
+  documents enseignants et justificatifs acceptaient une URL fournie par le client.
+- Les pieces scolaires sensibles pouvaient donc ne pas etre reliees de maniere
+  verifiable a une ressource et a un tenant. Le remplacement/suppression ne
+  garantissait pas la coherence entre PostgreSQL et le stockage.
+
+### Matrice cible verifiee
+
+| Fichier | Ressource | Roles | Permissions | Limite et formats | Visibilite | Stockage |
+| --- | --- | --- | --- | --- | --- | --- |
+| Avatar | utilisateur courant | tous les roles authentifies, soi-meme uniquement | `avatar:create/delete` | 2 Mo, JPEG/PNG/WebP, 4096 px et 16 MP max | privee, URL signee 60-900 s via profil authentifie | LOCAL hors production ou Supabase |
+| Piece enseignant | enseignant du tenant | ADMIN, SCOLARITE | `teacherDocument:create/read/update/delete` | 10 Mo, JPEG/PNG/WebP/PDF/DOCX/XLSX | privee, endpoint authentifie | bucket documents |
+| Justificatif absence | absence du tenant | ADMIN, SCOLARITE | `attendanceAttachment:create/read/delete` | 5 Mo, JPEG/PNG/WebP/PDF | privee, endpoint authentifie | bucket documents |
+| Piece eleve | eleve | aucun flux binaire implemente | non disponible | non defini | privee cible | decision metier requise |
+| Piece parent | parent | aucun flux binaire implemente | non disponible | non defini | privee cible | decision metier requise |
+| Recu | paiement | generation metier existante, pas d'upload | non disponible pour upload | non defini | privee cible | decision metier requise |
+| Facture | facture | aucun upload de fichier | non disponible | non defini | privee cible | decision metier requise |
+| Bulletin | bulletin | generation/donnees existantes, pas d'upload | non disponible pour upload | non defini | privee cible | decision metier requise |
+| Rapport | rapport | aucun upload de fichier | non disponible | non defini | privee cible | decision metier requise |
+| Document administratif | ressource a definir | aucun flux binaire implemente | non disponible | non defini | privee cible | decision d'architecture requise |
+
+### Corrections appliquees
+
+- Suppression du controller/DTO generique et migration du frontend vers trois routes
+  multipart metier. Les identifiants parents sont parses en UUID puis verifies par
+  requete `tenantId + ressource` avant tout stockage.
+- Permissions dediees `avatar`, `teacherDocument` et `attendanceAttachment`, avec
+  operations explicites. Les cles sont generees par le serveur sous
+  `tenants/{tenantId}/.../{uuid}.{extension}` ; aucun nom client ne devient un chemin.
+- Validation combinee de la taille, extension, MIME declare, signature, parsing et
+  decodage reel. Sharp decode les images ; pdf-lib parse les PDF et les fonctions
+  actives sont refusees ; JSZip controle CRC, chemins, macros, contenus actifs et
+  expansion des archives Office. Les fichiers vides, tronques, animes, polyglottes
+  avec suffixe et incoherents sont rejetes.
+- LOCAL utilise une ecriture temporaire atomique en mode `0600`, controle le chemin,
+  nettoie le temporaire et reste interdit en production. Supabase stocke les
+  documents et avatars dans des buckets prives. Les documents passent par une route
+  autorisee ; les avatars sont livres par URL signee courte, generee par l'API. Les
+  reponses documentaires imposent `nosniff`, `private, no-store` et un
+  `Content-Disposition` sur. La service-role ne quitte jamais le backend.
+- `S3` et `WEBHOOK` ne sont plus des drivers utilisables : le demarrage echoue
+  explicitement s'ils sont selectionnes. Aucun nouveau fournisseur cloud n'a ete
+  implemente.
+- La migration transactionnelle `20260714130000_secure_storage_metadata` ajoute les
+  references driver/bucket/key, MIME/taille avatar, contraintes de taille et index
+  uniques tenant/objet. Aucune ancienne migration n'a ete modifiee.
+- Creation : le fichier est supprime si la transaction DB echoue. Remplacement et
+  suppression restaurent les metadonnees DB si la suppression provider echoue.
+  Le remplacement d'avatar utilise un verrou optimiste sur l'etat utilisateur : un
+  upload concurrent perdant est refuse et son nouvel objet est nettoye.
+  Toutes les operations produisent un audit ; un echec de rollback est journalise
+  explicitement et n'est jamais masque.
+
+### Validations et limites
+
+| Controle | Resultat |
+| --- | --- |
+| Prisma generate et `prisma validate` | OK, schema valide |
+| Lint et build API | OK |
+| Tests unitaires API | OK, 12 suites et 59 tests |
+| Tests LOT 4 validation/stockage | OK, 3 suites et 21 tests : MIME, signature, corruption, dimensions, chemins, polyglottes, providers, concurrence et temporaires |
+| Typage/lint des trois E2E modifies | OK |
+| E2E PostgreSQL et migration reelle | OK : PostgreSQL 16 jetable, 31/31 migrations, 7 suites et 46/46 tests |
+| Lint/tests/build/smoke frontend | OK, 15 fichiers et 64 tests |
+| Audit production | OK avec pnpm 11.13.0 : aucune vulnerabilite connue ; lockfile inchange |
+| Gate CI audit | OK : version 11.x verifiee avant audit, niveaux high/critical bloquants, installation projet conservee en pnpm 10.24.0 |
+| `git diff --check` | OK |
+
+Une premiere execution parallele des suites API et frontend a depasse le delai de
+5 secondes sur un test Office et un test de flux frontend, sans echec d'assertion.
+Sans modifier les delais ni les tests, les relances isolees ont passe : storage
+21/21, unite API 59/59 et frontend 64/64. Aucun echec n'a ete masque.
+
+Les lignes historiques de documents enseignants/justificatifs sans
+`storage_driver/bucket/key` ne sont plus telechargeables et doivent etre inventoriees
+puis backfillees ou archivees avant de retirer leur ancien stockage. Aucun antivirus
+ni Content Disarm and Reconstruction n'est ajoute : les parseurs reduisent le risque,
+mais une analyse malware asynchrone reste necessaire pour des documents provenant de
+publics non fiables. Les rollbacks sont compensatoires ; un double echec provider/DB
+est journalise mais il n'existe pas encore de file de reconciliation des orphelins.
+
+Rollback : redeployer d'abord l'ancienne application. Les colonnes additives peuvent
+rester sans impact. Leur suppression eventuelle exige une sauvegarde, un audit des
+objets et une migration ulterieure ; ne jamais annuler cette migration en supprimant
+les colonnes avant le rollback applicatif.
+
+Le gate CI utilise ponctuellement pnpm 11.13.0 avec
+`--pm-on-fail=ignore` uniquement pour accepter la difference volontaire avec le
+`packageManager` 10.24.0 du projet. La version affichee doit commencer par `11.`
+avant l'audit. L'installation, les builds et le lockfile restent geres par pnpm
+10.24.0 ; l'empreinte du lockfile est controlee avant/apres l'audit local.
+
+Le plan idempotent d'inventaire, dry-run, migration, reprise, reconciliation et
+rollback des avatars, documents enseignants et justificatifs historiques est
+documente dans `docs/runbooks/storage.md`. Aucune migration de fichiers n'a ete
+executee pendant ce lot.
+
+Configuration operateur : conserver `STORAGE_PROVIDER=supabase`,
+`FILE_STORAGE_DRIVER=SUPABASE`, deux buckets distincts et prives
+`gestschool-documents` et `gestschool-avatars`, la service-role uniquement cote API,
+`SUPABASE_STORAGE_AVATARS_PUBLIC=false` et une duree d'URL signee courte (300 s par
+defaut, 60-900 s autorises).
+
+Verdict LOT 4 : **GO pour commit, NO-GO deploiement** tant que les buckets prives et
+secrets Render ne sont pas verifies, PostgreSQL n'est pas sauvegarde avec un test de
+restauration, la migration n'est pas testee sur une copie representative et les
+anciens fichiers ne sont pas inventories.

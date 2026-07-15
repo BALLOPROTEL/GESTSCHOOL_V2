@@ -14,6 +14,7 @@ export type AttendanceAttachmentView = {
   fileName: string;
   fileUrl: string;
   mimeType?: string;
+  size?: number;
   uploadedByUserId?: string;
   createdAt: string;
 };
@@ -168,8 +169,11 @@ export const attendanceAttachmentView = (
   id: row.id,
   attendanceId: row.attendanceId,
   fileName: row.fileName,
-  fileUrl: row.fileUrl,
+  fileUrl: row.storageKey
+    ? `/api/v1/attendance/${row.attendanceId}/attachments/${row.id}/content`
+    : "",
   mimeType: row.mimeType || undefined,
+  size: row.size ?? undefined,
   uploadedByUserId: row.uploadedByUserId || undefined,
   createdAt: row.createdAt.toISOString()
 });

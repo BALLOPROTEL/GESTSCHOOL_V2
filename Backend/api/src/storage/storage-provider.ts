@@ -1,46 +1,34 @@
-export type StorageDriver = "LOCAL" | "S3" | "WEBHOOK" | "SUPABASE";
+export type StorageDriver = "LOCAL" | "SUPABASE";
 
-export type StorageBucketKind = "documents" | "receipts" | "report-cards" | "avatars";
+export type StorageBucketKind = "documents" | "avatars";
 
-export type CreateStorageUploadDescriptorInput = {
-  tenantId: string;
-  driver: StorageDriver;
-  fileName: string;
+export type StoreObjectInput = {
+  bucketKind: StorageBucketKind;
+  key: string;
   mimeType: string;
-  folder?: string;
-  bucketKind?: StorageBucketKind;
-  studentId?: string;
-  schoolYearId?: string;
-  invoiceId?: string;
-  userId?: string;
+  buffer: Buffer;
 };
 
-export type UploadDescriptorView = {
+export type StoredObjectReference = {
   driver: StorageDriver;
-  tenantId: string;
-  fileName: string;
-  mimeType: string;
+  bucket: string;
   key: string;
-  uploadUrl: string;
-  fileUrl: string;
-  expiresAt: string;
-  bucket?: string;
-  token?: string;
+  tenantId: string;
 };
 
-export type StoredFileView = {
-  driver: StorageDriver;
-  tenantId: string;
-  fileName: string;
+export type StoredFileView = StoredObjectReference & {
+  originalName: string;
   mimeType: string;
-  key: string;
-  fileUrl: string;
-  bucket?: string;
   size: number;
 };
 
+export type DownloadedStoredFile = {
+  buffer: Buffer;
+  mimeType: string;
+};
+
 export interface StorageProvider {
-  createUploadDescriptor(
-    input: CreateStorageUploadDescriptorInput
-  ): Promise<UploadDescriptorView> | UploadDescriptorView;
+  store(input: StoreObjectInput): Promise<{ bucket: string }>;
+  read(reference: Pick<StoredObjectReference, "bucket" | "key">): Promise<DownloadedStoredFile>;
+  delete(reference: Pick<StoredObjectReference, "bucket" | "key">): Promise<void>;
 }

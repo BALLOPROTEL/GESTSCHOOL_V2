@@ -21,25 +21,6 @@ export type TeacherFilters = {
 
 export type TeacherPayload = Record<string, string | number | boolean | undefined>;
 
-export type TeacherDocumentUploadDescriptor = {
-  driver: string;
-  tenantId: string;
-  fileName: string;
-  mimeType: string;
-  key: string;
-  uploadUrl: string;
-  fileUrl: string;
-  expiresAt: string;
-  bucket?: string;
-  token?: string;
-};
-
-export type TeacherDocumentUploadPayload = {
-  fileName: string;
-  mimeType: string;
-  size: number;
-};
-
 export type TeachersModuleData = {
   teachers: TeacherRecord[];
   skills: TeacherSkillRecord[];
@@ -128,40 +109,34 @@ export const createTeacherAssignment = async (
 
 export const createTeacherDocument = async (
   api: ApiClient,
-  payload: TeacherPayload
-): Promise<TeacherDocumentRecord> =>
-  readJson<TeacherDocumentRecord>(
-    await api("/teachers/documents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
-  );
-
-export const createTeacherDocumentUploadDescriptor = async (
-  api: ApiClient,
   teacherId: string,
-  payload: TeacherDocumentUploadPayload
-): Promise<TeacherDocumentUploadDescriptor> =>
-  readJson<TeacherDocumentUploadDescriptor>(
-    await api(`/teachers/${teacherId}/documents/upload-descriptor`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
-  );
-
-export const uploadTeacherDocumentFile = async (
-  descriptor: TeacherDocumentUploadDescriptor,
+  payload: { documentType: string; documentName: string; status: string },
   file: File
+): Promise<TeacherDocumentRecord> => {
+  const body = new FormData();
+  body.set("documentType", payload.documentType);
+  body.set("documentName", payload.documentName);
+  body.set("status", payload.status);
+  body.set("file", file, file.name);
+  return readJson<TeacherDocumentRecord>(
+    await api(`/teachers/${teacherId}/documents`, { method: "POST", body })
+  );
+};
+
+export const downloadTeacherDocument = async (
+  api: ApiClient,
+  document: Pick<TeacherDocumentRecord, "id" | "documentName" | "originalName">
 ): Promise<void> => {
-  const response = await fetch(descriptor.uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type || descriptor.mimeType || "application/octet-stream" },
-    body: file
-  });
-  if (!response.ok) {
-    throw new Error("L'envoi du document a échoué.");
+  const response = await api(`/teachers/documents/${document.id}/content`);
+  if (!response.ok) throw new Error(await parseApiError(response));
+  const url = URL.createObjectURL(await response.blob());
+  try {
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = document.documentName || document.originalName;
+    link.click();
+  } finally {
+    URL.revokeObjectURL(url);
   }
 };
 

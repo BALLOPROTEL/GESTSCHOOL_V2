@@ -24,14 +24,13 @@ import {
 import {
   createTeacherAssignment,
   createTeacherDocument,
-  createTeacherDocumentUploadDescriptor,
   createTeacherSkill,
   deleteTeacherResource,
+  downloadTeacherDocument,
   fetchTeacherDetail,
   fetchTeachers,
   fetchTeachersModule,
-  saveTeacher,
-  uploadTeacherDocumentFile
+  saveTeacher
 } from "./teachers/teachers-service";
 import {
   ASSIGNMENT_STATUSES,
@@ -356,22 +355,11 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     }
     setDocumentUploading(true);
     try {
-      const descriptor = await createTeacherDocumentUploadDescriptor(api, documentForm.teacherId, {
-        fileName: documentFile.name,
-        mimeType: documentFile.type,
-        size: documentFile.size
-      });
-      await uploadTeacherDocumentFile(descriptor, documentFile);
-      await createTeacherDocument(api, {
-        teacherId: documentForm.teacherId,
+      await createTeacherDocument(api, documentForm.teacherId, {
         documentType: documentForm.documentType,
         documentName: documentForm.documentName,
-        fileUrl: descriptor.fileUrl,
-        originalName: documentFile.name,
-        mimeType: documentFile.type || descriptor.mimeType,
-        size: documentFile.size,
         status: documentForm.status
-      });
+      }, documentFile);
     } catch (error) {
       onError(error instanceof Error ? error.message : translate("L'envoi du document a échoué."));
       setDocumentUploading(false);
@@ -412,6 +400,14 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       internalNotes: teacher.internalNotes || ""
     });
     setActiveStep("form");
+  };
+
+  const downloadDocument = async (document: TeacherDocumentRecord): Promise<void> => {
+    try {
+      await downloadTeacherDocument(api, document);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : translate("Téléchargement impossible."));
+    }
   };
 
   const openTeacherForm = (): void => {
@@ -725,7 +721,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{translate("Enseignant")}</th><th>{translate("Type")}</th><th>{translate("Nom du document")}</th><th>{translate("Ajouté le")}</th><th>{translate("Statut")}</th><th>{translate("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherDocuments.length === 0 ? <tr><td colSpan={6} className="empty-row">{translate("Aucun document enregistré.")}</td></tr> : selectedTeacherDocuments.map((document) => (
-                <tr key={document.id}><td>{document.teacherName}</td><td>{translateDocumentType(document.documentType)}</td><td><a href={document.fileUrl} target="_blank" rel="noreferrer">{document.documentName || document.originalName}</a></td><td>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, translate("Document supprimé."), translate("Confirmer la suppression de ce document ?"))}>{translate("Supprimer")}</button></td></tr>
+                <tr key={document.id}><td>{document.teacherName}</td><td>{translateDocumentType(document.documentType)}</td><td><button type="button" className="button-link" onClick={() => void downloadDocument(document)}>{document.documentName || document.originalName}</button></td><td>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, translate("Document supprimé."), translate("Confirmer la suppression de ce document ?"))}>{translate("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>

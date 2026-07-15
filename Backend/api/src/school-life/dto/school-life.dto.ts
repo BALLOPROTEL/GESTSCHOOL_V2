@@ -54,24 +54,6 @@ export class CreateAttendanceDto {
 
 export class UpdateAttendanceDto extends PartialType(CreateAttendanceDto) {}
 
-export class CreateAttendanceAttachmentDto {
-  @ApiProperty({ example: "certificat-medical.pdf" })
-  @IsString()
-  @MaxLength(180)
-  fileName!: string;
-
-  @ApiProperty({ example: "https://files.gestschool.local/justificatifs/certificat-medical.pdf" })
-  @IsString()
-  @MaxLength(2000)
-  fileUrl!: string;
-
-  @ApiPropertyOptional({ example: "application/pdf" })
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  mimeType?: string;
-}
-
 export class UpdateAttendanceValidationDto {
   @ApiProperty({ enum: ["PENDING", "APPROVED", "REJECTED"] })
   @IsIn(["PENDING", "APPROVED", "REJECTED"])

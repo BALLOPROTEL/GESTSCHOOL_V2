@@ -249,9 +249,11 @@ export class MonitoringController {
           SUPABASE_URL: this.hasConfig("SUPABASE_URL"),
           SUPABASE_SERVICE_ROLE_KEY: this.hasConfig("SUPABASE_SERVICE_ROLE_KEY"),
           SUPABASE_STORAGE_BUCKET_DOCUMENTS: this.hasConfig("SUPABASE_STORAGE_BUCKET_DOCUMENTS"),
-          SUPABASE_STORAGE_BUCKET_RECEIPTS: this.hasConfig("SUPABASE_STORAGE_BUCKET_RECEIPTS"),
-          SUPABASE_STORAGE_BUCKET_REPORT_CARDS: this.hasConfig("SUPABASE_STORAGE_BUCKET_REPORT_CARDS"),
-          SUPABASE_STORAGE_BUCKET_AVATARS: this.hasConfig("SUPABASE_STORAGE_BUCKET_AVATARS")
+          SUPABASE_STORAGE_BUCKET_AVATARS: this.hasConfig("SUPABASE_STORAGE_BUCKET_AVATARS"),
+          SUPABASE_STORAGE_AVATARS_PUBLIC: this.booleanConfig(
+            "SUPABASE_STORAGE_AVATARS_PUBLIC",
+            false
+          )
         }
       },
       notifications: {

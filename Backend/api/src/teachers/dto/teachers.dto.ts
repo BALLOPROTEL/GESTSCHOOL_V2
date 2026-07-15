@@ -284,37 +284,14 @@ export class CreateTeacherAssignmentDto {
 export class UpdateTeacherAssignmentDto extends PartialType(CreateTeacherAssignmentDto) {}
 
 export class CreateTeacherDocumentDto {
-  @ApiProperty()
-  @IsUUID("all")
-  teacherId!: string;
-
   @ApiProperty({ enum: TEACHER_DOCUMENT_TYPE_VALUES, example: "CONTRAT" })
   @IsIn(TEACHER_DOCUMENT_TYPE_VALUES)
   documentType!: (typeof TEACHER_DOCUMENT_TYPE_VALUES)[number];
-
-  @ApiProperty({ example: "https://storage.local/teachers/contrat.pdf" })
-  @IsString()
-  fileUrl!: string;
 
   @ApiProperty({ example: "Contrat 2025 - Aminata Diallo" })
   @IsString()
   @MaxLength(180)
   documentName!: string;
-
-  @ApiProperty({ example: "contrat-aminata-diallo.pdf" })
-  @IsString()
-  @MaxLength(180)
-  originalName!: string;
-
-  @ApiProperty({ example: "application/pdf" })
-  @IsString()
-  @MaxLength(120)
-  mimeType!: string;
-
-  @ApiProperty({ example: 238944 })
-  @IsInt()
-  @Min(1)
-  size!: number;
 
   @ApiPropertyOptional({ enum: TEACHER_DOCUMENT_STATUS_VALUES, default: "ACTIVE" })
   @IsOptional()
@@ -322,21 +299,20 @@ export class CreateTeacherDocumentDto {
   status?: (typeof TEACHER_DOCUMENT_STATUS_VALUES)[number];
 }
 
-export class UpdateTeacherDocumentDto extends PartialType(CreateTeacherDocumentDto) {}
+export class UpdateTeacherDocumentDto {
+  @ApiPropertyOptional({ enum: TEACHER_DOCUMENT_TYPE_VALUES })
+  @IsOptional()
+  @IsIn(TEACHER_DOCUMENT_TYPE_VALUES)
+  documentType?: (typeof TEACHER_DOCUMENT_TYPE_VALUES)[number];
 
-export class CreateTeacherDocumentUploadDescriptorDto {
-  @ApiProperty({ example: "contrat-aminata-diallo.pdf" })
+  @ApiPropertyOptional({ example: "Contrat 2025 - Aminata Diallo" })
+  @IsOptional()
   @IsString()
   @MaxLength(180)
-  fileName!: string;
+  documentName?: string;
 
-  @ApiProperty({ example: "application/pdf" })
-  @IsString()
-  @MaxLength(120)
-  mimeType!: string;
-
-  @ApiProperty({ example: 238944 })
-  @IsInt()
-  @Min(1)
-  size!: number;
+  @ApiPropertyOptional({ enum: ["ACTIVE", "EXPIRED"] })
+  @IsOptional()
+  @IsIn(["ACTIVE", "EXPIRED"])
+  status?: "ACTIVE" | "EXPIRED";
 }

@@ -1,114 +1,71 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, resolve, sep } from "node:path";
 
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 import {
-  type CreateStorageUploadDescriptorInput,
-  type StoredFileView,
+  type DownloadedStoredFile,
   type StorageProvider,
-  type UploadDescriptorView
+  type StoreObjectInput,
+  type StoredObjectReference
 } from "./storage-provider";
 
 @Injectable()
 export class LocalStorageProvider implements StorageProvider {
   constructor(private readonly configService: ConfigService) {}
 
-  createUploadDescriptor(input: CreateStorageUploadDescriptorInput): UploadDescriptorView {
-    this.assertAllowedDriver(input.driver);
-
-    const sanitizedFileName = this.sanitizeFileName(input.fileName);
-    const folder = this.sanitizeFolder(input.folder);
-    const now = new Date();
-    const yyyy = String(now.getUTCFullYear());
-    const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-    const key = `${input.tenantId}/${folder}/${yyyy}/${mm}/${randomUUID().slice(0, 12)}-${sanitizedFileName}`;
-
-    const baseUrl = this.configService
-      .get<string>("FILE_STORAGE_BASE_URL", "http://localhost:3000/files")
-      .trim()
-      .replace(/\/+$/, "");
-    const fileUrl = `${baseUrl}/${key}`;
-
-    let uploadUrl = fileUrl;
-    if (input.driver === "S3") {
-      const bucket = this.configService.get<string>("FILE_STORAGE_S3_BUCKET", "gestschool");
-      uploadUrl = `s3://${bucket}/${key}`;
+  async store(input: StoreObjectInput): Promise<{ bucket: string }> {
+    this.assertLocalAllowed();
+    const path = this.absolutePath(input.bucketKind, input.key);
+    const temporaryPath = `${path}.${randomUUID()}.tmp`;
+    await mkdir(dirname(path), { recursive: true });
+    try {
+      await writeFile(temporaryPath, input.buffer, { flag: "wx", mode: 0o600 });
+      await rename(temporaryPath, path);
+    } catch (error) {
+      await rm(temporaryPath, { force: true });
+      throw error;
     }
-    if (input.driver === "WEBHOOK") {
-      uploadUrl = this.configService.get<string>("FILE_STORAGE_PRESIGN_ENDPOINT", "").trim();
-    }
+    return { bucket: input.bucketKind };
+  }
 
+  async read(
+    reference: Pick<StoredObjectReference, "bucket" | "key">
+  ): Promise<DownloadedStoredFile> {
+    this.assertLocalAllowed();
+    const path = this.absolutePath(reference.bucket, reference.key);
     return {
-      driver: input.driver,
-      tenantId: input.tenantId,
-      fileName: input.fileName.trim(),
-      mimeType: input.mimeType,
-      key,
-      uploadUrl,
-      fileUrl,
-      expiresAt: new Date(now.getTime() + 15 * 60 * 1000).toISOString()
+      buffer: await readFile(path),
+      mimeType: "application/octet-stream"
     };
   }
 
-  async uploadBuffer(
-    input: CreateStorageUploadDescriptorInput,
-    buffer: Buffer
-  ): Promise<StoredFileView> {
-    this.assertAllowedDriver(input.driver);
-
-    const descriptor = this.createUploadDescriptor(input);
-    const root = this.configService
-      .get<string>("FILE_STORAGE_LOCAL_ROOT", "/tmp/gestschool-storage")
-      .trim();
-    const absolutePath = join(root, descriptor.key);
-    await mkdir(dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, buffer);
-
-    return {
-      driver: descriptor.driver,
-      tenantId: descriptor.tenantId,
-      fileName: descriptor.fileName,
-      mimeType: descriptor.mimeType,
-      key: descriptor.key,
-      fileUrl: descriptor.fileUrl,
-      size: buffer.byteLength
-    };
+  async delete(reference: Pick<StoredObjectReference, "bucket" | "key">): Promise<void> {
+    this.assertLocalAllowed();
+    const path = this.absolutePath(reference.bucket, reference.key);
+    await rm(path, { force: true });
   }
 
-  private assertAllowedDriver(driver: string): void {
-    if (driver === "LOCAL" && this.configService.get<string>("NODE_ENV") === "production") {
-      const allowLocal = this.configService
-        .get<string>("FILE_STORAGE_ALLOW_LOCAL_IN_PROD", "false")
-        .trim()
-        .toLowerCase();
-      if (allowLocal !== "true") {
-        throw new Error(
-          "FILE_STORAGE_DRIVER=LOCAL is disabled in production. Use FILE_STORAGE_DRIVER=SUPABASE."
-        );
-      }
+  private absolutePath(bucket: string, key: string): string {
+    if (!/^[a-z][a-z-]{1,40}$/.test(bucket)) {
+      throw new Error("Invalid local storage bucket.");
     }
+    const root = resolve(
+      this.configService.get<string>("FILE_STORAGE_LOCAL_ROOT", "/tmp/gestschool-storage").trim()
+    );
+    const bucketRoot = resolve(root, bucket);
+    const path = resolve(bucketRoot, key);
+    if (path !== bucketRoot && !path.startsWith(`${bucketRoot}${sep}`)) {
+      throw new Error("Storage path escapes the configured root.");
+    }
+    return path;
   }
 
-  private sanitizeFileName(fileName: string): string {
-    return fileName
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9.\-_]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 140);
-  }
-
-  private sanitizeFolder(folder: string | undefined): string {
-    const base = (folder || "general").trim().toLowerCase();
-    const sanitized = base
-      .replace(/[^a-z0-9/\-_]+/g, "-")
-      .replace(/\/+/g, "/")
-      .replace(/^\/+|\/+$/g, "")
-      .replace(/^-|-$/g, "");
-    return sanitized || "general";
+  private assertLocalAllowed(): void {
+    if (this.configService.get<string>("NODE_ENV", "").trim().toLowerCase() === "production") {
+      throw new Error("FILE_STORAGE_DRIVER=LOCAL is disabled in production.");
+    }
   }
 }

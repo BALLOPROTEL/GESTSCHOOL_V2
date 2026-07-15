@@ -25,6 +25,7 @@ export type AttendanceAttachment = {
   fileName: string;
   fileUrl: string;
   mimeType?: string;
+  size?: number;
   uploadedByUserId?: string;
   createdAt: string;
 };

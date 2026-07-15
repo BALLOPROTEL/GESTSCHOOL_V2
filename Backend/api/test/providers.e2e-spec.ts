@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import * as request from "supertest";
+import * as sharp from "sharp";
 
 import { NotificationGatewayService } from "../src/notifications/notification-gateway.service";
 import {
@@ -16,6 +17,10 @@ import {
   type E2eAppContext
 } from "./support/e2e-harness";
 
+const createSharp = sharp as unknown as (
+  input: sharp.SharpOptions,
+) => sharp.Sharp;
+
 configureE2eEnvironment();
 jest.setTimeout(120_000);
 
@@ -23,6 +28,8 @@ describe("Provider integrations (e2e)", () => {
   let context: E2eAppContext;
   let baseline: AcademicBaseline;
   let fetchSpy: jest.SpiedFunction<typeof fetch>;
+  let avatarPng: Buffer;
+  let failNextStorageUpload = false;
   const paydunyaHash = createHash("sha512").update("test-master-key").digest("hex");
 
   beforeAll(async () => {
@@ -37,6 +44,10 @@ describe("Provider integrations (e2e)", () => {
     process.env.FILE_STORAGE_DRIVER = "SUPABASE";
     process.env.SUPABASE_URL = "https://project-ref.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+    process.env.SUPABASE_STORAGE_BUCKET_DOCUMENTS = "gestschool-documents";
+    process.env.SUPABASE_STORAGE_BUCKET_AVATARS = "gestschool-avatars";
+    process.env.SUPABASE_STORAGE_AVATARS_PUBLIC = "false";
+    process.env.SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS = "300";
     process.env.NOTIFICATIONS_EMAIL_PROVIDER = "brevo";
     process.env.NOTIFICATIONS_SMS_PROVIDER = "brevo";
     process.env.BREVO_API_KEY = "test-brevo-key";
@@ -48,7 +59,13 @@ describe("Provider integrations (e2e)", () => {
     process.env.MONITORING_METRICS_TOKEN = "test-metrics-token";
     process.env.STORAGE_PROVIDER = "supabase";
 
-    fetchSpy = jest.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    avatarPng = await createSharp({
+      create: { width: 32, height: 32, channels: 3, background: "#1264a3" }
+    })
+      .png()
+      .toBuffer();
+
+    fetchSpy = jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = typeof input === "string" || input instanceof URL ? input.toString() : input.url;
       if (url.includes("/checkout-invoice/create")) {
         return jsonResponse({
@@ -71,21 +88,20 @@ describe("Provider integrations (e2e)", () => {
           }
         });
       }
-      if (url.includes("/storage/v1/object/upload/sign/")) {
-        return jsonResponse({
-          signedURL: "/storage/v1/object/upload/sign/gestschool-documents/signed-path?token=signed-upload-token",
-          token: "signed-upload-token"
-        });
-      }
-      if (url.includes("/storage/v1/bucket/gestschool-avatars")) {
-        return jsonResponse({
-          id: "gestschool-avatars",
-          name: "gestschool-avatars",
-          public: true
-        });
-      }
       if (url.includes("/storage/v1/object/gestschool-avatars/")) {
+        if (init?.method === "POST" && failNextStorageUpload) {
+          failNextStorageUpload = false;
+          return jsonResponse({ message: "simulated storage failure" }, 503);
+        }
         return jsonResponse({ Key: "avatar-object-key" });
+      }
+      if (url.includes("/storage/v1/object/sign/gestschool-avatars/")) {
+        return jsonResponse({
+          signedURL: "/storage/v1/object/sign/gestschool-avatars/avatar.png?token=short-lived"
+        });
+      }
+      if (url.endsWith("/storage/v1/object/gestschool-avatars") && init?.method === "DELETE") {
+        return jsonResponse({ message: "deleted" });
       }
       if (url.includes("/v3/smtp/email")) {
         return jsonResponse({ messageId: "<brevo-message-id>" });
@@ -119,6 +135,10 @@ describe("Provider integrations (e2e)", () => {
     delete process.env.FILE_STORAGE_DRIVER;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_STORAGE_BUCKET_DOCUMENTS;
+    delete process.env.SUPABASE_STORAGE_BUCKET_AVATARS;
+    delete process.env.SUPABASE_STORAGE_AVATARS_PUBLIC;
+    delete process.env.SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS;
     delete process.env.NOTIFICATIONS_EMAIL_PROVIDER;
     delete process.env.NOTIFICATIONS_SMS_PROVIDER;
     delete process.env.BREVO_API_KEY;
@@ -229,10 +249,10 @@ describe("Provider integrations (e2e)", () => {
     expect(paidInvoice.status).toBe("PAID");
   });
 
-  it("returns Supabase signed upload descriptors without exposing the service role key", async () => {
+  it("does not expose the removed generic upload descriptor endpoint", async () => {
     const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
 
-    const descriptor = await request(context.app.getHttpServer())
+    await request(context.app.getHttpServer())
       .post("/api/v1/storage/upload-descriptor")
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
       .send({
@@ -241,74 +261,45 @@ describe("Provider integrations (e2e)", () => {
         bucket: "documents",
         studentId: baseline.studentOneId
       })
-      .expect(201);
-
-    expect(descriptor.body.driver).toBe("SUPABASE");
-    expect(descriptor.body.bucket).toBe("gestschool-documents");
-    expect(descriptor.body.key).toContain(`tenants/${TENANT_ID}/students/${baseline.studentOneId}`);
-    expect(descriptor.body.uploadUrl).toContain("/storage/v1/object/upload/sign/");
-    expect(JSON.stringify(descriptor.body)).not.toContain("test-service-role-key");
+      .expect(404);
   });
 
-  it("infers Supabase storage in production when credentials are configured", async () => {
-    const previousNodeEnv = process.env.NODE_ENV;
-    const previousStorageProvider = process.env.STORAGE_PROVIDER;
-    const previousFileStorageDriver = process.env.FILE_STORAGE_DRIVER;
-    process.env.NODE_ENV = "production";
-    process.env.STORAGE_PROVIDER = "LOCAL";
-    process.env.FILE_STORAGE_DRIVER = "LOCAL";
-
-    try {
-      const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
-
-      const descriptor = await request(context.app.getHttpServer())
-        .post("/api/v1/storage/upload-descriptor")
-        .set("Authorization", `Bearer ${adminTokens.accessToken}`)
-        .send({
-          fileName: "fallback-supabase.pdf",
-          mimeType: "application/pdf",
-          bucket: "documents",
-          studentId: baseline.studentOneId
-        })
-        .expect(201);
-
-      expect(descriptor.body.driver).toBe("SUPABASE");
-    } finally {
-      if (previousNodeEnv === undefined) {
-        delete process.env.NODE_ENV;
-      } else {
-        process.env.NODE_ENV = previousNodeEnv;
-      }
-      if (previousStorageProvider === undefined) {
-        delete process.env.STORAGE_PROVIDER;
-      } else {
-        process.env.STORAGE_PROVIDER = previousStorageProvider;
-      }
-      if (previousFileStorageDriver === undefined) {
-        delete process.env.FILE_STORAGE_DRIVER;
-      } else {
-        process.env.FILE_STORAGE_DRIVER = previousFileStorageDriver;
-      }
-    }
-  });
-
-  it("uploads authenticated user avatars to the public Supabase avatar bucket", async () => {
+  it("uploads, replaces and removes an authenticated user's validated avatar", async () => {
     const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
 
-    const response = await request(context.app.getHttpServer())
+    const firstResponse = await request(context.app.getHttpServer())
       .post("/api/v1/users/me/avatar")
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
-      .attach("file", Buffer.from([137, 80, 78, 71]), {
+      .attach("file", avatarPng, {
         filename: "avatar.png",
         contentType: "image/png"
       })
       .expect(201);
 
-    expect(response.body.user.avatarUrl).toContain(
-      "/storage/v1/object/public/gestschool-avatars/"
+    expect(firstResponse.body.user.avatarUrl).toContain(
+      "/storage/v1/object/sign/gestschool-avatars/"
     );
-    expect(response.body.user.avatarUrl).toContain(`tenants/${TENANT_ID}/avatars/`);
-    expect(JSON.stringify(response.body)).not.toContain("test-service-role-key");
+    expect(firstResponse.body.user.avatarUrl).toContain("token=short-lived");
+    expect(JSON.stringify(firstResponse.body)).not.toContain("test-service-role-key");
+
+    const firstPersisted = await context.prisma.user.findUniqueOrThrow({
+      where: {
+        tenantId_username: {
+          tenantId: TENANT_ID,
+          username: "admin@gestschool.local"
+        }
+      }
+    });
+    expect(firstPersisted.avatarStorageKey).toBeTruthy();
+
+    const secondResponse = await request(context.app.getHttpServer())
+      .post("/api/v1/users/me/avatar")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .attach("file", avatarPng, {
+        filename: "avatar-remplacement.png",
+        contentType: "image/png"
+      })
+      .expect(201);
 
     const persistedUser = await context.prisma.user.findUniqueOrThrow({
       where: {
@@ -318,14 +309,50 @@ describe("Provider integrations (e2e)", () => {
         }
       }
     });
-    expect(persistedUser.avatarUrl).toBe(response.body.user.avatarUrl);
+    expect(persistedUser.avatarUrl).toBeNull();
+    expect(persistedUser.avatarStorageKey).not.toBe(firstPersisted.avatarStorageKey);
+
+    const deleteCallsAfterReplacement = fetchSpy.mock.calls.filter(([input, init]) => {
+      const url = typeof input === "string" || input instanceof URL ? input.toString() : input.url;
+      return url.endsWith("/storage/v1/object/gestschool-avatars") && init?.method === "DELETE";
+    });
+    expect(deleteCallsAfterReplacement).toHaveLength(1);
 
     const profileResponse = await request(context.app.getHttpServer())
       .get("/api/v1/users/me")
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
       .expect(200);
 
-    expect(profileResponse.body.user.avatarUrl).toBe(response.body.user.avatarUrl);
+    expect(profileResponse.body.user.avatarUrl).toContain(
+      "/storage/v1/object/sign/gestschool-avatars/"
+    );
+
+    await request(context.app.getHttpServer())
+      .delete("/api/v1/users/me/avatar")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .expect(200);
+
+    const removed = await context.prisma.user.findUniqueOrThrow({ where: { id: persistedUser.id } });
+    expect(removed.avatarUrl).toBeNull();
+    expect(removed.avatarStorageKey).toBeNull();
+  });
+
+  it("does not mutate avatar metadata when the storage provider fails", async () => {
+    const adminTokens = await login(context.app, "admin@gestschool.local", "admin12345");
+    const before = await context.prisma.user.findFirstOrThrow({
+      where: { tenantId: TENANT_ID, username: "admin@gestschool.local" }
+    });
+
+    failNextStorageUpload = true;
+    await request(context.app.getHttpServer())
+      .post("/api/v1/users/me/avatar")
+      .set("Authorization", `Bearer ${adminTokens.accessToken}`)
+      .attach("file", avatarPng, { filename: "provider-failure.png", contentType: "image/png" })
+      .expect(503);
+
+    const after = await context.prisma.user.findUniqueOrThrow({ where: { id: before.id } });
+    expect(after.avatarUrl).toBe(before.avatarUrl);
+    expect(after.avatarStorageKey).toBe(before.avatarStorageKey);
   });
 
   it("rejects avatar uploads larger than the multipart limit", async () => {
@@ -347,11 +374,11 @@ describe("Provider integrations (e2e)", () => {
     await request(context.app.getHttpServer())
       .post("/api/v1/users/me/avatar")
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
-      .attach("file", Buffer.from([137, 80, 78, 71]), {
+      .attach("file", avatarPng, {
         filename: "avatar-one.png",
         contentType: "image/png"
       })
-      .attach("file", Buffer.from([137, 80, 78, 71]), {
+      .attach("file", avatarPng, {
         filename: "avatar-two.png",
         contentType: "image/png"
       })

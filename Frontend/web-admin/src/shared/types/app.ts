@@ -464,6 +464,8 @@ export type PermissionResource =
   | "reportCards"
   | "attendance"
   | "attendanceAttachment"
+  | "avatar"
+  | "teacherDocument"
   | "attendanceValidation"
   | "timetable"
   | "notifications"

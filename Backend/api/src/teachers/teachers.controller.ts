@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Headers,
   HttpCode,
   HttpStatus,
@@ -12,13 +13,18 @@ import {
   Patch,
   Post,
   Query,
-  Req
+  Req,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { AcademicTrack } from "@prisma/client";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
+import { type UploadedFile as BufferedUpload } from "../storage/file-validation.service";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
 import { Roles } from "../security/roles.decorator";
@@ -26,7 +32,6 @@ import { UserRole } from "../security/roles.enum";
 import {
   CreateTeacherAssignmentDto,
   CreateTeacherDocumentDto,
-  CreateTeacherDocumentUploadDescriptorDto,
   CreateTeacherDto,
   CreateTeacherSkillDto,
   UpdateTeacherAssignmentDto,
@@ -215,7 +220,7 @@ export class TeachersController {
 
   @Get("documents")
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
-  @RequirePermission("teachers", "read")
+  @RequirePermission("teacherDocument", "read")
   @ApiOperation({ summary: "List teacher documents" })
   async listDocuments(
     @Req() request: { user?: AuthenticatedUser },
@@ -226,36 +231,50 @@ export class TeachersController {
     return this.teachersService.listDocuments(tenantId, teacherId);
   }
 
-  @Post(":teacherId/documents/upload-descriptor")
+  @Post(":teacherId/documents")
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
-  @RequirePermission("teachers", "create")
-  @ApiOperation({ summary: "Create teacher document upload descriptor" })
-  async createDocumentUploadDescriptor(
-    @Req() request: { user?: AuthenticatedUser },
-    @Param("teacherId", new ParseUUIDPipe()) teacherId: string,
-    @Body() body: CreateTeacherDocumentUploadDescriptorDto,
-    @Headers("x-tenant-id") tenantHeader?: string
-  ) {
-    const tenantId = this.getTenantId(request.user, tenantHeader);
-    return this.teachersService.createDocumentUploadDescriptor(tenantId, teacherId, body);
-  }
-
-  @Post("documents")
-  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
-  @RequirePermission("teachers", "create")
-  @ApiOperation({ summary: "Create teacher document metadata" })
+  @RequirePermission("teacherDocument", "create")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
+  @ApiOperation({ summary: "Validate and upload a private teacher document" })
   async createDocument(
     @Req() request: { user?: AuthenticatedUser },
+    @Param("teacherId", new ParseUUIDPipe()) teacherId: string,
     @Body() body: CreateTeacherDocumentDto,
+    @UploadedFile() file: BufferedUpload | undefined,
     @Headers("x-tenant-id") tenantHeader?: string
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
-    return this.teachersService.createDocument(tenantId, this.getActorUserId(request.user), body);
+    return this.teachersService.createDocument(
+      tenantId,
+      this.getActorUserId(request.user),
+      teacherId,
+      body,
+      this.requireUploadedFile(file)
+    );
+  }
+
+  @Get("documents/:id/content")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("teacherDocument", "read")
+  @Header("X-Content-Type-Options", "nosniff")
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "Download a private teacher document" })
+  async downloadDocument(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<StreamableFile> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    const download = await this.teachersService.downloadDocument(tenantId, id);
+    return new StreamableFile(download.buffer, {
+      type: download.mimeType,
+      disposition: this.safeAttachmentDisposition(download.fileName)
+    });
   }
 
   @Patch("documents/:id")
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
-  @RequirePermission("teachers", "update")
+  @RequirePermission("teacherDocument", "update")
   @ApiOperation({ summary: "Update teacher document metadata" })
   async updateDocument(
     @Req() request: { user?: AuthenticatedUser },
@@ -270,7 +289,7 @@ export class TeachersController {
   @Delete("documents/:id")
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
-  @RequirePermission("teachers", "delete")
+  @RequirePermission("teacherDocument", "delete")
   @ApiOperation({ summary: "Archive teacher document" })
   async archiveDocument(
     @Req() request: { user?: AuthenticatedUser },
@@ -340,6 +359,16 @@ export class TeachersController {
       throw new BadRequestException("Missing authenticated user context.");
     }
     return user.sub;
+  }
+
+  private requireUploadedFile(file: BufferedUpload | undefined): BufferedUpload {
+    if (!file) throw new BadRequestException("Le fichier est requis.");
+    return file;
+  }
+
+  private safeAttachmentDisposition(fileName: string): string {
+    const fallback = fileName.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 180) || "document";
+    return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
   }
 
   private getTenantId(

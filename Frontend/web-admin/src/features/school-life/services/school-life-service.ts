@@ -105,14 +105,38 @@ export const deleteAttendanceById = async (
 export const createAttendanceAttachment = (
   api: SchoolLifeApiClient,
   attendanceId: string,
-  payload: Record<string, unknown>
-) =>
+  file: File
+) => {
+  const body = new FormData();
+  body.set("file", file, file.name);
+  return (
   readJson<AttendanceAttachment>(
     api(`/attendance/${attendanceId}/attachments`, {
       method: "POST",
-      body: JSON.stringify(payload)
+      body
     })
+  ));
+};
+
+export const downloadAttendanceAttachment = async (
+  api: SchoolLifeApiClient,
+  attendanceId: string,
+  attachment: AttendanceAttachment
+): Promise<void> => {
+  const response = await api(
+    `/attendance/${attendanceId}/attachments/${attachment.id}/content`
   );
+  if (!response.ok) throw new Error(await parseApiError(response));
+  const url = URL.createObjectURL(await response.blob());
+  try {
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = attachment.fileName;
+    link.click();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+};
 
 export const deleteAttendanceAttachment = async (
   api: SchoolLifeApiClient,
