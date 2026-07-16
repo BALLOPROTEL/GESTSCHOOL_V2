@@ -21,6 +21,7 @@ export type NotificationRequestedEventPayload = {
   };
   content: {
     templateKey: string;
+    templateVersion: string;
     title: string;
     message: string;
     variables?: Prisma.InputJsonValue | null;
@@ -63,6 +64,7 @@ export type PublishNotificationRequestInput = {
   };
   content: {
     templateKey: string;
+    templateVersion?: string;
     title: string;
     message: string;
     variables?: Prisma.InputJsonValue;

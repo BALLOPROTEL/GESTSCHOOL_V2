@@ -40,6 +40,21 @@ function validateProductionEnv(env) {
     return value;
   }
 
+  function requireInteger(name, minimum, maximum) {
+    const raw = requireEnv(name);
+    const value = Number(raw);
+    if (
+      !/^\d+$/.test(raw) ||
+      !Number.isInteger(value) ||
+      value < minimum ||
+      value > maximum
+    ) {
+      errors.push(`${name} must be an integer between ${minimum} and ${maximum}.`);
+      return null;
+    }
+    return value;
+  }
+
   function parseServiceUrl(name, protocols) {
     const raw = requireEnv(name);
     if (!raw) return null;
@@ -183,9 +198,68 @@ function validateProductionEnv(env) {
     }
     if (emailProvider === "WEBHOOK") {
       parseServiceUrl("NOTIFY_EMAIL_WEBHOOK_URL", ["https:"]);
+      requireSecret("NOTIFY_EMAIL_WEBHOOK_SIGNING_SECRET");
     }
     if (smsProvider === "WEBHOOK") {
       parseServiceUrl("NOTIFY_SMS_WEBHOOK_URL", ["https:"]);
+      requireSecret("NOTIFY_SMS_WEBHOOK_SIGNING_SECRET");
+    }
+
+    requireSecret("NOTIFICATION_WEBHOOK_SIGNING_SECRET");
+    requireInteger("NOTIFICATION_WEBHOOK_REPLAY_WINDOW_SECONDS", 60, 3600);
+    requireInteger("OUTBOX_CLAIM_TTL_SECONDS", 30, 3600);
+    requireInteger("OUTBOX_MAX_ATTEMPTS", 1, 20);
+    const outboxRetryBaseSeconds = requireInteger(
+      "OUTBOX_RETRY_BASE_SECONDS",
+      1,
+      3600
+    );
+    const outboxRetryMaxSeconds = requireInteger(
+      "OUTBOX_RETRY_MAX_SECONDS",
+      1,
+      86400
+    );
+    if (
+      outboxRetryBaseSeconds !== null &&
+      outboxRetryMaxSeconds !== null &&
+      outboxRetryMaxSeconds < outboxRetryBaseSeconds
+    ) {
+      errors.push(
+        "OUTBOX_RETRY_MAX_SECONDS must be greater than or equal to OUTBOX_RETRY_BASE_SECONDS."
+      );
+    }
+    const dispatchLeaseSeconds = requireInteger(
+      "NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS",
+      30,
+      3600
+    );
+    const providerTimeouts = [];
+    if (emailProvider === "BREVO" || smsProvider === "BREVO") {
+      providerTimeouts.push(requireInteger("BREVO_TIMEOUT_MS", 1000, 120000));
+    }
+    if (emailProvider === "WEBHOOK" || smsProvider === "WEBHOOK") {
+      providerTimeouts.push(requireInteger("NOTIFY_WEBHOOK_TIMEOUT_MS", 1000, 120000));
+    }
+    requireInteger("NOTIFY_MAX_ATTEMPTS", 1, 20);
+    const retryBaseSeconds = requireInteger("NOTIFY_RETRY_BASE_SECONDS", 1, 3600);
+    const retryMaxSeconds = requireInteger("NOTIFY_RETRY_MAX_SECONDS", 1, 86400);
+    if (
+      retryBaseSeconds !== null &&
+      retryMaxSeconds !== null &&
+      retryMaxSeconds < retryBaseSeconds
+    ) {
+      errors.push("NOTIFY_RETRY_MAX_SECONDS must be greater than or equal to NOTIFY_RETRY_BASE_SECONDS.");
+    }
+    if (
+      dispatchLeaseSeconds !== null &&
+      providerTimeouts.some(
+        (providerTimeoutMs) =>
+          providerTimeoutMs !== null && dispatchLeaseSeconds * 1000 <= providerTimeoutMs
+      )
+    ) {
+      errors.push(
+        "NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS must exceed the provider timeout."
+      );
     }
   }
 

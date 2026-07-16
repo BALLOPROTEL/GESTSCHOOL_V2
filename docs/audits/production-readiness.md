@@ -542,3 +542,148 @@ Verdict LOT 4 : **GO pour commit, NO-GO deploiement** tant que les buckets prive
 secrets Render ne sont pas verifies, PostgreSQL n'est pas sauvegarde avec un test de
 restauration, la migration n'est pas testee sur une copie representative et les
 anciens fichiers ne sont pas inventories.
+
+## LOT 5 - Notifications, outbox et livraisons fournisseurs
+
+- Date : 2026-07-16
+- Statut : implementation et validations locales terminees
+- Commit propose : `fix(api): harden notification delivery and outbox processing`
+
+### Diagnostic initial
+
+- La deduplication reposait sur des cles fournies ou construites de maniere
+  heterogene. La base ne garantissait pas l'unicite metier d'une livraison par
+  tenant et les relances concurrentes pouvaient creer plusieurs notifications.
+- Les workers utilisaient un statut de traitement, mais sans lease token de fencing.
+  Un worker ralenti ou relance apres expiration pouvait donc ecraser le resultat du
+  worker ayant repris le travail.
+- Les appels fournisseurs et les mises a jour PostgreSQL ne peuvent pas etre rendus
+  atomiques. Un timeout ou un crash apres acceptation fournisseur laissait un
+  resultat inconnu sans modele explicite ni conservation systematique de la meme cle
+  d'idempotence.
+- Les statuts historiques `PENDING`, `SCHEDULED`, `SENT` et `FAILED` ne distinguaient
+  pas un echec temporaire, permanent, une dead-letter, une annulation ou une
+  livraison confirmee par callback.
+- Les callbacks ne disposaient pas d'une contrainte evenement fournisseur, d'une
+  fenetre anti-rejeu et d'une transaction englobant deduplication et changement de
+  statut. Les retries outbox utilisaient un delai fixe.
+
+### Flux cible et garantie reelle
+
+Le flux devient : evenement metier durable avec `dedupeKey` -> reservation outbox
+atomique -> creation idempotente de notification -> reservation notification par
+lease -> appel fournisseur hors transaction SQL -> finalisation fencee par
+`workerId + leaseToken` -> callback signe et deduplique -> statut final.
+
+La garantie obtenue est **au moins une fois avec deduplication locale**. La cle
+metier couvre tenant, evenement, ressource, destinataire normalise, canal et version
+de template. La contrainte PostgreSQL `(tenant_id, idempotency_key)` empeche deux
+livraisons locales identiques. La meme cle est envoyee au fournisseur, mais
+l'absence de doublon externe depend de la prise en charge effective de cette cle par
+le fournisseur. Un timeout au resultat inconnu reste relancable avec la meme cle ;
+aucune promesse `exactly once` n'est faite.
+
+### Etats et transitions
+
+| Etat | Signification | Transitions autorisees principales |
+| --- | --- | --- |
+| `PENDING` | livraison creee, prete ou planifiee | `PROCESSING`, `CANCELLED` |
+| `PROCESSING` | lease exclusive en cours | `SENT`, `FAILED_RETRYABLE`, `FAILED_PERMANENT`, `DEAD_LETTER` |
+| `SENT` | fournisseur a accepte la livraison | `DELIVERED`, `FAILED_PERMANENT` par callback |
+| `DELIVERED` | fournisseur a confirme la livraison | terminal |
+| `FAILED_RETRYABLE` | echec temporaire ou resultat inconnu | `PROCESSING`, `CANCELLED` |
+| `FAILED_PERMANENT` | refus non relancable automatiquement | replay manuel audite vers `PENDING` |
+| `DEAD_LETTER` | maximum de tentatives ou leases expirees atteint | replay manuel audite vers `PENDING` |
+| `CANCELLED` | annulation explicite avant livraison finale | terminal |
+
+Les callbacks sont appliques dans une transaction avec verrou de ligne. Une cle
+unique `(tenant_id, provider, provider_event_id)` rend un callback rejoue ou recu en
+concurrence sans effet supplementaire. La signature HMAC lie timestamp, tenant,
+provider, identifiant fournisseur, statut et evenement ; la fenetre anti-rejeu est
+configurable.
+
+### Lease, retry et dead-letter
+
+- Chaque reservation ecrit un worker unique, un `leaseToken` UUID et une expiration.
+  La selection et la prise de lease sont atomiques ; l'appel reseau se fait ensuite
+  sans verrou SQL. La finalisation exige toujours le meme worker et le meme token.
+  Le compteur de tentatives outbox est incremente au moment de la reservation, pas
+  a la finalisation : des crashes repetes apres la prise de lease atteignent donc la
+  dead-letter au lieu de pouvoir boucler indefiniment.
+- Une lease expiree est recuperee. L'ancienne execution est fencee et ne peut plus
+  finaliser la ligne. Apres le maximum de tentatives, la notification ou l'evenement
+  passe en dead-letter.
+- HTTP 400 est permanent ; HTTP 429, HTTP 5xx et les erreurs reseau/timeout sont
+  relancables. `Retry-After` est respecte. Sinon, un backoff exponentiel avec jitter
+  borne et plafond est applique. Un timeout est marque `outcome_unknown`.
+- Les erreurs persistees et journalisees sont nettoyees et tronquees. Les contenus,
+  destinataires, secrets et payloads fournisseurs ne sont pas ecrits dans les logs.
+- Le replay manuel est reserve aux notifications permanentes/dead-letter et cree un
+  evenement d'audit IAM avec l'auteur et la raison.
+
+### Migration et rollback
+
+La nouvelle migration transactionnelle
+`20260716113000_notification_delivery_reliability` ajoute les etats, leases,
+tentatives, resultat inconnu, replay, identifiants callback et contraintes. Elle
+echoue avant toute ecriture si des doublons historiques `(tenant_id,
+idempotency_key)` existent. Les cles historiques absentes sont backfillees avec une
+cle unique derivee de l'identifiant de notification. Aucune ancienne migration n'a
+ete modifiee.
+
+Rollback applicatif : redeployer d'abord la version precedente. Les colonnes
+additives peuvent rester. Un rollback SQL ulterieur doit supprimer les nouvelles
+contraintes/index avant les colonnes, uniquement apres sauvegarde et verification
+qu'aucun statut nouveau n'est requis par l'application precedente. Ne pas executer
+ce rollback pendant qu'un worker LOT 5 est actif.
+
+### Tests, limites et configuration
+
+Les tests couvrent deux workers concurrents, duplication de cle, crash avant envoi,
+resultat inconnu apres envoi, lease expiree, dead-letter, replay audite, HTTP 400/429/
+500, timeout, `Retry-After`, callback valide/invalide/perime/rejoue/concurrent et
+isolation inter-tenant. Les appels fournisseurs sont simules ; aucun email ou SMS
+reel n'est emis.
+
+Les liens d'activation et de reinitialisation restent envoyes synchroniquement par
+le service d'authentification, avec une cle d'idempotence fournisseur. Les placer
+dans l'outbox exigerait de definir le chiffrement, la duree de conservation et la
+gestion de secrets a usage unique dans les payloads durables. Cette decision est
+hors LOT 5.
+
+Le header `Idempotency-Key` est transmis a Brevo, mais sa garantie effective doit
+etre confirmee dans le contrat fournisseur. Le callback entrant implemente un
+contrat HMAC generique GestSchool ; l'adaptateur de signature et d'evenements propre
+a un fournisseur reel doit etre valide avant activation. En production, activer un
+provider uniquement apres avoir configure ses secrets et son webhook signe.
+
+La configuration Render versionnee reste volontairement inactive :
+`NOTIFICATIONS_WORKER_ENABLED=false`, `OUTBOX_IN_PROCESS_ENABLED=false`, providers
+email/SMS `mock`, `BREVO_SMS_DRY_RUN=true` et `ALLOW_REAL_SMS=false`. L'activation
+requiert une action explicite et coordonnee : secrets valides, provider choisi,
+webhook HTTPS teste en recette, puis activation du worker ou du processeur outbox.
+Une cle Brevo presente seule ne declenche donc aucun envoi.
+
+| Controle final | Resultat |
+| --- | --- |
+| Installation figee | OK avec pnpm 10.24.0, lockfile a jour |
+| Prisma validate/generate | OK avec Prisma 6.19.3 |
+| Lint et build API | OK |
+| Tests unitaires API | OK, 17 suites et 87 tests |
+| Migration PostgreSQL | OK, base jetable PostgreSQL 16, 32/32 migrations, schema a jour |
+| E2E PostgreSQL | OK, 8 suites et 54/54 tests, dont la dead-letter apres crashes outbox repetes |
+| Tests frontend | OK, lint, 15 fichiers et 64/64 tests, build et smoke |
+| Audit production | OK avec pnpm 11.13.0, aucune vulnerabilite connue, lockfile inchange |
+| `git diff --check` | OK |
+
+La commande `corepack` de la machine locale pointe vers une installation Windows
+WSL invalide. Le controle local a donc telecharge pnpm 11.13.0 dans le cache isole de
+`pnpm dlx`, a affiche explicitement `11.13.0`, puis a execute l'audit. La CI Linux
+continue d'utiliser `corepack pnpm@11.13.0` et verifie explicitement le prefixe
+`11.` avant l'audit. Ce contournement local n'a modifie ni le manifeste ni le
+lockfile.
+
+Verdict LOT 5 : **GO pour commit**. L'activation d'un fournisseur reel reste
+**NO-GO** tant que l'idempotence effective du fournisseur, son contrat de callback,
+les secrets Render, l'URL webhook HTTPS et un test en environnement de recette ne
+sont pas verifies. Aucun appel reel fournisseur n'a ete effectue pendant ce lot.

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   ConflictException,
@@ -25,6 +25,18 @@ import {
   type NotificationRequestedEventPayload
 } from "./notification-request.contract";
 import { PrismaService } from "../database/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import {
+  type NotificationFailureDecision,
+  ProviderDispatchError,
+  sanitizeProviderError
+} from "./notification-delivery.types";
+import {
+  buildNotificationIdempotencyKey,
+  DEFAULT_NOTIFICATION_TEMPLATE_VERSION
+} from "./notification-idempotency";
+import { NotificationRetryPolicyService } from "./notification-retry-policy.service";
+import type { VerifiedNotificationWebhook } from "./notification-webhook-verifier.service";
 
 type NotificationView = {
   id: string;
@@ -52,6 +64,11 @@ type NotificationView = {
   sourceDomain?: string;
   sourceAction?: string;
   templateKey?: string;
+  templateVersion: string;
+  deliveryOutcomeUnknown: boolean;
+  lockedAt?: string;
+  leaseExpiresAt?: string;
+  replayCount: number;
 };
 
 type NotificationWithStudent = Prisma.NotificationGetPayload<{
@@ -62,9 +79,13 @@ type NotificationWithStudent = Prisma.NotificationGetPayload<{
 
 @Injectable()
 export class NotificationsService {
+  private readonly workerId = `notifications:${process.pid}:${randomUUID().slice(0, 8)}`;
+
   constructor(
+    private readonly auditService: AuditService,
     private readonly configService: ConfigService,
     private readonly notificationGateway: NotificationGatewayService,
+    private readonly notificationRetryPolicy: NotificationRetryPolicyService,
     private readonly prisma: PrismaService
   ) {}
 
@@ -108,11 +129,11 @@ export class NotificationsService {
           title: payload.content.title,
           message: payload.content.message,
           channel: payload.channel,
-          status: payload.schedule?.scheduledAt ? "SCHEDULED" : "PENDING",
+          status: "PENDING",
           targetAddress: payload.recipient.targetAddress,
           provider: payload.channel === "IN_APP" ? "IN_APP" : null,
           providerMessageId: null,
-          deliveryStatus: "QUEUED",
+          deliveryStatus: "PENDING",
           attempts: 0,
           lastError: null,
           nextAttemptAt: null,
@@ -121,6 +142,7 @@ export class NotificationsService {
           requestId: payload.requestId,
           correlationId: metadata.correlationId,
           idempotencyKey: metadata.idempotencyKey,
+          templateVersion: payload.content.templateVersion,
           schemaVersion: payload.schemaVersion,
           sourceDomain: payload.source.domain,
           sourceAction: payload.source.action,
@@ -204,7 +226,32 @@ export class NotificationsService {
     const occurredAt = now.toISOString();
     const channel = payload.channel || "IN_APP";
     const targetAddress = payload.targetAddress?.trim() || null;
-    const status = payload.scheduledAt ? "SCHEDULED" : "PENDING";
+    const status = "PENDING";
+    const manualRequest = {
+      tenantId,
+      kind: "MANUAL" as const,
+      channel,
+      recipient: {
+        audienceRole: payload.audienceRole || undefined,
+        studentId: payload.studentId || undefined,
+        targetAddress: targetAddress || undefined
+      },
+      content: {
+        templateKey: "manual",
+        templateVersion: DEFAULT_NOTIFICATION_TEMPLATE_VERSION,
+        title: payload.title.trim(),
+        message: payload.message.trim()
+      },
+      source: {
+        domain: "notifications",
+        action: "manual.create",
+        referenceType: "notification",
+        referenceId: requestId
+      },
+      requestId,
+      idempotencyKey: `manual:${requestId}`
+    };
+    const idempotencyKey = buildNotificationIdempotencyKey(manualRequest, requestId);
     const requestEnvelope: NotificationRequestedEvent = {
       payload: {
         schemaVersion: NOTIFICATION_REQUESTED_VERSION,
@@ -219,6 +266,7 @@ export class NotificationsService {
         },
         content: {
           templateKey: "manual",
+          templateVersion: DEFAULT_NOTIFICATION_TEMPLATE_VERSION,
           title: payload.title.trim(),
           message: payload.message.trim(),
           variables: null
@@ -237,7 +285,7 @@ export class NotificationsService {
         tenantId,
         occurredAt,
         correlationId: requestId,
-        idempotencyKey: `manual:${tenantId}:${requestId}`,
+        idempotencyKey,
         producer: "notifications"
       }
     };
@@ -254,7 +302,7 @@ export class NotificationsService {
         targetAddress,
         provider: channel === "IN_APP" ? "IN_APP" : null,
         providerMessageId: null,
-        deliveryStatus: "QUEUED",
+        deliveryStatus: "PENDING",
         attempts: 0,
         lastError: null,
         nextAttemptAt: null,
@@ -262,7 +310,8 @@ export class NotificationsService {
         scheduledAt: payload.scheduledAt ? new Date(payload.scheduledAt) : null,
         requestId,
         correlationId: requestId,
-        idempotencyKey: `manual:${tenantId}:${requestId}`,
+        idempotencyKey,
+        templateVersion: DEFAULT_NOTIFICATION_TEMPLATE_VERSION,
         schemaVersion: NOTIFICATION_REQUESTED_VERSION,
         sourceDomain: "notifications",
         sourceAction: "manual.create",
@@ -293,80 +342,95 @@ export class NotificationsService {
     return this.dispatchNotifications({}, limit);
   }
 
-  async recordDeliveryEvent(payload: NotificationDeliveryEventDto): Promise<NotificationView> {
+  async recordDeliveryEvent(
+    payload: NotificationDeliveryEventDto,
+    verified: VerifiedNotificationWebhook
+  ): Promise<NotificationView> {
     const where: Prisma.NotificationWhereInput = {
+      tenantId: payload.tenantId,
       providerMessageId: payload.providerMessageId.trim(),
-      provider: payload.provider?.trim() || undefined
+      provider: payload.provider.trim().toUpperCase()
     };
-
-    const existing = await this.prisma.notification.findFirst({
-      where,
-      include: {
-        student: true
-      }
-    });
-
-    if (!existing) {
-      throw new NotFoundException("Notification not found for provider event.");
-    }
 
     const eventTime = payload.occurredAt ? new Date(payload.occurredAt) : new Date();
     const status = payload.status.trim().toUpperCase();
     const normalizedStatus = this.normalizeDeliveryStatus(status);
-    const callbackStored = await this.persistProviderCallback(
-      existing,
-      payload,
-      normalizedStatus,
-      eventTime
-    );
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      const matched = await transaction.notification.findFirst({ where });
+      if (!matched) {
+        throw new NotFoundException("Notification not found for provider event.");
+      }
 
-    if (!callbackStored) {
-      const current = await this.prisma.notification.findFirst({
-        where: { id: existing.id },
+      await transaction.$queryRaw`
+        SELECT id
+        FROM notifications
+        WHERE id = ${matched.id}::uuid
+        FOR UPDATE
+      `;
+      const existing = await transaction.notification.findFirst({
+        where: { id: matched.id, tenantId: payload.tenantId },
         include: { student: true }
       });
-      if (!current) {
-        throw new NotFoundException("Notification not found for duplicate provider event.");
+      if (!existing) {
+        throw new NotFoundException("Notification not found for provider event.");
       }
-      return this.notificationView(current);
-    }
 
-    const updated = await this.prisma.notification.update({
-      where: { id: existing.id },
-      data: {
-        status:
-          normalizedStatus === "FAILED" || normalizedStatus === "UNDELIVERABLE"
-            ? "FAILED"
-            : "SENT",
-        deliveryStatus: normalizedStatus,
-        sentAt: existing.sentAt || eventTime,
-        deliveredAt: normalizedStatus === "DELIVERED" ? eventTime : existing.deliveredAt,
-        lastError:
-          normalizedStatus === "FAILED" || normalizedStatus === "UNDELIVERABLE"
-            ? payload.errorMessage?.trim() || existing.lastError
-            : null,
-        nextAttemptAt: null,
-        updatedAt: eventTime
-      },
-      include: {
-        student: true
+      const callbackStored = await this.persistProviderCallback(
+        transaction,
+        existing,
+        payload,
+        normalizedStatus,
+        eventTime,
+        verified
+      );
+      if (!callbackStored) {
+        return existing;
       }
-    });
 
-    await this.prisma.notificationDeliveryAttempt.updateMany({
-      where: {
-        notificationId: existing.id,
-        providerMessageId: existing.providerMessageId || payload.providerMessageId.trim()
-      },
-      data: {
-        status: normalizedStatus,
-        errorMessage:
-          normalizedStatus === "FAILED" || normalizedStatus === "UNDELIVERABLE"
-            ? payload.errorMessage?.trim() || updated.lastError
-            : null,
-        finishedAt: eventTime,
-        updatedAt: eventTime
+      const nextStatus = this.deliveryEventTransition(existing.status, normalizedStatus);
+      if (!nextStatus) {
+        return existing;
       }
+
+      const callbackError = sanitizeProviderError(
+        payload.errorMessage || "Provider delivery failed."
+      );
+      const notification = await transaction.notification.update({
+        where: { id: existing.id },
+        data: {
+          status: nextStatus,
+          deliveryStatus: nextStatus,
+          sentAt: existing.sentAt || eventTime,
+          deliveredAt: nextStatus === "DELIVERED" ? eventTime : existing.deliveredAt,
+          lastError: nextStatus === "FAILED_PERMANENT" ? callbackError : null,
+          nextAttemptAt: null,
+          lockedAt: null,
+          lockedBy: null,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          deliveryOutcomeUnknown: false,
+          updatedAt: eventTime
+        },
+        include: { student: true }
+      });
+
+      await transaction.notificationDeliveryAttempt.updateMany({
+        where: {
+          notificationId: existing.id,
+          tenantId: existing.tenantId,
+          providerMessageId: existing.providerMessageId || payload.providerMessageId.trim()
+        },
+        data: {
+          status: nextStatus,
+          retryable: false,
+          outcomeUnknown: false,
+          errorMessage: nextStatus === "FAILED_PERMANENT" ? callbackError : null,
+          finishedAt: eventTime,
+          updatedAt: eventTime
+        }
+      });
+
+      return notification;
     });
 
     return this.notificationView(updated);
@@ -379,34 +443,106 @@ export class NotificationsService {
   ): Promise<NotificationView> {
     const existing = await this.requireNotification(tenantId, id);
 
-    const sentAt =
-      payload.status === "SENT"
-        ? payload.sentAt
-          ? new Date(payload.sentAt)
-          : new Date()
-        : payload.status === "PENDING" || payload.status === "SCHEDULED"
-          ? null
-          : payload.sentAt
-            ? new Date(payload.sentAt)
-            : existing.sentAt;
+    if (payload.status === "CANCELLED" && existing.status === "PROCESSING") {
+      throw new ConflictException("A notification being processed cannot be cancelled.");
+    }
+    if (
+      payload.status === "PENDING" &&
+      !["CANCELLED", "FAILED_RETRYABLE"].includes(existing.status)
+    ) {
+      throw new ConflictException("Only cancelled or retryable notifications can be requeued.");
+    }
+    if (
+      payload.status === "CANCELLED" &&
+      !["PENDING", "FAILED_RETRYABLE"].includes(existing.status)
+    ) {
+      throw new ConflictException("Only pending or retryable notifications can be cancelled.");
+    }
 
-    const normalizedDeliveryStatus =
-      payload.status === "SENT" ? "DELIVERED" : payload.status === "FAILED" ? "FAILED" : "QUEUED";
+    const now = new Date();
 
     const updated = await this.prisma.notification.update({
       where: { id: existing.id },
       data: {
         status: payload.status,
-        deliveryStatus: normalizedDeliveryStatus,
-        deliveredAt: payload.status === "SENT" ? sentAt : null,
-        nextAttemptAt: null,
-        lastError: payload.status === "FAILED" ? existing.lastError : null,
-        sentAt,
-        updatedAt: new Date()
+        deliveryStatus: payload.status,
+        cancelledAt: payload.status === "CANCELLED" ? now : null,
+        nextAttemptAt: payload.status === "PENDING" ? now : null,
+        lastError: payload.status === "PENDING" ? null : existing.lastError,
+        lockedAt: null,
+        lockedBy: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        updatedAt: now
       },
       include: {
         student: true
       }
+    });
+
+    return this.notificationView(updated);
+  }
+
+  async replayNotification(
+    tenantId: string,
+    id: string,
+    actorUserId: string,
+    reason: string
+  ): Promise<NotificationView> {
+    const replayReason = reason.trim();
+    const now = new Date();
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      const current = await transaction.notification.findFirst({
+        where: { id, tenantId },
+        include: { student: true }
+      });
+      if (!current) {
+        throw new NotFoundException("Notification not found.");
+      }
+      if (!["FAILED_PERMANENT", "DEAD_LETTER"].includes(current.status)) {
+        throw new ConflictException("Only permanently failed or dead-letter notifications can be replayed.");
+      }
+
+      const replayed = await transaction.notification.update({
+        where: { id: current.id },
+        data: {
+          status: "PENDING",
+          deliveryStatus: "PENDING",
+          attempts: 0,
+          nextAttemptAt: now,
+          lastError: null,
+          lockedAt: null,
+          lockedBy: null,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          deadLetteredAt: null,
+          cancelledAt: null,
+          deliveryOutcomeUnknown: false,
+          replayCount: { increment: 1 },
+          lastReplayedAt: now,
+          lastReplayedByUserId: actorUserId,
+          updatedAt: now
+        },
+        include: { student: true }
+      });
+
+      await this.auditService.recordLog(
+        {
+          action: "notification.replay",
+          payload: {
+            previousStatus: current.status,
+            reason: replayReason,
+            replayCount: replayed.replayCount
+          },
+          resource: "notification",
+          resourceId: current.id,
+          tenantId,
+          userId: actorUserId
+        },
+        transaction
+      );
+
+      return replayed;
     });
 
     return this.notificationView(updated);
@@ -419,17 +555,32 @@ export class NotificationsService {
     const cappedLimit = Math.max(1, Math.min(limit ?? 100, 500));
     const now = new Date();
 
+    await this.prisma.notification.updateMany({
+      where: {
+        ...scope,
+        status: "PROCESSING",
+        attempts: { gte: this.notificationRetryPolicy.maxAttempts() },
+        OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }]
+      },
+      data: {
+        status: "DEAD_LETTER",
+        deliveryStatus: "DEAD_LETTER",
+        deadLetteredAt: now,
+        deliveryOutcomeUnknown: true,
+        lastError: "Worker lease expired after the maximum number of attempts.",
+        lockedAt: null,
+        lockedBy: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        nextAttemptAt: null,
+        updatedAt: now
+      }
+    });
+
     const rows = await this.prisma.notification.findMany({
       where: {
         ...scope,
-        status: {
-          in: ["PENDING", "SCHEDULED"]
-        },
-        OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
-        AND: [{ OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] }]
-      },
-      include: {
-        student: true
+        ...this.claimableNotificationWhere(now)
       },
       orderBy: [{ createdAt: "asc" }],
       take: cappedLimit
@@ -444,45 +595,118 @@ export class NotificationsService {
 
     const updatedRows: NotificationView[] = [];
     for (const row of rows) {
-      const claimed = await this.claimNotificationForDispatch(row.id, now);
+      const claimed = await this.claimNotificationForDispatch(row.id, now, this.workerId);
       if (!claimed) {
         continue;
       }
-      const updated = await this.dispatchSingleNotification(row);
+      const updated = await this.dispatchSingleNotification(claimed);
       updatedRows.push(updated);
     }
 
     return {
-      dispatchedCount: updatedRows.filter((row) => row.status === "SENT").length,
+      dispatchedCount: updatedRows.filter((row) =>
+        row.status === "SENT" || row.status === "DELIVERED"
+      ).length,
       notifications: updatedRows
     };
   }
 
-  private async claimNotificationForDispatch(id: string, now: Date): Promise<boolean> {
-    const claimUntil = new Date(now.getTime() + this.notificationDispatchClaimTtlMs());
-    const result = await this.prisma.notification.updateMany({
+  private claimableNotificationWhere(now: Date): Prisma.NotificationWhereInput {
+    return {
+      OR: [
+        {
+          status: { in: ["PENDING", "FAILED_RETRYABLE"] },
+          attempts: { lt: this.notificationRetryPolicy.maxAttempts() },
+          AND: [
+            { OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] },
+            { OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] }
+          ]
+        },
+        {
+          status: "PROCESSING",
+          attempts: { lt: this.notificationRetryPolicy.maxAttempts() },
+          OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }]
+        }
+      ]
+    };
+  }
+
+  private async claimNotificationForDispatch(
+    id: string,
+    now: Date,
+    workerId: string
+  ): Promise<NotificationWithStudent | null> {
+    const leaseToken = randomUUID();
+    const leaseExpiresAt = new Date(now.getTime() + this.notificationDispatchClaimTtlMs());
+    const leaseData: Prisma.NotificationUpdateManyMutationInput = {
+      status: "PROCESSING",
+      deliveryStatus: "PROCESSING",
+      lockedAt: now,
+      lockedBy: workerId,
+      leaseToken,
+      leaseExpiresAt,
+      lastAttemptAt: now,
+      attempts: { increment: 1 },
+      updatedAt: now
+    };
+    let result = await this.prisma.notification.updateMany({
       where: {
         id,
-        status: {
-          in: ["PENDING", "SCHEDULED"]
+        status: { in: ["PENDING", "FAILED_RETRYABLE"] },
+        attempts: { lt: this.notificationRetryPolicy.maxAttempts() },
+        AND: [
+          { OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] },
+          { OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] }
+        ]
+      },
+      data: leaseData
+    });
+
+    if (result.count === 0) {
+      result = await this.prisma.notification.updateMany({
+        where: {
+          id,
+          status: "PROCESSING",
+          attempts: { lt: this.notificationRetryPolicy.maxAttempts() },
+          OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }]
         },
-        OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
-        AND: [{ OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] }]
+        data: {
+          ...leaseData,
+          deliveryOutcomeUnknown: true
+        }
+      });
+    }
+
+    if (result.count !== 1) {
+      return null;
+    }
+
+    await this.prisma.notificationDeliveryAttempt.updateMany({
+      where: {
+        notificationId: id,
+        status: "PROCESSING",
+        finishedAt: null
       },
       data: {
-        nextAttemptAt: claimUntil,
+        status: "FAILED_RETRYABLE",
+        retryable: true,
+        outcomeUnknown: true,
+        errorMessage: "Previous worker lease expired before a terminal outcome was recorded.",
+        finishedAt: now,
         updatedAt: now
       }
     });
 
-    return result.count === 1;
+    return this.prisma.notification.findFirst({
+      where: { id, status: "PROCESSING", lockedBy: workerId, leaseToken },
+      include: { student: true }
+    });
   }
 
   private async dispatchSingleNotification(row: NotificationWithStudent): Promise<NotificationView> {
     const now = new Date();
     const channel = this.normalizeNotificationChannel(row.channel);
-    const nextAttempt = row.attempts + 1;
-    const attempt = await this.startDeliveryAttempt(row, channel, nextAttempt, now);
+    const attempt = await this.startDeliveryAttempt(row, channel, now);
 
     let resolvedTargetAddress: string | null = null;
     try {
@@ -493,93 +717,57 @@ export class NotificationsService {
         channel,
         title: row.title,
         message: row.message,
-        targetAddress: resolvedTargetAddress || undefined
+        targetAddress: resolvedTargetAddress || undefined,
+        idempotencyKey: row.idempotencyKey,
+        attemptNo: row.attempts
       });
 
-      const updated = await this.prisma.notification.update({
-        where: { id: row.id },
-        data: {
-          status: "SENT",
-          sentAt: now,
-          targetAddress: resolvedTargetAddress || row.targetAddress,
-          provider: dispatchResult.provider,
-          providerMessageId: dispatchResult.providerMessageId,
-          deliveryStatus: dispatchResult.deliveryStatus,
-          attempts: nextAttempt,
-          lastError: null,
-          nextAttemptAt: null,
-          deliveredAt: dispatchResult.deliveryStatus === "DELIVERED" ? now : row.deliveredAt,
-          updatedAt: now
-        },
-        include: {
-          student: true
-        }
-      });
-
-      await this.finishDeliveryAttempt(attempt, {
-        finishedAt: now,
-        provider: dispatchResult.provider,
-        providerMessageId: dispatchResult.providerMessageId,
-        status: dispatchResult.deliveryStatus,
-        targetAddress: resolvedTargetAddress || row.targetAddress || undefined
-      });
-
-      return this.notificationView(updated);
+      const updated = await this.finalizeSuccessfulDispatch(
+        row,
+        attempt,
+        dispatchResult,
+        resolvedTargetAddress,
+        now
+      );
+      return this.notificationView(updated || (await this.requireNotificationWithStudent(row.id)));
     } catch (error: unknown) {
-      const maxAttempts = this.notificationMaxAttempts();
-      const canRetry = channel !== "IN_APP" && nextAttempt < maxAttempts;
-      const retryDelayMinutes = this.notificationRetryDelayMinutes(nextAttempt);
-      const nextAttemptAt = canRetry
-        ? new Date(now.getTime() + retryDelayMinutes * 60 * 1000)
-        : null;
-      const errorMessage = this.extractDispatchErrorMessage(error);
-
-      const updated = await this.prisma.notification.update({
-        where: { id: row.id },
-        data: {
-          status: canRetry ? "PENDING" : "FAILED",
-          deliveryStatus: canRetry ? "RETRYING" : "FAILED",
-          attempts: nextAttempt,
-          nextAttemptAt,
-          lastError: errorMessage,
-          provider: row.provider || this.defaultProviderName(channel),
-          updatedAt: now
-        },
-        include: {
-          student: true
-        }
-      });
-
-      await this.finishDeliveryAttempt(attempt, {
-        finishedAt: now,
-        provider: updated.provider || undefined,
-        providerMessageId: updated.providerMessageId || undefined,
-        status: canRetry ? "RETRYING" : "FAILED",
-        targetAddress: resolvedTargetAddress || row.targetAddress || undefined,
-        errorMessage
-      });
-
-      return this.notificationView(updated);
+      const normalizedError =
+        error instanceof ConflictException
+          ? new ProviderDispatchError(error.message, "PERMANENT")
+          : error;
+      const decision = this.notificationRetryPolicy.decide(normalizedError, row.attempts, now);
+      const updated = await this.finalizeFailedDispatch(
+        row,
+        attempt,
+        decision,
+        resolvedTargetAddress,
+        channel,
+        now
+      );
+      return this.notificationView(updated || (await this.requireNotificationWithStudent(row.id)));
     }
   }
 
   private async startDeliveryAttempt(
     row: NotificationWithStudent,
     channel: NotificationChannel,
-    attemptNo: number,
     startedAt: Date
   ): Promise<NotificationDeliveryAttempt> {
     return this.prisma.notificationDeliveryAttempt.create({
       data: {
         tenantId: row.tenantId,
         notificationId: row.id,
-        attemptNo,
+        attemptNo: row.attempts,
         channel,
         provider: row.provider || this.defaultProviderName(channel),
         targetAddress: row.targetAddress || null,
         providerMessageId: row.providerMessageId || null,
         status: "PROCESSING",
         errorMessage: null,
+        workerId: row.lockedBy,
+        leaseToken: row.leaseToken,
+        retryable: null,
+        outcomeUnknown: false,
         startedAt,
         finishedAt: null,
         updatedAt: startedAt
@@ -587,69 +775,169 @@ export class NotificationsService {
     });
   }
 
-  private async finishDeliveryAttempt(
-    attempt: Pick<NotificationDeliveryAttempt, "id">,
-    result: {
-      finishedAt: Date;
-      provider?: string;
-      providerMessageId?: string;
-      status: string;
-      targetAddress?: string;
-      errorMessage?: string;
-    }
-  ): Promise<void> {
-    await this.prisma.notificationDeliveryAttempt.update({
-      where: { id: attempt.id },
-      data: {
-        provider: result.provider || null,
-        providerMessageId: result.providerMessageId || null,
-        targetAddress: result.targetAddress || null,
-        status: result.status,
-        errorMessage: result.errorMessage || null,
-        finishedAt: result.finishedAt,
-        updatedAt: result.finishedAt
-      }
+  private async finalizeSuccessfulDispatch(
+    row: NotificationWithStudent,
+    attempt: NotificationDeliveryAttempt,
+    dispatchResult: Awaited<ReturnType<NotificationGatewayService["dispatch"]>>,
+    targetAddress: string | null,
+    now: Date
+  ): Promise<NotificationWithStudent | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      const finalized = await transaction.notification.updateMany({
+        where: {
+          id: row.id,
+          status: "PROCESSING",
+          lockedBy: row.lockedBy,
+          leaseToken: row.leaseToken
+        },
+        data: {
+          status: dispatchResult.deliveryStatus,
+          deliveryStatus: dispatchResult.deliveryStatus,
+          sentAt: now,
+          deliveredAt: dispatchResult.deliveryStatus === "DELIVERED" ? now : row.deliveredAt,
+          targetAddress: targetAddress || row.targetAddress,
+          provider: dispatchResult.provider,
+          providerMessageId: dispatchResult.providerMessageId,
+          lastError: null,
+          nextAttemptAt: null,
+          lockedAt: null,
+          lockedBy: null,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          deliveryOutcomeUnknown: false,
+          deadLetteredAt: null,
+          updatedAt: now
+        }
+      });
+
+      await transaction.notificationDeliveryAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          provider: dispatchResult.provider,
+          providerMessageId: dispatchResult.providerMessageId,
+          targetAddress: targetAddress || row.targetAddress,
+          status: finalized.count === 1 ? dispatchResult.deliveryStatus : "FAILED_RETRYABLE",
+          retryable: finalized.count === 1 ? false : true,
+          outcomeUnknown: finalized.count !== 1,
+          errorMessage:
+            finalized.count === 1 ? null : "Worker lease expired before provider success was persisted.",
+          finishedAt: now,
+          updatedAt: now
+        }
+      });
+
+      if (finalized.count !== 1) return null;
+      return transaction.notification.findFirst({
+        where: { id: row.id },
+        include: { student: true }
+      });
+    });
+  }
+
+  private async finalizeFailedDispatch(
+    row: NotificationWithStudent,
+    attempt: NotificationDeliveryAttempt,
+    decision: NotificationFailureDecision,
+    targetAddress: string | null,
+    channel: NotificationChannel,
+    now: Date
+  ): Promise<NotificationWithStudent | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      const finalized = await transaction.notification.updateMany({
+        where: {
+          id: row.id,
+          status: "PROCESSING",
+          lockedBy: row.lockedBy,
+          leaseToken: row.leaseToken
+        },
+        data: {
+          status: decision.status,
+          deliveryStatus: decision.status,
+          nextAttemptAt: decision.nextAttemptAt,
+          lastError: decision.errorMessage,
+          provider: row.provider || this.defaultProviderName(channel),
+          targetAddress: targetAddress || row.targetAddress,
+          lockedAt: null,
+          lockedBy: null,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          deliveryOutcomeUnknown: decision.outcomeUnknown,
+          deadLetteredAt: decision.status === "DEAD_LETTER" ? now : null,
+          updatedAt: now
+        }
+      });
+
+      await transaction.notificationDeliveryAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          provider: row.provider || this.defaultProviderName(channel),
+          targetAddress: targetAddress || row.targetAddress,
+          status: finalized.count === 1 ? decision.status : "FAILED_RETRYABLE",
+          retryable: finalized.count === 1 ? decision.retryable : true,
+          outcomeUnknown: finalized.count === 1 ? decision.outcomeUnknown : true,
+          httpStatus: decision.httpStatus,
+          retryAfterAt: decision.retryAfterAt,
+          errorMessage:
+            finalized.count === 1
+              ? decision.errorMessage
+              : "Worker lease expired before provider failure was persisted.",
+          finishedAt: now,
+          updatedAt: now
+        }
+      });
+
+      if (finalized.count !== 1) return null;
+      return transaction.notification.findFirst({
+        where: { id: row.id },
+        include: { student: true }
+      });
     });
   }
 
   private async persistProviderCallback(
+    transaction: Prisma.TransactionClient,
     notification: Pick<Notification, "id" | "tenantId" | "provider" | "providerMessageId">,
     payload: NotificationDeliveryEventDto,
     normalizedStatus: DeliveryStatus,
-    occurredAt: Date
+    occurredAt: Date,
+    verified: VerifiedNotificationWebhook
   ): Promise<boolean> {
-    const provider = payload.provider?.trim() || notification.provider || "UNKNOWN";
+    const provider = payload.provider.trim().toUpperCase();
     const providerMessageId =
       notification.providerMessageId || payload.providerMessageId.trim();
-    const dedupeKey = payload.occurredAt?.trim()
-      ? [provider, providerMessageId, normalizedStatus, occurredAt.toISOString()].join(":")
-      : [provider, providerMessageId, normalizedStatus].join(":");
+    const payloadDigest = createHash("sha256")
+      .update(JSON.stringify(payload))
+      .digest("hex");
+    const dedupeKey = [notification.tenantId, provider, verified.eventId].join(":");
 
-    try {
-      await this.prisma.notificationProviderCallback.create({
-        data: {
+    const created = await transaction.notificationProviderCallback.createMany({
+      data: [
+        {
           tenantId: notification.tenantId,
           notificationId: notification.id,
           provider,
           providerMessageId,
+          providerEventId: verified.eventId,
           eventStatus: normalizedStatus,
           dedupeKey,
+          signatureTimestamp: verified.signatureTimestamp,
           occurredAt,
-          errorMessage: payload.errorMessage?.trim() || null,
-          payload: payload as unknown as Prisma.InputJsonValue,
+          errorMessage: payload.errorMessage
+            ? sanitizeProviderError(payload.errorMessage)
+            : null,
+          payload: {
+            digest: payloadDigest,
+            occurredAt: payload.occurredAt || null,
+            provider,
+            providerMessageId,
+            status: payload.status
+          },
           updatedAt: occurredAt
         }
-      });
-      return true;
-    } catch (error: unknown) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
-        return false;
-      }
-      throw error;
-    }
+      ],
+      skipDuplicates: true
+    });
+    return created.count === 1;
   }
 
   private normalizeNotificationChannel(value: string): NotificationChannel {
@@ -785,20 +1073,6 @@ export class NotificationsService {
     return /^\+?[0-9]{8,20}$/.test(value.trim());
   }
 
-  private notificationMaxAttempts(): number {
-    const raw = Number(this.configService.get<string>("NOTIFY_MAX_ATTEMPTS", "4"));
-    if (!Number.isFinite(raw) || raw < 1) {
-      return 4;
-    }
-    return Math.floor(raw);
-  }
-
-  private notificationRetryDelayMinutes(attempt: number): number {
-    const baseRaw = Number(this.configService.get<string>("NOTIFY_RETRY_BASE_MINUTES", "3"));
-    const base = Number.isFinite(baseRaw) && baseRaw > 0 ? baseRaw : 3;
-    return Math.min(base * Math.pow(2, Math.max(0, attempt - 1)), 120);
-  }
-
   private notificationDispatchClaimTtlMs(): number {
     const raw = Number(
       this.configService.get<string>("NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS", "120")
@@ -809,24 +1083,31 @@ export class NotificationsService {
     return raw * 1000;
   }
 
-  private extractDispatchErrorMessage(error: unknown): string {
-    if (error instanceof ConflictException) {
-      return error.message;
-    }
-    if (error instanceof Error) {
-      return error.message.slice(0, 500);
-    }
-    return "Notification dispatch failed.";
-  }
-
   private normalizeDeliveryStatus(value: string): DeliveryStatus {
     const normalized = value.trim().toUpperCase();
+    if (normalized === "SENT_TO_PROVIDER") return "SENT";
+    if (normalized === "FAILED" || normalized === "UNDELIVERABLE") {
+      return "FAILED_PERMANENT";
+    }
+    if (normalized === "SENT") return "SENT";
     if (normalized === "DELIVERED") return "DELIVERED";
-    if (normalized === "FAILED") return "FAILED";
-    if (normalized === "RETRYING") return "RETRYING";
-    if (normalized === "UNDELIVERABLE") return "UNDELIVERABLE";
-    if (normalized === "QUEUED") return "QUEUED";
-    return "SENT_TO_PROVIDER";
+    return "FAILED_PERMANENT";
+  }
+
+  private deliveryEventTransition(
+    currentStatus: string,
+    eventStatus: DeliveryStatus
+  ): "SENT" | "DELIVERED" | "FAILED_PERMANENT" | null {
+    if (currentStatus === "CANCELLED" || currentStatus === "DELIVERED") {
+      return null;
+    }
+    if (currentStatus === "FAILED_PERMANENT" && eventStatus !== "DELIVERED") {
+      return null;
+    }
+    if (eventStatus === "DELIVERED") return "DELIVERED";
+    if (eventStatus === "FAILED_PERMANENT") return "FAILED_PERMANENT";
+    if (eventStatus === "SENT") return "SENT";
+    return null;
   }
 
   private async requireStudent(tenantId: string, id: string) {
@@ -860,6 +1141,17 @@ export class NotificationsService {
     return row;
   }
 
+  private async requireNotificationWithStudent(id: string): Promise<NotificationWithStudent> {
+    const row = await this.prisma.notification.findFirst({
+      where: { id },
+      include: { student: true }
+    });
+    if (!row) {
+      throw new NotFoundException("Notification not found.");
+    }
+    return row;
+  }
+
   private notificationView(row: NotificationWithStudent): NotificationView {
     return {
       id: row.id,
@@ -885,10 +1177,15 @@ export class NotificationsService {
         : undefined,
       requestId: row.requestId || undefined,
       correlationId: row.correlationId || undefined,
-      idempotencyKey: row.idempotencyKey || undefined,
+      idempotencyKey: row.idempotencyKey,
       sourceDomain: row.sourceDomain || undefined,
       sourceAction: row.sourceAction || undefined,
-      templateKey: row.templateKey || undefined
+      templateKey: row.templateKey || undefined,
+      templateVersion: row.templateVersion,
+      deliveryOutcomeUnknown: row.deliveryOutcomeUnknown,
+      lockedAt: row.lockedAt?.toISOString(),
+      leaseExpiresAt: row.leaseExpiresAt?.toISOString(),
+      replayCount: row.replayCount
     };
   }
 }

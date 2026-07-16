@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
+
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { type OutboxEvent, Prisma } from "@prisma/client";
 
 import { OutboxProcessorService } from "../outbox/outbox.processor.service";
+import { outboxRetryDelayMs } from "../outbox/outbox-retry-policy";
 import {
   FINANCE_PAYMENT_RECORDED,
   type FinancePaymentRecordedPayload
@@ -11,6 +14,8 @@ import { SchoolLifeService } from "../school-life/school-life.service";
 
 @Injectable()
 export class FinanceOutboxProcessorService {
+  private readonly workerId = `finance-outbox:${process.pid}:${randomUUID().slice(0, 8)}`;
+
   constructor(
     private readonly configService: ConfigService,
     private readonly outboxProcessor: OutboxProcessorService,
@@ -24,7 +29,7 @@ export class FinanceOutboxProcessorService {
       limit: this.resolveBatchSize(limit),
       maxAttempts: this.maxAttempts(),
       retryDelayMs: (attempt) => this.retryDelayMs(attempt),
-      workerId: `finance:${process.pid}`,
+      workerId: this.workerId,
       handler: async (event) => this.handleEvent(event)
     });
   }
@@ -33,6 +38,7 @@ export class FinanceOutboxProcessorService {
     const payload = this.asPaymentPayload(event.payload);
     await this.schoolLifeService.ensurePaymentReceivedNotification({
       tenantId: event.tenantId || "",
+      paymentId: payload.paymentId,
       invoiceNo: payload.invoiceNo,
       paidAmount: payload.paidAmount,
       paidAt: payload.paidAt,
@@ -109,8 +115,12 @@ export class FinanceOutboxProcessorService {
   }
 
   private retryDelayMs(attempt: number): number {
-    const raw = Number(this.configService.get<string>("OUTBOX_RETRY_BASE_SECONDS", "15"));
-    const baseSeconds = Number.isFinite(raw) && raw > 0 ? raw : 15;
-    return Math.min(baseSeconds * Math.max(1, attempt) * 1000, 10 * 60 * 1000);
+    const baseSeconds = Number(
+      this.configService.get<string>("OUTBOX_RETRY_BASE_SECONDS", "15")
+    );
+    const maxSeconds = Number(
+      this.configService.get<string>("OUTBOX_RETRY_MAX_SECONDS", "600")
+    );
+    return outboxRetryDelayMs(attempt, baseSeconds, maxSeconds);
   }
 }

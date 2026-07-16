@@ -258,18 +258,14 @@ export class AnalyticsService {
           where: {
             tenantId,
             OR: [
-              { status: { in: ["PENDING", "SCHEDULED"] } },
-              { deliveryStatus: { in: ["QUEUED", "RETRYING", "SENT_TO_PROVIDER"] } }
+              { status: { in: ["PENDING", "PROCESSING", "FAILED_RETRYABLE"] } }
             ]
           }
         }),
         this.prisma.notification.count({
           where: {
             tenantId,
-            OR: [
-              { status: "FAILED" },
-              { deliveryStatus: { in: ["FAILED", "UNDELIVERABLE"] } }
-            ]
+            status: { in: ["FAILED_PERMANENT", "DEAD_LETTER"] }
           }
         }),
         this.prisma.mosqueMember.count({ where: { tenantId } }),

@@ -12,6 +12,10 @@ import {
   type NotificationRequestedEventPayload,
   type PublishNotificationRequestInput
 } from "./notification-request.contract";
+import {
+  buildNotificationIdempotencyKey,
+  DEFAULT_NOTIFICATION_TEMPLATE_VERSION
+} from "./notification-idempotency";
 
 type PrismaClientLike = PrismaService | Prisma.TransactionClient;
 
@@ -30,17 +34,7 @@ export class NotificationRequestBusService {
     const eventId = randomUUID();
     const occurredAt = new Date().toISOString();
     const correlationId = input.correlationId?.trim() || requestId;
-    const idempotencyKey =
-      input.idempotencyKey?.trim() ||
-      [
-        "notification-request",
-        input.source.domain.trim(),
-        input.source.referenceType.trim(),
-        input.source.referenceId.trim(),
-        input.kind,
-        input.channel,
-        input.recipient.studentId?.trim() || input.recipient.audienceRole?.trim() || "broadcast"
-      ].join(":");
+    const idempotencyKey = buildNotificationIdempotencyKey(input, requestId);
 
     const payload: NotificationRequestedEventPayload = {
       schemaVersion: NOTIFICATION_REQUESTED_VERSION,
@@ -55,6 +49,8 @@ export class NotificationRequestBusService {
       },
       content: {
         templateKey: input.content.templateKey.trim(),
+        templateVersion:
+          input.content.templateVersion?.trim() || DEFAULT_NOTIFICATION_TEMPLATE_VERSION,
         title: input.content.title.trim(),
         message: input.content.message.trim(),
         variables: input.content.variables || null

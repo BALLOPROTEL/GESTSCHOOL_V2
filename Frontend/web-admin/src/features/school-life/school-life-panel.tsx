@@ -18,7 +18,8 @@ import {
   fetchTimetableGrid,
   fetchTimetableReferences,
   fetchTimetableSlots,
-  markNotificationSent,
+  cancelNotification,
+  replayNotification,
   updateAttendanceValidation
 } from "./services/school-life-service";
 import type { WorkflowStepDef } from "../../shared/types/app";
@@ -657,16 +658,30 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     onNotice(`${payload.dispatchedCount} notification(s) envoyee(s).`);
     await loadNotifications(notificationFilters, { notify: true });
   };
-  const markNotificationAsSent = async (id: string): Promise<void> => {
+  const cancelPendingNotification = async (id: string): Promise<void> => {
     if (rejectReadOnly()) return;
     try {
-      await markNotificationSent(api, id);
+      await cancelNotification(api, id);
     } catch (error) {
       onError(error instanceof Error ? error.message : "Erreur lors de la mise a jour de la notification.");
       return;
     }
 
-    onNotice("Notification marquee comme envoyee.");
+    onNotice("Notification annulee.");
+    await loadNotifications(notificationFilters, { notify: true });
+  };
+  const replayFailedNotification = async (id: string): Promise<void> => {
+    if (rejectReadOnly()) return;
+    const reason = window.prompt("Motif de la relance (obligatoire)")?.trim();
+    if (!reason) return;
+    try {
+      await replayNotification(api, id, reason);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Erreur lors de la relance de la notification.");
+      return;
+    }
+
+    onNotice("Notification replacee dans la file d envoi.");
     await loadNotifications(notificationFilters, { notify: true });
   };
 
@@ -1110,9 +1125,9 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </div>
         {renderLoadWarning("notifications", "Historique notifications indisponible")}
         <form className="filter-grid module-filter" onSubmit={(event) => void applyNotificationFilters(event)}>
-          <label>Statut<select value={notificationFilters.status} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option><option value="PENDING">{labelFromMap(notificationStatusLabels, "PENDING")}</option><option value="SCHEDULED">{labelFromMap(notificationStatusLabels, "SCHEDULED")}</option><option value="SENT">{labelFromMap(notificationStatusLabels, "SENT")}</option><option value="FAILED">{labelFromMap(notificationStatusLabels, "FAILED")}</option></select></label>
+          <label>Statut<select value={notificationFilters.status} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option>{Object.entries(notificationStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label>Canal<select value={notificationFilters.channel} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, channel: event.target.value }))}><option value="">Tous</option><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
-          <label>Distribution<select value={notificationFilters.deliveryStatus} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, deliveryStatus: event.target.value }))}><option value="">Toutes</option><option value="QUEUED">{labelFromMap(notificationDeliveryLabels, "QUEUED")}</option><option value="SENT_TO_PROVIDER">{labelFromMap(notificationDeliveryLabels, "SENT_TO_PROVIDER")}</option><option value="DELIVERED">{labelFromMap(notificationDeliveryLabels, "DELIVERED")}</option><option value="RETRYING">{labelFromMap(notificationDeliveryLabels, "RETRYING")}</option><option value="FAILED">{labelFromMap(notificationDeliveryLabels, "FAILED")}</option><option value="UNDELIVERABLE">{labelFromMap(notificationDeliveryLabels, "UNDELIVERABLE")}</option></select></label>
+          <label>Distribution<select value={notificationFilters.deliveryStatus} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, deliveryStatus: event.target.value }))}><option value="">Toutes</option>{Object.entries(notificationDeliveryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetNotificationFilters()}>Reinitialiser</button></div>
         </form>
         <div className="table-wrap">
@@ -1136,11 +1151,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
                     <td>{item.scheduledAt ? new Date(item.scheduledAt).toLocaleString(locale) : "-"}</td>
                     <td>{item.sentAt ? new Date(item.sentAt).toLocaleString(locale) : item.nextAttemptAt ? `Nouvelle tentative ${new Date(item.nextAttemptAt).toLocaleString(locale)}` : "-"}</td>
                     <td>
-                      {item.status !== "SENT"
+                      {["PENDING", "FAILED_RETRYABLE"].includes(item.status)
                         ? renderActionMenu(`notification-${item.id}`, `Actions notification ${item.title}`, [
-                            { label: "Marquer comme envoyee", onSelect: () => void markNotificationAsSent(item.id) }
+                            { danger: true, label: "Annuler", onSelect: () => void cancelPendingNotification(item.id) }
                           ])
-                        : <span className="subtle">Envoyee</span>}
+                        : ["FAILED_PERMANENT", "DEAD_LETTER"].includes(item.status)
+                          ? renderActionMenu(`notification-${item.id}`, `Actions notification ${item.title}`, [
+                              { label: "Relancer", onSelect: () => void replayFailedNotification(item.id) }
+                            ])
+                          : <span className="subtle">{labelFromMap(notificationStatusLabels, item.status)}</span>}
                     </td>
                   </tr>
                 ))

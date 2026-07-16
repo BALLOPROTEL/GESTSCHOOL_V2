@@ -700,11 +700,11 @@ model Notification {
   title               String                         @db.VarChar(160)
   message             String
   channel             String                         @default("IN_APP") @db.VarChar(20)
-  status              String                         @default("PENDING") @db.VarChar(20)
+  status              String                         @default("PENDING") @db.VarChar(30)
   targetAddress       String?                        @map("target_address") @db.VarChar(190)
   provider            String?                        @db.VarChar(40)
   providerMessageId   String?                        @map("provider_message_id") @db.VarChar(160)
-  deliveryStatus      String                         @default("QUEUED") @map("delivery_status") @db.VarChar(30)
+  deliveryStatus      String                         @default("PENDING") @map("delivery_status") @db.VarChar(30)
   attempts            Int                            @default(0)
   lastError           String?                        @map("last_error")
   nextAttemptAt       DateTime?                      @map("next_attempt_at") @db.Timestamptz(6)
@@ -713,7 +713,8 @@ model Notification {
   sentAt              DateTime?                      @map("sent_at") @db.Timestamptz(6)
   requestId           String?                        @map("request_id") @db.VarChar(80)
   correlationId       String?                        @map("correlation_id") @db.VarChar(120)
-  idempotencyKey      String?                        @map("idempotency_key") @db.VarChar(200)
+  idempotencyKey      String                         @map("idempotency_key") @db.VarChar(200)
+  templateVersion     String                         @default("v1") @map("template_version") @db.VarChar(40)
   schemaVersion       String?                        @map("schema_version") @db.VarChar(20)
   sourceDomain        String?                        @map("source_domain") @db.VarChar(60)
   sourceAction        String?                        @map("source_action") @db.VarChar(80)
@@ -721,6 +722,17 @@ model Notification {
   sourceReferenceId   String?                        @map("source_reference_id") @db.VarChar(120)
   templateKey         String?                        @map("template_key") @db.VarChar(80)
   requestPayload      Json?                          @map("request_payload")
+  lockedAt            DateTime?                      @map("locked_at") @db.Timestamptz(6)
+  lockedBy            String?                        @map("locked_by") @db.VarChar(120)
+  leaseToken          String?                        @map("lease_token") @db.Uuid
+  leaseExpiresAt      DateTime?                      @map("lease_expires_at") @db.Timestamptz(6)
+  lastAttemptAt       DateTime?                      @map("last_attempt_at") @db.Timestamptz(6)
+  deadLetteredAt      DateTime?                      @map("dead_lettered_at") @db.Timestamptz(6)
+  cancelledAt         DateTime?                      @map("cancelled_at") @db.Timestamptz(6)
+  deliveryOutcomeUnknown Boolean                     @default(false) @map("delivery_outcome_unknown")
+  replayCount         Int                            @default(0) @map("replay_count")
+  lastReplayedAt      DateTime?                      @map("last_replayed_at") @db.Timestamptz(6)
+  lastReplayedByUserId String?                       @map("last_replayed_by_user_id") @db.Uuid
   createdAt           DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime                       @default(now()) @map("updated_at") @db.Timestamptz(6)
   student             Student?                       @relation(fields: [studentId], references: [id])
@@ -733,6 +745,7 @@ model Notification {
   @@index([tenantId, providerMessageId], map: "idx_notif_tenant_provider_message")
   @@unique([tenantId, requestId], map: "uq_notifications_tenant_request")
   @@unique([tenantId, idempotencyKey], map: "uq_notifications_tenant_idempotency")
+  @@index([status, nextAttemptAt, leaseExpiresAt], map: "idx_notif_dispatch_queue")
   @@map("notifications")
 }
 
@@ -747,6 +760,12 @@ model NotificationDeliveryAttempt {
   targetAddress     String?      @map("target_address") @db.VarChar(190)
   status            String       @db.VarChar(30)
   errorMessage      String?      @map("error_message")
+  workerId          String?      @map("worker_id") @db.VarChar(120)
+  leaseToken        String?      @map("lease_token") @db.Uuid
+  retryable         Boolean?
+  outcomeUnknown    Boolean      @default(false) @map("outcome_unknown")
+  httpStatus        Int?         @map("http_status")
+  retryAfterAt      DateTime?    @map("retry_after_at") @db.Timestamptz(6)
   startedAt         DateTime     @map("started_at") @db.Timestamptz(6)
   finishedAt        DateTime?    @map("finished_at") @db.Timestamptz(6)
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -766,6 +785,8 @@ model NotificationProviderCallback {
   provider          String        @db.VarChar(40)
   providerMessageId String        @map("provider_message_id") @db.VarChar(160)
   eventStatus       String        @map("event_status") @db.VarChar(30)
+  providerEventId   String?       @map("provider_event_id") @db.VarChar(160)
+  signatureTimestamp DateTime?    @map("signature_timestamp") @db.Timestamptz(6)
   dedupeKey         String        @unique(map: "notification_provider_callbacks_dedupe_key_key") @map("dedupe_key") @db.VarChar(240)
   occurredAt        DateTime      @map("occurred_at") @db.Timestamptz(6)
   errorMessage      String?       @map("error_message")
@@ -776,6 +797,7 @@ model NotificationProviderCallback {
 
   @@index([tenantId, provider, providerMessageId], map: "idx_notif_callbacks_tenant_provider_message")
   @@index([tenantId, occurredAt], map: "idx_notif_callbacks_tenant_occurred")
+  @@unique([tenantId, provider, providerEventId], map: "uq_notif_callbacks_tenant_provider_event")
   @@map("notification_provider_callbacks")
 }
 
@@ -1173,6 +1195,8 @@ model OutboxEvent {
   availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
   claimedAt     DateTime? @map("claimed_at") @db.Timestamptz(6)
   claimedBy     String?   @map("claimed_by") @db.VarChar(120)
+  leaseToken     String?   @map("lease_token") @db.Uuid
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz(6)
   processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
   lastError     String?   @map("last_error")
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1181,6 +1205,7 @@ model OutboxEvent {
   @@unique([dedupeKey], map: "outbox_events_dedupe_key_key")
   @@index([status, availableAt], map: "idx_outbox_events_status_available_at")
   @@index([status, claimedAt], map: "idx_outbox_events_status_claimed_at")
+  @@index([status, leaseExpiresAt], map: "idx_outbox_events_status_lease_expires_at")
   @@index([tenantId, createdAt], map: "idx_outbox_events_tenant_created_at")
   @@map("outbox_events")
 }

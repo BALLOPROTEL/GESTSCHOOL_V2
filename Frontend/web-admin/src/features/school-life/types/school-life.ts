@@ -121,12 +121,14 @@ export type NotificationItem = {
   providerMessageId?: string;
   deliveryStatus: string;
   attempts: number;
+  deliveryOutcomeUnknown?: boolean;
   lastError?: string;
   nextAttemptAt?: string;
   deliveredAt?: string;
   scheduledAt?: string;
   sentAt?: string;
   studentName?: string;
+  replayCount?: number;
 };
 
 export type BulkAttendanceResponse = {

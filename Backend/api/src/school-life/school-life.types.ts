@@ -145,6 +145,7 @@ export type NotificationView = {
 
 export type PaymentReceivedNotificationInput = {
   tenantId: string;
+  paymentId: string;
   invoiceNo: string;
   paidAmount: number;
   paidAt: string;

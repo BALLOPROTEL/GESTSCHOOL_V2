@@ -199,9 +199,11 @@ export const countActionableNotifications = (
     const deliveryStatus = (item.deliveryStatus || "").toUpperCase();
     return (
       status === "PENDING" ||
-      status === "SCHEDULED" ||
-      deliveryStatus === "QUEUED" ||
-      deliveryStatus === "RETRYING"
+      status === "PROCESSING" ||
+      status === "FAILED_RETRYABLE" ||
+      deliveryStatus === "PENDING" ||
+      deliveryStatus === "PROCESSING" ||
+      deliveryStatus === "FAILED_RETRYABLE"
     );
   });
 

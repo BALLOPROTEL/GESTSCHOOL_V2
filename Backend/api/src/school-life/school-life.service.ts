@@ -14,6 +14,7 @@ import {
   UpdateNotificationStatusDto,
   UpdateTimetableSlotDto
 } from "./dto/school-life.dto";
+import type { VerifiedNotificationWebhook } from "../notifications/notification-webhook-verifier.service";
 import { SchoolLifeAttendanceService } from "./school-life-attendance.service";
 import { SchoolLifeNotificationOrchestratorService } from "./school-life-notification-orchestrator.service";
 import { SchoolLifeTimetableService } from "./school-life-timetable.service";
@@ -211,8 +212,11 @@ export class SchoolLifeService {
     return this.notificationsService.dispatchPendingNotificationsGlobal(limit);
   }
 
-  recordDeliveryEvent(payload: NotificationDeliveryEventDto): Promise<NotificationView> {
-    return this.notificationsService.recordDeliveryEvent(payload);
+  recordDeliveryEvent(
+    payload: NotificationDeliveryEventDto,
+    verified: VerifiedNotificationWebhook
+  ): Promise<NotificationView> {
+    return this.notificationsService.recordDeliveryEvent(payload, verified);
   }
 
   ensureAttendanceAlertNotification(tenantId: string, attendanceId: string): Promise<void> {
@@ -229,5 +233,14 @@ export class SchoolLifeService {
     payload: UpdateNotificationStatusDto
   ): Promise<NotificationView> {
     return this.notificationsService.updateNotificationStatus(tenantId, id, payload);
+  }
+
+  replayNotification(
+    tenantId: string,
+    id: string,
+    actorUserId: string,
+    reason: string
+  ): Promise<NotificationView> {
+    return this.notificationsService.replayNotification(tenantId, id, actorUserId, reason);
   }
 }

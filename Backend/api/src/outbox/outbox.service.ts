@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma, type OutboxEvent } from "@prisma/client";
 
@@ -5,6 +7,12 @@ import { PrismaService } from "../database/prisma.service";
 import { type OutboxPublishInput } from "./outbox.types";
 
 type PrismaClientLike = PrismaService | Prisma.TransactionClient;
+
+export type OutboxClaim = {
+  event: OutboxEvent;
+  leaseToken: string;
+  workerId: string;
+};
 
 @Injectable()
 export class OutboxService {
@@ -37,7 +45,7 @@ export class OutboxService {
         error.code === "P2002" &&
         input.dedupeKey
       ) {
-        this.logger.debug(`Skipped duplicate outbox event ${input.dedupeKey}.`);
+        this.logger.debug("Skipped duplicate outbox event.");
         return null;
       }
       throw error;
@@ -46,12 +54,9 @@ export class OutboxService {
 
   async listProcessable(
     limit: number,
-    claimTtlMs: number,
     eventTypes?: string[]
   ): Promise<OutboxEvent[]> {
     const now = new Date();
-    const staleBefore = new Date(now.getTime() - claimTtlMs);
-
     return this.prisma.outboxEvent.findMany({
       where: {
         eventType:
@@ -67,9 +72,7 @@ export class OutboxService {
           { status: "PENDING" },
           {
             status: "PROCESSING",
-            claimedAt: {
-              lte: staleBefore
-            }
+            OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }]
           }
         ]
       },
@@ -78,19 +81,49 @@ export class OutboxService {
     });
   }
 
-  async claim(id: string, workerId: string, claimTtlMs: number): Promise<boolean> {
+  async claim(
+    id: string,
+    workerId: string,
+    claimTtlMs: number,
+    maxAttempts = 6
+  ): Promise<OutboxClaim | null> {
     const now = new Date();
-    const staleBefore = new Date(now.getTime() - claimTtlMs);
-    const result = await this.prisma.outboxEvent.updateMany({
+    const normalizedMaxAttempts = Math.max(1, Math.floor(maxAttempts));
+    const leaseToken = randomUUID();
+    const leaseExpiresAt = new Date(now.getTime() + claimTtlMs);
+
+    await this.prisma.outboxEvent.updateMany({
       where: {
         id,
+        attempts: { gte: normalizedMaxAttempts },
         OR: [
           { status: "PENDING" },
           {
             status: "PROCESSING",
-            claimedAt: {
-              lte: staleBefore
-            }
+            OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }]
+          }
+        ]
+      },
+      data: {
+        status: "DEAD_LETTER",
+        claimedAt: null,
+        claimedBy: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        lastError: "Outbox processing exhausted the maximum number of attempts.",
+        updatedAt: now
+      }
+    });
+
+    const result = await this.prisma.outboxEvent.updateMany({
+      where: {
+        id,
+        attempts: { lt: normalizedMaxAttempts },
+        OR: [
+          { status: "PENDING", availableAt: { lte: now } },
+          {
+            status: "PROCESSING",
+            OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }]
           }
         ]
       },
@@ -98,55 +131,82 @@ export class OutboxService {
         status: "PROCESSING",
         claimedAt: now,
         claimedBy: workerId,
+        leaseToken,
+        leaseExpiresAt,
+        attempts: { increment: 1 },
         updatedAt: now
       }
     });
 
-    return result.count === 1;
+    if (result.count !== 1) {
+      return null;
+    }
+
+    const event = await this.prisma.outboxEvent.findFirst({
+      where: { id, claimedBy: workerId, leaseToken, status: "PROCESSING" }
+    });
+    return event ? { event, leaseToken, workerId } : null;
   }
 
-  async markProcessed(event: Pick<OutboxEvent, "id" | "attempts">): Promise<void> {
-    await this.prisma.outboxEvent.update({
-      where: { id: event.id },
+  async markProcessed(claim: OutboxClaim): Promise<boolean> {
+    const result = await this.prisma.outboxEvent.updateMany({
+      where: {
+        id: claim.event.id,
+        status: "PROCESSING",
+        claimedBy: claim.workerId,
+        leaseToken: claim.leaseToken
+      },
       data: {
         status: "PROCESSED",
-        attempts: event.attempts + 1,
         claimedAt: null,
         claimedBy: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
         processedAt: new Date(),
         lastError: null,
         updatedAt: new Date()
       }
     });
+    return result.count === 1;
   }
 
   async markFailed(
-    event: Pick<OutboxEvent, "id" | "attempts">,
+    claim: OutboxClaim,
     error: unknown,
     nextDelayMs: number,
     maxAttempts: number
-  ): Promise<void> {
-    const attempts = event.attempts + 1;
+  ): Promise<boolean> {
+    const attempts = claim.event.attempts;
     const permanent = attempts >= maxAttempts;
     const message = this.toErrorMessage(error);
 
-    await this.prisma.outboxEvent.update({
-      where: { id: event.id },
+    const result = await this.prisma.outboxEvent.updateMany({
+      where: {
+        id: claim.event.id,
+        status: "PROCESSING",
+        claimedBy: claim.workerId,
+        leaseToken: claim.leaseToken
+      },
       data: {
-        status: permanent ? "FAILED" : "PENDING",
-        attempts,
+        status: permanent ? "DEAD_LETTER" : "PENDING",
         claimedAt: null,
         claimedBy: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
         availableAt: permanent ? new Date() : new Date(Date.now() + nextDelayMs),
         lastError: message,
         updatedAt: new Date()
       }
     });
+    return result.count === 1;
   }
 
   private toErrorMessage(error: unknown): string {
     if (error instanceof Error && error.message.trim()) {
-      return error.message.slice(0, 1000);
+      return error.message
+        .replace(/(authorization|bearer|token|secret|password|api[-_ ]?key)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+        .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted]")
+        .slice(0, 1000);
     }
     return "Unexpected outbox processing error.";
   }

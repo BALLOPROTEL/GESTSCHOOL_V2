@@ -419,7 +419,9 @@ describe("Provider integrations (e2e)", () => {
       channel: "EMAIL",
       title: "Compte cree",
       message: "Vos identifiants GestSchool sont disponibles.",
-      targetAddress: "parent@example.test"
+      targetAddress: "parent@example.test",
+      idempotencyKey: "provider-e2e:email:notif-email-001:v1",
+      attemptNo: 1
     });
 
     expect(emailDispatch.provider).toBe("BREVO_EMAIL");
@@ -432,7 +434,9 @@ describe("Provider integrations (e2e)", () => {
       channel: "SMS",
       title: "Paiement recu",
       message: "Paiement recu.",
-      targetAddress: "+22370000000"
+      targetAddress: "+22370000000",
+      idempotencyKey: "provider-e2e:sms:notif-sms-001:v1",
+      attemptNo: 1
     });
 
     expect(smsDispatch.provider).toBe("BREVO_SMS_DRY_RUN");
@@ -488,6 +492,7 @@ describe("Provider integrations (e2e)", () => {
       .post("/api/v1/notifications/delivery-events")
       .set("x-notification-webhook-secret", "invalid-webhook-secret")
       .send({
+        tenantId: TENANT_ID,
         providerMessageId: "provider-message-unauthorized",
         provider: "WEBHOOK_EMAIL",
         status: "DELIVERED",

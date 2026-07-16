@@ -64,7 +64,7 @@ export class MonitoringController {
         this.prisma.notification.count({
           where: {
             status: {
-              in: ["PENDING", "SCHEDULED"]
+              in: ["PENDING", "FAILED_RETRYABLE"]
             },
             OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
             AND: [{ OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] }]
@@ -167,7 +167,7 @@ export class MonitoringController {
       const notificationRequestOutboxTotals = new Map(
         notificationRequestOutboxByStatus.map((row) => [row.status, row._count.status])
       );
-      for (const status of ["PENDING", "PROCESSING", "FAILED", "PROCESSED"]) {
+      for (const status of ["PENDING", "PROCESSING", "PROCESSED", "DEAD_LETTER", "CANCELLED"]) {
         const count = notificationRequestOutboxTotals.get(status) ?? 0;
         if (status === "PENDING") {
           notificationRequestOutboxDue = count;

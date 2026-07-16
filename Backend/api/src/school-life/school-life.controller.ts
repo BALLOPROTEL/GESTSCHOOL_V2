@@ -30,11 +30,12 @@ import { RequirePermission } from "../security/permissions.decorator";
 import { RateLimit } from "../security/rate-limit.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
-import { isUnsafeSharedSecret, secureCompare } from "../security/secure-compare.util";
+import { NotificationWebhookVerifierService } from "../notifications/notification-webhook-verifier.service";
 import {
   BulkAttendanceDto,
   CreateAttendanceDto,
   NotificationDeliveryEventDto,
+  ReplayNotificationDto,
   CreateNotificationDto,
   CreateTimetableSlotDto,
   DispatchPendingNotificationsDto,
@@ -56,7 +57,8 @@ import { SchoolLifeService } from "./school-life.service";
 export class SchoolLifeController {
   constructor(
     private readonly schoolLifeService: SchoolLifeService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly notificationWebhookVerifier: NotificationWebhookVerifierService
   ) {}
 
   @Get("attendance/summary")
@@ -373,22 +375,17 @@ export class SchoolLifeController {
   @ApiOperation({ summary: "Provider callback: update notification deliverability status" })
   async recordNotificationDeliveryEvent(
     @Body() body: NotificationDeliveryEventDto,
-    @Headers("x-notification-webhook-secret") webhookSecret?: string
+    @Headers("x-notification-event-id") eventId?: string,
+    @Headers("x-notification-signature") signature?: string,
+    @Headers("x-notification-timestamp") timestamp?: string
   ) {
-    const expectedSecret = this.configService
-      .get<string>("NOTIFICATION_WEBHOOK_SECRET", "")
-      .trim();
-    const nodeEnv = this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
-    if (!expectedSecret) {
-      throw new ForbiddenException("Notification webhook endpoint is disabled.");
-    }
-    if (nodeEnv === "production" && isUnsafeSharedSecret(expectedSecret)) {
-      throw new ForbiddenException("Notification webhook endpoint is disabled.");
-    }
-    if (!secureCompare(webhookSecret, expectedSecret)) {
-      throw new ForbiddenException("Invalid notification webhook secret.");
-    }
-    return this.schoolLifeService.recordDeliveryEvent(body);
+    const verified = this.notificationWebhookVerifier.verify({
+      eventId,
+      payload: body,
+      signature,
+      timestamp
+    });
+    return this.schoolLifeService.recordDeliveryEvent(body, verified);
   }
 
   @Post("notifications/dispatch-pending")
@@ -416,6 +413,25 @@ export class SchoolLifeController {
   ) {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     return this.schoolLifeService.updateNotificationStatus(tenantId, id, body);
+  }
+
+  @Post("notifications/:id/replay")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("notifications", "dispatch")
+  @ApiOperation({ summary: "Replay a permanently failed or dead-letter notification" })
+  async replayNotification(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() body: ReplayNotificationDto,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ) {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    return this.schoolLifeService.replayNotification(
+      tenantId,
+      id,
+      this.getActorUserId(request.user),
+      body.reason
+    );
   }
 
   private getTenantId(user: AuthenticatedUser | undefined, tenantHeader?: string): string {

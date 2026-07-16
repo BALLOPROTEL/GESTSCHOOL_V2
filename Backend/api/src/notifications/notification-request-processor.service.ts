@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
+
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { type OutboxEvent, Prisma } from "@prisma/client";
 
 import { OutboxProcessorService } from "../outbox/outbox.processor.service";
+import { outboxRetryDelayMs } from "../outbox/outbox-retry-policy";
 import {
   NOTIFICATION_REQUESTED,
   NOTIFICATION_REQUESTED_VERSION,
@@ -10,9 +13,12 @@ import {
   type NotificationRequestedEventPayload
 } from "./notification-request.contract";
 import { NotificationsService } from "./notifications.service";
+import { DEFAULT_NOTIFICATION_TEMPLATE_VERSION } from "./notification-idempotency";
 
 @Injectable()
 export class NotificationRequestProcessorService {
+  private readonly workerId = `notification-outbox:${process.pid}:${randomUUID().slice(0, 8)}`;
+
   constructor(
     private readonly configService: ConfigService,
     private readonly notificationsService: NotificationsService,
@@ -26,7 +32,7 @@ export class NotificationRequestProcessorService {
       limit: this.resolveBatchSize(limit),
       maxAttempts: this.maxAttempts(),
       retryDelayMs: (attempt) => this.retryDelayMs(attempt),
-      workerId: `notifications:${process.pid}`,
+      workerId: this.workerId,
       handler: async (event) => this.handleEvent(event)
     });
   }
@@ -130,6 +136,10 @@ export class NotificationRequestProcessorService {
       },
       content: {
         templateKey: contentValue.templateKey,
+        templateVersion:
+          typeof contentValue.templateVersion === "string"
+            ? contentValue.templateVersion
+            : DEFAULT_NOTIFICATION_TEMPLATE_VERSION,
         title: contentValue.title,
         message: contentValue.message,
         variables:
@@ -212,8 +222,12 @@ export class NotificationRequestProcessorService {
   }
 
   private retryDelayMs(attempt: number): number {
-    const raw = Number(this.configService.get<string>("OUTBOX_RETRY_BASE_SECONDS", "15"));
-    const baseSeconds = Number.isFinite(raw) && raw > 0 ? raw : 15;
-    return Math.min(baseSeconds * Math.max(1, attempt) * 1000, 10 * 60 * 1000);
+    const baseSeconds = Number(
+      this.configService.get<string>("OUTBOX_RETRY_BASE_SECONDS", "15")
+    );
+    const maxSeconds = Number(
+      this.configService.get<string>("OUTBOX_RETRY_MAX_SECONDS", "600")
+    );
+    return outboxRetryDelayMs(attempt, baseSeconds, maxSeconds);
   }
 }

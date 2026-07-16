@@ -28,7 +28,6 @@ export class OutboxProcessorService {
   ): Promise<OutboxProcessingSummary> {
     const candidates = await this.outboxService.listProcessable(
       options.limit,
-      options.claimTtlMs,
       options.eventTypes
     );
 
@@ -37,28 +36,33 @@ export class OutboxProcessorService {
     let failedCount = 0;
 
     for (const event of candidates) {
-      const claimed = await this.outboxService.claim(
+      const claim = await this.outboxService.claim(
         event.id,
         options.workerId,
-        options.claimTtlMs
+        options.claimTtlMs,
+        options.maxAttempts
       );
-      if (!claimed) {
+      if (!claim) {
         continue;
       }
 
       claimedCount += 1;
       try {
-        await options.handler(event);
-        await this.outboxService.markProcessed(event);
-        processedCount += 1;
+        await options.handler(claim.event);
+        const finalized = await this.outboxService.markProcessed(claim);
+        if (finalized) {
+          processedCount += 1;
+        }
       } catch (error: unknown) {
-        await this.outboxService.markFailed(
-          event,
+        const finalized = await this.outboxService.markFailed(
+          claim,
           error,
-          options.retryDelayMs(event.attempts + 1),
+          options.retryDelayMs(claim.event.attempts),
           options.maxAttempts
         );
-        failedCount += 1;
+        if (finalized) {
+          failedCount += 1;
+        }
       }
     }
 

@@ -66,6 +66,9 @@ export function configureE2eEnvironment(): void {
   process.env.NOTIFY_EMAIL_PROVIDER = process.env.NOTIFY_EMAIL_PROVIDER || "MOCK";
   process.env.NOTIFY_SMS_PROVIDER = process.env.NOTIFY_SMS_PROVIDER || "MOCK";
   process.env.NOTIFICATION_WEBHOOK_SECRET = process.env.NOTIFICATION_WEBHOOK_SECRET || "test-webhook-secret";
+  process.env.NOTIFICATION_WEBHOOK_SIGNING_SECRET =
+    process.env.NOTIFICATION_WEBHOOK_SIGNING_SECRET || "test-notification-signing-secret";
+  process.env.NOTIFICATION_WEBHOOK_REPLAY_WINDOW_SECONDS = "300";
   process.env.TIMETABLE_REQUIRE_CANONICAL_REFS = "true";
   process.env.RATE_LIMIT_DISABLED = "true";
 }

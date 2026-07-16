@@ -23,18 +23,24 @@ export const validationStatusLabels: Record<string, string> = {
 
 export const notificationStatusLabels: Record<string, string> = {
   PENDING: "En attente",
-  SCHEDULED: "Planifiee",
+  PROCESSING: "En cours",
   SENT: "Envoyee",
-  FAILED: "Echec"
+  DELIVERED: "Livree",
+  FAILED_RETRYABLE: "Nouvelle tentative",
+  FAILED_PERMANENT: "Echec permanent",
+  DEAD_LETTER: "Intervention requise",
+  CANCELLED: "Annulee"
 };
 
 export const notificationDeliveryLabels: Record<string, string> = {
-  QUEUED: "En file",
-  SENT_TO_PROVIDER: "Transmise",
+  PENDING: "En attente",
+  PROCESSING: "En cours",
+  SENT: "Transmise",
   DELIVERED: "Livree",
-  RETRYING: "Nouvelle tentative",
-  FAILED: "Echec",
-  UNDELIVERABLE: "Non distribuable"
+  FAILED_RETRYABLE: "Nouvelle tentative",
+  FAILED_PERMANENT: "Echec permanent",
+  DEAD_LETTER: "Intervention requise",
+  CANCELLED: "Annulee"
 };
 
 export const notificationChannelLabels: Record<string, string> = {

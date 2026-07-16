@@ -219,13 +219,16 @@ describe("School life + portal flows (e2e)", () => {
       where: {
         tenantId: TENANT_ID,
         eventType: "notification.requested",
-        dedupeKey: {
-          contains: "notification-request:school-life:attendance:"
-        },
         status: "PENDING"
       }
     });
     expect(pendingOutboxEvents.length).toBeGreaterThanOrEqual(2);
+    expect(
+      pendingOutboxEvents.every((event) => event.dedupeKey?.startsWith("notification:v2:"))
+    ).toBe(true);
+    expect(new Set(pendingOutboxEvents.map((event) => event.dedupeKey)).size).toBe(
+      pendingOutboxEvents.length
+    );
 
     const beforeProcessing = await request(context.app.getHttpServer())
       .get("/api/v1/notifications")
@@ -262,7 +265,7 @@ describe("School life + portal flows (e2e)", () => {
       })
       .expect(201);
 
-    expect(scheduledNotification.body.status).toBe("SCHEDULED");
+    expect(scheduledNotification.body.status).toBe("PENDING");
 
     const dispatch = await request(context.app.getHttpServer())
       .post("/api/v1/notifications/dispatch-pending")

@@ -17,6 +17,7 @@ import {
   Min,
   ValidateNested
 } from "class-validator";
+import { IsAllowedTenantId } from "../../common/tenant-id.validator";
 
 export class CreateAttendanceDto {
   @ApiProperty()
@@ -225,9 +226,12 @@ export class CreateNotificationDto {
 }
 
 export class UpdateNotificationStatusDto {
-  @ApiProperty({ example: "SENT", enum: ["PENDING", "SCHEDULED", "SENT", "FAILED"] })
-  @IsIn(["PENDING", "SCHEDULED", "SENT", "FAILED"])
-  status!: "PENDING" | "SCHEDULED" | "SENT" | "FAILED";
+  @ApiProperty({
+    example: "CANCELLED",
+    enum: ["PENDING", "CANCELLED"]
+  })
+  @IsIn(["PENDING", "CANCELLED"])
+  status!: "PENDING" | "CANCELLED";
 
   @ApiPropertyOptional({ example: "2026-09-12T08:01:00.000Z" })
   @IsOptional()
@@ -245,23 +249,46 @@ export class DispatchPendingNotificationsDto {
 }
 
 export class NotificationDeliveryEventDto {
+  @ApiProperty({ format: "uuid" })
+  @IsAllowedTenantId()
+  tenantId!: string;
+
   @ApiProperty({ example: "webhook-email-9f0b2ab11e6a" })
   @IsString()
   @MaxLength(160)
   providerMessageId!: string;
 
-  @ApiPropertyOptional({ example: "WEBHOOK_EMAIL" })
-  @IsOptional()
+  @ApiProperty({ example: "WEBHOOK_EMAIL" })
   @IsString()
   @MaxLength(40)
-  provider?: string;
+  provider!: string;
 
   @ApiProperty({
     example: "DELIVERED",
-    enum: ["SENT_TO_PROVIDER", "DELIVERED", "FAILED", "UNDELIVERABLE", "RETRYING"]
+    enum: [
+      "SENT",
+      "DELIVERED",
+      "FAILED_PERMANENT",
+      "SENT_TO_PROVIDER",
+      "FAILED",
+      "UNDELIVERABLE"
+    ]
   })
-  @IsIn(["SENT_TO_PROVIDER", "DELIVERED", "FAILED", "UNDELIVERABLE", "RETRYING"])
-  status!: "SENT_TO_PROVIDER" | "DELIVERED" | "FAILED" | "UNDELIVERABLE" | "RETRYING";
+  @IsIn([
+    "SENT",
+    "DELIVERED",
+    "FAILED_PERMANENT",
+    "SENT_TO_PROVIDER",
+    "FAILED",
+    "UNDELIVERABLE"
+  ])
+  status!:
+    | "SENT"
+    | "DELIVERED"
+    | "FAILED_PERMANENT"
+    | "SENT_TO_PROVIDER"
+    | "FAILED"
+    | "UNDELIVERABLE";
 
   @ApiPropertyOptional({ example: "Mailbox rejected by provider" })
   @IsOptional()
@@ -273,4 +300,12 @@ export class NotificationDeliveryEventDto {
   @IsOptional()
   @IsDateString()
   occurredAt?: string;
+}
+
+export class ReplayNotificationDto {
+  @ApiProperty({ example: "Relance validée après correction de l'adresse fournisseur." })
+  @IsString()
+  @MaxLength(300)
+  @Matches(/\S/)
+  reason!: string;
 }

@@ -245,14 +245,27 @@ export const dispatchPendingNotifications = (api: SchoolLifeApiClient, limit: nu
     })
   );
 
-export const markNotificationSent = async (
+export const cancelNotification = async (
   api: SchoolLifeApiClient,
   notificationId: string
 ): Promise<void> => {
   await ensureOk(
     api(`/notifications/${notificationId}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status: "SENT" })
+      body: JSON.stringify({ status: "CANCELLED" })
+    })
+  );
+};
+
+export const replayNotification = async (
+  api: SchoolLifeApiClient,
+  notificationId: string,
+  reason: string
+): Promise<void> => {
+  await ensureOk(
+    api(`/notifications/${notificationId}/replay`, {
+      method: "POST",
+      body: JSON.stringify({ reason })
     })
   );
 };

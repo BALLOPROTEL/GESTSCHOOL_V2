@@ -37,7 +37,7 @@ export class SchoolLifeNotificationOrchestratorService {
       return;
     }
 
-    await this.maybeCreateAttendanceNotification(attendance);
+    await this.publishAttendanceNotification(attendance);
   }
 
   async ensurePaymentReceivedNotification(
@@ -55,39 +55,35 @@ export class SchoolLifeNotificationOrchestratorService {
       `${studentLabel}: paiement ${input.receiptNo} de ${amountLabel} ` +
       `enregistre pour la facture ${input.invoiceNo} le ${paidDate}.`;
 
-    const existing = await this.prisma.notification.findFirst({
-      where: {
-        tenantId: input.tenantId,
-        studentId: input.studentId,
+    await this.notificationRequestBus.publish({
+      tenantId: input.tenantId,
+      kind: "PAYMENT_RECEIVED",
+      channel: "IN_APP",
+      recipient: {
         audienceRole: "PARENT",
-        channel: "IN_APP",
-        title,
-        message
-      }
-    });
-
-    if (existing) {
-      return;
-    }
-
-    await this.prisma.notification.create({
-      data: {
-        tenantId: input.tenantId,
-        studentId: input.studentId,
-        audienceRole: "PARENT",
+        studentId: input.studentId
+      },
+      content: {
+        templateKey: "payment-received",
         title,
         message,
-        channel: "IN_APP",
-        status: "PENDING",
-        provider: "IN_APP",
-        providerMessageId: null,
-        deliveryStatus: "QUEUED",
-        attempts: 0,
-        lastError: null,
-        nextAttemptAt: null,
-        deliveredAt: null,
-        updatedAt: new Date()
-      }
+        variables: {
+          invoiceNo: input.invoiceNo,
+          paidAmount: input.paidAmount,
+          paidAt: input.paidAt,
+          paymentId: input.paymentId,
+          receiptNo: input.receiptNo,
+          studentId: input.studentId
+        }
+      },
+      source: {
+        domain: "finance",
+        action: "payment.received",
+        referenceType: "payment",
+        referenceId: input.paymentId
+      },
+      correlationId: input.paymentId,
+      idempotencyKey: `finance.payment-recorded:${input.paymentId}`
     });
   }
 
@@ -144,7 +140,7 @@ export class SchoolLifeNotificationOrchestratorService {
     );
   }
 
-  private async maybeCreateAttendanceNotification(
+  private async publishAttendanceNotification(
     attendance: Prisma.AttendanceGetPayload<{
       include: {
         student: true;
@@ -166,39 +162,36 @@ export class SchoolLifeNotificationOrchestratorService {
       ? `${studentName} est en retard le ${dateLabel} (${attendance.classroom.label}).`
       : `${studentName} est absent le ${dateLabel} (${attendance.classroom.label}).`;
 
-    const existing = await this.prisma.notification.findFirst({
-      where: {
-        tenantId: attendance.tenantId,
-        studentId: attendance.studentId,
+    const normalizedStatus = this.normalizeAttendanceStatus(attendance.status);
+    await this.notificationRequestBus.publish({
+      tenantId: attendance.tenantId,
+      kind: "ATTENDANCE_ALERT",
+      channel: "IN_APP",
+      recipient: {
+        audienceRole: "PARENT",
+        studentId: attendance.studentId
+      },
+      content: {
+        templateKey: "attendance-alert",
         title,
         message,
-        audienceRole: "PARENT",
-        channel: "IN_APP"
-      }
-    });
-
-    if (existing) {
-      return;
-    }
-
-    await this.prisma.notification.create({
-      data: {
-        tenantId: attendance.tenantId,
-        studentId: attendance.studentId,
-        audienceRole: "PARENT",
-        title,
-        message,
-        channel: "IN_APP",
-        status: "PENDING",
-        provider: "IN_APP",
-        providerMessageId: null,
-        deliveryStatus: "QUEUED",
-        attempts: 0,
-        lastError: null,
-        nextAttemptAt: null,
-        deliveredAt: null,
-        updatedAt: new Date()
-      }
+        variables: {
+          attendanceId: attendance.id,
+          attendanceDate: dateLabel,
+          classLabel: attendance.classroom.label,
+          status: normalizedStatus,
+          studentId: attendance.studentId,
+          studentName
+        }
+      },
+      source: {
+        domain: "school-life",
+        action: "attendance.alert.requested",
+        referenceType: "attendance",
+        referenceId: attendance.id
+      },
+      correlationId: attendance.id,
+      idempotencyKey: `school-life.attendance:${attendance.id}:${normalizedStatus}`
     });
   }
 

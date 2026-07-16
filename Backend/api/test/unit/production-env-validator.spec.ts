@@ -32,6 +32,27 @@ const validEnv = (): NodeJS.ProcessEnv => ({
   OUTBOX_IN_PROCESS_ENABLED: "false"
 });
 
+const validNotificationEnv = (): NodeJS.ProcessEnv => ({
+  ...validEnv(),
+  OUTBOX_IN_PROCESS_ENABLED: "true",
+  NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
+  NOTIFICATIONS_SMS_PROVIDER: "BREVO",
+  BREVO_API_KEY: `${strongSecret}-brevo`,
+  BREVO_SENDER_EMAIL: "no-reply@example.com",
+  BREVO_SMS_DRY_RUN: "true",
+  BREVO_TIMEOUT_MS: "8000",
+  NOTIFICATION_WEBHOOK_SIGNING_SECRET: `${strongSecret}-webhook`,
+  NOTIFICATION_WEBHOOK_REPLAY_WINDOW_SECONDS: "300",
+  OUTBOX_CLAIM_TTL_SECONDS: "120",
+  OUTBOX_MAX_ATTEMPTS: "6",
+  OUTBOX_RETRY_BASE_SECONDS: "15",
+  OUTBOX_RETRY_MAX_SECONDS: "600",
+  NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS: "120",
+  NOTIFY_MAX_ATTEMPTS: "5",
+  NOTIFY_RETRY_BASE_SECONDS: "30",
+  NOTIFY_RETRY_MAX_SECONDS: "7200"
+});
+
 describe("production environment validator", () => {
   it("accepts a complete production configuration", () => {
     expect(validateProductionEnv(validEnv())).toEqual({ errors: [], warnings: [] });
@@ -219,6 +240,59 @@ describe("production environment validator", () => {
         "BREVO_API_KEY is required in production.",
         "BREVO_SENDER_EMAIL is required in production."
       ])
+    );
+  });
+
+  it("accepts a complete durable notification configuration", () => {
+    expect(validateProductionEnv(validNotificationEnv())).toEqual({
+      errors: [],
+      warnings: []
+    });
+  });
+
+  it("requires the timeout for the provider that is actually enabled", () => {
+    const brevo = validNotificationEnv();
+    delete brevo.BREVO_TIMEOUT_MS;
+
+    const webhook: NodeJS.ProcessEnv = {
+      ...validNotificationEnv(),
+      NOTIFICATIONS_EMAIL_PROVIDER: "WEBHOOK",
+      NOTIFICATIONS_SMS_PROVIDER: "WEBHOOK",
+      NOTIFY_EMAIL_WEBHOOK_URL: "https://notifications.example.com/email",
+      NOTIFY_SMS_WEBHOOK_URL: "https://notifications.example.com/sms",
+      NOTIFY_EMAIL_WEBHOOK_SIGNING_SECRET: `${strongSecret}-email-webhook`,
+      NOTIFY_SMS_WEBHOOK_SIGNING_SECRET: `${strongSecret}-sms-webhook`,
+      NOTIFY_WEBHOOK_TIMEOUT_MS: "8000"
+    };
+    delete webhook.BREVO_TIMEOUT_MS;
+
+    expect(validateProductionEnv(brevo).errors).toContain(
+      "BREVO_TIMEOUT_MS is required in production."
+    );
+    expect(validateProductionEnv(webhook)).toEqual({ errors: [], warnings: [] });
+  });
+
+  it("rejects a provider timeout that can outlive the dispatch lease", () => {
+    const result = validateProductionEnv({
+      ...validNotificationEnv(),
+      BREVO_TIMEOUT_MS: "120000",
+      NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS: "120"
+    });
+
+    expect(result.errors).toContain(
+      "NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS must exceed the provider timeout."
+    );
+  });
+
+  it("rejects an outbox retry cap below its base delay", () => {
+    const result = validateProductionEnv({
+      ...validNotificationEnv(),
+      OUTBOX_RETRY_BASE_SECONDS: "60",
+      OUTBOX_RETRY_MAX_SECONDS: "30"
+    });
+
+    expect(result.errors).toContain(
+      "OUTBOX_RETRY_MAX_SECONDS must be greater than or equal to OUTBOX_RETRY_BASE_SECONDS."
     );
   });
 });

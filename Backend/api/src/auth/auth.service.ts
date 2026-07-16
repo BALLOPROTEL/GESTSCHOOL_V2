@@ -507,6 +507,8 @@ export class AuthService {
       notificationId: randomUUID(),
       tenantId: user.tenantId,
       channel: "EMAIL",
+      idempotencyKey: `auth-activation:${this.hashToken(token)}`,
+      attemptNo: 1,
       targetAddress,
       title,
       message: [
@@ -557,6 +559,8 @@ export class AuthService {
       notificationId: randomUUID(),
       tenantId: user.tenantId,
       channel: "EMAIL",
+      idempotencyKey: `auth-password-reset:${this.hashToken(token)}`,
+      attemptNo: 1,
       targetAddress,
       title,
       message: [

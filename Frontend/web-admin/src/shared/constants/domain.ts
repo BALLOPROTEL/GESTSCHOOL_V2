@@ -60,13 +60,13 @@ export const VALIDATION_STATUS_LABELS: Record<string, string> = {
 
 export const PORTAL_NOTIFICATION_STATUS_LABELS: Record<string, string> = {
   PENDING: "En attente",
-  SCHEDULED: "Planifiee",
+  PROCESSING: "En cours",
   SENT: "Envoyee",
-  FAILED: "Echec",
   DELIVERED: "Livree",
-  SENT_TO_PROVIDER: "Transmise",
-  RETRYING: "Nouvelle tentative",
-  UNDELIVERABLE: "Non distribuable"
+  FAILED_RETRYABLE: "Nouvelle tentative",
+  FAILED_PERMANENT: "Echec permanent",
+  DEAD_LETTER: "Intervention requise",
+  CANCELLED: "Annulee"
 };
 
 export const AUDIENCE_ROLE_LABELS: Record<string, string> = {

@@ -62,7 +62,7 @@ services:
       - key: NOTIFICATIONS_WORKER_ENABLED
         value: "false"
       - key: OUTBOX_IN_PROCESS_ENABLED
-        value: "true"
+        value: "false"
       - key: OUTBOX_POLL_INTERVAL_MS
         value: "30000"
       - key: OUTBOX_BATCH_SIZE
@@ -75,22 +75,32 @@ services:
         value: "6"
       - key: OUTBOX_RETRY_BASE_SECONDS
         value: "15"
+      - key: OUTBOX_RETRY_MAX_SECONDS
+        value: "600"
       - key: NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS
         value: "120"
+      - key: NOTIFY_MAX_ATTEMPTS
+        value: "5"
+      - key: NOTIFY_RETRY_BASE_SECONDS
+        value: "30"
+      - key: NOTIFY_RETRY_MAX_SECONDS
+        value: "7200"
       - key: NOTIFICATIONS_EMAIL_PROVIDER
-        value: brevo
+        value: mock
       - key: NOTIFICATIONS_SMS_PROVIDER
-        value: brevo
+        value: mock
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SENDER_EMAIL
-        value: no-reply@al-manarat-islamiyat.com
+        sync: false
       - key: BREVO_SENDER_NAME
         value: Al Manarat Islamiyat
       - key: BREVO_SMS_SENDER
         value: Al Manarat Islamiyat
       - key: BREVO_SMS_DRY_RUN
         value: "true"
+      - key: BREVO_TIMEOUT_MS
+        value: "8000"
       - key: ALLOW_REAL_SMS
         value: "false"
       - key: NOTIFICATION_TEST_EMAIL
@@ -99,6 +109,10 @@ services:
         sync: false
       - key: NOTIFICATION_WEBHOOK_SECRET
         generateValue: true
+      - key: NOTIFICATION_WEBHOOK_SIGNING_SECRET
+        generateValue: true
+      - key: NOTIFICATION_WEBHOOK_REPLAY_WINDOW_SECONDS
+        value: "300"
       - key: MONITORING_METRICS_TOKEN
         generateValue: true
       - key: STORAGE_PROVIDER
