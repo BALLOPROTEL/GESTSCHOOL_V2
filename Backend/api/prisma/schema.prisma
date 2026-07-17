@@ -484,6 +484,7 @@ model Payment {
   invoice           Invoice   @relation(fields: [invoiceId], references: [id])
   providerAttempts  PaymentProviderAttempt[]
 
+  // Non-null provider references use a SQL-only partial unique index.
   @@unique([tenantId, receiptNo], map: "payments_tenant_id_receipt_no_key")
   @@index([tenantId, paidAt], map: "idx_payments_tenant_paid_at")
   @@map("payments")
@@ -510,7 +511,8 @@ model PaymentProviderAttempt {
   invoice           Invoice   @relation(fields: [invoiceId], references: [id])
   payment           Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
-  @@unique([tenantId, provider, providerToken], map: "payment_provider_attempts_tenant_provider_token_key")
+  // Provider tokens identify public callbacks without tenant context. Their
+  // SQL-only partial unique index is therefore global within each provider.
   @@index([tenantId, invoiceId, providerStatus], map: "idx_payment_attempts_invoice_status")
   @@index([tenantId, providerPaymentId], map: "idx_payment_attempts_provider_payment")
   @@map("payment_provider_attempts")
@@ -861,6 +863,7 @@ model TeacherSkill {
   cycle           Cycle?   @relation(fields: [cycleId], references: [id], onDelete: SetNull)
   level           Level?   @relation(fields: [levelId], references: [id], onDelete: SetNull)
 
+  // PostgreSQL migration 20260716160000 enforces this as UNIQUE NULLS NOT DISTINCT.
   @@unique([tenantId, teacherId, subjectId, track, cycleId, levelId], map: "teacher_skills_scope_key")
   @@index([tenantId, teacherId], map: "idx_teacher_skills_tenant_teacher")
   @@index([tenantId, subjectId], map: "idx_teacher_skills_tenant_subject")
@@ -1001,6 +1004,7 @@ model RoomAssignment {
   subject        Subject?        @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   academicPeriod AcademicPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
 
+  // PostgreSQL migration 20260716160000 enforces this as UNIQUE NULLS NOT DISTINCT.
   @@unique([tenantId, roomId, schoolYearId, classId, levelId, cycleId, track, subjectId, periodId, assignmentType], map: "room_assignments_scope_key")
   @@index([tenantId, roomId, status], map: "idx_room_assignments_tenant_room_status")
   @@index([tenantId, schoolYearId, status], map: "idx_room_assignments_tenant_year_status")
@@ -1025,6 +1029,7 @@ model RoomAvailability {
   schoolYear       SchoolYear?     @relation(fields: [schoolYearId], references: [id], onDelete: SetNull)
   academicPeriod   AcademicPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
 
+  // Exact nullable time scopes are protected by a SQL-only UNIQUE NULLS NOT DISTINCT constraint.
   @@index([tenantId, roomId, availabilityType], map: "idx_room_availabilities_tenant_room_type")
   @@index([tenantId, schoolYearId], map: "idx_room_availabilities_tenant_year")
   @@map("room_availabilities")
@@ -1054,7 +1059,7 @@ model ParentStudentLink {
   parentProfile Parent? @relation(fields: [parentId], references: [id], onDelete: SetNull)
   student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, parentUserId, studentId], map: "uq_parent_links_scope")
+  // Active profile/user links and the primary-contact invariant use SQL-only partial unique indexes.
   @@index([tenantId, parentId], map: "idx_parent_links_tenant_parent_profile")
   @@index([tenantId, parentUserId], map: "idx_parent_links_tenant_parent")
   @@index([tenantId, studentId], map: "idx_parent_links_tenant_student")

@@ -187,6 +187,24 @@ export class AcademicStructureService {
       transaction?: Prisma.TransactionClient;
     }
   ): Promise<TrackPlacementView> {
+    try {
+      return await this.upsertTrackPlacementUnsafe(tenantId, payload, options);
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new ConflictException("A placement already exists for this student, school year and curriculum.");
+      }
+      throw error;
+    }
+  }
+
+  private async upsertTrackPlacementUnsafe(
+    tenantId: string,
+    payload: UpsertTrackPlacementPayload,
+    options?: {
+      syncLegacyEnrollment?: boolean;
+      transaction?: Prisma.TransactionClient;
+    }
+  ): Promise<TrackPlacementView> {
     const client = this.resolveClient(options?.transaction);
     const track = this.normalizeTrack(payload.track);
     const placementStatus = this.normalizePlacementStatus(payload.placementStatus);

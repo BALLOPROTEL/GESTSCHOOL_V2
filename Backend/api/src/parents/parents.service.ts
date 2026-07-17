@@ -365,66 +365,70 @@ export class ParentsService {
     await this.assertNoDuplicateLink(
       tenantId,
       payload.parentId,
-      payload.studentId,
-      payload.relationType
+      payload.studentId
     );
 
-    const created = await this.prisma.$transaction(async (transaction) => {
-      if (payload.isPrimaryContact) {
-        await transaction.parentStudentLink.updateMany({
-          where: { tenantId, studentId: payload.studentId, archivedAt: null },
-          data: {
-            isPrimary: false,
-            isPrimaryContact: false,
-            updatedAt: new Date()
-          }
-        });
-      }
+    try {
+      const created = await this.prisma.$transaction(async (transaction) => {
+        if (payload.isPrimaryContact) {
+          await transaction.parentStudentLink.updateMany({
+            where: { tenantId, studentId: payload.studentId, archivedAt: null },
+            data: {
+              isPrimary: false,
+              isPrimaryContact: false,
+              updatedAt: new Date()
+            }
+          });
+        }
 
-      const row = await transaction.parentStudentLink.create({
-        data: {
-          tenantId,
-          parentId: parent.id,
-          parentUserId: parent.userId,
-          studentId: student.id,
-          relationship: payload.relationType,
-          relationType: payload.relationType,
-          isPrimary: payload.isPrimaryContact ?? false,
-          isPrimaryContact: payload.isPrimaryContact ?? false,
-          livesWithStudent: payload.livesWithStudent,
-          pickupAuthorized: payload.pickupAuthorized,
-          legalGuardian: payload.legalGuardian ?? false,
-          financialResponsible: payload.financialResponsible ?? false,
-          emergencyContact: payload.emergencyContact ?? false,
-          status: payload.status || "ACTIVE",
-          comment: this.emptyToNull(payload.comment),
-          updatedAt: new Date()
-        },
-        include: this.linkInclude()
+        const row = await transaction.parentStudentLink.create({
+          data: {
+            tenantId,
+            parentId: parent.id,
+            parentUserId: parent.userId,
+            studentId: student.id,
+            relationship: payload.relationType,
+            relationType: payload.relationType,
+            isPrimary: payload.isPrimaryContact ?? false,
+            isPrimaryContact: payload.isPrimaryContact ?? false,
+            livesWithStudent: payload.livesWithStudent,
+            pickupAuthorized: payload.pickupAuthorized,
+            legalGuardian: payload.legalGuardian ?? false,
+            financialResponsible: payload.financialResponsible ?? false,
+            emergencyContact: payload.emergencyContact ?? false,
+            status: payload.status || "ACTIVE",
+            comment: this.emptyToNull(payload.comment),
+            updatedAt: new Date()
+          },
+          include: this.linkInclude()
+        });
+
+        await this.auditService.enqueueLog(
+          {
+            tenantId,
+            userId: actorUserId,
+            action: "PARENT_STUDENT_LINK_CREATED",
+            resource: "parent_student_links",
+            resourceId: row.id,
+            payload: {
+              parentId: row.parentId,
+              parentUserId: row.parentUserId,
+              studentId: row.studentId,
+              relationType: row.relationType,
+              isPrimaryContact: row.isPrimaryContact
+            }
+          },
+          transaction
+        );
+
+        return row;
       });
 
-      await this.auditService.enqueueLog(
-        {
-          tenantId,
-          userId: actorUserId,
-          action: "PARENT_STUDENT_LINK_CREATED",
-          resource: "parent_student_links",
-          resourceId: row.id,
-          payload: {
-            parentId: row.parentId,
-            parentUserId: row.parentUserId,
-            studentId: row.studentId,
-            relationType: row.relationType,
-            isPrimaryContact: row.isPrimaryContact
-          }
-        },
-        transaction
-      );
-
-      return row;
-    });
-
-    return this.linkView(created);
+      return this.linkView(created);
+    } catch (error: unknown) {
+      this.handleKnownPrismaConflict(error, "Parent/student relation already exists or another primary contact is active.");
+      throw error;
+    }
   }
 
   async updateLink(
@@ -451,74 +455,79 @@ export class ParentsService {
     const student = await this.requireStudent(tenantId, studentId);
     this.assertParentSelectable(parent);
     this.assertStudentSelectable(student);
-    await this.assertNoDuplicateLink(tenantId, parentId, studentId, relationType, existing.id);
+    await this.assertNoDuplicateLink(tenantId, parentId, studentId, existing.id);
 
-    const updated = await this.prisma.$transaction(async (transaction) => {
-      if (payload.isPrimaryContact) {
-        await transaction.parentStudentLink.updateMany({
-          where: {
-            tenantId,
-            studentId,
-            archivedAt: null,
-            NOT: { id: existing.id }
-          },
+    try {
+      const updated = await this.prisma.$transaction(async (transaction) => {
+        if (payload.isPrimaryContact) {
+          await transaction.parentStudentLink.updateMany({
+            where: {
+              tenantId,
+              studentId,
+              archivedAt: null,
+              NOT: { id: existing.id }
+            },
+            data: {
+              isPrimary: false,
+              isPrimaryContact: false,
+              updatedAt: new Date()
+            }
+          });
+        }
+
+        const row = await transaction.parentStudentLink.update({
+          where: { id: existing.id },
           data: {
-            isPrimary: false,
-            isPrimaryContact: false,
+            parentId: parent.id,
+            parentUserId: parent.userId,
+            studentId: student.id,
+            relationship: relationType,
+            relationType,
+            isPrimary:
+              payload.isPrimaryContact !== undefined
+                ? payload.isPrimaryContact
+                : existing.isPrimary,
+            isPrimaryContact:
+              payload.isPrimaryContact !== undefined
+                ? payload.isPrimaryContact
+                : existing.isPrimaryContact,
+            livesWithStudent: payload.livesWithStudent,
+            pickupAuthorized: payload.pickupAuthorized,
+            legalGuardian: payload.legalGuardian,
+            financialResponsible: payload.financialResponsible,
+            emergencyContact: payload.emergencyContact,
+            status: payload.status,
+            comment: this.optionalEmptyToNull(payload.comment),
             updatedAt: new Date()
-          }
+          },
+          include: this.linkInclude()
         });
-      }
 
-      const row = await transaction.parentStudentLink.update({
-        where: { id: existing.id },
-        data: {
-          parentId: parent.id,
-          parentUserId: parent.userId,
-          studentId: student.id,
-          relationship: relationType,
-          relationType,
-          isPrimary:
-            payload.isPrimaryContact !== undefined
-              ? payload.isPrimaryContact
-              : existing.isPrimary,
-          isPrimaryContact:
-            payload.isPrimaryContact !== undefined
-              ? payload.isPrimaryContact
-              : existing.isPrimaryContact,
-          livesWithStudent: payload.livesWithStudent,
-          pickupAuthorized: payload.pickupAuthorized,
-          legalGuardian: payload.legalGuardian,
-          financialResponsible: payload.financialResponsible,
-          emergencyContact: payload.emergencyContact,
-          status: payload.status,
-          comment: this.optionalEmptyToNull(payload.comment),
-          updatedAt: new Date()
-        },
-        include: this.linkInclude()
+        await this.auditService.enqueueLog(
+          {
+            tenantId,
+            userId: actorUserId,
+            action: "PARENT_STUDENT_LINK_UPDATED",
+            resource: "parent_student_links",
+            resourceId: row.id,
+            payload: {
+              parentId: row.parentId,
+              studentId: row.studentId,
+              relationType: row.relationType,
+              status: row.status
+            }
+          },
+          transaction
+        );
+
+        return row;
       });
 
-      await this.auditService.enqueueLog(
-        {
-          tenantId,
-          userId: actorUserId,
-          action: "PARENT_STUDENT_LINK_UPDATED",
-          resource: "parent_student_links",
-          resourceId: row.id,
-          payload: {
-            parentId: row.parentId,
-            studentId: row.studentId,
-            relationType: row.relationType,
-            status: row.status
-          }
-        },
-        transaction
-      );
-
-      return row;
-    });
-
-    return this.linkView(updated);
+      return this.linkView(updated);
+    } catch (error: unknown) {
+      this.handleKnownPrismaConflict(error, "Parent/student relation already exists or another primary contact is active.");
+      throw error;
+    }
   }
 
   async archiveLink(tenantId: string, actorUserId: string, id: string): Promise<void> {
@@ -691,7 +700,6 @@ export class ParentsService {
     tenantId: string,
     parentId: string,
     studentId: string,
-    relationType: string,
     excludeId?: string
   ): Promise<void> {
     const existing = await this.prisma.parentStudentLink.findFirst({
@@ -699,7 +707,6 @@ export class ParentsService {
         tenantId,
         parentId,
         studentId,
-        relationType,
         archivedAt: null,
         ...(excludeId ? { NOT: { id: excludeId } } : {})
       }

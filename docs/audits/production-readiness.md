@@ -687,3 +687,148 @@ Verdict LOT 5 : **GO pour commit**. L'activation d'un fournisseur reel reste
 **NO-GO** tant que l'idempotence effective du fournisseur, son contrat de callback,
 les secrets Render, l'URL webhook HTTPS et un test en environnement de recette ne
 sont pas verifies. Aucun appel reel fournisseur n'a ete effectue pendant ce lot.
+
+## LOT 6 - Integrite PostgreSQL et creations concurrentes (2026-07-16)
+
+### Diagnostic initial
+
+L'audit a croise le schema Prisma, les 32 migrations alors presentes, le catalogue
+PostgreSQL 16 local et les services qui effectuent des controles d'unicite avant
+creation. Plusieurs invariants metier reposaient sur une verification applicative
+suivie d'une insertion. Deux requetes concurrentes pouvaient donc toutes les deux
+passer la verification. En outre, une contrainte `UNIQUE` PostgreSQL ordinaire ne
+considere pas deux valeurs `NULL` comme egales.
+
+| Modele/table | Colonnes et nullabilite | Protection avant LOT 6 | Course possible | Protection retenue |
+| --- | --- | --- | --- | --- |
+| `TeacherSkill` | tenant, enseignant, matiere, cursus, `cycleId?`, `levelId?` | unique ordinaire | deux competences de meme portee avec un ou deux `NULL` | `UNIQUE NULLS NOT DISTINCT` |
+| `TeacherAssignment` | tenant, annee, classe, cursus; homeroom et statut | controle applicatif | deux professeurs principaux actifs pour la meme classe | index unique partiel sur les lignes actives homeroom |
+| `RoomAssignment` | tenant, salle, annee et sept portees nullables | unique ordinaire | deux affectations identiques avec une portee `NULL` | `UNIQUE NULLS NOT DISTINCT` |
+| `RoomAvailability` | tenant, salle, annee, `periodId?`, jour, heures, type | aucun unique | deux disponibilites identiques | `UNIQUE NULLS NOT DISTINCT` |
+| `ParentStudentLink` | tenant, `parentId?`, `parentUserId?`, eleve, archivage | unique legacy sur utilisateur/relation | relation active dupliquee ou deux contacts principaux | trois index uniques partiels actifs |
+| `TrackPlacement` | tenant, eleve, annee, classe, cursus, type; non null | unique SQL existant | conflit d'upsert renvoye en 500 | contrainte conservee, `P2002` converti en 409 |
+| `Enrollment` | tenant, eleve, annee, classe, cursus; non null | unique SQL existant | insertion concurrente | aucune migration, protection deja finale en base |
+| `Payment` | tenant, methode, `referenceExternal?` | aucun unique sur la reference | deux callbacks creent deux paiements | index unique partiel et verrou de tentative |
+| `PaymentProviderAttempt` | fournisseur, `providerToken?` | unique tenant/fournisseur/token | callback public ambigu entre deux tenants | index unique global partiel par fournisseur/token |
+| Notifications/outbox | tenant et cles d'idempotence | contraintes LOT 5 | duplication de livraison locale | aucune modification LOT 6 |
+
+Le jeton fournisseur de paiement est volontairement une exception a l'unicite
+tenantée : le callback public ne recoit pas de `tenant_id` et recherche exactement
+`(provider, provider_token)`. La contrainte globale correspond donc au contrat de
+recherche et evite une resolution inter-tenant ambigue.
+
+### Inventaire des uniques contenant des colonnes nullables
+
+Le catalogue apres migration expose 23 index/contraintes uniques comportant au
+moins une colonne nullable. Ils sont classes ainsi :
+
+- semantique `NULL` renforcee par LOT 6 : competences enseignants, affectations de
+  salles et disponibilites de salles ;
+- index partiels LOT 6 : liens parent/eleve actifs par profil ou utilisateur,
+  contact principal, reference externe de paiement et jeton fournisseur ;
+- identifiants optionnels volontairement uniques seulement lorsqu'ils existent :
+  email ou compte rattache d'un eleve/enseignant, evenement fournisseur,
+  `requestId`, `dedupeKey`, reference de don et liens d'inscription legacy ;
+- chemins de stockage optionnels : avatar, document enseignant et justificatif ;
+  les services imposent le couple bucket/cle et les index ne s'appliquent que
+  lorsque ces metadonnees existent ;
+- cles canoniques de notes, presences et bulletins : la cle nullable de placement
+  coexiste avec une cle legacy non nullable qui protege le fallback metier.
+
+Aucune autre contrainte nullable n'a ete transformee : rendre tous les `NULL`
+equivalents aurait interdit des comptes non rattaches ou des identifiants externes
+encore inconnus, ce qui ne correspond pas au metier.
+
+### Controle des donnees et migrations
+
+Les recherches prealables sur la base locale peuplee ont trouve zero doublon pour
+les neuf groupes cibles : competences, professeurs principaux actifs, affectations
+et disponibilites de salles, relations parent/eleve par profil ou utilisateur,
+contacts principaux, references externes de paiement et jetons fournisseur. Aucun
+lien sans identite parent n'a ete trouve. Les controles de onze relations tenantées
+avant migration, puis les controles parents, enseignants, salles et paiements apres
+migration, ont trouve zero incoherence inter-tenant ou referentielle.
+
+Deux nouvelles migrations transactionnelles ont ete creees, sans modifier les
+anciennes migrations :
+
+- `20260716160000_nullable_unique_concurrency_hardening` ajoute les contraintes
+  null-safe et les index partiels metier ;
+- `20260716170000_payment_provider_token_scope` aligne l'unicite du jeton externe
+  sur le lookup public du callback.
+
+Chaque migration commence par une verification des collisions et leve une erreur
+explicite avant toute modification. Une base PostgreSQL 16 jetable a ete recreee :
+34 migrations sur 34 ont ete appliquees et `prisma migrate status` confirme un
+schema a jour. La base locale peuplee a ete sauvegardee dans `/tmp`, puis migree
+avec succes. Aucune migration de production n'a ete executee et aucune donnee n'a
+ete fusionnee, supprimee ou corrigee automatiquement.
+
+### Gestion applicative et concurrence
+
+Les services conservent les controles applicatifs pour produire un message utile,
+mais PostgreSQL est desormais la protection finale. Les violations `P2002` sont
+converties en `409 Conflict` pour les placements de cursus, relations parent/eleve,
+affectations et disponibilites de salles et paiements. Les messages ne publient ni
+nom de contrainte ni detail de donnees concurrentes.
+
+Le callback PayDunya verrouille atomiquement la tentative avec `FOR UPDATE`, relit
+son etat puis cree le paiement dans la meme transaction. Le verrou est pris apres
+la verification fournisseur : aucun appel reseau n'est effectue sous verrou. Un
+callback concurrent reutilise le paiement deja rattache et ne cree pas de doublon.
+
+Les tests PostgreSQL lancent deux operations paralleles avec garde anti-deadlock et
+couvrent : competence nullable, affectation enseignant identique, deux professeurs
+principaux, affectation et disponibilite de salle nullables, deux mises a jour qui
+convergent, relation parent/eleve, memes donnees dans deux tenants et deux callbacks
+de paiement. Les courses renvoient `[201, 409]` ou `[200, 409]` selon l'operation,
+laissent une seule ligne et ne provoquent aucun blocage durable. Le callback
+idempotent renvoie deux succes vers le meme paiement et ne laisse qu'un paiement.
+
+### Index, performances et rollback
+
+Le catalogue confirme neuf protections LOT 6. Les trois contraintes null-safe ont
+`indnullsnotdistinct=true` et les six index partiels ont les predicats attendus.
+Les `EXPLAIN` montrent l'utilisation des index partiels pour le professeur
+principal, le lien parent actif, la reference externe et le jeton fournisseur.
+Pour les recherches de competences et de salles, les index tenantés plus etroits
+existants restent de meilleurs chemins de lecture ; ils ne sont donc pas
+strictement redondants et n'ont pas ete supprimes.
+
+Le cout d'ecriture augmente d'un controle unique pour les disponibilites et les
+invariants partiels. Les uniques de competences et d'affectations remplacent leurs
+anciens index au lieu de les dupliquer. Ce cout est borne et justifie par la
+suppression des doublons concurrentiels.
+
+Rollback documente : arreter les ecritures, sauvegarder PostgreSQL et redeployer
+d'abord l'application precedente. Verifier ensuite qu'aucune ligne acceptee par les
+nouveaux index ne violerait les anciennes contraintes, notamment les liens archives.
+Dans une transaction, supprimer les index partiels, recreer les uniques ordinaires
+de competences/affectations et l'ancien index de jeton tenanté, puis retirer le
+nouvel unique des disponibilites. Ne jamais executer ce rollback sans ce preflight :
+une collision doit interrompre le rollback, jamais provoquer une suppression.
+
+### Validations et actions avant production
+
+| Controle | Resultat |
+| --- | --- |
+| Prisma validate/generate | OK, Prisma 6.19.3 |
+| PostgreSQL 16 vierge | OK, 34/34 migrations |
+| Base locale peuplee | OK apres sauvegarde, schema a jour |
+| Tests unitaires API | OK, 17 suites et 87 tests |
+| Tests concurrence cibles | OK, 2 suites et 18 tests |
+| E2E PostgreSQL complet | OK, 9 suites et 61 tests |
+| Typecheck, lint et build API | OK |
+| Audit production pnpm 11 | OK, pnpm 11.13.0, aucune vulnerabilite connue |
+| `git diff --check` | OK |
+
+Avant toute production, l'utilisateur doit : faire une sauvegarde verifiee,
+executer les requetes de preflight en lecture seule sur une copie recente, tester
+les deux migrations sur cette copie, controler les volumes et temps de creation
+d'index, puis planifier une fenetre sans ecritures concurrentes. Si un seul doublon
+est trouve, la migration doit rester bloquee jusqu'a une decision metier explicite.
+
+Verdict LOT 6 : **GO** pour revue et commit. Le deploiement des migrations reste
+**NO-GO** avant sauvegarde, preflight sur une copie recente et repetition de la
+migration sur cette copie. Aucune migration de production, aucun commit et aucun
+push n'ont ete effectues.

@@ -664,85 +664,98 @@ export class FinanceService {
     }
 
     const paidAt = new Date();
-    const updatedAttempt = await this.prisma.$transaction(async (transaction) => {
-      const currentAttempt = await transaction.paymentProviderAttempt.findFirst({
-        where: { id: attempt.id },
-        include: { invoice: { include: { student: true } } }
-      });
-      if (!currentAttempt) {
-        throw new NotFoundException("Payment attempt not found.");
-      }
-      if (currentAttempt.paymentId) {
-        return currentAttempt;
-      }
+    try {
+      const updatedAttempt = await this.prisma.$transaction(async (transaction) => {
+        await transaction.$queryRaw`
+          SELECT id
+          FROM payment_provider_attempts
+          WHERE id = ${attempt.id}::uuid
+          FOR UPDATE
+        `;
 
-      const invoice = currentAttempt.invoice;
-      if (invoice.status === "VOID") {
-        throw new ConflictException("Cannot confirm payment for a VOID invoice.");
-      }
+        const currentAttempt = await transaction.paymentProviderAttempt.findFirst({
+          where: { id: attempt.id },
+          include: { invoice: { include: { student: true } } }
+        });
+        if (!currentAttempt) {
+          throw new NotFoundException("Payment attempt not found.");
+        }
+        if (currentAttempt.paymentId) {
+          return currentAttempt;
+        }
 
-      const amountDue = this.decimalToNumber(invoice.amountDue);
-      const amountPaid = this.decimalToNumber(invoice.amountPaid);
-      const remainingAmount = this.roundAmount(amountDue - amountPaid);
-      const callbackAmount = effectiveCallback.totalAmount || this.decimalToNumber(currentAttempt.amount);
-      const paidAmount = this.roundAmount(Math.min(callbackAmount, remainingAmount));
-      if (paidAmount <= 0) {
-        throw new ConflictException("Invoice is already paid.");
-      }
+        const invoice = currentAttempt.invoice;
+        if (invoice.status === "VOID") {
+          throw new ConflictException("Cannot confirm payment for a VOID invoice.");
+        }
 
-      const createdPayment = await transaction.payment.create({
-        data: {
-          tenantId: currentAttempt.tenantId,
-          invoiceId: invoice.id,
-          receiptNo: this.generateReceiptNo(),
-          paidAmount,
-          paymentMethod: "PAYDUNYA",
-          paidAt,
-          referenceExternal: callback.token,
-          updatedAt: paidAt
-        },
-        include: {
-          invoice: {
-            include: {
-              student: true
+        const amountDue = this.decimalToNumber(invoice.amountDue);
+        const amountPaid = this.decimalToNumber(invoice.amountPaid);
+        const remainingAmount = this.roundAmount(amountDue - amountPaid);
+        const callbackAmount =
+          effectiveCallback.totalAmount || this.decimalToNumber(currentAttempt.amount);
+        const paidAmount = this.roundAmount(Math.min(callbackAmount, remainingAmount));
+        if (paidAmount <= 0) {
+          throw new ConflictException("Invoice is already paid.");
+        }
+
+        const createdPayment = await transaction.payment.create({
+          data: {
+            tenantId: currentAttempt.tenantId,
+            invoiceId: invoice.id,
+            receiptNo: this.generateReceiptNo(),
+            paidAmount,
+            paymentMethod: "PAYDUNYA",
+            paidAt,
+            referenceExternal: callback.token,
+            updatedAt: paidAt
+          },
+          include: {
+            invoice: {
+              include: {
+                student: true
+              }
             }
           }
-        }
+        });
+
+        const nextAmountPaid = this.roundAmount(amountPaid + paidAmount);
+        const nextStatus = this.resolveInvoiceStatus(nextAmountPaid, amountDue);
+        await transaction.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            amountPaid: nextAmountPaid,
+            status: nextStatus,
+            updatedAt: paidAt
+          }
+        });
+
+        await this.publishPaymentReceivedNotification(
+          transaction,
+          currentAttempt.tenantId,
+          createdPayment
+        );
+
+        return transaction.paymentProviderAttempt.update({
+          where: { id: currentAttempt.id },
+          data: {
+            paymentId: createdPayment.id,
+            providerPaymentId: effectiveCallback.token,
+            providerStatus: "COMPLETED",
+            callbackPayload: effectiveCallback.raw as Prisma.InputJsonValue,
+            failureReason: null,
+            paidAt,
+            updatedAt: paidAt
+          },
+          include: { invoice: true }
+        });
       });
 
-      const nextAmountPaid = this.roundAmount(amountPaid + paidAmount);
-      const nextStatus = this.resolveInvoiceStatus(nextAmountPaid, amountDue);
-      await transaction.invoice.update({
-        where: { id: invoice.id },
-        data: {
-          amountPaid: nextAmountPaid,
-          status: nextStatus,
-          updatedAt: paidAt
-        }
-      });
-
-      await this.publishPaymentReceivedNotification(
-        transaction,
-        currentAttempt.tenantId,
-        createdPayment
-      );
-
-      return transaction.paymentProviderAttempt.update({
-        where: { id: currentAttempt.id },
-        data: {
-          paymentId: createdPayment.id,
-          providerPaymentId: effectiveCallback.token,
-          providerStatus: "COMPLETED",
-          callbackPayload: effectiveCallback.raw as Prisma.InputJsonValue,
-          failureReason: null,
-          paidAt,
-          updatedAt: paidAt
-        },
-        include: { invoice: true }
-      });
-    });
-
-    return this.paymentAttemptView(updatedAttempt);
+      return this.paymentAttemptView(updatedAttempt);
+    } catch (error: unknown) {
+      this.handleKnownPrismaConflict(error, "This provider payment has already been recorded.");
+      throw error;
+    }
   }
 
   async getPaymentStatus(tenantId: string, id: string): Promise<PaymentAttemptView | PaymentView> {

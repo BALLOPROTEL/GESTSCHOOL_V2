@@ -97,28 +97,33 @@ export class RoomAssignmentsService {
       },
       existing.id
     );
-    const updated = await this.prisma.roomAssignment.update({
-      where: { id: existing.id },
-      data: {
-        roomId: payload.roomId,
-        schoolYearId: payload.schoolYearId,
-        classId: payload.classId,
-        levelId: payload.levelId,
-        cycleId: payload.cycleId,
-        track: payload.track,
-        subjectId: payload.subjectId,
-        periodId: payload.periodId,
-        assignmentType: payload.assignmentType,
-        startDate: payload.startDate ? this.roomsSupportService.toDateOnly(payload.startDate) : undefined,
-        endDate: payload.endDate ? this.roomsSupportService.toDateOnly(payload.endDate) : undefined,
-        status: payload.status,
-        comment: payload.comment !== undefined ? this.roomsSupportService.optionalTrim(payload.comment) : undefined,
-        updatedAt: new Date()
-      },
-      include: this.roomsSupportService.assignmentInclude()
-    });
-    await this.roomsSupportService.logAudit(tenantId, actorUserId, "ROOM_ASSIGNMENT_UPDATED", "room_assignments", updated.id);
-    return this.roomsSupportService.assignmentView(updated);
+    try {
+      const updated = await this.prisma.roomAssignment.update({
+        where: { id: existing.id },
+        data: {
+          roomId: payload.roomId,
+          schoolYearId: payload.schoolYearId,
+          classId: payload.classId,
+          levelId: payload.levelId,
+          cycleId: payload.cycleId,
+          track: payload.track,
+          subjectId: payload.subjectId,
+          periodId: payload.periodId,
+          assignmentType: payload.assignmentType,
+          startDate: payload.startDate ? this.roomsSupportService.toDateOnly(payload.startDate) : undefined,
+          endDate: payload.endDate ? this.roomsSupportService.toDateOnly(payload.endDate) : undefined,
+          status: payload.status,
+          comment: payload.comment !== undefined ? this.roomsSupportService.optionalTrim(payload.comment) : undefined,
+          updatedAt: new Date()
+        },
+        include: this.roomsSupportService.assignmentInclude()
+      });
+      await this.roomsSupportService.logAudit(tenantId, actorUserId, "ROOM_ASSIGNMENT_UPDATED", "room_assignments", updated.id);
+      return this.roomsSupportService.assignmentView(updated);
+    } catch (error: unknown) {
+      this.roomsSupportService.handleKnownPrismaConflict(error, "Room assignment already exists for this exact scope.");
+      throw error;
+    }
   }
 
   async archiveAssignment(tenantId: string, actorUserId: string, id: string): Promise<void> {

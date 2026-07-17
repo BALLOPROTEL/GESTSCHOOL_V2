@@ -220,23 +220,21 @@ describe("Provider integrations (e2e)", () => {
     });
     expect(paymentsAfterRejectedCallback).toBe(0);
 
-    const callback = await request(context.app.getHttpServer())
-      .post("/api/v1/payments/paydunya/callback")
-      .send(callbackBody)
-      .expect(201);
+    const callbacks = await Promise.all([
+      request(context.app.getHttpServer())
+        .post("/api/v1/payments/paydunya/callback")
+        .send(callbackBody),
+      request(context.app.getHttpServer())
+        .post("/api/v1/payments/paydunya/callback")
+        .send(callbackBody)
+    ]);
 
-    expect(callback.body.providerStatus).toBe("COMPLETED");
-    expect(callback.body.paymentId).toBeDefined();
-
-    const paymentsAfterFirstCallback = await context.prisma.payment.count({
-      where: { tenantId: TENANT_ID, invoiceId: invoice.body.id, paymentMethod: "PAYDUNYA" }
-    });
-    expect(paymentsAfterFirstCallback).toBe(1);
-
-    await request(context.app.getHttpServer())
-      .post("/api/v1/payments/paydunya/callback")
-      .send(callbackBody)
-      .expect(201);
+    expect(callbacks.map((response) => response.status)).toEqual([201, 201]);
+    expect(
+      callbacks.every((response) => response.body.providerStatus === "COMPLETED")
+    ).toBe(true);
+    expect(callbacks[0].body.paymentId).toBeDefined();
+    expect(callbacks[1].body.paymentId).toBe(callbacks[0].body.paymentId);
 
     const paymentsAfterDuplicateCallback = await context.prisma.payment.count({
       where: { tenantId: TENANT_ID, invoiceId: invoice.body.id, paymentMethod: "PAYDUNYA" }
