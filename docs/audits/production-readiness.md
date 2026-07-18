@@ -1182,3 +1182,105 @@ et refusees proprement par defaut.
 
 Message de commit propose :
 `fix(web-admin): require explicit API runtime and gate provisional features`.
+
+## LOT 8B - Orchestration frontend et decoupage de App.tsx (2026-07-18)
+
+### Diagnostic et metriques initiales
+
+`App.tsx` concentrait encore l'etat de tous les domaines, les loaders, la
+construction des donnees agregees et la selection de chaque ecran. Les hooks
+existants isolaient deja l'authentification, le bootstrap, les preferences et les
+effets du shell ; ces frontieres ont ete conservees plutot que dupliquees.
+
+| Responsabilite | Emplacement avant | Dependances | Destination retenue |
+| --- | --- | --- | --- |
+| Session et appels authentifies | `App.tsx` + `use-auth-session-resilient` | stockage session, API | hook existant conserve, orchestration minimale dans `App.tsx` |
+| Login, activation et reset | `App.tsx` + `use-auth-flows` | session, URL, formulaires | hook existant conserve |
+| Bootstrap par role | `App.tsx` + `use-app-bootstrap` | permissions, loaders | hook existant conserve |
+| Etats de donnees metier | 33 states disperses dans `App.tsx` | tous les ecrans | `use-app-data.ts`, source de verite groupee et actions stables |
+| Loaders metier | callbacks dans `App.tsx` | API, role, session | `useAppDataLoaders` dans `use-app-data.ts` |
+| Selection et props des ecrans | `renderActiveScreen` et 14 helpers locaux | lazy screens, RBAC, flags | routeur pur `app-screen-router.tsx` |
+| RBAC et feature flags | registre existant + `App.tsx` | role, flags LOT 8A | registre conserve, decision appliquee avant chargement de l'ecran |
+| Navigation et recherche | modele existant + `App.tsx` | role, langue, ecran | `app-navigation-model` conserve |
+| Langue, RTL et theme | `use-app-preferences` + `App.tsx` | stockage local, DOM racine | hook existant conserve |
+| Toasts et notifications UI | `App.tsx`, `GlobalToastLayer`, header | API, compteurs | presentation conservee ; seul le calcul du compteur reste transversal |
+| Panneaux globaux du header | `HeaderNavigation` | actions et session | propriete locale du header conservee, tests ouverture/fermeture existants |
+| Tables responsives / observer DOM | `use-app-shell-effects` | DOM du shell | strictement inchange, reporte au LOT 8C |
+| Shell et footer | `App.tsx` + `app-shell-panels` | navigation, session | composition conservee dans `App.tsx` |
+
+Mesures AST reproductibles sur le fichier principal :
+
+| Metrique `App.tsx` | Avant | Apres | Delta |
+| --- | ---: | ---: | ---: |
+| Lignes | 1 239 | 526 | -713 (-57,5 %) |
+| Hooks appeles | 67 | 24 | -43 |
+| `useState` | 41 | 8 | -33 |
+| `useCallback` | 13 | 5 | -8 |
+| `useMemo` | 6 | 2 | -4 |
+| `useRef` | 1 | 1 | 0 |
+| `useEffect` direct | 0 | 0 | 0 |
+| Conditions `if` | 53 | 10 | -43 |
+| Imports nommes ou par defaut | 92 | 39 | -53 |
+
+### Architecture appliquee
+
+`App.tsx` est maintenant limite a la composition de la session, des preferences,
+du bootstrap, du modele de navigation et du shell. Deux frontieres ont ete
+ajoutees :
+
+- `use-app-data.ts` porte une seule source de verite pour les donnees chargees,
+  les mises a jour atomiques des domaines et les loaders dependants de la
+  session ;
+- `app-screen-router.tsx` est un routeur pur et exhaustif. Il applique d'abord la
+  decision RBAC/feature flag, puis transmet aux ecrans lazy les memes contrats
+  qu'avant. Son fallback historique reste le tableau de bord.
+
+Le routeur (440 lignes) ne contient ni state, ni effet, ni appel reseau. Le
+controleur de donnees (310 lignes) ne contient aucun JSX. Ils ne reproduisent donc
+pas le monolithe initial et disposent chacun de tests cibles. Aucun provider
+artificiel, contexte global ou nouvelle bibliotheque d'etat n'a ete ajoute.
+
+Les comportements de preview ont ete compares au code precedent : l'entree en
+preview vide bien le profil courant et les donnees de session, puis hydrate les
+fixtures. Les routes, identifiants d'ecran, formulaires, modales, permissions,
+flags, langues, theme et contrats API restent inchanges.
+
+### Tests et non-regression
+
+Les nouveaux tests couvrent : etat vide/hydratation/clear des donnees, actions
+stables, quatre grandes familles de navigation, route interdite, flag desactive
+avant chargement lazy, absence de session, session expiree, sonde API initiale,
+langue arabe/RTL/theme sombre et conservation des tokens d'activation/reset dans
+l'URL. Les tests existants du header couvrent toujours ouverture, fermeture,
+clic exterieur et panneaux globaux.
+
+| Controle | Resultat |
+| --- | --- |
+| Tests cibles d'orchestration | OK, 5 fichiers et 20 tests |
+| Tests frontend complets | OK, 23 fichiers et 103 tests |
+| Lint frontend | OK |
+| Build frontend | OK, Vite 7.3.6, 155 modules |
+| Smoke frontend | OK |
+| Audit visuel mocked CI | OK, 61/61 workflows, 0 constat |
+| Audit visuel mocked complet | OK, 121/121 workflows, 0 constat |
+| Requetes API non mockees / console / pageerror / loading / overflow | 0 constat |
+| `git diff --check` | OK avant documentation finale |
+
+### Bundle et dettes restantes
+
+Le CSS est strictement identique (`443 532` octets et meme hash de chunk). Le
+chunk JS principal passe de `387 907` a `389 604` octets, soit `+1 697` octets
+(`+0,44 %`) ; gzip passe de `114 531` a `115 352` octets, soit `+821` octets
+(`+0,72 %`). Les chunks lazy restent separes et aucun chargement API
+supplementaire n'apparait dans les audits stricts.
+
+Le LOT 8C reste responsable des observers DOM de traduction/tableaux. Le LOT 8D
+reste responsable de la consolidation CSS et du retrait des 13 scripts visuels
+legacy. Ces zones n'ont pas ete modifiees dans cette passe.
+
+Verdict LOT 8B : **GO** pour revue. L'orchestration est nettement plus courte et
+testable, sans changement fonctionnel ou visuel detecte. Aucune action manuelle
+n'est requise avant revue ; l'audit integre reste reserve au LOT 10.
+
+Message de commit propose :
+`refactor(web-admin): split app orchestration by responsibility`.

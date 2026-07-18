@@ -1,19 +1,13 @@
 import type {
-  ClassItem,
-  Cycle,
   Enrollment,
   FeePlan,
   Invoice,
-  Level,
   PaymentRecord,
-  Period,
   RecoveryDashboard,
   ReportCard,
   Role,
-  SchoolYear,
   ScreenId,
   Student,
-  Subject,
   UserAccount
 } from "../shared/types/app";
 import { fetchReferenceData } from "../features/reference/services/reference-service";
@@ -208,23 +202,4 @@ export const countActionableNotifications = (
   });
 
   return liveItems.length || rows.length;
-};
-
-export const applyReferenceDataToState = (
-  data: ReferenceData,
-  setters: {
-    setClasses: (rows: ClassItem[]) => void;
-    setCycles: (rows: Cycle[]) => void;
-    setLevels: (rows: Level[]) => void;
-    setPeriods: (rows: Period[]) => void;
-    setSchoolYears: (rows: SchoolYear[]) => void;
-    setSubjects: (rows: Subject[]) => void;
-  }
-): void => {
-  setters.setSchoolYears(data.schoolYears);
-  setters.setCycles(data.cycles);
-  setters.setLevels(data.levels);
-  setters.setClasses(data.classes);
-  setters.setSubjects(data.subjects);
-  setters.setPeriods(data.periods);
 };
