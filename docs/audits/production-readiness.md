@@ -983,3 +983,114 @@ disponible ; cette limite ne remet pas en cause les deux gates mocked valides.
 
 Message de commit propose :
 `fix(web-admin): translate dashboard and enrollment audit labels`.
+
+## LOT 2B - Dependances et outils de developpement (2026-07-18)
+
+### Diagnostic initial
+
+L'audit complet du lockfile avec le client compatible Bulk Advisory remontait
+52 vulnerabilites exclusivement situees dans les dependances de developpement :
+1 critique, 28 hautes, 18 moderees et 5 faibles. L'audit `--prod` restait propre.
+Les chemins concernaient le CLI Nest, Jest/ts-jest, ESLint, Vite/Vitest, jsdom et
+leurs transitives. Aucun de ces chemins n'est embarque dans l'artefact de
+production.
+
+| Package vulnerable | Versions avant | Avis avant | Severites | Origine principale | Etat final |
+| --- | --- | ---: | --- | --- | --- |
+| `handlebars` | 4.7.8 | 8 | critique/haute/moderee/faible | ts-jest | 4.7.9, corrige |
+| `minimatch` | 3.1.2 / 9.0.5 / 10.2.1 | 8 | haute | Nest CLI, Jest, ESLint | 3.1.4 / 9.0.7 / 10.2.5, corrige |
+| `undici` | 7.25.0 | 7 | haute/moderee/faible | jsdom | 7.28.0, corrige |
+| `vite` | 7.3.1 | 5 | haute/moderee | Vite/Vitest | 7.3.6, corrige |
+| `brace-expansion` | 1.1.12 / 2.0.2 / 5.0.2 | 4 | moderee | minimatch/glob | 1.1.13 / 5.0.7, corrige |
+| `picomatch` | 2.3.1 / 4.0.2 / 4.0.3 | 4 | haute/moderee | Jest, Nest CLI, Vite | 2.3.2 / 4.0.4, corrige |
+| `ajv` | 6.12.6 / 8.17.1 | 2 | moderee | Angular devkit, webpack, ESLint | 6.14.0 / 8.18.0, corrige |
+| `fast-uri` | 3.1.0 | 2 | haute | ajv | 3.1.2, corrige |
+| `flatted` | 3.3.3 | 2 | haute | ESLint/flat-cache | 3.4.2, corrige |
+| `serialize-javascript` | 6.0.2 | 2 | haute/moderee | Nest CLI/webpack | version corrigee via Nest CLI |
+| `form-data` | 4.0.5 | 1 | haute | types Supertest | 4.0.6, corrige |
+| `rollup` | 4.57.1 | 1 | haute | Vite | 4.59.0, corrige |
+| `postcss` | 8.5.6 | 1 | moderee | Vite | 8.5.10, corrige |
+| `qs` | 6.15.0 | 1 | moderee | Nest CLI | 6.15.3, corrige |
+| `@babel/core` | 7.29.0 | 1 | faible | Jest et plugin React | 7.29.6, corrige |
+| `esbuild` | 0.27.3 | 1 | faible | Vite 7 | reste : correctif hors plage Vite 7 |
+
+Le nombre d'avis et le nombre de chemins vulnerables ne sont pas identiques :
+un meme avis peut affecter plusieurs versions ou plusieurs chemins. Les 50 avis
+du rapport initial correspondaient aux 52 vulnerabilites agregees par pnpm.
+
+### Mises a jour directes et breaking changes
+
+Les versions directes ont ete mises a jour dans leur version majeure existante :
+
+- backend : `@nestjs/cli` 11.0.16 -> 11.0.24, Jest 30.2.0 -> 30.4.2,
+  ts-jest 29.4.6 -> 29.4.11 ;
+- frontend : Vite 7.3.1 -> 7.3.6 et Vitest 4.1.5 -> 4.1.10 ;
+- les deux applications : TypeScript-ESLint 8.56.0 -> 8.64.0.
+
+Les migrations majeures TypeScript 7, ESLint 10, Vite 8, React 19, Prisma 7,
+plugin React 6 et types Node 26 ont ete volontairement exclues : elles demandent
+une analyse de compatibilite distincte et n'etaient pas necessaires pour supprimer
+les severites critique, haute et moderee. Aucune configuration Jest, Vite, jsdom,
+ESM/CommonJS, alias ou timeout n'a ete modifiee.
+
+### Overrides transitifs bornes
+
+Apres les mises a jour directes et `pnpm dedupe`, certaines versions uniques
+restaient verrouillees bien que les parents acceptent les correctifs. Des
+overrides racine, limites aux plages vulnerables, resolvent uniquement :
+`@babel/core`, `ajv`, `brace-expansion` 1.x, `fast-uri`, `flatted`, `form-data`,
+`minimatch` 3.x/9.x, `picomatch` 2.x/4.x, `postcss`, `rollup` et `undici`.
+
+Ils sont lus par pnpm 10.24.0 lors de l'installation et materialises dans le
+lockfile. Le client pnpm 11 dedie a l'audit avertit qu'il n'interprete plus le
+champ `pnpm.overrides`, mais il audite bien le lockfile resolu sans le modifier.
+Plan de retrait : avant le LOT 10, reexecuter `pnpm why` apres chaque mise a jour
+des parents et supprimer individuellement tout override devenu inutile, avec
+installation figee, audit et non-regression complets.
+
+`esbuild` 0.27.3 n'est pas force vers 0.28.1 : Vite 7.3.6 declare `^0.27.0` et,
+pour un package 0.x, 0.28 est une version incompatible. L'avis restant est faible,
+limite au serveur de developpement sous Windows et n'est pas present dans les
+dependances de production. Mitigation : ne pas exposer le serveur Vite sur un
+reseau non fiable. Echeance : reevaluer avec une version de Vite acceptant
+esbuild >=0.28.1 avant le LOT 10.
+
+### Resultats avant/apres
+
+| Etape | Critique | Haute | Moderee | Faible |
+| --- | ---: | ---: | ---: | ---: |
+| Initial | 1 | 28 | 18 | 5 |
+| Apres groupe backend | 0 | 21 | 13 | 4 |
+| Apres groupe frontend | 0 | 17 | 10 | 4 |
+| Apres groupe qualite et transitives | 0 | 0 | 0 | 1 |
+
+| Controle | Resultat |
+| --- | --- |
+| Installation pnpm 10.24.0 figee | OK |
+| Prisma generate | OK |
+| Lint et build API | OK |
+| Tests unitaires API | OK, 17 suites et 87 tests |
+| E2E PostgreSQL 16 | OK, 9 suites et 61 tests |
+| Lint frontend | OK |
+| Tests frontend | OK, 15 fichiers et 70 tests |
+| Build frontend | OK, Vite 7.3.6 |
+| Smoke frontend | OK |
+| Audit visuel mocked CI | OK, 61/61 et 0 constat |
+| Audit visuel mocked complet | OK, 121/121 et 0 constat |
+| Audit complet pnpm 11.13.0 | 1 faible, 0 critique/haute/moderee |
+| Audit production pnpm 11.13.0 | OK, aucune vulnerabilite connue |
+| Lockfile avant/apres audit pnpm 11 | Identique |
+| `git diff --check` | OK avant documentation finale |
+
+Le premier run unitaire API lance en parallele avec plusieurs controles lourds a
+depasse le timeout historique de 5 secondes sur un test d'archive. Le meme test et
+la suite complete, relances seuls sans modifier le timeout, ont reussi 87/87. Ce
+constat est documente comme saturation locale, pas masque par une configuration.
+
+Verdict LOT 2B : **GO** pour revue. L'objectif obligatoire est atteint : aucune
+vulnerabilite critique, haute ou moderee dans l'outillage, aucune vulnerabilite de
+production et une seule dette faible non forcee car le correctif sort de la plage
+compatible de Vite 7. Aucun comportement metier ni contrat API n'a change.
+
+Message de commit propose :
+`fix(dev-deps): remediate development tooling vulnerabilities`.
