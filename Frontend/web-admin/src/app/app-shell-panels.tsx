@@ -16,6 +16,27 @@ export function PreviewLocalNotice(props: { uiLanguage: UiLanguage }): JSX.Eleme
   );
 }
 
+export function FeatureUnavailableScreen(props: {
+  actionLabel: string;
+  featureLabel: string;
+  onBackToAvailableScreen: () => void;
+}): JSX.Element {
+  return (
+    <section className="panel table-panel" role="status">
+      <p className="eyebrow">Fonctionnalité désactivée</p>
+      <h2>{props.featureLabel}</h2>
+      <p className="subtle">
+        Cette fonctionnalité n’est pas activée dans cet environnement.
+      </p>
+      <div className="context-actions">
+        <button type="button" className="button-ghost" onClick={props.onBackToAvailableScreen}>
+          {props.actionLabel}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export function AppContextBar(props: {
   activeLabel: string;
   isEnrollmentsContext: boolean;

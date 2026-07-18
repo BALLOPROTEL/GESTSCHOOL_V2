@@ -1094,3 +1094,91 @@ compatible de Vite 7. Aucun comportement metier ni contrat API n'a change.
 
 Message de commit propose :
 `fix(dev-deps): remediate development tooling vulnerabilities`.
+
+## LOT 8A - Configuration runtime frontend et feature flags (2026-07-18)
+
+### Diagnostic initial
+
+Le frontend possedait trois niveaux de repli implicites pour l'API : l'URL
+`VITE_API_BASE_URL`, une URL Render codee en dur et le chemin relatif `/api/v1`.
+Le hook de session ajoutait encore son propre repli relatif. Une preview Vercel
+mal configuree pouvait donc contacter silencieusement l'API de production ou
+l'origine Vercel. Le build n'imposait aucune variable API.
+
+Les modules provisoires n'etaient pas gouvernes par une politique centrale :
+le portail eleve et Mosquee affichaient des placeholders, la messagerie utilisait
+un historique de demonstration non persiste et la facturation utilisateur
+affichait un ecran non branche. Leurs routes et actions restaient accessibles.
+
+### Configuration API retenue
+
+`api-runtime-config.ts` est la source de validation pure et testable :
+
+- developpement : `/api/v1` ou URL HTTP(S) loopback explicite ; le proxy Vite
+  lui-meme est limite a une cible loopback ;
+- test : endpoint mock explicite accepte, avec `/api/v1` comme origine du mode
+  de test mocke ;
+- preview, staging et production : URL HTTPS absolue obligatoire, sans
+  identifiants, query string, fragment ou localhost ;
+- aucune URL Render ou fallback heberge n'existe dans le code runtime ;
+- le chargement de la configuration Vite fait echouer le build avant emission
+  de l'artefact lorsque la variable est absente ou invalide.
+
+La CI fournit uniquement pour son build une URL reservee `.invalid`. Vercel ne
+contient aucune valeur metier dans `vercel.json` : `VITE_API_BASE_URL` doit etre
+definie explicitement pour chaque environnement dans la console Vercel.
+
+### Matrice des feature flags
+
+| Flag | Ecran | Etat par defaut | Effet desactive |
+| --- | --- | --- | --- |
+| `VITE_FEATURE_STUDENT_PORTAL` | Portail eleve | `false` | navigation masquee, acces direct explicite |
+| `VITE_FEATURE_MOSQUEE` | Mosquee | `false` | navigation masquee, acces direct explicite |
+| `VITE_FEATURE_MESSAGES` | Messagerie demo | `false` | action et icone masquees, acces direct explicite |
+| `VITE_FEATURE_USER_BILLING` | Facturation utilisateur | `false` | action utilisateur masquee, acces direct explicite |
+
+Seule la valeur exacte `true` active un flag. Le registre d'ecrans distingue
+desormais le droit du role, la fonctionnalite desactivee et l'absence de session.
+Un acces direct a un module desactive affiche un etat stable sans fausse donnee,
+avec une sortie vers le tableau de bord ou le profil selon les droits du role.
+Les modules actifs, les donnees metier et les contrats API ne sont pas modifies.
+
+### Scripts visuels historiques
+
+L'inventaire de l'arbre courant contient 13 scripts legacy, et non 14. Leur liste
+exacte est documentee dans `docs/runbooks/visual-audit.md`. Aucun n'est appele par
+la CI ou un script de release ; le gate officiel reste
+`scripts/visual-audit-core-workflows.mjs`. Ils sont conserves jusqu'au LOT 8D.
+
+### Validations
+
+| Controle | Resultat |
+| --- | --- |
+| Tests cibles API runtime, flags, navigation et etat desactive | OK, 17 tests |
+| Tests frontend complets | OK, 19 fichiers et 84 tests |
+| Lint frontend | OK |
+| Build frontend avec URL HTTPS explicite | OK, Vite 7.3.6 |
+| Build production sans `VITE_API_BASE_URL` | Echec attendu et explicite avant build |
+| Smoke frontend | OK |
+| Audit visuel mocked CI | OK, 61/61 et 0 constat |
+| Audit visuel mocked complet | OK, 121/121 et 0 constat |
+| `git diff --check` | OK avant documentation finale |
+
+### Risques et actions d'exploitation
+
+Les modules restent presents dans les chunks lazy ; ce lot les isole sans les
+supprimer ni les finaliser. Leur activation exige une recette fonctionnelle et
+metier distincte. L'audit visuel integre n'est pas relance dans ce lot, qui ne
+modifie aucun contrat API.
+
+Avant chaque deploiement Vercel, configurer `VITE_API_BASE_URL` separement pour
+Preview et Production, conserver les quatre flags a `false`, puis ne mettre un
+flag a `true` que dans une recette explicitement approuvee. Aucune variable
+`VITE_API_FALLBACK_BASE_URL` ne doit etre recreee.
+
+Verdict LOT 8A : **GO** pour revue. La configuration ne peut plus basculer
+silencieusement vers Render et les fonctions provisoires sont opt-in, masquees
+et refusees proprement par defaut.
+
+Message de commit propose :
+`fix(web-admin): require explicit API runtime and gate provisional features`.

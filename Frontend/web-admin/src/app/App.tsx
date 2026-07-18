@@ -34,6 +34,7 @@ import type {
 import { AppSidebar } from "../shared/components/app-sidebar";
 import { HeaderNavigation } from "./navigation/header-navigation";
 import {
+  getScreenAccessDecision,
   hasScreenAccess
 } from "./navigation/screen-registry";
 import { GlobalToastLayer } from "./shell/global-toast-layer";
@@ -41,7 +42,12 @@ import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
 import { useDomTranslation } from "../shared/i18n";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
-import { AppContextBar, AppFooter, PreviewLocalNotice } from "./app-shell-panels";
+import {
+  AppContextBar,
+  AppFooter,
+  FeatureUnavailableScreen,
+  PreviewLocalNotice
+} from "./app-shell-panels";
 import {
   applyReferenceDataToState,
   countActionableNotifications,
@@ -865,7 +871,17 @@ export function App(): JSX.Element {
   );
 
   const renderActiveScreen = (): JSX.Element => {
-    if (!currentRole || !hasScreenAccess(currentRole, tab)) {
+    const accessDecision = getScreenAccessDecision(currentRole, tab);
+    if (accessDecision === "feature-disabled") {
+      return (
+        <FeatureUnavailableScreen
+          actionLabel={dashboardAction.id === "profile" ? "Ouvrir mon profil" : "Retour tableau de bord"}
+          featureLabel={activeScreen.label}
+          onBackToAvailableScreen={dashboardAction.onSelect}
+        />
+      );
+    }
+    if (accessDecision !== "allowed") {
       return renderForbidden();
     }
 
@@ -1030,6 +1046,7 @@ export function App(): JSX.Element {
     isEnrollmentsContext,
     isTeachersContext,
     messageActive,
+    messagesEnabled,
     messageTarget,
     notificationActive,
     notificationTarget,
@@ -1157,9 +1174,8 @@ export function App(): JSX.Element {
                 messages={{
                   active: messageActive,
                   count: headerMessageCount,
-                  disabled: true,
-                  label: "Messagerie en aperçu",
-                  statusLabel: "Service indisponible pour le moment",
+                  disabled: !messagesEnabled,
+                  label: "Messagerie",
                   onSelect: () => setTab(messageTarget)
                 }}
                 notifications={{

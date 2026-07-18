@@ -26,8 +26,13 @@ import {
   ROLE_CONTEXT_LABELS,
   ROLE_HOME_SCREEN,
   SCREEN_DEFS,
-  hasScreenAccess
+  hasScreenRoleAccess
 } from "./navigation/screen-registry";
+import {
+  FEATURE_FLAGS,
+  isScreenFeatureEnabled,
+  type FeatureFlags
+} from "../shared/config/feature-flags";
 
 type NavigationModelInput = {
   currentLanguageMeta: UiLanguageMeta;
@@ -39,6 +44,7 @@ type NavigationModelInput = {
   themeMode: ThemeMode;
   toggleThemeMode: () => void;
   uiLanguage: UiLanguage;
+  featureFlags?: FeatureFlags;
 };
 
 export function createAppNavigationModel(input: NavigationModelInput) {
@@ -51,18 +57,26 @@ export function createAppNavigationModel(input: NavigationModelInput) {
     tab,
     themeMode,
     toggleThemeMode,
-    uiLanguage
+    uiLanguage,
+    featureFlags = FEATURE_FLAGS
   } = input;
+  const screenEnabled = (screen: ScreenId): boolean =>
+    isScreenFeatureEnabled(screen, featureFlags);
+  const canAccess = (role: Role, screen: ScreenId): boolean =>
+    screenEnabled(screen) && hasScreenRoleAccess(role, screen);
   const activeScreen = SCREEN_DEFS.find((entry) => entry.id === tab) ?? SCREEN_DEFS[0];
-  const dashboardTarget =
-    currentRole && hasScreenAccess(currentRole, "dashboard")
+  const roleHomeTarget = currentRole ? ROLE_HOME_SCREEN[currentRole] || "dashboard" : "dashboard";
+  const dashboardTarget: ScreenId =
+    currentRole && canAccess(currentRole, "dashboard")
       ? "dashboard"
-      : currentRole
-        ? ROLE_HOME_SCREEN[currentRole] || "dashboard"
-        : "dashboard";
+      : currentRole && canAccess(currentRole, roleHomeTarget)
+        ? roleHomeTarget
+        : currentRole && canAccess(currentRole, "profile")
+          ? "profile"
+          : "dashboard";
 
   const buildAction = (screen: ScreenId, label: string): HeaderNavigationAction => {
-    const allowed = currentRole ? hasScreenAccess(currentRole, screen) : false;
+    const allowed = currentRole ? canAccess(currentRole, screen) : false;
     return {
       id: screen,
       label,
@@ -90,30 +104,36 @@ export function createAppNavigationModel(input: NavigationModelInput) {
     buildAction("students", "Élèves"),
     buildAction("parents", "Parents"),
     buildAction("finance", "Comptabilité")
-  ];
+  ].filter((item) => screenEnabled(item.id as ScreenId));
   const schoolLifeActions = [
     buildAction("grades", "Notes & bulletins"),
     buildAction("schoolLifeOverview", "Pilotage"),
     buildAction("schoolLifeAttendance", "Absences"),
     buildAction("schoolLifeTimetable", "Emploi du temps"),
     buildAction("schoolLifeNotifications", "Notifications")
-  ];
+  ].filter((item) => screenEnabled(item.id as ScreenId));
   const settingsActions = [
     buildAction("reference", "Référentiel"),
     buildAction("reports", "Rapports & conformité")
-  ];
+  ].filter((item) => screenEnabled(item.id as ScreenId));
   const settingsGroups: HeaderNavigationGroup[] = [
     {
       id: "mosquee-management",
       label: "Gestion mosquée",
       items: [buildAction("mosquee", "Mosquée")]
     }
-  ];
+  ].filter((group) => group.items.some((item) => screenEnabled(item.id as ScreenId)))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => screenEnabled(item.id as ScreenId))
+    }));
   const portalActions = [
     currentRole === "ENSEIGNANT" ? buildAction("teacherPortal", "Portail enseignant") : null,
     currentRole === "PARENT" ? buildAction("parentPortal", "Portail parent") : null,
     currentRole === "STUDENT" ? buildAction("studentPortal", "Portail élève") : null
-  ].filter((item): item is HeaderNavigationAction => item !== null);
+  ].filter((item): item is HeaderNavigationAction =>
+    item !== null && screenEnabled(item.id as ScreenId)
+  );
   const sidebarGroups =
     currentRole === "ENSEIGNANT" || currentRole === "PARENT" || currentRole === "STUDENT"
       ? [{ id: "portal", title: "Accès rapide", items: portalActions }]
@@ -151,12 +171,12 @@ export function createAppNavigationModel(input: NavigationModelInput) {
       onSelect: toggleThemeMode
     }
   ];
-  const headerUserActions: HeaderUserAction[] = [
+  const headerUserActions = ([
     { id: "profile", icon: "profile", label: "Mon profil", onSelect: () => selectScreen("profile") },
     { id: "preferences", icon: "settings", label: "Préférences", onSelect: () => selectScreen("preferences") },
     { id: "activity", icon: "activity", label: "Journal d’activité", onSelect: () => selectScreen("activity") },
     { id: "billing", icon: "billing", label: "Facturation", onSelect: () => selectScreen("billing") }
-  ];
+  ] satisfies HeaderUserAction[]).filter((item) => screenEnabled(item.id as ScreenId));
   const notificationTarget: ScreenId =
     currentRole === "ENSEIGNANT"
       ? "teacherPortal"
@@ -164,18 +184,18 @@ export function createAppNavigationModel(input: NavigationModelInput) {
         ? "parentPortal"
         : currentRole === "STUDENT"
           ? "studentPortal"
-          : currentRole && hasScreenAccess(currentRole, "schoolLifeNotifications")
+          : currentRole && canAccess(currentRole, "schoolLifeNotifications")
             ? "schoolLifeNotifications"
             : dashboardTarget;
   const messageTarget: ScreenId =
-    currentRole && hasScreenAccess(currentRole, "messages") ? "messages" : dashboardTarget;
+    currentRole && canAccess(currentRole, "messages") ? "messages" : dashboardTarget;
 
   return {
     activeScreen,
     dashboardAction,
     headerMessageCount: 0,
     headerSearchSubmit: () => {
-      if (moduleQueryInput.trim() && currentRole && hasScreenAccess(currentRole, "dashboard")) {
+      if (moduleQueryInput.trim() && currentRole && canAccess(currentRole, "dashboard")) {
         selectScreen("dashboard");
       }
     },
@@ -183,6 +203,7 @@ export function createAppNavigationModel(input: NavigationModelInput) {
     isEnrollmentsContext: tab === "enrollments",
     isTeachersContext: tab === "teachers",
     messageActive: messageTarget === "messages" ? tab === "messages" : tab === messageTarget,
+    messagesEnabled: screenEnabled("messages"),
     messageTarget,
     notificationActive:
       notificationTarget === "schoolLifeNotifications"

@@ -20,9 +20,11 @@ The web admin is the primary production UI. It contains the app shell, responsiv
 - Reports
 - Teacher portal
 - Parent portal
-- Mosquee module
+- Mosquee module (feature flag)
 
-The student portal is still a placeholder. The mobile app is not implemented here.
+The student portal, Mosque module, local demo messaging and user billing screen are
+still provisional. They are disabled by default outside explicitly configured
+development or acceptance environments. The mobile app is not implemented here.
 
 ## Structure
 
@@ -38,19 +40,36 @@ src/
 
 ## Environment
 
-Local development normally uses the Vite proxy:
+Local development may use the explicit local API URL below or the Vite proxy
+`/api/v1`. A remote API is rejected in development so a local preview cannot
+silently call production:
 
 ```text
 VITE_API_BASE_URL=http://localhost:3000/api/v1
 ```
 
-Production and staging should set an explicit API URL in Vercel:
+Preview, staging and production must set an explicit HTTPS API URL in Vercel:
 
 ```text
 VITE_API_BASE_URL=https://<render-api-service>.onrender.com/api/v1
 ```
 
-The Vercel config no longer hardcodes the Render API URL. The environment decides which API the frontend talks to.
+The build fails when `VITE_API_BASE_URL` is absent, invalid, relative, non-HTTPS
+or points to localhost outside development/test. There is no automatic fallback
+to Render or another production API.
+
+Provisional modules use typed, opt-in flags. Every flag defaults to `false`:
+
+```text
+VITE_FEATURE_STUDENT_PORTAL=false
+VITE_FEATURE_MOSQUEE=false
+VITE_FEATURE_MESSAGES=false
+VITE_FEATURE_USER_BILLING=false
+```
+
+Set a flag to the exact value `true` only in a controlled development or
+acceptance environment. When disabled, its navigation and actions are hidden and
+direct screen access renders a clear unavailable state.
 
 ## Run locally
 

@@ -38,7 +38,6 @@ type ApiRequestOptions = {
 
 const INITIAL_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 30_000;
-const DEFAULT_API_BASE_URL = "/api/v1";
 const MIN_REFRESH_TOKEN_LENGTH = 32;
 
 const INITIAL_API_CONNECTION_STATE: ApiConnectionState = {
@@ -68,11 +67,16 @@ export function useAuthSession(options: UseAuthSessionOptions) {
     onRefreshNotice,
     onRefreshSuccess
   } = options;
+  const initialApiBaseUrl = apiBaseUrls[0];
+  if (!initialApiBaseUrl) {
+    throw new Error("[web-admin runtime] Aucune URL API valide n'est configurée.");
+  }
+
   const [session, setSession] = useState<Session | null>(() => readStoredSession());
   const [apiConnection, setApiConnection] = useState<ApiConnectionState>(
     INITIAL_API_CONNECTION_STATE
   );
-  const activeApiBaseUrlRef = useRef<string>(apiBaseUrls[0] || DEFAULT_API_BASE_URL);
+  const activeApiBaseUrlRef = useRef<string>(initialApiBaseUrl);
   const sessionRef = useRef<Session | null>(session);
   const apiConnectionRef = useRef<ApiConnectionState>(INITIAL_API_CONNECTION_STATE);
   const probePromiseRef = useRef<Promise<boolean> | null>(null);
@@ -80,8 +84,7 @@ export function useAuthSession(options: UseAuthSessionOptions) {
 
   useEffect(() => {
     if (apiBaseUrls.length === 0) {
-      activeApiBaseUrlRef.current = DEFAULT_API_BASE_URL;
-      return;
+      throw new Error("[web-admin runtime] Aucune URL API valide n'est configurée.");
     }
 
     if (!apiBaseUrls.includes(activeApiBaseUrlRef.current)) {

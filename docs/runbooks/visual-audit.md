@@ -103,14 +103,25 @@ autre erreur.
 | `scripts/visual-audit-core-workflows.mjs` | Gate central strict | CI et audits complets mocked/integrated |
 | `scripts/visual-audit/lib/*` | Actif | Collecteur et tests du mecanisme |
 | `Frontend/web-admin/scripts/smoke-tests.mjs` | Actif | Smoke statique de structure, distinct du visuel |
-| `Frontend/web-admin/scripts/*-visual-audit.mjs` | Historique, non bloquant CI | Audits ponctuels par module ; delais arbitraires et politique de severite heterogene |
-| `Frontend/web-admin/scripts/visual-audit.mjs` | Historique, non bloquant CI | Ancien audit multi-ecrans |
-| `scripts/visual-audit-notes-bulletins.mjs` | Historique, non bloquant CI | Recette ponctuelle notes/bulletins avec logique API locale ancienne |
-| `scripts/visual-audit-profile.mjs` | Historique, non bloquant CI | Recette ponctuelle profil |
+| `Frontend/web-admin/scripts/auth-iam-visual-audit.mjs` | Legacy | Ancienne recette authentification/IAM |
+| `Frontend/web-admin/scripts/auth-visual-audit.mjs` | Legacy | Ancienne recette authentification |
+| `Frontend/web-admin/scripts/dashboard-visual-audit.mjs` | Legacy | Ancienne recette tableau de bord |
+| `Frontend/web-admin/scripts/enrollments-visual-audit.mjs` | Legacy | Ancienne recette inscriptions |
+| `Frontend/web-admin/scripts/finance-visual-audit.mjs` | Legacy | Ancienne recette comptabilite |
+| `Frontend/web-admin/scripts/iam-visual-audit.mjs` | Legacy | Ancienne recette IAM |
+| `Frontend/web-admin/scripts/parents-visual-audit.mjs` | Legacy | Ancienne recette parents |
+| `Frontend/web-admin/scripts/rooms-visual-audit.mjs` | Legacy | Ancienne recette salles |
+| `Frontend/web-admin/scripts/students-visual-audit.mjs` | Legacy | Ancienne recette eleves |
+| `Frontend/web-admin/scripts/teachers-visual-audit.mjs` | Legacy | Ancienne recette enseignants |
+| `Frontend/web-admin/scripts/visual-audit.mjs` | Legacy | Ancien audit multi-ecrans |
+| `scripts/visual-audit-notes-bulletins.mjs` | Legacy | Ancienne recette notes/bulletins |
+| `scripts/visual-audit-profile.mjs` | Legacy | Ancienne recette profil |
 
-Les scripts historiques restent disponibles pour comparer des ecrans specialises,
-mais ils ne constituent plus une preuve de release. Leur suppression ou migration
-doit etre faite pendant le decoupage frontend, pas dans le LOT 7.
+Ces 13 scripts historiques restent disponibles pour comparer des ecrans
+specialises, mais ils ne sont appeles ni par la CI ni par les scripts de release
+et ne constituent pas une preuve de release. Le nombre de 14 mentionne dans le
+brief LOT 8A n'est pas retrouve dans l'arbre courant : aucun quatorzieme script
+ne doit etre invente. Leur suppression ou migration releve du LOT 8D.
 
 ## Resultat de reference du LOT 7
 

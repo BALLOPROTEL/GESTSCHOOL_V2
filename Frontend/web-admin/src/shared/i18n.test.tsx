@@ -9,6 +9,7 @@ const DASHBOARD_SOURCE = "Tableau de bord";
 const CREATE_STUDENT_SOURCE = "Créer un élève";
 const SEARCH_SOURCE = "Rechercher un module, un écran, une action...";
 const PREVIEW_SOURCE = "Mode aperçu local";
+const FEATURE_DISABLED_SOURCE = "Fonctionnalité désactivée";
 
 function TranslationHarness({ language }: { language: UiLanguage }): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -55,5 +56,14 @@ describe("useDomTranslation", () => {
     expect(screen.getByLabelText(SEARCH_SOURCE)).toBeInTheDocument();
     expect(screen.queryByText(translateUiString("ar", DASHBOARD_SOURCE))).not.toBeInTheDocument();
     expect(screen.queryByText(translateUiString("en", DASHBOARD_SOURCE))).not.toBeInTheDocument();
+  });
+
+  it("traduit l'etat d'une fonctionnalite desactivee en anglais et en arabe", () => {
+    expect(translateUiString("en", FEATURE_DISABLED_SOURCE)).toBe("Feature disabled");
+    expect(translateUiString("ar", FEATURE_DISABLED_SOURCE)).toBe("الميزة معطلة");
+    expect(
+      translateUiString("en", "Cette fonctionnalité n’est pas activée dans cet environnement.")
+    ).toBe("This feature is not enabled in this environment.");
+    expect(translateUiString("ar", "Ouvrir mon profil")).toBe("فتح ملفي الشخصي");
   });
 });

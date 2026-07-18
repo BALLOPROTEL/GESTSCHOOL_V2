@@ -2,7 +2,7 @@ import { useEffect, type RefObject } from "react";
 
 import type { Role, ScreenId, Session } from "../shared/types/app";
 import type { UiLanguage } from "../shared/i18n";
-import { hasScreenAccess, ROLE_HOME_SCREEN } from "./navigation/screen-registry";
+import { hasScreenRoleAccess, ROLE_HOME_SCREEN } from "./navigation/screen-registry";
 import { isLocalPreviewRoute } from "./preview/preview-mode";
 import { decorateResponsiveTables } from "./shell/responsive-tables";
 
@@ -142,7 +142,7 @@ export function useAppShellEffects({
 
   useEffect(() => {
     if (!currentRole) return;
-    if (hasScreenAccess(currentRole, tab)) return;
+    if (hasScreenRoleAccess(currentRole, tab)) return;
     setTab(ROLE_HOME_SCREEN[currentRole] || "dashboard");
   }, [currentRole, setTab, tab]);
 

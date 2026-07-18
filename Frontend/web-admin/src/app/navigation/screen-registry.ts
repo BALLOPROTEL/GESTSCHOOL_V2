@@ -4,6 +4,11 @@ import type {
   ScreenDef,
   ScreenId
 } from "../../shared/types/app";
+import {
+  FEATURE_FLAGS,
+  isScreenFeatureEnabled,
+  type FeatureFlags
+} from "../../shared/config/feature-flags";
 export const SCREEN_DEFS: ScreenDef[] = [
   { id: "dashboard", label: "Tableau de bord", group: "principal", roles: ["ADMIN", "SCOLARITE", "COMPTABLE"] },
   { id: "profile", label: "Mon profil", group: "principal", roles: ["ADMIN", "SCOLARITE", "ENSEIGNANT", "COMPTABLE", "PARENT", "STUDENT"] },
@@ -49,8 +54,31 @@ export const ROLE_CONTEXT_LABELS: Record<Role, string> = {
   STUDENT: "Espace élève"
 };
 
-export const hasScreenAccess = (role: Role, screen: ScreenId): boolean =>
+export const hasScreenRoleAccess = (role: Role, screen: ScreenId): boolean =>
   SCREEN_DEFS.some((entry) => entry.id === screen && entry.roles.includes(role));
+
+export type ScreenAccessDecision =
+  | "allowed"
+  | "feature-disabled"
+  | "role-forbidden"
+  | "unauthenticated";
+
+export const getScreenAccessDecision = (
+  role: Role | null,
+  screen: ScreenId,
+  flags: FeatureFlags = FEATURE_FLAGS
+): ScreenAccessDecision => {
+  if (!role) return "unauthenticated";
+  if (!hasScreenRoleAccess(role, screen)) return "role-forbidden";
+  if (!isScreenFeatureEnabled(screen, flags)) return "feature-disabled";
+  return "allowed";
+};
+
+export const hasScreenAccess = (
+  role: Role,
+  screen: ScreenId,
+  flags: FeatureFlags = FEATURE_FLAGS
+): boolean => getScreenAccessDecision(role, screen, flags) === "allowed";
 
 export const MODULE_TILES: ModuleTile[] = [
   {

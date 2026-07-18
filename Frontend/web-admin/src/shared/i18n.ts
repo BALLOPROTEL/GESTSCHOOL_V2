@@ -938,6 +938,10 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Aucune action prioritaire pour ce profil.": "No priority action for this profile.",
     "Retour accueil": "Back home",
     "Retour tableau de bord": "Back to dashboard",
+    "Fonctionnalité désactivée": "Feature disabled",
+    "Cette fonctionnalité n’est pas activée dans cet environnement.":
+      "This feature is not enabled in this environment.",
+    "Ouvrir mon profil": "Open my profile",
     "Module actif": "Active module",
     "Liste des salles": "Room list",
     "Ajouter une salle": "Add room",
@@ -2356,6 +2360,10 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Aucune action prioritaire pour ce profil.": "لا يوجد إجراء ذو أولوية لهذا الملف.",
     "Retour accueil": "العودة إلى الرئيسية",
     "Retour tableau de bord": "العودة إلى لوحة التحكم",
+    "Fonctionnalité désactivée": "الميزة معطلة",
+    "Cette fonctionnalité n’est pas activée dans cet environnement.":
+      "هذه الميزة غير مفعلة في هذه البيئة.",
+    "Ouvrir mon profil": "فتح ملفي الشخصي",
     "Module actif": "الوحدة النشطة",
     "Liste des salles": "قائمة القاعات",
     "Ajouter une salle": "إضافة قاعة",
