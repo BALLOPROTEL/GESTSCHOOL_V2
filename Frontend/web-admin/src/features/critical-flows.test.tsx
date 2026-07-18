@@ -29,7 +29,7 @@ import type {
   TeacherWorkloadRecord,
   UserAccount
 } from "../shared/types/app";
-import { translateUiString } from "../shared/i18n";
+import { translateUiString, type UiLanguage } from "../shared/i18n";
 import { AuthScreen } from "./auth-screen";
 import { DashboardScreen } from "./dashboard-screen";
 import { EnrollmentsScreen } from "./enrollments/enrollments-screen";
@@ -690,6 +690,36 @@ function renderAuthScreen(overrides: Partial<AuthScreenTestProps> = {}) {
   return render(<AuthScreen {...defaultProps} {...overrides} />);
 }
 
+type DashboardScreenTestProps = ComponentProps<typeof DashboardScreen>;
+
+function buildDashboardProps(language: UiLanguage): DashboardScreenTestProps {
+  return {
+    currentRole: "ADMIN",
+    invoices: [],
+    classesCount: 2,
+    reportCards: [],
+    recovery,
+    students: [student],
+    enrollments: [],
+    MosqueeDashboard: null,
+    parentOverview: null,
+    parentChildren: [],
+    parentInvoices: [],
+    parentNotifications: [],
+    teacherOverview: null,
+    teacherClasses: [],
+    teacherStudentsCount: 0,
+    teacherGradesCount: 0,
+    teacherNotifications: [],
+    language,
+    mobileTasksOpen: true,
+    onSelectScreen: vi.fn(),
+    onToggleMobileTasks: vi.fn(),
+    formatMoney: (value) => `${value} CFA`,
+    hasScreenAccess: () => true
+  };
+}
+
 describe("critical frontend flows", () => {
   it("couvre l'ecran login avec statut API et actions d'assistance", () => {
     const handleLoginChange = vi.fn();
@@ -891,32 +921,7 @@ describe("critical frontend flows", () => {
   });
 
   it("affiche le dashboard sans le hero marketing supprime", () => {
-    render(
-      <DashboardScreen
-        currentRole="ADMIN"
-        invoices={[]}
-        classesCount={2}
-        reportCards={[]}
-        recovery={recovery}
-        students={[student]}
-        enrollments={[]}
-        MosqueeDashboard={null}
-        parentOverview={null}
-        parentChildren={[]}
-        parentInvoices={[]}
-        parentNotifications={[]}
-        teacherOverview={null}
-        teacherClasses={[]}
-        teacherStudentsCount={0}
-        teacherGradesCount={0}
-        teacherNotifications={[]}
-        mobileTasksOpen
-        onSelectScreen={vi.fn()}
-        onToggleMobileTasks={vi.fn()}
-        formatMoney={(value) => `${value} CFA`}
-        hasScreenAccess={() => true}
-      />
-    );
+    render(<DashboardScreen {...buildDashboardProps("fr")} />);
 
     expect(screen.queryByText(/Accueil simplifie/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Tableau de bord clair et actionnable/i)).not.toBeInTheDocument();
@@ -925,6 +930,50 @@ describe("critical frontend flows", () => {
     expect(screen.getByRole("heading", { name: "Tâches prioritaires" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Alertes & suivi" })).toBeInTheDocument();
     expect(screen.getAllByText("Élèves").length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    {
+      language: "fr" as const,
+      expected: [
+        "Bienvenue, voici l'état opérationnel de l'établissement aujourd'hui.",
+        "Recouvrement & encaissements",
+        "Lecture rapide issue des factures disponibles.",
+        "Suivi opérationnel",
+        "Indicateurs clés du périmètre visible."
+      ]
+    },
+    {
+      language: "en" as const,
+      expected: [
+        "Welcome. Here is today's operational overview of the school.",
+        "Collections & payments",
+        "Quick overview based on available invoices.",
+        "Operational monitoring",
+        "Key indicators for the visible scope."
+      ]
+    },
+    {
+      language: "ar" as const,
+      expected: [
+        "مرحبًا، إليك النظرة التشغيلية للمؤسسة التعليمية اليوم.",
+        "التحصيل والمدفوعات",
+        "نظرة سريعة استنادًا إلى الفواتير المتاحة.",
+        "المتابعة التشغيلية",
+        "المؤشرات الرئيسية للنطاق المعروض."
+      ]
+    }
+  ])("traduit les contenus critiques du dashboard en $language", ({ expected, language }) => {
+    render(<DashboardScreen {...buildDashboardProps(language)} />);
+
+    for (const label of expected) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+
+    if (language !== "fr") {
+      expect(screen.queryByText("Recouvrement & encaissements")).not.toBeInTheDocument();
+      expect(screen.queryByText("Suivi opérationnel")).not.toBeInTheDocument();
+    }
   });
 
   it("traduit les libelles visibles critiques du dashboard et du header", () => {
@@ -953,7 +1002,13 @@ describe("critical frontend flows", () => {
       "Passer de Français à Anglais",
       "Créer un élève",
       "Santé financière",
-      "Rapports & conformité"
+      "Rapports & conformité",
+      "Bienvenue, voici l'état opérationnel de l'établissement aujourd'hui.",
+      "Recouvrement & encaissements",
+      "Lecture rapide issue des factures disponibles.",
+      "Suivi opérationnel",
+      "Indicateurs clés du périmètre visible.",
+      "Liste des inscriptions"
     ];
 
     for (const source of criticalSources) {
@@ -963,6 +1018,31 @@ describe("critical frontend flows", () => {
     }
 
     expect(translateUiString("ar", "Classes")).not.toBe("Classes");
+  });
+
+  it.each([
+    { language: "fr" as const, expected: "Liste des inscriptions" },
+    { language: "en" as const, expected: "Enrollment list" },
+    { language: "ar" as const, expected: "قائمة التسجيلات" }
+  ])("traduit le titre dynamique des inscriptions en $language", ({ expected, language }) => {
+    render(
+      <EnrollmentsScreen
+        api={failingApi}
+        classes={[classroom, arabophoneClassroom]}
+        initialEnrollments={[enrollment]}
+        language={language}
+        onError={vi.fn()}
+        onNotice={vi.fn()}
+        remoteEnabled={false}
+        schoolYears={[schoolYear]}
+        students={[student]}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: `${expected} (1)` })).toBeInTheDocument();
+    if (language !== "fr") {
+      expect(screen.queryByText(/Liste des inscriptions/u)).not.toBeInTheDocument();
+    }
   });
 
   it("monte les flux eleves, inscriptions et bulletins avec des donnees bi-cursus", async () => {

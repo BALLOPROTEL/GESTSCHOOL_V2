@@ -12,7 +12,7 @@ import type {
   SchoolYear,
   Student
 } from "../../shared/types/app";
-import type { UiLanguage } from "../../shared/i18n";
+import { translateUiString, type UiLanguage } from "../../shared/i18n";
 import { useEnrollmentsData } from "./hooks/use-enrollments-data";
 import type { EnrollmentsApiClient } from "./types/enrollments";
 
@@ -108,6 +108,7 @@ export function EnrollmentsScreen({
   onError,
   onNotice
 }: EnrollmentsScreenProps): JSX.Element {
+  const t = (source: string): string => translateUiString(language, source);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
   const [enrollmentSearch, setEnrollmentSearch] = useState("");
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
@@ -223,12 +224,12 @@ export function EnrollmentsScreen({
     <div className="enrollments-v3-shell">
       <header className="enrollments-v3-page-header">
         <div>
-          <h1>Inscriptions</h1>
+          <h1>{t("Inscriptions")}</h1>
           <p>Gérez les admissions, placements et rattachements académiques des élèves.</p>
         </div>
         {enrollmentWorkflowStep === "create" ? (
           <button type="button" className="button-ghost" onClick={showEnrollmentList}>
-            Liste des inscriptions
+            {t("Liste des inscriptions")}
           </button>
         ) : (
           <button type="button" onClick={openEnrollmentForm}>
@@ -445,7 +446,9 @@ export function EnrollmentsScreen({
           >
             <div className="enrollments-v3-table-head">
               <div>
-                <h2>Liste des inscriptions ({displayedEnrollments.length})</h2>
+                <h2>
+                  {t("Liste des inscriptions")} ({displayedEnrollments.length})
+                </h2>
                 <p>{activeStudentCount} élève(s) actif(s), placements issus des dossiers validés.</p>
               </div>
               <span className="students-overview-status">

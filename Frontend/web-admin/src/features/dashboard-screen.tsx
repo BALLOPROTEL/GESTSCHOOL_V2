@@ -16,6 +16,7 @@ import type {
   TeacherOverview
 } from "../shared/types/app";
 import { ModuleIcon } from "../shared/components/module-icon";
+import { translateUiString, type UiLanguage } from "../shared/i18n";
 
 type DashboardScreenProps = {
   currentRole: Role | null;
@@ -35,6 +36,7 @@ type DashboardScreenProps = {
   teacherStudentsCount: number;
   teacherGradesCount: number;
   teacherNotifications: PortalNotification[];
+  language?: UiLanguage;
   mobileTasksOpen: boolean;
   onSelectScreen: (screen: ScreenId) => void;
   onToggleMobileTasks: () => void;
@@ -50,6 +52,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
     formatMoney,
     hasScreenAccess,
     invoices,
+    language = "fr",
     mobileTasksOpen,
     MosqueeDashboard,
     onSelectScreen,
@@ -71,6 +74,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
   if (!currentRole) {
     return <></>;
   }
+
+  const t = (source: string): string => translateUiString(language, source);
 
   const openInvoices = invoices.filter((item) => item.status !== "PAID").length;
   const pendingReports = Math.max(0, classesCount - reportCards.length);
@@ -408,13 +413,13 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
       ? "Vue rapide du suivi familial et des notifications utiles."
       : currentRole === "ENSEIGNANT"
         ? "Vue rapide de vos classes, élèves et actions pédagogiques."
-        : "Bienvenue, voici l'état opérationnel de l'établissement aujourd'hui.";
+        : t("Bienvenue, voici l'état opérationnel de l'établissement aujourd'hui.");
 
   return (
     <div className="dashboard-shell-v2">
       <header className="dashboard-page-header">
         <div>
-          <h1>Tableau de bord</h1>
+          <h1>{t("Tableau de bord")}</h1>
           <p>{dashboardSubtitle}</p>
         </div>
       </header>
@@ -438,8 +443,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         <article className="panel dashboard-panel-shell dashboard-visual-panel">
           <div className="dashboard-visual-head">
             <div>
-              <h3>Recouvrement & encaissements</h3>
-              <p>Lecture rapide issue des factures disponibles.</p>
+              <h3>{t("Recouvrement & encaissements")}</h3>
+              <p>{t("Lecture rapide issue des factures disponibles.")}</p>
             </div>
           </div>
 
@@ -473,8 +478,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         <article className="panel dashboard-panel-shell dashboard-visual-panel">
           <div className="dashboard-visual-head">
             <div>
-              <h3>Suivi opérationnel</h3>
-              <p>Indicateurs clés du périmètre visible.</p>
+              <h3>{t("Suivi opérationnel")}</h3>
+              <p>{t("Indicateurs clés du périmètre visible.")}</p>
             </div>
           </div>
 

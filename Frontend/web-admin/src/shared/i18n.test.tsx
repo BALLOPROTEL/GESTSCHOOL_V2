@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
 
-import { translateUiString, useDomTranslation } from "./i18n";
+import { translateUiString, UI_LANGUAGE_META, useDomTranslation } from "./i18n";
 import type { UiLanguage } from "./i18n";
 
 const DASHBOARD_SOURCE = "Tableau de bord";
@@ -15,7 +15,7 @@ function TranslationHarness({ language }: { language: UiLanguage }): JSX.Element
   useDomTranslation(rootRef, language);
 
   return (
-    <div ref={rootRef}>
+    <div ref={rootRef} data-testid="translation-root" dir={UI_LANGUAGE_META[language].dir}>
       <h1>{DASHBOARD_SOURCE}</h1>
       <button type="button">{CREATE_STUDENT_SOURCE}</button>
       <input aria-label={SEARCH_SOURCE} placeholder={SEARCH_SOURCE} />
@@ -34,6 +34,7 @@ describe("useDomTranslation", () => {
 
     rerender(<TranslationHarness language="ar" />);
 
+    expect(screen.getByTestId("translation-root")).toHaveAttribute("dir", "rtl");
     expect(screen.getByText(translateUiString("ar", DASHBOARD_SOURCE))).toBeInTheDocument();
     expect(screen.getByRole("button", { name: translateUiString("ar", CREATE_STUDENT_SOURCE) })).toBeInTheDocument();
     expect(screen.getByLabelText(translateUiString("ar", SEARCH_SOURCE))).toBeInTheDocument();
@@ -41,6 +42,7 @@ describe("useDomTranslation", () => {
 
     rerender(<TranslationHarness language="en" />);
 
+    expect(screen.getByTestId("translation-root")).toHaveAttribute("dir", "ltr");
     expect(screen.getByText(translateUiString("en", DASHBOARD_SOURCE))).toBeInTheDocument();
     expect(screen.getByRole("button", { name: translateUiString("en", CREATE_STUDENT_SOURCE) })).toBeInTheDocument();
     expect(screen.getByLabelText(translateUiString("en", SEARCH_SOURCE))).toBeInTheDocument();

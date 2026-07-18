@@ -921,3 +921,65 @@ frontend, sans melanger cette dette au LOT 7.
 
 Message de commit propose :
 `test(web-admin): make visual audits strict and deterministic`.
+
+## LOT 7A - Correction des anomalies i18n du gate visuel (2026-07-18)
+
+### Diagnostic des 14 constats
+
+| # | Route | Langue | Constat avant correction | Traduction attendue | Source |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `/app/dashboard` | EN | `Bienvenue, voici` visible | `Welcome. Here is today's operational overview of the school.` | Chaine directe dans `dashboard-screen.tsx` |
+| 2 | `/app/dashboard` | EN | `Recouvrement & encaissements` visible | `Collections & payments` | Chaine directe dans `dashboard-screen.tsx` |
+| 3 | `/app/dashboard` | EN | `Lecture rapide issue` visible | `Quick overview based on available invoices.` | Chaine directe dans `dashboard-screen.tsx` |
+| 4 | `/app/dashboard` | EN | `Suivi operationnel` visible | `Operational monitoring` | Chaine directe dans `dashboard-screen.tsx` |
+| 5 | `/app/dashboard` | EN | `Indicateurs cles` visible | `Key indicators for the visible scope.` | Chaine directe dans `dashboard-screen.tsx` |
+| 6 | `/app/dashboard` | AR | `Bienvenue, voici` visible | `مرحبًا، إليك النظرة التشغيلية للمؤسسة التعليمية اليوم.` | Chaine directe dans `dashboard-screen.tsx` |
+| 7 | `/app/dashboard` | AR | `Recouvrement & encaissements` visible | `التحصيل والمدفوعات` | Chaine directe dans `dashboard-screen.tsx` |
+| 8 | `/app/dashboard` | AR | `Lecture rapide issue` visible | `نظرة سريعة استنادًا إلى الفواتير المتاحة.` | Chaine directe dans `dashboard-screen.tsx` |
+| 9 | `/app/dashboard` | AR | `Suivi operationnel` visible | `المتابعة التشغيلية` | Chaine directe dans `dashboard-screen.tsx` |
+| 10 | `/app/dashboard` | AR | `Indicateurs cles` visible | `المؤشرات الرئيسية للنطاق المعروض.` | Chaine directe dans `dashboard-screen.tsx` |
+| 11 | `/app/enrollments` | EN | Titre `Enrollment list` absent | `Enrollment list` | Titre dynamique dans `enrollments-screen.tsx` |
+| 12 | `/app/enrollments` | EN | `Liste des inscriptions` visible | Aucun titre francais visible | Titre dynamique dans `enrollments-screen.tsx` |
+| 13 | `/app/enrollments` | AR | Titre `قائمة التسجيلات` absent | `قائمة التسجيلات` | Titre dynamique dans `enrollments-screen.tsx` |
+| 14 | `/app/enrollments` | AR | `Liste des inscriptions` visible | Aucun titre francais visible | Titre dynamique dans `enrollments-screen.tsx` |
+
+Les cinq textes du dashboard contournaient le systeme i18n parce qu'ils etaient
+rendus directement par le composant. Le titre des inscriptions concatenaient le
+compteur avant le passage du traducteur DOM : `Liste des inscriptions (3)` ne
+correspondait donc jamais a la cle exacte `Liste des inscriptions`. Aucun constat
+ne provenait de l'API, d'une donnee metier ou d'une fixture d'audit.
+
+### Correction et tests
+
+Les six cles d'interface ont ete centralisees dans `shared/i18n.ts`, avec une
+traduction anglaise et une traduction arabe naturelle. Les deux ecrans traduisent
+desormais la cle avant de rendre le texte dynamique. `App.tsx` transmet la langue
+active au dashboard. Le francais reste la valeur par defaut et l'arabe conserve
+la direction `rtl` fournie par les metadonnees i18n existantes. Aucune traduction
+n'a ete dupliquee dans les composants et aucune donnee metier n'a ete modifiee.
+
+Les tests ciblent le dashboard et les inscriptions en FR, EN et AR, chaque cle
+ajoutee, l'absence des anciens titres francais en EN/AR et la direction RTL. Le
+collecteur, les fixtures, les regles d'echec et l'allowlist n'ont pas ete modifies.
+
+| Controle | Resultat |
+| --- | --- |
+| Tests i18n et parcours critiques cibles | OK, 2 fichiers et 23 tests |
+| Tests frontend complets | OK, 31 suites et 70 tests |
+| Lint frontend | OK |
+| Build frontend | OK |
+| Smoke frontend | OK |
+| Audit mocked complet | OK, 121/121 workflows, 0 constat |
+| Audit mocked CI | OK, 61/61 workflows, 0 constat |
+| Erreurs API/console/pageerror/loading/overflow | 0 dans les deux rapports |
+| Allowlist | Vide |
+| Audit integrated | Non relance : PostgreSQL, Redis et API locale indisponibles pendant cette passe |
+| `git diff --check` | OK avant documentation finale |
+
+Verdict LOT 7A : **GO** pour revue. Les quatorze constats sont corriges sans
+exception, sans allowlist et sans modification du mecanisme d'audit. Le mode
+integre pourra etre relance des qu'un environnement PostgreSQL/Redis/API isole est
+disponible ; cette limite ne remet pas en cause les deux gates mocked valides.
+
+Message de commit propose :
+`fix(web-admin): translate dashboard and enrollment audit labels`.

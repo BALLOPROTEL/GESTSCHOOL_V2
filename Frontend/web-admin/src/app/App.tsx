@@ -770,6 +770,7 @@ export function App(): JSX.Element {
         teacherStudentsCount={teacherStudents.length}
         teacherGradesCount={teacherGrades.length}
         teacherNotifications={teacherNotifications}
+        language={uiLanguage}
         mobileTasksOpen={mobileTasksOpen}
         onSelectScreen={setTab}
         onToggleMobileTasks={() => setMobileTasksOpen((prev) => !prev)}
