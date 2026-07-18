@@ -102,11 +102,20 @@ Global :
 ```bash
 pnpm lint
 pnpm build
-pnpm visual:audit:core
+pnpm visual:audit:lint
+pnpm visual:audit:test
+pnpm visual:audit:mocked
 git diff --check
 ```
 
-La recette visuelle `visual:audit:core` vérifie les écrans Tableau de bord, Mon profil, Notes & bulletins, Comptabilité et Élèves en mode aperçu local. Elle écrit les captures et le rapport JSON dans `/tmp/gestschool-core-visual-audit/<run-id>`.
+La recette visuelle exige maintenant un mode explicite. `visual:audit:mocked`
+intercepte uniquement des routes API declarees et versionnees ; toute route non
+mockee ou erreur navigateur est bloquante. `visual:audit:integrated` utilise une
+API, PostgreSQL, Redis et un compte de test reels sans interception metier. Les
+captures, traces d'echec et le rapport JSON sont ecrits dans
+`VISUAL_AUDIT_OUTPUT/<run-id>`. Voir
+`docs/runbooks/visual-audit.md` pour le perimetre, les variables et la politique
+d'allowlist.
 
 ## Tests e2e API avec PostgreSQL
 

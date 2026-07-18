@@ -1,64 +1,170 @@
-import { mkdir, writeFile } from "node:fs/promises";
+// @ts-check
+
+import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
+
+import { mockApiV1Routes, MOCK_FIXTURE_VERSION } from "./visual-audit/fixtures/mock-api-v1.mjs";
+import { createAuditGuard } from "./visual-audit/lib/audit-guard.mjs";
 
 const require = createRequire(new URL("../Frontend/web-admin/package.json", import.meta.url));
 const { chromium } = require("playwright");
 
+const mode = (process.env.VISUAL_AUDIT_MODE || "").trim().toLowerCase();
+if (mode !== "mocked" && mode !== "integrated") {
+  throw new Error("VISUAL_AUDIT_MODE est obligatoire et doit valoir mocked ou integrated.");
+}
+
 const baseUrl = process.env.VISUAL_AUDIT_URL || "http://127.0.0.1:5180";
 const outputRoot = process.env.VISUAL_AUDIT_OUTPUT || "/tmp/gestschool-core-visual-audit";
 const auditScope = (process.env.VISUAL_AUDIT_SCOPE || "full").trim().toLowerCase();
-const isCiAudit = auditScope === "ci";
 const runId = new Date().toISOString().replace(/[:.]/gu, "-");
 const outputDir = path.join(outputRoot, runId);
 
+const integratedCredentials = {
+  username: process.env.VISUAL_AUDIT_USERNAME || "",
+  password: process.env.VISUAL_AUDIT_PASSWORD || ""
+};
+if (mode === "integrated" && (!integratedCredentials.username || !integratedCredentials.password)) {
+  throw new Error("Le mode integrated exige VISUAL_AUDIT_USERNAME et VISUAL_AUDIT_PASSWORD.");
+}
+
 const storageKeys = {
   language: "gestschool.web-admin.language",
+  loginHint: "gestschool.web-admin.login-hint",
   session: "gestschool.web-admin.session",
   theme: "gestschool.web-admin.theme"
 };
 
 const viewports = {
-  desktopLarge: { width: 1920, height: 1080 },
+  mobileNarrow: { width: 360, height: 800 },
+  mobileLarge: { width: 414, height: 896 },
+  tabletPortrait: { width: 768, height: 1024 },
+  tabletLandscape: { width: 1024, height: 768 },
   desktop: { width: 1440, height: 900 },
-  laptop: { width: 1366, height: 768 },
-  desktopNarrow: { width: 1220, height: 760 },
-  tablet: { width: 768, height: 1024 },
-  tabletWide: { width: 1024, height: 768 },
-  mobile: { width: 414, height: 896 },
-  mobileSmall: { width: 360, height: 800 }
+  desktopLarge: { width: 1920, height: 1080 },
+  zoom200: { width: 720, height: 450 }
 };
 
-const requiredViewportThemes = [
-  ["desktopLarge", "light"],
-  ["desktopLarge", "dark"],
-  ["desktop", "light"],
-  ["desktop", "dark"],
-  ["laptop", "light"],
-  ["laptop", "dark"],
-  ["tabletWide", "light"],
-  ["tabletWide", "dark"],
-  ["tablet", "light"],
-  ["tablet", "dark"],
-  ["mobile", "light"],
-  ["mobile", "dark"],
-  ["mobileSmall", "light"],
-  ["mobileSmall", "dark"]
+const allWorkflows = [
+  { key: "dashboard", nav: /Tableau de bord/u, required: ["Tâches prioritaires", "Alertes & suivi"] },
+  { key: "students", nav: /Élèves|Eleves/u, required: ["Élèves", "Ajouter un élève"] },
+  { key: "teachers", nav: /Enseignants/u, required: ["Enseignants", "Base enseignants"] },
+  { key: "iam", nav: /Utilisateurs & droits/u, required: ["Comptes utilisateurs", "Droits par profil"] },
+  { key: "enrollments", nav: /Inscriptions/u, required: ["Inscriptions", "Liste des inscriptions"] },
+  { key: "finance", nav: /Comptabilité/u, required: ["Console de recouvrement"] },
+  { key: "grades", nav: /Notes & bulletins/u, required: ["Vue d’ensemble", "Saisie des notes", "Bulletins"] },
+  { key: "attendance", nav: /Absences/u, required: ["Absences", "Journal des absences"] },
+  { key: "rooms", nav: /Salles/u, required: ["Salles", "Ajouter une salle"] },
+  { key: "timetable", nav: /Emploi du temps/u, required: ["Emploi du temps", "Grille d'emploi du temps"] },
+  { key: "notifications", nav: /Notifications/u, required: ["Notifications", "Historique notifications"] },
+  { key: "reference", nav: /Référentiel/u, required: ["Annee scolaire"] },
+  { key: "pilotage", nav: /Pilotage/u, required: ["CONSOLE OPÉRATIONNELLE", "Scolarité", "Finance"] },
+  { key: "parents", nav: /Parents/u, required: ["Liste des responsables"] },
+  { key: "reports", nav: /Rapports & conformité/u, required: ["Indicateurs executifs"] }
 ];
 
-const ciViewportThemes = [
-  ["desktop", "light"],
-  ["tablet", "dark"],
-  ["mobile", "light"]
+const criticalKeys = new Set(["dashboard", "students", "enrollments", "finance", "grades"]);
+
+const fullVariants = [
+  { viewport: "desktop", theme: "light" },
+  { viewport: "desktop", theme: "dark" },
+  { viewport: "mobileLarge", theme: "light" },
+  { viewport: "mobileLarge", theme: "dark" }
+];
+const criticalVariants = [
+  { viewport: "mobileNarrow", theme: "light" },
+  { viewport: "mobileNarrow", theme: "dark" },
+  { viewport: "tabletPortrait", theme: "light" },
+  { viewport: "tabletPortrait", theme: "dark" },
+  { viewport: "tabletLandscape", theme: "light" },
+  { viewport: "tabletLandscape", theme: "dark" },
+  { viewport: "desktopLarge", theme: "light" },
+  { viewport: "desktopLarge", theme: "dark" },
+  { viewport: "zoom200", theme: "light" }
+];
+const ciVariants = [
+  { viewport: "desktop", theme: "light" },
+  { viewport: "mobileLarge", theme: "dark" }
+];
+const ciCriticalVariants = [
+  { viewport: "mobileNarrow", theme: "light" },
+  { viewport: "tabletPortrait", theme: "light" },
+  { viewport: "zoom200", theme: "light" }
 ];
 
-const activeViewportThemes = isCiAudit ? ciViewportThemes : requiredViewportThemes;
+const guard = createAuditGuard({
+  mode,
+  mockRoutes: mode === "mocked" ? mockApiV1Routes : [],
+  allowlist: []
+});
+const workflowResults = [];
 
-const screenshots = [];
-const findings = [];
-const consoleErrors = [];
-const networkErrors = [];
-const ignoredLocalApiErrors = [];
+const localizedCriticalContent = {
+  dashboard: {
+    ar: {
+      forbidden: ["Bienvenue, voici", "Recouvrement & encaissements", "Suivi opérationnel", "Lecture rapide issue", "Indicateurs clés"],
+      nav: /لوحة القيادة/u,
+      required: ["المهام ذات الأولوية", "تنبيهات ومتابعة"]
+    },
+    en: {
+      forbidden: ["Bienvenue, voici", "Recouvrement & encaissements", "Suivi opérationnel", "Lecture rapide issue", "Indicateurs clés"],
+      nav: /Dashboard/u,
+      required: ["Priority tasks", "Alerts & follow-up"]
+    }
+  },
+  enrollments: {
+    ar: {
+      forbidden: ["Inscriptions", "Liste des inscriptions"],
+      nav: /التسجيلات/u,
+      required: ["التسجيلات", "قائمة التسجيلات"]
+    },
+    en: {
+      forbidden: ["Inscriptions", "Liste des inscriptions"],
+      nav: /Enrollments/u,
+      required: ["Enrollments", "Enrollment list"]
+    }
+  },
+  finance: {
+    ar: {
+      forbidden: ["Comptabilité", "Console de recouvrement"],
+      nav: /المحاسبة/u,
+      required: ["لوحة التحصيل"]
+    },
+    en: {
+      forbidden: ["Comptabilité", "Console de recouvrement"],
+      nav: /Accounting/u,
+      required: ["Collection console"]
+    }
+  },
+  grades: {
+    ar: {
+      forbidden: ["Notes & bulletins", "Saisie des notes", "Bulletins"],
+      nav: /الدرجات وكشوف النتائج/u,
+      required: ["إدخال الدرجات"]
+    },
+    en: {
+      forbidden: ["Notes & bulletins", "Saisie des notes", "Bulletins"],
+      nav: /Grades & report cards/u,
+      required: ["Grade entry"]
+    }
+  },
+  students: {
+    ar: {
+      forbidden: ["Élèves", "Ajouter un élève"],
+      nav: /الطلاب/u,
+      required: ["الطلاب", "إضافة طالب"]
+    },
+    en: {
+      forbidden: ["Élèves", "Ajouter un élève"],
+      nav: /Students/u,
+      required: ["Students", "Add student"]
+    }
+  }
+};
+
+const contentFor = (workflow, language) =>
+  language === "fr" ? undefined : localizedCriticalContent[workflow.key]?.[language];
 
 const safeName = (value) =>
   value
@@ -68,689 +174,387 @@ const safeName = (value) =>
     .replace(/[^a-z0-9]+/gu, "-")
     .replace(/^-|-$/gu, "");
 
-const isExpectedLocalApiFailure = (value) =>
-  value.includes("127.0.0.1") && value.includes("/api/v1/");
+const localeFor = (language) => (language === "ar" ? "ar-SA" : language === "en" ? "en-US" : "fr-FR");
 
-async function createContext(browser, viewport, theme = "light") {
+async function createContext(browser, metadata) {
+  const viewport = viewports[metadata.viewport];
   const context = await browser.newContext({
-    colorScheme: theme,
+    colorScheme: metadata.theme,
     deviceScaleFactor: 1,
-    hasTouch: viewport.width <= 768,
+    hasTouch: viewport.width <= 1024,
     isMobile: viewport.width <= 480,
-    locale: "fr-FR",
+    locale: localeFor(metadata.language),
+    timezoneId: "Europe/Paris",
     viewport
   });
-
+  await guard.attachContext(context, metadata);
   await context.addInitScript(
-    ({ keys, selectedTheme }) => {
+    ({ keys, language, theme }) => {
       try {
-        window.localStorage.setItem(keys.language, "fr");
-        window.localStorage.setItem(keys.theme, selectedTheme);
+        window.localStorage.setItem(keys.language, language);
+        window.localStorage.setItem(keys.theme, theme);
+        window.localStorage.removeItem(keys.loginHint);
         window.localStorage.removeItem(keys.session);
         window.sessionStorage.removeItem(keys.session);
       } catch {
-        // Opaque initial documents do not expose storage yet.
+        // The first opaque document has no storage access.
       }
     },
-    { keys: storageKeys, selectedTheme: theme }
+    { keys: storageKeys, language: metadata.language, theme: metadata.theme }
   );
-
-  context.on("page", (page) => {
-    page.on("console", (message) => {
-      if (message.type() !== "error") return;
-      const location = message.location();
-      const source = location.url ? ` (${location.url}:${location.lineNumber})` : "";
-      const entry = `${message.text()}${source}`;
-      if (isExpectedLocalApiFailure(entry)) {
-        ignoredLocalApiErrors.push(entry);
-        return;
-      }
-      consoleErrors.push(entry);
-    });
-    page.on("pageerror", (error) => consoleErrors.push(error.message));
-    page.on("response", (response) => {
-      if (response.status() < 400) return;
-      const entry = `HTTP ${response.status()} ${response.url()}`;
-      if (isExpectedLocalApiFailure(entry)) {
-        ignoredLocalApiErrors.push(entry);
-        return;
-      }
-      networkErrors.push(entry);
-    });
+  await context.addInitScript(() => {
+    const installDeterministicStyles = () => {
+      if (document.querySelector("style[data-visual-audit='deterministic']")) return;
+      const style = document.createElement("style");
+      style.dataset.visualAudit = "deterministic";
+      style.textContent = "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}";
+      (document.head || document.documentElement).appendChild(style);
+    };
+    if (document.documentElement) installDeterministicStyles();
+    else window.addEventListener("DOMContentLoaded", installDeterministicStyles, { once: true });
   });
-
   return context;
 }
 
-async function clickFirstVisible(locator, timeout = 5_000) {
+async function waitForStableShell(page) {
+  await page.locator(".app-shell").waitFor({ state: "visible", timeout: 20_000 });
+  await page.locator(".screen-host").waitFor({ state: "visible", timeout: 20_000 });
+  await page.locator(".screen-loading").waitFor({ state: "hidden", timeout: 15_000 }).catch(() => undefined);
+  await page.evaluate(async () => {
+    if (document.fonts?.ready) await document.fonts.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+}
+
+async function openMockPreview(page) {
+  await page.goto(`${baseUrl}/#preview-admin`, { waitUntil: "domcontentloaded" });
+  await waitForStableShell(page);
+}
+
+async function loginIntegrated(page) {
+  await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await page.locator(".auth-canvas").waitFor({ state: "visible", timeout: 20_000 });
+  await page.getByLabel(/Email ou identifiant|Identifiant/u).first().fill(integratedCredentials.username);
+  await page.getByLabel(/^Mot de passe$/u).fill(integratedCredentials.password);
+  await page.getByRole("button", { name: /^Connexion$/u }).click();
+  await waitForStableShell(page);
+}
+
+async function openApplication(page) {
+  if (mode === "mocked") await openMockPreview(page);
+  else await loginIntegrated(page);
+}
+
+async function clickFirstVisible(locator) {
   const count = await locator.count();
   for (let index = 0; index < count; index += 1) {
-    const item = locator.nth(index);
-    if (await item.isVisible().catch(() => false)) {
-      await item.click({ timeout });
+    const candidate = locator.nth(index);
+    if (await candidate.isVisible().catch(() => false)) {
+      await candidate.click();
       return true;
     }
   }
   return false;
 }
 
-async function openPreview(page) {
-  await page.goto(`${baseUrl}/#preview-admin`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(".app-shell", { timeout: 20_000 });
-  await page.waitForSelector(".screen-host", { timeout: 20_000 });
-  await page.waitForTimeout(700);
-}
-
-async function openModule(page, labelPattern, expectedTextPattern) {
-  const sidebarItem = page.locator(".app-sidebar-v2 .sidebar-link").filter({ hasText: labelPattern });
-
-  if (await clickFirstVisible(sidebarItem)) {
-    await page.waitForTimeout(350);
-  } else {
-    const mobileToggle = page.locator(".header-mobile-toggle").first();
-    if (!(await mobileToggle.isVisible().catch(() => false))) {
-      throw new Error(`Impossible d'ouvrir le module ${labelPattern}.`);
+async function openModule(page, workflow, language = "fr") {
+  if (workflow.key === "dashboard") {
+    await page.locator(".screen-host").waitFor({ state: "visible", timeout: 15_000 });
+    return;
+  }
+  const localized = contentFor(workflow, language);
+  const nav = localized?.nav || workflow.nav;
+  const previousText = await page.locator(".screen-host").innerText();
+  const desktopItem = page.locator(".app-sidebar-v2 .sidebar-link").filter({ hasText: nav });
+  if (!(await clickFirstVisible(desktopItem))) {
+    const toggle = page.locator(".header-mobile-toggle").first();
+    if (!(await toggle.isVisible().catch(() => false))) {
+      throw new Error(`Navigation absente pour ${workflow.key}.`);
     }
-
-    await mobileToggle.click({ timeout: 5_000 });
-    await page.waitForSelector("#header-mobile-panel.is-open", { timeout: 5_000 });
-    const mobileItem = page.locator("#header-mobile-panel .header-mobile-link").filter({ hasText: labelPattern });
+    await toggle.click();
+    await page.locator("#header-mobile-panel.is-open").waitFor({ state: "visible" });
+    const mobileItem = page.locator("#header-mobile-panel .header-mobile-link").filter({ hasText: nav });
     if (!(await clickFirstVisible(mobileItem))) {
-      throw new Error(`Impossible d'ouvrir le module ${labelPattern} depuis le menu mobile.`);
+      throw new Error(`Navigation mobile absente pour ${workflow.key}.`);
     }
   }
-
-  await page.waitForFunction((pattern) => new RegExp(pattern, "u").test(document.body.innerText), expectedTextPattern.source, {
-    timeout: 10_000
-  });
-  await page.waitForTimeout(500);
+  await page.waitForFunction(
+    (before) => {
+      const host = document.querySelector(".screen-host");
+      return Boolean(host && host.textContent && host.textContent !== before);
+    },
+    previousText,
+    { timeout: 15_000 }
+  );
+  await page.locator(".screen-loading").waitFor({ state: "hidden", timeout: 15_000 }).catch(() => undefined);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
 
-async function openUserMenu(page) {
-  const trigger = page.locator(".sidebar-user-card").first();
-  if (await trigger.isVisible().catch(() => false)) {
-    await trigger.click({ timeout: 5_000 });
-    await page.waitForSelector(".sidebar-user-dropdown", { timeout: 5_000 });
-    return "desktop";
-  }
-
-  const mobileToggle = page.locator(".header-mobile-toggle").first();
-  await mobileToggle.click({ timeout: 5_000 });
-  await page.waitForSelector("#header-mobile-panel.is-open", { timeout: 5_000 });
-  return "mobile";
-}
-
-async function clickUserAction(page, mode, actionLabel, expectedTextPattern) {
-  const container =
-    mode === "desktop"
-      ? page.locator(".sidebar-user-dropdown")
-      : page.locator("#header-mobile-panel");
-  await container.getByRole("menuitem", { name: actionLabel }).click({ timeout: 5_000 });
-  await page.waitForFunction((pattern) => new RegExp(pattern, "u").test(document.body.innerText), expectedTextPattern.source, {
-    timeout: 10_000
-  });
-  await page.waitForTimeout(600);
-}
-
-async function clickTab(page, labelPattern) {
-  const tab = page.getByRole("tab", { name: labelPattern }).first();
-  if (await tab.isVisible().catch(() => false)) {
-    await tab.click({ timeout: 5_000 });
-  } else {
-    await page.getByRole("button", { name: labelPattern }).first().click({ timeout: 5_000 });
-  }
-  await page.waitForTimeout(500);
-}
-
-async function capture(page, name, options = {}) {
-  const filePath = path.join(outputDir, `${safeName(name)}.png`);
-  await page.screenshot({ fullPage: options.fullPage ?? false, path: filePath });
-  screenshots.push(filePath);
-}
-
-async function captureScrolledTable(page, tableWrapSelector, label) {
-  const tableWrap = page.locator(tableWrapSelector).first();
-  if (!(await tableWrap.isVisible().catch(() => false))) return;
-
-  await tableWrap.evaluate((element) => {
-    const scrollContainer =
-      element instanceof HTMLTableElement
-        ? element.closest(".table-wrap") ?? element.parentElement ?? element
-        : element;
-    scrollContainer.scrollLeft = scrollContainer.scrollWidth;
-  });
-  await page.waitForTimeout(250);
-  await capture(page, label, { fullPage: true });
-  await tableWrap.evaluate((element) => {
-    const scrollContainer =
-      element instanceof HTMLTableElement
-        ? element.closest(".table-wrap") ?? element.parentElement ?? element
-        : element;
-    scrollContainer.scrollLeft = 0;
-  });
-}
-
-async function captureFirstActionMenu(page, triggerSelector, menuSelector, label) {
-  const actionMenuTrigger = page.locator(triggerSelector).first();
-  if (!(await actionMenuTrigger.isVisible().catch(() => false))) return;
-  await actionMenuTrigger.click({ timeout: 5_000 });
-  await page.waitForSelector(menuSelector, { timeout: 5_000 });
-  await page.waitForTimeout(200);
-  await capture(page, label, { fullPage: true });
-}
-
-async function getScreenText(page) {
-  const screenHost = page.locator(".screen-host").first();
-  if (await screenHost.count()) return screenHost.innerText();
-  return page.locator("body").innerText();
-}
-
-async function auditNoHorizontalOverflow(page, label) {
-  const overflow = await page.evaluate(() => {
-    const width = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
-    return width - window.innerWidth;
-  });
-  if (overflow > 2) {
-    findings.push({
-      label,
-      priority: "P1",
-      type: "horizontal-overflow",
-      message: `Débordement horizontal détecté: ${Math.round(overflow)}px.`
-    });
-  }
-}
-
-async function auditRequiredText(page, label, values) {
-  const text = await page.locator("body").innerText();
-  for (const value of values) {
-    if (!text.includes(value)) {
-      findings.push({
-        label,
-        priority: "P1",
-        type: "required-content",
-        message: `Texte attendu absent: ${value}.`
-      });
-    }
-  }
-}
-
-async function auditForbiddenText(page, label, values) {
-  const text = await getScreenText(page);
-  for (const value of values) {
-    if (text.includes(value)) {
-      findings.push({
-        label,
-        priority: "P1",
-        type: "forbidden-content",
-        message: `Texte interdit ou technique visible: ${value}.`
-      });
-    }
-  }
-}
-
-async function auditUserMenu(page, label, mode) {
-  const scope =
-    mode === "desktop"
-      ? page.locator(".sidebar-user-dropdown").first()
-      : page.locator("#header-mobile-panel").first();
-  const text = await scope.innerText();
-  for (const expected of ["Mon profil", "Préférences", "Journal d’activité", "Facturation", "Se déconnecter"]) {
+async function assertRequiredText(page, workflow, metadata) {
+  const text = await page.locator(".screen-host").innerText();
+  const localized = contentFor(workflow, metadata.language);
+  const required = localized?.required || workflow.required;
+  for (const expected of required) {
     if (!text.includes(expected)) {
-      findings.push({
-        label,
-        priority: "P1",
-        type: "user-menu",
-        message: `Entrée absente du menu utilisateur: ${expected}.`
+      guard.addFinding({
+        type: "missing-critical-content",
+        message: `Contenu critique absent: ${expected}.`,
+        metadata,
+        route: metadata.route
       });
     }
   }
-  for (const forbidden of ["ÉTABLISSEMENT", "ANNÉE SCOLAIRE", "STATUT"]) {
-    if (text.includes(forbidden)) {
-      findings.push({
-        label,
-        priority: "P1",
-        type: "user-menu-context",
-        message: `Ancienne information de contexte encore visible dans le menu utilisateur: ${forbidden}.`
+  if (localized) {
+    const forbidden = localized.forbidden || [];
+    for (const sourceText of forbidden) {
+      if (!text.includes(sourceText)) continue;
+      guard.addFinding({
+        type: "untranslated-critical-content",
+        message: `Texte source francais encore visible en ${metadata.language}: ${sourceText}.`,
+        metadata,
+        route: metadata.route
       });
     }
   }
 }
 
-async function seedGradesSummary(page) {
-  await clickTab(page, /Saisie des notes/u);
-  const firstScore = page.locator('input[aria-label^="Note de"]').first();
-  if (await firstScore.isVisible().catch(() => false)) {
-    await firstScore.fill("15");
-    await page.getByRole("button", { name: "Enregistrer les notes" }).click({ timeout: 5_000 });
-    await page.waitForTimeout(500);
+async function primaryShellSelector(page) {
+  const candidates = [".header-mobile-toggle", ".header-searchbar input"];
+  for (const selector of candidates) {
+    const locator = page.locator(selector).first();
+    if (await locator.isVisible().catch(() => false)) return selector;
   }
-
-  await clickTab(page, /Moyennes/u);
-  const computeButton = page.getByRole("button", { name: /Calculer les moyennes\/rangs|Recalculer les moyennes\/rangs/u }).first();
-  if (await computeButton.isVisible().catch(() => false)) {
-    await computeButton.click({ timeout: 5_000 });
-    await page.waitForTimeout(600);
-  }
-
-  const detailButton = page.getByRole("button", { name: "Voir détail" }).first();
-  if (await detailButton.isVisible().catch(() => false)) {
-    await detailButton.click({ timeout: 5_000 });
-    await page.waitForTimeout(300);
-  }
+  return candidates.join(", ");
 }
 
-async function runDashboard(browser, viewportName, theme) {
-  const context = await createContext(browser, viewports[viewportName], theme);
-  const page = await context.newPage();
-  await openPreview(page);
-  await openModule(page, /Tableau de bord/u, /Tableau de bord/u);
-  const label = `dashboard-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, ["Tâches prioritaires", "Alertes & suivi"]);
-  await auditForbiddenText(page, label, ["Accueil simplifie", "backend messagerie", "UI-only"]);
-  await capture(page, label, { fullPage: viewportName !== "desktop" });
-  await context.close();
+async function restoreTopViewport(page) {
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
 }
 
-async function runHeaderLanguage(browser, theme) {
-  const context = await createContext(browser, viewports.desktop, theme);
-  const page = await context.newPage();
-  await openPreview(page);
-  const trigger = page.locator(".header-language-dropdown .header-icon-button").first();
-  await trigger.click({ timeout: 5_000 });
-  await page.waitForSelector(".header-floating-panel.header-language-dropdown", { timeout: 5_000 });
-  const label = `header-language-desktop-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, ["Langue", "Français", "Anglais", "Arabe"]);
-  await capture(page, label);
-  await context.close();
-}
-
-async function runProfile(browser, viewportName, theme) {
-  const context = await createContext(browser, viewports[viewportName], theme);
-  const page = await context.newPage();
-  await openPreview(page);
-  const mode = await openUserMenu(page);
-  await auditUserMenu(page, `profile-menu-${viewportName}-${theme}`, mode);
-  await capture(page, `profile-menu-${viewportName}-${theme}`);
-  await clickUserAction(page, mode, "Mon profil", /Mon profil/u);
-
-  const label = `profile-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, [
-    "Mon profil",
-    "Informations personnelles",
-    "Sécurité du compte",
-    "Préférences",
-    "Activité récente",
-    "Mes rôles et permissions"
-  ]);
-  await auditForbiddenText(page, label, ["passwordHash", "refreshToken", "temporaryPassword", "Facturation / abonnement"]);
-  await capture(page, label, { fullPage: viewportName !== "desktop" });
-  await context.close();
-}
-
-async function runPilotage(browser, viewportName, theme) {
-  const context = await createContext(browser, viewports[viewportName], theme);
-  const page = await context.newPage();
-  await openPreview(page);
-  await openModule(page, /Pilotage/u, /Pilotage/u);
-  const label = `pilotage-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, [
-    "CONSOLE OPÉRATIONNELLE",
-    "Scolarité",
-    "Vie scolaire",
-    "Finance",
-    "À traiter en priorité",
-    "Inscriptions",
-    "Notes & bulletins"
-  ]);
-  await auditForbiddenText(page, label, ["Tableau de bord", "données fictives", "mock"]);
-  await capture(page, label, { fullPage: viewportName !== "desktop" });
-  await context.close();
-}
-
-async function runGrades(browser, viewportName, theme) {
-  const context = await createContext(browser, viewports[viewportName], theme);
-  const page = await context.newPage();
-  await openPreview(page);
-  await openModule(page, /Notes & bulletins/u, /Vue d’ensemble/u);
-
-  const overviewLabel = `notes-bulletins-overview-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, overviewLabel);
-  await auditRequiredText(page, overviewLabel, ["Vue d’ensemble", "Saisie des notes", "Moyennes & rangs", "Bulletins"]);
-  await auditForbiddenText(page, overviewLabel, [
-    "Passe finale",
-    "Generation bulletin PDF",
-    "Generez",
-    "Generer",
-    "Bulletins generes",
-    "Aucun resume calcule",
-    "fichier(s)",
-    "bulletin(s)",
-    "note(s)"
-  ]);
-  await capture(page, overviewLabel, { fullPage: viewportName !== "desktop" });
-
-  if (viewportName === "desktop" && theme === "light") {
-    await seedGradesSummary(page);
-    await auditNoHorizontalOverflow(page, "notes-bulletins-moyennes-detail-desktop-light");
-    await auditRequiredText(page, "notes-bulletins-moyennes-detail-desktop-light", ["Moyennes & rangs"]);
-    await capture(page, "notes-bulletins-moyennes-detail-desktop-light", { fullPage: true });
-
-    await clickTab(page, /Bulletins/u);
-    await auditNoHorizontalOverflow(page, "notes-bulletins-bulletins-desktop-light");
-    await auditRequiredText(page, "notes-bulletins-bulletins-desktop-light", ["Génération des bulletins", "Bulletins générés"]);
-    await capture(page, "notes-bulletins-bulletins-desktop-light", { fullPage: true });
-  }
-
-  await context.close();
-}
-
-async function runFinance(browser, viewportName, theme) {
-  const context = await createContext(browser, viewports[viewportName], theme);
-  const page = await context.newPage();
-  await openPreview(page);
-  await openModule(page, /Comptabilité/u, /Console de recouvrement/u);
-  const label = `finance-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, ["Comptabilité", "Console de recouvrement"]);
-  await auditForbiddenText(page, label, ["Finance v2", "ACTIVE", "INACTIVE", "ARCHIVED", "Recharger comptabilite"]);
-  await capture(page, label, { fullPage: viewportName !== "desktop" });
-
-  if (viewportName.startsWith("mobile") || viewportName.startsWith("tablet")) {
-    await clickTab(page, /Plans de frais/u);
-    await captureScrolledTable(page, ".finance-v3-shell .table-wrap", `finance-fee-plans-table-right-${viewportName}-${theme}`);
-    await clickTab(page, /Factures/u);
-    await captureScrolledTable(page, ".finance-v3-shell .table-wrap", `finance-invoices-table-right-${viewportName}-${theme}`);
-    await captureFirstActionMenu(page, ".finance-v3-shell .v3-more-button", ".finance-v3-shell .v3-action-menu", `finance-actions-${viewportName}-${theme}`);
-  }
-  await context.close();
-}
-
-async function runStudents(browser, viewportName, theme) {
-  const context = await createContext(browser, viewports[viewportName], theme);
-  const page = await context.newPage();
-  await openPreview(page);
-  await openModule(page, /Élèves|Eleves/u, /Ajouter un élève/u);
-  const label = `students-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, ["Élèves", "Ajouter un élève"]);
-  await auditForbiddenText(page, label, ["Identifiant interne", "source de verite", "Resultat filtre"]);
-  await capture(page, label, { fullPage: viewportName !== "desktop" });
-  if (viewportName.startsWith("mobile") || viewportName.startsWith("tablet")) {
-    await captureScrolledTable(page, ".students-v3-table-card .table-wrap", `students-table-right-${viewportName}-${theme}`);
-    await captureFirstActionMenu(page, ".students-v3-more-button", ".students-v3-action-menu", `students-actions-${viewportName}-${theme}`);
-  }
-  await context.close();
-}
-
-async function runEnrollments(browser, viewportName, theme) {
-  const context = await createContext(browser, viewports[viewportName], theme);
-  const page = await context.newPage();
-  await openPreview(page);
-  await openModule(page, /Inscriptions/u, /Nouvelle inscription/u);
-  const label = `enrollments-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, ["Inscriptions", "Recherche rapide", "Liste des inscriptions"]);
-  await auditForbiddenText(page, label, [
-    "Suivi des inscriptions",
-    "Admissions",
-    "Type de placement",
-    "Actions",
-    "FlexAdmin",
-    "Vue v2"
-  ]);
-  await capture(page, label, { fullPage: viewportName !== "desktop" });
-
-  if (viewportName.startsWith("mobile") || viewportName.startsWith("tablet")) {
-    await captureScrolledTable(page, ".enrollments-v3-table-card .table-wrap", `enrollments-table-right-${viewportName}-${theme}`);
-    await captureFirstActionMenu(page, ".enrollments-v3-more-button", ".enrollments-v3-action-menu", `enrollments-actions-${viewportName}-${theme}`);
-  }
-
-  if (viewportName === "desktopNarrow" && theme === "dark") {
-    const tableWrap = page.locator(".enrollments-v3-table-card .table-wrap").first();
-    await tableWrap.evaluate((element) => {
-      element.scrollLeft = element.scrollWidth;
+async function assertFocusVisible(page, metadata) {
+  await page.keyboard.press("Tab");
+  const focus = await page.evaluate(() => {
+    const element = document.activeElement;
+    if (!(element instanceof HTMLElement) || element === document.body) return { visible: false, label: "body" };
+    const style = window.getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      visible:
+        rect.width > 0 &&
+        rect.height > 0 &&
+        (style.outlineStyle !== "none" || style.boxShadow !== "none" || style.borderColor !== "transparent"),
+      label: element.getAttribute("aria-label") || element.textContent?.trim().slice(0, 80) || element.tagName
+    };
+  });
+  if (!focus.visible) {
+    guard.addFinding({
+      type: "focus-not-visible",
+      message: `Le premier element tabulable n'a pas de focus visible (${focus.label}).`,
+      metadata,
+      route: metadata.route
     });
-    await capture(page, "enrollments-table-actions-desktopnarrow-dark", { fullPage: true });
   }
-
-  if (viewportName === "desktop" && theme === "light") {
-    const actionMenuTrigger = page.locator(".enrollments-v3-more-button").first();
-    if (await actionMenuTrigger.isVisible().catch(() => false)) {
-      await actionMenuTrigger.click({ timeout: 5_000 });
-      await page.waitForSelector(".enrollments-v3-action-menu", { timeout: 5_000 });
-      await auditRequiredText(page, "enrollments-actions-desktop-light", ["Voir", "Modifier", "Supprimer"]);
-      await capture(page, "enrollments-actions-desktop-light");
-    }
-
-    await page.getByRole("button", { name: "Nouvelle inscription" }).click({ timeout: 5_000 });
-    await page.waitForFunction(() => document.body.innerText.includes("Créer inscription"), { timeout: 10_000 });
-    await auditNoHorizontalOverflow(page, "enrollments-create-desktop-light");
-    await auditRequiredText(page, "enrollments-create-desktop-light", ["Nouvelle inscription", "Créer inscription"]);
-    await capture(page, "enrollments-create-desktop-light");
-  }
-  await context.close();
 }
 
-async function runTeachers(browser, viewportName, theme) {
-  const context = await createContext(browser, viewports[viewportName], theme);
+async function executeModuleWorkflow(browser, workflow, variant, language = "fr") {
+  const metadata = {
+    workflow: workflow.key,
+    route: `/app/${workflow.key}`,
+    viewport: variant.viewport,
+    theme: variant.theme,
+    language
+  };
+  const before = guard.blockingFindings().length;
+  const context = await createContext(browser, metadata);
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const page = await context.newPage();
-  await openPreview(page);
-  await openModule(page, /Enseignants/u, /Ajouter un enseignant/u);
-  const label = `teachers-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, ["Enseignants", "Base enseignants", "Recherche rapide", "Aminata Coulibaly"]);
-  await auditForbiddenText(page, label, ["Registre enseignants", "Module enseignants", "Actions", "Workflow"]);
-  await capture(page, label, { fullPage: viewportName !== "desktop" });
-  if (viewportName.startsWith("mobile") || viewportName.startsWith("tablet")) {
-    await captureScrolledTable(page, ".teachers-v3-table-card .table-wrap", `teachers-table-right-${viewportName}-${theme}`);
-    await captureFirstActionMenu(page, ".teachers-v3-more-button", ".teachers-v3-action-menu", `teachers-actions-${viewportName}-${theme}`);
-  }
-
-  if (viewportName === "desktop" && theme === "light") {
-    const actionMenuTrigger = page.locator(".teachers-v3-more-button").first();
-    if (await actionMenuTrigger.isVisible().catch(() => false)) {
-      await actionMenuTrigger.click({ timeout: 5_000 });
-      await page.waitForSelector(".teachers-v3-action-menu", { timeout: 5_000 });
-      await auditRequiredText(page, "teachers-actions-desktop-light", ["Voir", "Modifier", "Archiver"]);
-      await capture(page, "teachers-actions-desktop-light");
+  let screenshot;
+  try {
+    await openApplication(page);
+    guard.setMetadata(page, metadata);
+    await openModule(page, workflow, language);
+    await assertRequiredText(page, workflow, metadata);
+    if (criticalKeys.has(workflow.key)) await assertFocusVisible(page, metadata);
+    if (language === "ar") {
+      const direction = await page.locator("main.page").getAttribute("dir");
+      if (direction !== "rtl") {
+        guard.addFinding({ type: "rtl-missing", message: `Direction arabe incorrecte: ${direction}.`, metadata, route: metadata.route });
+      }
     }
+    screenshot = path.join(outputDir, `${safeName(`${workflow.key}-${variant.viewport}-${variant.theme}-${language}`)}.png`);
+    await guard.capture(page, screenshot, { fullPage: variant.viewport !== "desktop" });
+    await restoreTopViewport(page);
+    await guard.assertPageReady(page, {
+      criticalSelectors: [".app-shell", ".screen-host"],
+      primarySelectors: [await primaryShellSelector(page)]
+    });
+  } catch (error) {
+    guard.addFinding({
+      type: "workflow-error",
+      message: error instanceof Error ? error.message : String(error),
+      metadata,
+      route: metadata.route,
+      screenshot
+    });
+  } finally {
+    const failed = guard.blockingFindings().length > before;
+    const tracePath = path.join(outputDir, `${safeName(`${workflow.key}-${variant.viewport}-${variant.theme}-${language}`)}-trace.zip`);
+    await context.tracing.stop(failed ? { path: tracePath } : undefined);
+    workflowResults.push({ ...metadata, screenshot, status: failed ? "failed" : "passed", trace: failed ? tracePath : null });
+    await context.close();
   }
-  await context.close();
 }
 
-const moduleOverviewScenarios = [
-  {
-    key: "iam",
-    nav: /Utilisateurs & droits/u,
-    expected: /Comptes utilisateurs/u,
-    required: ["Comptes utilisateurs", "Droits par profil"],
-    tableSelector: '[data-testid="iam-users-table"]'
-  },
-  {
-    key: "rooms",
-    nav: /Salles/u,
-    expected: /Salles, capacités et usages/u,
-    required: ["Salles", "Salles, capacités et usages", "Ajouter une salle"],
-    tableSelector: ".rooms-v3-table-card .table-wrap"
-  },
-  {
-    key: "parents",
-    nav: /Parents/u,
-    expected: /Liste des responsables/u,
-    required: ["Liste des responsables"],
-    tableSelector: ".parents-v3-table-card .table-wrap"
-  },
-  {
-    key: "attendance",
-    nav: /Absences/u,
-    expected: /Absences/u,
-    required: ["Absences", "Journal des absences"],
-    tableSelector: ".school-life-root .table-wrap"
-  },
-  {
-    key: "timetable",
-    nav: /Emploi du temps/u,
-    expected: /Emploi du temps/u,
-    required: ["Emploi du temps", "Grille d'emploi du temps"],
-    tableSelector: ".school-life-root .table-wrap"
-  },
-  {
-    key: "notifications",
-    nav: /Notifications/u,
-    expected: /Notifications/u,
-    required: ["Notifications", "Historique notifications"],
-    tableSelector: ".school-life-root .table-wrap"
-  },
-  {
-    key: "reference",
-    nav: /Référentiel/u,
-    expected: /Annee scolaire|Annees/u,
-    required: ["Annee scolaire", "Libelle de l'annee scolaire"],
-    tableSelector: ".reference-shell .table-wrap"
-  },
-  {
-    key: "reports",
-    nav: /Rapports & conformité/u,
-    expected: /Filtrer la fenetre de pilotage/u,
-    required: ["Filtrer la fenetre de pilotage", "Indicateurs executifs"],
-    tableSelector: ".table-wrap"
-  },
-  {
-    key: "mosquee",
-    nav: /Mosquée/u,
-    expected: /Mosquée|Mosquee/u,
-    required: [],
-    tableSelector: null
-  }
-];
-
-async function runModuleOverview(browser, viewportName, theme, scenario) {
-  const context = await createContext(browser, viewports[viewportName], theme);
+async function runMockedAuthWorkflow(browser, kind, language, theme, viewportName) {
+  const metadata = {
+    workflow: `auth-${kind}`,
+    route: kind === "login" ? "/" : kind === "activation-first-login" ? "/activate" : `/auth/${kind}`,
+    viewport: viewportName,
+    theme,
+    language
+  };
+  const before = guard.blockingFindings().length;
+  const context = await createContext(browser, metadata);
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const page = await context.newPage();
-  await openPreview(page);
-  await openModule(page, scenario.nav, scenario.expected);
-  const label = `${scenario.key}-${viewportName}-${theme}`;
-  await auditNoHorizontalOverflow(page, label);
-  await auditRequiredText(page, label, scenario.required);
-  await auditForbiddenText(page, label, ["FlexAdmin", "Vue v2", "UI-only"]);
-  await capture(page, label, { fullPage: viewportName !== "desktop" });
-
-  if (scenario.tableSelector && (viewportName.startsWith("mobile") || viewportName.startsWith("tablet"))) {
-    await captureScrolledTable(page, scenario.tableSelector, `${scenario.key}-table-right-${viewportName}-${theme}`);
-    await captureFirstActionMenu(page, ".screen-host .v3-more-button", ".screen-host .v3-action-menu", `${scenario.key}-actions-${viewportName}-${theme}`);
-  }
-
-  if (viewportName === "desktop" && theme === "light") {
-    const actionMenuTrigger = page.locator(".v3-more-button").first();
-    if (await actionMenuTrigger.isVisible().catch(() => false)) {
-      await actionMenuTrigger.click({ timeout: 5_000 });
-      await page.waitForSelector(".v3-action-menu", { timeout: 5_000 });
-      await capture(page, `${scenario.key}-actions-desktop-light`);
+  let screenshot;
+  try {
+    const entryUrl = kind === "activation-first-login"
+      ? `${baseUrl}/activate?token=visual-activation-token`
+      : baseUrl;
+    await page.goto(entryUrl, { waitUntil: "domcontentloaded" });
+    await page.locator(".auth-canvas").waitFor({ state: "visible", timeout: 20_000 });
+    if (kind === "login") {
+      await page.locator('input[autocomplete="username"]').fill("visual.admin");
+      await page.locator('input[autocomplete="current-password"]').fill("Visual-Test-2026!");
+      await page.locator(".auth-canvas__submit").click();
+      await waitForStableShell(page);
+    } else if (kind === "forgot-password") {
+      await page.getByRole("button", { name: /Mot de passe oublié/u }).click();
+      await page.getByLabel(/^Identifiant$/u).fill("visual.admin");
+      await page.getByRole("button", { name: /Envoyer les instructions/u }).click();
+      await page.getByText("Instructions de reinitialisation envoyees.").waitFor({ state: "visible" });
+    } else if (kind === "activation-resend") {
+      await page.getByRole("button", { name: /Activer mon compte/u }).click();
+      await page.getByLabel(/Email ou identifiant/u).fill("visual.admin");
+      await page.getByRole("button", { name: /Renvoyer le lien d.activation/u }).click();
+      await page.getByText("Instructions d'activation envoyees.").waitFor({ state: "visible" });
+    } else if (kind === "activation-first-login") {
+      const passwordInputs = page.locator('input[autocomplete="new-password"]');
+      await passwordInputs.nth(0).fill("Visual-Activation-2026!");
+      await passwordInputs.nth(1).fill("Visual-Activation-2026!");
+      await page.locator(".auth-canvas__submit").click();
+      await page.locator('input[autocomplete="username"]').waitFor({ state: "visible" });
+    } else {
+      throw new Error(`Workflow d'authentification inconnu: ${kind}.`);
     }
+    screenshot = path.join(outputDir, `${safeName(`${metadata.workflow}-${viewportName}-${theme}-${language}`)}.png`);
+    await guard.capture(page, screenshot, { fullPage: viewportName.startsWith("mobile") });
+    await restoreTopViewport(page);
+    await guard.assertPageReady(page, {
+      criticalSelectors: [kind === "login" ? ".app-shell" : ".auth-canvas"],
+      primarySelectors: [kind === "login" ? await primaryShellSelector(page) : ".auth-canvas button"]
+    });
+    if (language === "ar") {
+      const direction = await page.locator("main.page").getAttribute("dir");
+      if (direction !== "rtl") {
+        guard.addFinding({ type: "rtl-missing", message: `Direction arabe incorrecte: ${direction}.`, metadata, route: metadata.route });
+      }
+    }
+  } catch (error) {
+    guard.addFinding({
+      type: "workflow-error",
+      message: error instanceof Error ? error.message : String(error),
+      metadata,
+      route: metadata.route,
+      screenshot
+    });
+  } finally {
+    const failed = guard.blockingFindings().length > before;
+    const tracePath = path.join(outputDir, `${safeName(`${metadata.workflow}-${viewportName}-${theme}-${language}`)}-trace.zip`);
+    await context.tracing.stop(failed ? { path: tracePath } : undefined);
+    workflowResults.push({ ...metadata, screenshot, status: failed ? "failed" : "passed", trace: failed ? tracePath : null });
+    await context.close();
   }
+}
 
-  await context.close();
+async function runIntegratedSuite(browser) {
+  const metadata = { workflow: "integrated-login", route: "/", viewport: "desktop", theme: "light", language: "fr" };
+  const before = guard.blockingFindings().length;
+  const context = await createContext(browser, metadata);
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+  const page = await context.newPage();
+  try {
+    await loginIntegrated(page);
+    for (const workflow of allWorkflows) {
+      const workflowMetadata = { ...metadata, workflow: workflow.key, route: `/app/${workflow.key}` };
+      guard.setMetadata(page, workflowMetadata);
+      await openModule(page, workflow, "fr");
+      await assertRequiredText(page, workflow, workflowMetadata);
+      const screenshot = path.join(outputDir, `${safeName(`integrated-${workflow.key}-desktop-light-fr`)}.png`);
+      await guard.capture(page, screenshot);
+      await restoreTopViewport(page);
+      await guard.assertPageReady(page, { criticalSelectors: [".app-shell", ".screen-host"], primarySelectors: [await primaryShellSelector(page)] });
+      workflowResults.push({ ...workflowMetadata, screenshot, status: "checked", trace: null });
+    }
+  } catch (error) {
+    guard.addFinding({
+      type: "workflow-error",
+      message: error instanceof Error ? error.message : String(error),
+      metadata,
+      route: metadata.route
+    });
+  } finally {
+    const failed = guard.blockingFindings().length > before;
+    const tracePath = path.join(outputDir, "integrated-suite-trace.zip");
+    await context.tracing.stop(failed ? { path: tracePath } : undefined);
+    await context.close();
+  }
 }
 
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const [viewportName, theme] of activeViewportThemes) {
-      await runDashboard(browser, viewportName, theme);
-    }
+    if (mode === "integrated") {
+      await runIntegratedSuite(browser);
+    } else {
+      await runMockedAuthWorkflow(browser, "login", "fr", "light", "desktop");
+      await runMockedAuthWorkflow(browser, "forgot-password", "fr", "light", "mobileLarge");
+      await runMockedAuthWorkflow(browser, "activation-resend", "fr", "dark", "tabletPortrait");
+      await runMockedAuthWorkflow(browser, "activation-first-login", "fr", "light", "mobileLarge");
+      await runMockedAuthWorkflow(browser, "login", "en", "dark", "desktop");
+      await runMockedAuthWorkflow(browser, "login", "ar", "light", "mobileLarge");
 
-    await runHeaderLanguage(browser, "light");
-    if (!isCiAudit) {
-      await runHeaderLanguage(browser, "dark");
-    }
-
-    for (const [viewportName, theme] of activeViewportThemes) {
-      await runProfile(browser, viewportName, theme);
-      await runFinance(browser, viewportName, theme);
-      await runStudents(browser, viewportName, theme);
-      if (!isCiAudit) {
-        await runPilotage(browser, viewportName, theme);
-        await runGrades(browser, viewportName, theme);
-      }
-    }
-
-    await runEnrollments(browser, "desktop", "light");
-    if (!isCiAudit) {
-      await runEnrollments(browser, "desktop", "dark");
-      await runEnrollments(browser, "desktopNarrow", "light");
-      await runEnrollments(browser, "desktopNarrow", "dark");
-    }
-    for (const [viewportName, theme] of activeViewportThemes) {
-      if (viewportName !== "desktop") {
-        await runEnrollments(browser, viewportName, theme);
-      }
-      await runTeachers(browser, viewportName, theme);
-    }
-
-    const activeModuleScenarios = isCiAudit
-      ? moduleOverviewScenarios.filter((scenario) =>
-          ["iam", "rooms", "parents"].includes(scenario.key)
-        )
-      : moduleOverviewScenarios;
-    for (const scenario of activeModuleScenarios) {
-      for (const [viewportName, theme] of activeViewportThemes) {
-        try {
-          await runModuleOverview(browser, viewportName, theme, scenario);
-        } catch (error) {
-          findings.push({
-            label: `${scenario.key}-${viewportName}-${theme}`,
-            priority: "P1",
-            type: "module-capture",
-            message: error instanceof Error ? error.message : String(error)
-          });
+      const variants = auditScope === "ci" ? ciVariants : fullVariants;
+      const extraCritical = auditScope === "ci" ? ciCriticalVariants : criticalVariants;
+      for (const workflow of allWorkflows) {
+        for (const variant of variants) await executeModuleWorkflow(browser, workflow, variant);
+        if (criticalKeys.has(workflow.key)) {
+          for (const variant of extraCritical) await executeModuleWorkflow(browser, workflow, variant);
         }
+      }
+      for (const workflow of allWorkflows.filter((item) => criticalKeys.has(item.key))) {
+        await executeModuleWorkflow(browser, workflow, { viewport: "desktop", theme: "dark" }, "en");
+        await executeModuleWorkflow(browser, workflow, { viewport: "tabletLandscape", theme: "light" }, "ar");
       }
     }
   } finally {
     await browser.close();
   }
 
-  for (const message of consoleErrors) {
-    findings.push({
-      label: "console",
-      priority: "P2",
-      type: "console-error",
-      message
-    });
-  }
-
-  for (const message of networkErrors) {
-    findings.push({
-      label: "network",
-      priority: "P2",
-      type: "network-error",
-      message
-    });
-  }
-
-  const report = {
-    baseUrl,
+  const report = await guard.writeReport(outputDir, {
     auditScope,
-    outputDir,
-    screenshots,
-    findings,
-    consoleErrors,
-    networkErrors,
-    ignoredLocalApiErrors,
-    generatedAt: new Date().toISOString()
-  };
-  const reportPath = path.join(outputDir, "report.json");
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  console.log(JSON.stringify({ outputDir, screenshots: screenshots.length, findings }, null, 2));
-
-  if (findings.some((item) => item.priority === "P1")) {
-    process.exitCode = 1;
-  }
+    baseUrl,
+    fixtureVersion: mode === "mocked" ? MOCK_FIXTURE_VERSION : null,
+    workflows: workflowResults
+  });
+  console.log(JSON.stringify({ outputDir, mode, status: report.status, workflows: workflowResults.length, findings: guard.findings.length }, null, 2));
+  if (guard.blockingFindings().length > 0) process.exitCode = 1;
 }
 
 main().catch((error) => {

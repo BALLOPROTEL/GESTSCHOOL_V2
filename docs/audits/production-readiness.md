@@ -832,3 +832,92 @@ Verdict LOT 6 : **GO** pour revue et commit. Le deploiement des migrations reste
 **NO-GO** avant sauvegarde, preflight sur une copie recente et repetition de la
 migration sur cette copie. Aucune migration de production, aucun commit et aucun
 push n'ont ete effectues.
+
+## LOT 7 - Audit visuel et smoke frontend stricts (2026-07-18)
+
+### Diagnostic initial
+
+Le runner central d'audit visuel supprimait explicitement les erreurs console et
+HTTP locales contenant `/api/v1`, classait les erreurs reseau en severite non
+bloquante et ne faisait echouer la commande que sur les constats les plus graves.
+Il utilisait le compte d'apercu developpement, sans contrat formel entre audit
+mocke et audit integre. Un audit pouvait donc etre vert avec une API indisponible.
+
+Quatorze scripts visuels historiques totalisent plus de 5 300 lignes. Ils utilisent
+des attentes arbitraires et des politiques de severite heterogenes. Le smoke
+`Frontend/web-admin/scripts/smoke-tests.mjs` est un controle statique utile, mais il
+n'ouvre pas un navigateur et ne detecte ni erreur API ni regression de layout.
+
+### Correction
+
+- Deux modes exclusifs : `mocked` et `integrated`. L'absence de mode est refusee.
+- Fixtures API versionnees et routes methode/chemin exactes. Aucune interception
+  generique `/api/v1/**`.
+- Collecteur bloquant pour API 4xx/5xx, requete non mockee, `requestfailed`, erreur
+  console, `pageerror`, page vide, loading bloque, indisponibilite inattendue,
+  overflow horizontal, selecteur critique absent et action primaire hors ecran.
+- Matrice responsive mobile, tablette, desktop, large desktop et zoom 200%, avec
+  themes clair/sombre et langues FR/EN/AR/RTL sur les ecrans critiques.
+- Captures deterministes, fuseau Europe/Paris, polices attendues, animations et
+  caret desactives, sans delai arbitraire dans le runner central.
+- Rapport JSON exploitable et traces Playwright sur chaque workflow en echec.
+- Allowlist stricte avec type, route, motif, raison, echeance et ticket. Elle reste
+  vide pendant ce lot.
+- CI branchee sur le mode mocked reduit et conservation des preuves pendant 14
+  jours, meme en cas d'echec.
+
+Le runbook complet et l'inventaire des scripts se trouvent dans
+`docs/runbooks/visual-audit.md`.
+
+### Preuves du mecanisme
+
+Les tests du collecteur prouvent le blocage d'une API 500, d'une route API non
+mockee, d'une erreur console, d'un `pageerror`, d'un loading bloque, d'un overflow
+et d'un selecteur critique absent. Ils verifient aussi qu'une allowlist precise ne
+masque pas une autre erreur et qu'une exception expiree est refusee.
+
+### Resultats des audits
+
+| Controle | Resultat |
+| --- | --- |
+| Lint des scripts LOT 7 | OK |
+| Tests du collecteur | OK, 6/6 |
+| Audit mocked complet | ROUGE, 121 workflows, 117 succes, 4 echecs, 14 constats |
+| Audit mocked CI final | ROUGE attendu, 61 workflows, 61 captures, 14 constats |
+| Requetes mocked | 66 requetes servies par des routes exactes, aucune route inattendue |
+| Audit integrated | OK, 15 workflows et 15 captures, 0 constat |
+| Infrastructure integrated | PostgreSQL 16 dedie, 34 migrations, seed minimal ; Redis 7 ephemere |
+| Lint frontend | OK |
+| Tests frontend | OK, 15 fichiers et 64 tests |
+| Build frontend | OK |
+| Smoke frontend | OK |
+| `git diff --check` | OK |
+
+Les quatre variantes rouges sont factuelles et ne sont pas allowlistees :
+
+- Tableau de bord EN et AR : cinq contenus critiques restent en francais
+  (`Bienvenue, voici`, `Recouvrement & encaissements`, `Suivi operationnel`,
+  `Lecture rapide issue`, `Indicateurs cles`).
+- Inscriptions EN et AR : le titre `Liste des inscriptions` reste en francais et
+  les titres attendus `Enrollment list` / `قائمة التسجيلات` sont absents.
+
+Aucune erreur API, console, `pageerror`, loading bloque, overflow, action hors
+ecran ou route non mockee n'a ete detectee dans l'audit complet. Le mode integrated
+a utilise une base isolee et un compte `example/test`, sans donnee client ni
+interception metier.
+
+La matrice CI finale confirme que le gate echoue uniquement sur ces quatorze
+constats i18n : aucune requete API inattendue et aucune allowlist n'ont ete
+enregistrees. Les captures et traces restent hors Git et seront publiees comme
+artefact CI pendant quatorze jours.
+
+### Risques et verdict
+
+Le gate LOT 7 est maintenant strict et reproductible : **GO technique pour le
+mecanisme d'audit**. La CI visuelle et le LOT 7 global restent **NO-GO** tant que les
+deux dettes i18n ci-dessus ne sont pas corrigees. Les scripts historiques ne sont
+plus une preuve de release et devront etre migres ou supprimes pendant le decoupage
+frontend, sans melanger cette dette au LOT 7.
+
+Message de commit propose :
+`test(web-admin): make visual audits strict and deterministic`.

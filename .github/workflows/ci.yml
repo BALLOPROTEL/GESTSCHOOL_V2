@@ -121,4 +121,13 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:5180 >/dev/null
-          VISUAL_AUDIT_SCOPE=ci VISUAL_AUDIT_URL=http://127.0.0.1:5180 VISUAL_AUDIT_OUTPUT=/tmp/gestschool-ci-visual-audit pnpm visual:audit:core
+          VISUAL_AUDIT_SCOPE=ci VISUAL_AUDIT_URL=http://127.0.0.1:5180 VISUAL_AUDIT_OUTPUT=/tmp/gestschool-ci-visual-audit pnpm visual:audit:mocked
+
+      - name: Preserve Web Admin visual audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestschool-web-admin-visual-audit
+          path: /tmp/gestschool-ci-visual-audit
+          if-no-files-found: error
+          retention-days: 14

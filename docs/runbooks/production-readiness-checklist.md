@@ -173,10 +173,15 @@ pnpm --filter @gestschool/web-admin lint
 pnpm --filter @gestschool/web-admin test
 pnpm --filter @gestschool/web-admin test:smoke
 pnpm --filter @gestschool/web-admin build
-pnpm visual:audit:core
+pnpm visual:audit:lint
+pnpm visual:audit:test
+pnpm visual:audit:mocked
 ```
 
-Le rapport visuel global est ecrit dans `/tmp/gestschool-core-visual-audit/<run-id>/report.json`.
+Le gate mocke doit etre complete par `pnpm visual:audit:integrated` contre une base
+PostgreSQL de test et un Redis de test avant une release. Le rapport est ecrit dans
+`VISUAL_AUDIT_OUTPUT/<run-id>/report.json`; les captures et traces Playwright sont
+conservees dans le meme repertoire. Voir `docs/runbooks/visual-audit.md`.
 
 ## 11. Donnees et confidentialite
 
@@ -191,7 +196,8 @@ Go uniquement si :
 
 - CI complete verte ;
 - API e2e PostgreSQL verts ;
-- recette visuelle globale sans finding P1 ;
+- recettes visuelles mocked et integrated sans constat bloquant ni allowlist
+  expiree ;
 - health/readiness verts ;
 - monitoring providers verifie sans secret expose ;
 - backup + restauration testes ;
