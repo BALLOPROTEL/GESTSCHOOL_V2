@@ -940,7 +940,9 @@ describe("critical frontend flows", () => {
         "Recouvrement & encaissements",
         "Lecture rapide issue des factures disponibles.",
         "Suivi opérationnel",
-        "Indicateurs clés du périmètre visible."
+        "Indicateurs clés du périmètre visible.",
+        "Tâches prioritaires",
+        "Alertes & suivi"
       ]
     },
     {
@@ -950,7 +952,9 @@ describe("critical frontend flows", () => {
         "Collections & payments",
         "Quick overview based on available invoices.",
         "Operational monitoring",
-        "Key indicators for the visible scope."
+        "Key indicators for the visible scope.",
+        "Priority tasks",
+        "Alerts & follow-up"
       ]
     },
     {
@@ -960,7 +964,9 @@ describe("critical frontend flows", () => {
         "التحصيل والمدفوعات",
         "نظرة سريعة استنادًا إلى الفواتير المتاحة.",
         "المتابعة التشغيلية",
-        "المؤشرات الرئيسية للنطاق المعروض."
+        "المؤشرات الرئيسية للنطاق المعروض.",
+        "المهام ذات الأولوية",
+        "تنبيهات ومتابعة"
       ]
     }
   ])("traduit les contenus critiques du dashboard en $language", ({ expected, language }) => {
@@ -1040,6 +1046,9 @@ describe("critical frontend flows", () => {
     );
 
     expect(screen.getByRole("heading", { name: `${expected} (1)` })).toBeInTheDocument();
+    const cells = within(screen.getByRole("table")).getAllByRole("cell");
+    expect(cells[0]).toHaveAttribute("data-label", translateUiString(language, "Élève"));
+    expect(cells[cells.length - 1]).toHaveAttribute("data-label", translateUiString(language, "Actions"));
     if (language !== "fr") {
       expect(screen.queryByText(/Liste des inscriptions/u)).not.toBeInTheDocument();
     }

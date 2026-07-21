@@ -90,6 +90,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
     tone: "warning" | "info";
     title: string;
     text: string;
+    translatable?: boolean;
   }> = [];
 
   if (currentRole === "PARENT") {
@@ -155,7 +156,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
             id: `parent-notification-${parentNotifications[0].id}`,
             tone: "info",
             title: parentNotifications[0].title,
-            text: parentNotifications[0].message
+            text: parentNotifications[0].message,
+            translatable: false
           }
         : null
     ].filter(
@@ -166,6 +168,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         tone: "warning" | "info";
         title: string;
         text: string;
+        translatable?: boolean;
       } => item !== null
     );
   } else if (currentRole === "ENSEIGNANT") {
@@ -229,7 +232,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
             id: `teacher-notification-${teacherNotifications[0].id}`,
             tone: "info",
             title: teacherNotifications[0].title,
-            text: teacherNotifications[0].message
+            text: teacherNotifications[0].message,
+            translatable: false
           }
         : null,
       teacherNotifications[1]
@@ -237,7 +241,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
             id: `teacher-notification-${teacherNotifications[1].id}`,
             tone: "info",
             title: teacherNotifications[1].title,
-            text: teacherNotifications[1].message
+            text: teacherNotifications[1].message,
+            translatable: false
           }
         : null
     ].filter(
@@ -248,6 +253,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         tone: "warning" | "info";
         title: string;
         text: string;
+        translatable?: boolean;
       } => item !== null
     );
   } else {
@@ -333,6 +339,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         id: string;
         title: string;
         text: string;
+        translatable?: boolean;
         screen: ScreenId;
       } => item !== null
     );
@@ -420,7 +427,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
       <header className="dashboard-page-header">
         <div>
           <h1>{t("Tableau de bord")}</h1>
-          <p>{dashboardSubtitle}</p>
+          <p>{t(dashboardSubtitle)}</p>
         </div>
       </header>
 
@@ -428,13 +435,13 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         {overviewCards.map((card) => (
           <article key={card.label} className="panel metric-card kpi-card kpi-card-flex">
             <div className="kpi-card-head">
-              <span className="kpi-card-label">{card.label}</span>
+              <span className="kpi-card-label">{t(card.label)}</span>
               <span className="kpi-card-icon" aria-hidden="true">
                 <ModuleIcon name={card.icon} />
               </span>
             </div>
             <strong>{card.value}</strong>
-            <small className="subtle">{card.hint}</small>
+            <small className="subtle">{t(card.hint)}</small>
           </article>
         ))}
       </section>
@@ -449,7 +456,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
           </div>
 
           {financeBars.length > 0 ? (
-            <div className="dashboard-bar-chart" aria-label="Synthèse du recouvrement">
+            <div className="dashboard-bar-chart" aria-label={t("Synthèse du recouvrement")}>
               {financeBars.map((item) => {
                 const barHeight = Math.max(8, Math.round((item.value / maxFinanceBarValue) * 100));
 
@@ -462,15 +469,15 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
                     >
                       <span />
                     </span>
-                    <strong>{item.label}</strong>
+                    <strong>{t(item.label)}</strong>
                   </div>
                 );
               })}
             </div>
           ) : (
             <div className="dashboard-empty-chart">
-              <strong>À calculer</strong>
-              <p>Le backend ne fournit pas encore de synthèse financière exploitable pour ce profil.</p>
+              <strong>{t("À calculer")}</strong>
+              <p>{t("Le backend ne fournit pas encore de synthèse financière exploitable pour ce profil.")}</p>
             </div>
           )}
         </article>
@@ -491,7 +498,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
               return (
                 <div key={item.label} className="dashboard-signal-row">
                   <div>
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                     <strong>{item.displayValue}</strong>
                   </div>
                   <span
@@ -512,8 +519,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
           <div className="priority-panel-head">
             <div className="table-header dashboard-section-head">
               <div>
-                <p className="section-kicker">Actions</p>
-                <h3>{priorityTitle}</h3>
+                <p className="section-kicker">{t("Actions")}</p>
+                <h3>{t(priorityTitle)}</h3>
               </div>
             </div>
             <button
@@ -522,14 +529,14 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
               aria-expanded={mobileTasksOpen}
               onClick={onToggleMobileTasks}
             >
-              {mobileTasksOpen ? "Masquer" : "Afficher"}
+              {t(mobileTasksOpen ? "Masquer" : "Afficher")}
             </button>
           </div>
 
           <div className={`priority-collapsible ${mobileTasksOpen ? "is-open" : ""}`.trim()}>
             <div className="priority-list">
               {dashboardTasks.length === 0 ? (
-                <p className="subtle">Aucune action prioritaire pour ce profil.</p>
+                <p className="subtle">{t("Aucune action prioritaire pour ce profil.")}</p>
               ) : (
                 dashboardTasks.map((task, index) => (
                   <button
@@ -539,8 +546,8 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
                     onClick={() => onSelectScreen(task.screen)}
                   >
                     <span className="priority-item-index">{String(index + 1).padStart(2, "0")}</span>
-                    <strong>{task.title}</strong>
-                    <small>{task.text}</small>
+                    <strong>{t(task.title)}</strong>
+                    <small>{t(task.text)}</small>
                   </button>
                 ))
               )}
@@ -551,19 +558,19 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         <article className="panel priority-panel dashboard-panel-shell dashboard-followup-panel">
           <div className="table-header dashboard-section-head">
             <div>
-              <p className="section-kicker">Suivi</p>
-              <h3>Alertes & suivi</h3>
+              <p className="section-kicker">{t("Suivi")}</p>
+              <h3>{t("Alertes & suivi")}</h3>
             </div>
           </div>
 
           <div className="notice-list">
             {dashboardNotifications.length === 0 ? (
-              <p className="subtle">Aucune alerte à traiter.</p>
+              <p className="subtle">{t("Aucune alerte à traiter.")}</p>
             ) : (
               dashboardNotifications.map((item) => (
                 <article key={item.id} className={`notice-card notice-${item.tone}`}>
-                  <strong>{item.title}</strong>
-                  <p>{item.text}</p>
+                  <strong>{item.translatable === false ? item.title : t(item.title)}</strong>
+                  <p>{item.translatable === false ? item.text : t(item.text)}</p>
                 </article>
               ))
             )}

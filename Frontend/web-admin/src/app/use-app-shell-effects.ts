@@ -1,10 +1,8 @@
 import { useEffect, type RefObject } from "react";
 
 import type { Role, ScreenId, Session } from "../shared/types/app";
-import type { UiLanguage } from "../shared/i18n";
 import { hasScreenRoleAccess, ROLE_HOME_SCREEN } from "./navigation/screen-registry";
 import { isLocalPreviewRoute } from "./preview/preview-mode";
-import { decorateResponsiveTables } from "./shell/responsive-tables";
 
 type ApiConnectionState = {
   nextRetryAt?: number | null;
@@ -32,7 +30,6 @@ type UseAppShellEffectsParams = {
   setNotice: (message: string | null) => void;
   setTab: (screen: ScreenId) => void;
   tab: ScreenId;
-  uiLanguage: UiLanguage;
 };
 
 export function useAppShellEffects({
@@ -55,28 +52,8 @@ export function useAppShellEffects({
   setMobileTasksOpen,
   setNotice,
   setTab,
-  tab,
-  uiLanguage
+  tab
 }: UseAppShellEffectsParams): void {
-  useEffect(() => {
-    const root = appRootRef.current;
-    if (!root) return;
-
-    decorateResponsiveTables(root);
-
-    const observer = new MutationObserver(() => {
-      decorateResponsiveTables(root);
-    });
-
-    observer.observe(root, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
-
-    return () => observer.disconnect();
-  }, [appRootRef, session, tab, uiLanguage]);
-
   useEffect(() => {
     if (!localPreviewEnabled || session || !isLocalPreviewRoute()) {
       return;

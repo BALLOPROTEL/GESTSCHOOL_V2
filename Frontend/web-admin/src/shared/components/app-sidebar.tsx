@@ -4,6 +4,7 @@ import { HeaderGlyph } from "../../app/navigation/header-glyph";
 import type { ModuleIconName } from "../types/app";
 import type { HeaderNavigationAction } from "../../app/navigation/header-navigation";
 import type { HeaderNavigationUser, HeaderUserAction } from "../../app/navigation/header-navigation-types";
+import { useI18n } from "../i18n-context";
 import { ModuleIcon } from "./module-icon";
 
 type AppSidebarGroup = {
@@ -48,6 +49,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
   const { brandName, groups, logoAlt, logoSrc, onBrandSelect, onUserLogout, user, userActions = [] } = props;
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const { t } = useI18n();
 
   const visibleGroups = groups
     .map((group) => ({
@@ -97,7 +99,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
   };
 
   return (
-    <aside className="panel app-sidebar app-sidebar-v2" aria-label="Navigation laterale">
+    <aside className="panel app-sidebar app-sidebar-v2" aria-label={t("Navigation laterale")}>
       {brandName && logoSrc ? (
         <button type="button" className="sidebar-brand" onClick={onBrandSelect}>
           <span className="sidebar-brand-logo">
@@ -105,7 +107,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
           </span>
           <span className="sidebar-brand-copy">
             <strong>{brandName}</strong>
-            <small>Administration scolaire</small>
+            <small>{t("Administration scolaire")}</small>
           </span>
         </button>
       ) : null}
@@ -113,7 +115,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
       <div className="sidebar-scroll-region">
         {visibleGroups.map((group) => (
           <div key={group.id} className="sidebar-group">
-            <p className="sidebar-title">{group.title}</p>
+            <p className="sidebar-title">{t(group.title)}</p>
             <div className="sidebar-nav-list">
               {group.items.map((item) => (
                 <button
@@ -127,8 +129,8 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
                       <ModuleIcon name={resolveIcon(item.id)} />
                     </span>
                     <span className="sidebar-link-copy">
-                      <span>{item.label}</span>
-                      {item.helperText ? <small>{item.helperText}</small> : null}
+                      <span>{t(item.label)}</span>
+                      {item.helperText ? <small>{t(item.helperText)}</small> : null}
                     </span>
                   </span>
                 </button>
@@ -145,7 +147,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
             className="sidebar-user-card"
             aria-haspopup="menu"
             aria-expanded={userMenuOpen}
-            aria-label="Ouvrir le menu du profil"
+            aria-label={t("Ouvrir le menu du profil")}
             onClick={() => setUserMenuOpen((previous) => !previous)}
           >
             <span className="sidebar-user-avatar" aria-hidden="true">
@@ -153,7 +155,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
             </span>
             <span className="sidebar-user-copy">
               <strong>{user.username}</strong>
-              <small>{user.roleLabel || user.email}</small>
+              <small>{user.roleLabel ? t(user.roleLabel) : user.email}</small>
             </span>
             <span className="sidebar-user-caret" aria-hidden="true">
               <svg viewBox="0 0 24 24">
@@ -162,7 +164,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
             </span>
           </button>
           {userMenuOpen ? (
-            <div className="sidebar-user-dropdown" role="menu" aria-label="Menu profil">
+            <div className="sidebar-user-dropdown" role="menu" aria-label={t("Menu profil")}>
               <div className="sidebar-user-summary">
                 <span className="sidebar-user-summary-avatar" aria-hidden="true">
                   {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.avatar}
@@ -170,7 +172,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
                 <span>
                   <strong>{user.username}</strong>
                   {user.email ? <small>{user.email}</small> : null}
-                  <small>{user.roleLabel}</small>
+                  <small>{t(user.roleLabel)}</small>
                 </span>
               </div>
               {userActions.length ? (
@@ -186,7 +188,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
                       <span className="sidebar-user-action-icon" aria-hidden="true">
                         <HeaderGlyph icon={action.icon} />
                       </span>
-                      <span>{action.label}</span>
+                      <span>{t(action.label)}</span>
                     </button>
                   ))}
                 </div>
@@ -195,7 +197,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
                 <span className="sidebar-user-action-icon" aria-hidden="true">
                   <HeaderGlyph icon="logout" />
                 </span>
-                <span>Se déconnecter</span>
+                <span>{t("Se déconnecter")}</span>
               </button>
             </div>
           ) : null}

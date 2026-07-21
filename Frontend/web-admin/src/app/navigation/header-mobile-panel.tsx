@@ -8,6 +8,7 @@ import type {
   HeaderUserAction
 } from "./header-navigation-types";
 import type { ModuleIconName } from "../../shared/types/app";
+import { useI18n } from "../../shared/i18n-context";
 
 type HeaderMobileSection = {
   id: string;
@@ -84,6 +85,7 @@ export function HeaderMobilePanel(props: {
     user,
     userActions = []
   } = props;
+  const { t } = useI18n();
 
   return (
     <div
@@ -92,7 +94,7 @@ export function HeaderMobilePanel(props: {
       role="dialog"
       aria-modal="true"
       aria-hidden={!isOpen}
-      aria-label={`Navigation mobile ${brandName}`}
+      aria-label={`${t("Navigation mobile")} ${brandName}`}
     >
       <div className="header-mobile-panel-head">
         <div className="header-mobile-brand">
@@ -107,7 +109,7 @@ export function HeaderMobilePanel(props: {
         <button
           type="button"
           className="header-mobile-close"
-          aria-label="Fermer le menu mobile"
+          aria-label={t("Fermer le menu mobile")}
           onClick={onClose}
         >
           <span aria-hidden="true">X</span>
@@ -127,8 +129,8 @@ export function HeaderMobilePanel(props: {
       <div className="header-mobile-sections">
         {sections.map((section) => (
           <section key={section.id} className="header-mobile-section">
-            <p>{section.label}</p>
-            <div className="header-mobile-links" role="menu" aria-label={section.label}>
+            <p>{t(section.label)}</p>
+            <div className="header-mobile-links" role="menu" aria-label={t(section.label)}>
               {section.items.map((item) => (
                 <button
                   key={item.id}
@@ -144,15 +146,15 @@ export function HeaderMobilePanel(props: {
                   <span className="header-mobile-link-icon" aria-hidden="true">
                     <ModuleIcon name={resolveMobileIcon(item.id)} />
                   </span>
-                  <span>{item.label}</span>
-                  {item.helperText ? <small>{item.helperText}</small> : null}
+                  <span>{t(item.label)}</span>
+                  {item.helperText ? <small>{t(item.helperText)}</small> : null}
                 </button>
               ))}
             </div>
             {section.groups?.map((group) => (
               <div key={group.id} className="header-mobile-subsection">
-                <p>{group.label}</p>
-                <div className="header-mobile-links" role="menu" aria-label={group.label}>
+                <p>{t(group.label)}</p>
+                <div className="header-mobile-links" role="menu" aria-label={t(group.label)}>
                   {group.items.map((item) => (
                     <button
                       key={item.id}
@@ -168,8 +170,8 @@ export function HeaderMobilePanel(props: {
                       <span className="header-mobile-link-icon" aria-hidden="true">
                         <ModuleIcon name={resolveMobileIcon(item.id)} />
                       </span>
-                      <span>{item.label}</span>
-                      {item.helperText ? <small>{item.helperText}</small> : null}
+                      <span>{t(item.label)}</span>
+                      {item.helperText ? <small>{t(item.helperText)}</small> : null}
                     </button>
                   ))}
                 </div>
@@ -179,8 +181,8 @@ export function HeaderMobilePanel(props: {
         ))}
 
         <section className="header-mobile-section">
-          <p>Préférences</p>
-          <div className="header-preferences-grid mobile" role="menu" aria-label="Préférences">
+          <p>{t("Préférences")}</p>
+          <div className="header-preferences-grid mobile" role="menu" aria-label={t("Préférences")}>
             {preferences.map((item) => (
               <button
                 key={item.id}
@@ -193,8 +195,8 @@ export function HeaderMobilePanel(props: {
                 }}
               >
                 {item.iconSrc ? <img src={item.iconSrc} alt="" aria-hidden="true" /> : null}
-                <span>{item.label}</span>
-                {item.helperText ? <small>{item.helperText}</small> : null}
+                <span>{t(item.label)}</span>
+                {item.helperText ? <small>{t(item.helperText)}</small> : null}
               </button>
             ))}
           </div>
@@ -212,8 +214,8 @@ export function HeaderMobilePanel(props: {
               onClose();
             }}
           >
-            <span>{messages.label}</span>
-            <small>{`${messages.count} message(s)`}</small>
+            <span>{t(messages.label)}</span>
+            <small>{t(`${messages.count} message(s)`)}</small>
           </button>
         ) : null}
         <button
@@ -225,8 +227,8 @@ export function HeaderMobilePanel(props: {
             onClose();
           }}
         >
-          <span>{notifications.label}</span>
-          <small>{notifications.count} notification(s)</small>
+          <span>{t(notifications.label)}</span>
+          <small>{t(`${notifications.count} notification(s)`)}</small>
         </button>
         <div className="header-mobile-user">
           <div>
@@ -235,20 +237,20 @@ export function HeaderMobilePanel(props: {
           </div>
         </div>
         {userActions.length > 0 ? (
-          <div className="header-mobile-links user-actions" role="menu" aria-label="Menu profil">
+          <div className="header-mobile-links user-actions" role="menu" aria-label={t("Menu profil")}>
             {userActions.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className="header-mobile-link"
-                aria-label={item.label}
+                aria-label={t(item.label)}
                 role="menuitem"
                 onClick={() => {
                   item.onSelect();
                   onClose();
                 }}
               >
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </button>
             ))}
           </div>
@@ -263,7 +265,7 @@ export function HeaderMobilePanel(props: {
               user.onLogout();
             }}
           >
-            <span>Se déconnecter</span>
+            <span>{t("Se déconnecter")}</span>
           </button>
         </div>
       </div>

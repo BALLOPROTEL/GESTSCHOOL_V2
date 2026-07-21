@@ -1,4 +1,5 @@
 import { lazy } from "react";
+import { useI18n } from "../shared/i18n-context";
 
 export const AuthScreen = lazy(() =>
   import("../features/auth-screen").then((module) => ({ default: module.AuthScreen }))
@@ -88,12 +89,15 @@ export const ConstructionPageMosquee = lazy(() =>
   }))
 );
 
-export const ScreenLoadingFallback = (): JSX.Element => (
-  <section className="panel table-panel screen-loading" aria-live="polite">
-    <span className="mini-loader" />
-    <div>
-      <strong>Chargement du module</strong>
-      <p className="subtle">Preparation de l'ecran demande...</p>
-    </div>
-  </section>
-);
+export const ScreenLoadingFallback = (): JSX.Element => {
+  const { t } = useI18n();
+  return (
+    <section className="panel table-panel screen-loading" aria-live="polite">
+      <span className="mini-loader" />
+      <div>
+        <strong>{t("Chargement du module")}</strong>
+        <p className="subtle">{t("Preparation de l'ecran demande...")}</p>
+      </div>
+    </section>
+  );
+};

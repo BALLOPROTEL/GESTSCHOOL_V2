@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useRef } from "react";
 
+import { useI18n } from "../../shared/i18n-context";
 import { HeaderFloatingPanel } from "./header-floating-panel";
 import { HeaderGlyph, type HeaderGlyphName } from "./header-glyph";
 import type { HeaderFeedItem, HeaderPreferenceAction, HeaderQuickAction } from "./header-navigation-types";
@@ -15,14 +16,16 @@ export function HeaderUtilityButton(props: {
   onSelect: () => void;
 }): JSX.Element {
   const { active, badge, className, icon, imageSrc, label, onSelect } = props;
+  const { t } = useI18n();
+  const translatedLabel = t(label);
 
   return (
     <button
       type="button"
       className={`header-icon-button ${active ? "is-active" : ""} ${className || ""}`.trim()}
-      aria-label={label}
+      aria-label={translatedLabel}
       onClick={onSelect}
-      title={label}
+      title={translatedLabel}
     >
       {imageSrc ? (
         <img className="header-utility-image" src={imageSrc} alt="" aria-hidden="true" />
@@ -87,13 +90,14 @@ export function HeaderQuickActionsPanel(props: {
   onOpenChange: (value: string | null) => void;
 }): JSX.Element {
   const { items, onOpenChange } = props;
+  const { t } = useI18n();
 
   return (
     <div className="header-quick-panel">
       <div className="header-feed-header">
         <div>
-          <strong>Accès rapides</strong>
-          <span>Raccourcis du poste admin</span>
+          <strong>{t("Accès rapides")}</strong>
+          <span>{t("Raccourcis du poste admin")}</span>
         </div>
       </div>
       <div className="header-quick-grid">
@@ -110,7 +114,7 @@ export function HeaderQuickActionsPanel(props: {
             <span className="header-quick-icon">
               <HeaderGlyph icon={item.icon} />
             </span>
-            <span>{item.label}</span>
+            <span>{t(item.label)}</span>
           </button>
         ))}
       </div>
@@ -123,6 +127,7 @@ export function HeaderLanguagePanel(props: {
   onOpenChange: (value: string | null) => void;
 }): JSX.Element {
   const { onOpenChange, preference } = props;
+  const { t } = useI18n();
   const options = preference.options?.length
     ? preference.options
     : [
@@ -140,8 +145,8 @@ export function HeaderLanguagePanel(props: {
     <div className="header-language-panel">
       <div className="header-feed-header">
         <div>
-          <strong>Langue</strong>
-          {preference.helperText ? <span>{preference.helperText}</span> : null}
+          <strong>{t("Langue")}</strong>
+          {preference.helperText ? <span>{t(preference.helperText)}</span> : null}
         </div>
       </div>
       <div className="header-language-list">
@@ -160,10 +165,10 @@ export function HeaderLanguagePanel(props: {
               {option.iconSrc ? <img src={option.iconSrc} alt="" /> : option.label.slice(0, 2).toUpperCase()}
             </span>
             <span className="header-language-copy">
-              <strong>{option.label}</strong>
-              {option.helperText ? <small>{option.helperText}</small> : null}
+              <strong>{t(option.label)}</strong>
+              {option.helperText ? <small>{t(option.helperText)}</small> : null}
             </span>
-            {option.active ? <span className="header-language-status">Actif</span> : null}
+            {option.active ? <span className="header-language-status">{t("Actif")}</span> : null}
           </button>
         ))}
       </div>
@@ -181,16 +186,17 @@ export function HeaderFeedPanel(props: {
   unreadLabel: string;
 }): JSX.Element {
   const { actionLabel, footerLabel, items, onActionSelect, onFooterSelect, title, unreadLabel } = props;
+  const { t } = useI18n();
 
   return (
     <div className="header-feed-panel">
       <div className="header-feed-header">
         <div>
-          <strong>{title}</strong>
-          <span>{unreadLabel}</span>
+          <strong>{t(title)}</strong>
+          <span>{t(unreadLabel)}</span>
         </div>
         <button type="button" className="header-panel-link" onClick={onActionSelect}>
-          {actionLabel}
+          {t(actionLabel)}
         </button>
       </div>
       <div className="header-feed-list">
@@ -205,16 +211,16 @@ export function HeaderFeedPanel(props: {
               </span>
             ) : null}
             <span className="header-feed-copy">
-              <strong>{item.title}</strong>
-              <p>{item.description}</p>
-              <span>{item.timeLabel}</span>
+              <strong>{t(item.title)}</strong>
+              <p>{t(item.description)}</p>
+              <span>{t(item.timeLabel)}</span>
             </span>
           </button>
         ))}
       </div>
       <div className="header-feed-footer">
         <button type="button" className="header-panel-link footer-link" onClick={onFooterSelect}>
-          {footerLabel}
+          {t(footerLabel)}
         </button>
       </div>
     </div>

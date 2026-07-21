@@ -8,6 +8,7 @@ import type {
   UserSelfProfile
 } from "../shared/types/app";
 import type { UiLanguage } from "../shared/i18n";
+import { useI18n } from "../shared/i18n-context";
 import {
   ActivityScreen,
   BillingScreen,
@@ -37,6 +38,7 @@ import type { AppApiClient } from "./app-data-loaders";
 import type { AppDomainActions, AppDomainData } from "./use-app-data";
 import { FeatureUnavailableScreen } from "./app-shell-panels";
 import { getScreenAccessDecision, hasScreenAccess } from "./navigation/screen-registry";
+import { LegacyDomEnhancementsBoundary } from "./shell/legacy-dom-enhancements-boundary";
 
 type AvailableScreenAction = {
   id: string;
@@ -71,12 +73,15 @@ export type AppScreenRouterProps = {
   uiLanguage: UiLanguage;
 };
 
-const ForbiddenScreen = ({ currentRoleLabel }: { currentRoleLabel: string }): JSX.Element => (
-  <section className="panel table-panel">
-    <h2>Acces refuse</h2>
-    <p className="subtle">Votre profil ({currentRoleLabel}) n'a pas acces a cet ecran.</p>
-  </section>
-);
+const ForbiddenScreen = ({ currentRoleLabel }: { currentRoleLabel: string }): JSX.Element => {
+  const { t } = useI18n();
+  return (
+    <section className="panel table-panel">
+      <h2>{t("Acces refuse")}</h2>
+      <p className="subtle">{t(`Votre profil (${currentRoleLabel}) n'a pas acces a cet ecran.`)}</p>
+    </section>
+  );
+};
 
 export function AppScreenRouter({
   activeScreenLabel,
@@ -121,6 +126,11 @@ export function AppScreenRouter({
 
   const { finance, parentDirectory, parentPortal, reference, teacherPortal } = data;
   const sharedScreenCallbacks = { onError, onNotice };
+  const renderLegacyScreen = (screen: JSX.Element): JSX.Element => (
+    <LegacyDomEnhancementsBoundary language={uiLanguage}>
+      {screen}
+    </LegacyDomEnhancementsBoundary>
+  );
   const renderDashboard = (): JSX.Element => (
     <DashboardScreen
       currentRole={currentRole}
@@ -153,7 +163,7 @@ export function AppScreenRouter({
     case "dashboard":
       return renderDashboard();
     case "iam":
-      return (
+      return renderLegacyScreen(
         <IamScreen
           api={api}
           initialUsers={data.users}
@@ -166,7 +176,7 @@ export function AppScreenRouter({
         />
       );
     case "teachers":
-      return (
+      return renderLegacyScreen(
         <TeachersScreen
           api={api}
           classes={reference.classes}
@@ -182,7 +192,7 @@ export function AppScreenRouter({
         />
       );
     case "rooms":
-      return (
+      return renderLegacyScreen(
         <RoomsScreen
           api={api}
           classes={reference.classes}
@@ -196,7 +206,7 @@ export function AppScreenRouter({
         />
       );
     case "students":
-      return (
+      return renderLegacyScreen(
         <StudentsScreen
           api={api}
           initialStudents={data.students}
@@ -207,7 +217,7 @@ export function AppScreenRouter({
         />
       );
     case "parents":
-      return (
+      return renderLegacyScreen(
         <ParentsScreen
           api={api}
           initialParents={parentDirectory.records}
@@ -220,7 +230,7 @@ export function AppScreenRouter({
         />
       );
     case "reference":
-      return (
+      return renderLegacyScreen(
         <ReferenceScreen
           api={api}
           data={reference}
@@ -247,7 +257,7 @@ export function AppScreenRouter({
         />
       );
     case "finance":
-      return (
+      return renderLegacyScreen(
         <FinanceScreen
           api={api}
           initialData={finance}
@@ -332,9 +342,11 @@ export function AppScreenRouter({
         <ForbiddenScreen currentRoleLabel={currentRoleLabel} />
       );
     case "messages":
-      return <MessagesScreen currentRoleLabel={currentRoleLabel} onSelectScreen={onSelectScreen} />;
+      return renderLegacyScreen(
+        <MessagesScreen currentRoleLabel={currentRoleLabel} onSelectScreen={onSelectScreen} />
+      );
     case "reports":
-      return (
+      return renderLegacyScreen(
         <ReportsScreen
           api={api}
           schoolYears={reference.schoolYears}
@@ -346,9 +358,9 @@ export function AppScreenRouter({
         />
       );
     case "mosquee":
-      return <ConstructionPageMosquee />;
+      return renderLegacyScreen(<ConstructionPageMosquee />);
     case "grades":
-      return (
+      return renderLegacyScreen(
         <GradesScreen
           api={api}
           initialReportCards={data.reportCards}
@@ -363,7 +375,7 @@ export function AppScreenRouter({
         />
       );
     case "schoolLifeOverview":
-      return (
+      return renderLegacyScreen(
         <PilotageScreen
           api={api}
           students={data.students}
@@ -390,7 +402,7 @@ export function AppScreenRouter({
           : tab === "schoolLifeTimetable"
             ? "timetable"
             : "notifications";
-      return (
+      return renderLegacyScreen(
         <SchoolLifePanel
           api={api}
           students={data.students}
@@ -408,7 +420,7 @@ export function AppScreenRouter({
       );
     }
     case "teacherPortal":
-      return (
+      return renderLegacyScreen(
         <PortalTeacherScreen
           api={api}
           initialData={teacherPortal}
@@ -421,7 +433,7 @@ export function AppScreenRouter({
         />
       );
     case "parentPortal":
-      return (
+      return renderLegacyScreen(
         <PortalParentScreen
           api={api}
           initialData={parentPortal}
@@ -433,7 +445,7 @@ export function AppScreenRouter({
         />
       );
     case "studentPortal":
-      return <StudentPortalPlaceholderScreen />;
+      return renderLegacyScreen(<StudentPortalPlaceholderScreen />);
     default:
       return renderDashboard();
   }

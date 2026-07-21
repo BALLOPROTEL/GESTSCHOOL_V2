@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { useI18n } from "../../shared/i18n-context";
 import { HeaderMobilePanel } from "./header-mobile-panel";
 import type {
   HeaderFeedItem,
@@ -82,6 +83,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     user,
     userActions
   } = props;
+  const { t } = useI18n();
   const [openId, setOpenId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const languagePreference = preferences.find((item) => item.id === "language") ?? preferences[0];
@@ -289,7 +291,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
           </span>
           <span className="global-brand-copy">
             <strong>{brandName}</strong>
-            <small>Administration scolaire</small>
+            <small>{t("Administration scolaire")}</small>
           </span>
         </button>
 
@@ -308,7 +310,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
           <div className="global-header-search">
             <HeaderSearchBar
               value={searchValue}
-              placeholder={searchPlaceholder}
+              placeholder={t(searchPlaceholder)}
               onChange={onSearchChange}
               onSubmit={onSearchSubmit}
             />
@@ -430,7 +432,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
                 <path d="M4 7h16v2H4V7Zm0 7h16v2H4v-2Z" />
               </svg>
             </span>
-            <span>Menu</span>
+            <span>{t("Menu")}</span>
           </button>
         </div>
       </div>
@@ -454,7 +456,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
         preferences={preferences}
-        searchPlaceholder={searchPlaceholder}
+        searchPlaceholder={t(searchPlaceholder)}
         searchValue={searchValue}
         sections={mobileSections}
         user={user}

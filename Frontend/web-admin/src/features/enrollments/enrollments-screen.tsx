@@ -485,7 +485,7 @@ export function EnrollmentsScreen({
 
                       return (
                         <tr key={item.id}>
-                          <td data-label="Élève">
+                          <td data-label={t("Élève")}>
                             <div className="enrollments-v3-student-cell">
                               <span className="enrollments-v3-avatar">{getEnrollmentInitials(item, localStudent)}</span>
                               <div>
@@ -494,27 +494,27 @@ export function EnrollmentsScreen({
                               </div>
                             </div>
                           </td>
-                          <td data-label="Année" className="enrollments-v3-muted-cell">
+                          <td data-label={t("Année")} className="enrollments-v3-muted-cell">
                             {schoolYear}
                           </td>
-                          <td data-label="Classe / cursus">
+                          <td data-label={t("Classe / cursus")}>
                             <div className="enrollments-v3-class-cell">
                               <strong>{classLabel}</strong>
                               <span className="enrollments-v3-class-badge">{formatAcademicTrackLabel(item.track)}</span>
                             </div>
                           </td>
-                          <td data-label="Placement" className="enrollments-v3-muted-cell">
+                          <td data-label={t("Placement")} className="enrollments-v3-muted-cell">
                             {formatPlacementTypeLabel(Boolean(item.isPrimary))}
                           </td>
-                          <td data-label="Date" className="enrollments-v3-muted-cell">
+                          <td data-label={t("Date")} className="enrollments-v3-muted-cell">
                             {formatDate(item.enrollmentDate, locale)}
                           </td>
-                          <td data-label="Statut">
+                          <td data-label={t("Statut")}>
                             <span className={getEnrollmentStatusClassName(item.enrollmentStatus)}>
                               {formatEnrollmentStatusLabel(item.enrollmentStatus)}
                             </span>
                           </td>
-                          <td data-label="Actions">
+                          <td data-label={t("Actions")}>
                             <div className="enrollments-v3-action-cell v3-action-cell">
                               <button
                                 type="button"

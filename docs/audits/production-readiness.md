@@ -1284,3 +1284,107 @@ n'est requise avant revue ; l'audit integre reste reserve au LOT 10.
 
 Message de commit propose :
 `refactor(web-admin): split app orchestration by responsibility`.
+
+## LOT 8C - I18n et tableaux sans observers DOM globaux (2026-07-18)
+
+### Diagnostic initial
+
+Deux `MutationObserver` applicatifs etaient attaches au contenu global de
+`<main>` :
+
+| Observer | Fichier initial | Portee | Effet | Dependances implicites | Remplacement |
+| --- | --- | --- | --- | --- | --- |
+| Traduction DOM | `shared/i18n.ts` | tout `<main>` | parcours de tous les textes et reecriture de `textContent`, placeholder, title, aria-label, alt et data-label | shell et ecrans avec libelles francais rendus directement | `I18nProvider`, `useI18n` et traduction avant rendu |
+| Tables responsives | `app/use-app-shell-effects.ts` | toutes les tables sous `<main>` | copie des en-tetes dans `data-label` apres chaque mutation | tables sans metadonnees mobiles locales | metadonnees React locales et bridge strictement limite aux ecrans legacy |
+
+Aucun `ResizeObserver` ou `IntersectionObserver` applicatif n'etait present.
+L'inventaire source comptait 46 tables de production dans 21 fichiers, dont 35
+avec `data-responsive-table` explicite. Les ecrans anciens dependaient encore du
+decorateur global pour completer leurs cellules et du traducteur DOM pour leurs
+libelles. Une mutation representative sur Inscriptions observait un DOM de 482
+noeuds et le changement FR vers EN produisait 157 enregistrements traites par
+les observers applicatifs.
+
+### Strategie appliquee
+
+- `I18nProvider` et `useI18n` fournissent langue, direction et fonction `t` sans
+  reecriture du DOM ;
+- le shell, la sidebar, les panneaux du header, le routeur, les ecrans lazy,
+  Dashboard et Inscriptions traduisent maintenant leurs textes, placeholders,
+  titres, labels accessibles et labels mobiles avant rendu ;
+- les notifications libres retournees par l'API sont identifiees comme donnees
+  metier et ne passent pas dans la traduction du Dashboard ;
+- Inscriptions fournit declarativement ses sept labels de colonnes mobiles ;
+- l'ancien observer de `use-app-shell-effects.ts` et `useDomTranslation` sont
+  supprimes ;
+- un bridge temporaire `LegacyDomEnhancementsBoundary` est limite au seul
+  sous-arbre de l'ecran legacy actif. Il est detruit au demontage, regroupe les
+  mutations dans une frame et ne peut pas envelopper le shell ;
+- un test statique scanne tout `src` et interdit tout autre constructeur
+  `MutationObserver` applicatif ou rebranchement global des anciens helpers.
+
+Les 18 identifiants d'ecran encore sous bridge local sont : IAM, enseignants,
+salles, eleves, parents, referentiel, comptabilite, messagerie, rapports,
+mosquee, notes et bulletins, pilotage, absences, emploi du temps, notifications,
+portails enseignant, parent et eleve. Ce perimetre residuel est explicite : il ne
+constitue plus un observer global, mais reste une dette a migrer ecran par ecran.
+
+### Cycle de vie, accessibilite et performance
+
+Les tests couvrent le changement de langue a chaud, le contenu lazy, les
+interpolations, les placeholders et aria-label, RTL, les donnees libres, les
+labels de colonnes, le sous-arbre local et le demontage en React Strict Mode.
+La boundary ne modifie aucun noeud exterieur a son propre `ref`.
+
+| Mesure representative | Avant | Apres |
+| --- | ---: | ---: |
+| Observers DOM applicatifs globaux | 2 | 0 |
+| Enregistrements traites apres FR vers EN sur Inscriptions | 157 | 0 |
+| Temps observe avec fenetre fixe de stabilisation de 500 ms | 624 ms | 619 ms |
+| Observer residuel sur un ecran declaratif | global sur `<main>` | aucun |
+| Observer residuel sur Enseignants legacy | global sur `<main>` | 1 local, 11 enregistrements initiaux et 0 apres changement de langue |
+| Chunk JS principal | 389 604 octets | 391 551 octets |
+| Chunk JS principal gzip | 115 352 octets | 115 487 octets |
+| CSS global | 443 532 octets | 443 532 octets |
+
+Le delta du chunk principal est de +1 947 octets brut (+0,50 %) et +135 octets
+gzip (+0,12 %). Aucune nouvelle dependance n'a ete ajoutee et le CSS est
+strictement inchange.
+
+### Validations
+
+| Controle | Resultat |
+| --- | --- |
+| Tests i18n, observers, Strict Mode et tableaux cibles | OK, 4 fichiers et 29 tests |
+| Tests frontend complets | OK, 25 fichiers et 108 tests |
+| Lint frontend | OK |
+| Build frontend avec URL API explicite | OK, Vite 7.3.6, 157 modules |
+| Smoke frontend | OK |
+| Audit visuel mocked CI | OK, 61/61 workflows et 0 constat |
+| Matrice Dashboard/Inscriptions FR, EN, AR et RTL | OK dans les tests et le gate CI |
+| Audit visuel mocked complet | OK, 121/121 workflows, 121 captures, 0 constat et 0 requete inattendue |
+| Audit visuel integre | Reporte au LOT 10 comme prevu |
+| `git diff --check` | A relancer apres cette documentation |
+
+Le premier passage du gate CI a expose quatre libelles Dashboard encore rendus
+en francais (`Taches prioritaires` et `Alertes & suivi` en EN/AR). Ils ont ete
+convertis en rendu declaratif, leurs traductions et tests ajoutes, puis le gate
+a reussi 61/61 sans allowlist.
+
+### Dette residuelle et actions
+
+Le LOT 8D reste responsable de la consolidation CSS et du retrait des 13 scripts
+visuels legacy. La migration declarative des 18 ecrans encore sous bridge local
+devra continuer par composant ; aucune exception globale ne doit etre ajoutee.
+Le risque temporaire restant est la traduction par inspection du sous-arbre dans
+ces seuls ecrans legacy. Les composants deja migres et les donnees libres du
+Dashboard n'utilisent plus ce mecanisme.
+
+Aucune action de configuration n'est requise de l'utilisateur. L'audit mocked
+complet est valide ; conserver l'audit integre pour le LOT 10.
+
+Verdict LOT 8C : **GO pour revue**, avec bridge local temporaire documente et
+audit mocked complet valide sans constat.
+
+Message de commit propose :
+`refactor(web-admin): replace global DOM observers with scoped React boundaries`.

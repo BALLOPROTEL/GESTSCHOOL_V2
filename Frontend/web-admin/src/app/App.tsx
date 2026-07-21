@@ -3,7 +3,7 @@ import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import type { Role, ScreenId, Session, UserSelfProfile } from "../shared/types/app";
 import { AppSidebar } from "../shared/components/app-sidebar";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
-import { useDomTranslation } from "../shared/i18n";
+import { I18nProvider } from "../shared/i18n-context";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
 import { HeaderNavigation } from "./navigation/header-navigation";
@@ -53,8 +53,6 @@ export function App(): JSX.Element {
     uiLanguage
   } = useAppPreferences();
   const { actions: dataActions, data } = useAppDomainState();
-
-  useDomTranslation(appRootRef, uiLanguage);
 
   const clearData = useCallback((): void => {
     dataActions.clearData();
@@ -243,8 +241,7 @@ export function App(): JSX.Element {
     setMobileTasksOpen,
     setNotice,
     setTab,
-    tab,
-    uiLanguage
+    tab
   });
 
   useAppBootstrap({
@@ -339,15 +336,16 @@ export function App(): JSX.Element {
   });
 
   return (
-    <main
-      ref={appRootRef}
-      className={`page ${!session ? "page-auth" : ""}`.trim()}
-      data-theme={themeMode}
-      data-lang={uiLanguage}
-      dir={currentLanguageMeta.dir}
-    >
-      <div className="aurora aurora-left" />
-      <div className="aurora aurora-right" />
+    <I18nProvider language={uiLanguage}>
+      <main
+        ref={appRootRef}
+        className={`page ${!session ? "page-auth" : ""}`.trim()}
+        data-theme={themeMode}
+        data-lang={uiLanguage}
+        dir={currentLanguageMeta.dir}
+      >
+        <div className="aurora aurora-left" />
+        <div className="aurora aurora-right" />
 
       {!session ? (
         <Suspense fallback={<ScreenLoadingFallback />}>
@@ -514,13 +512,14 @@ export function App(): JSX.Element {
         </section>
       )}
 
-      <GlobalToastLayer
-        error={error}
-        language={uiLanguage}
-        notice={notice}
-        onDismissError={() => setError(null)}
-        onDismissNotice={() => setNotice(null)}
-      />
-    </main>
+        <GlobalToastLayer
+          error={error}
+          language={uiLanguage}
+          notice={notice}
+          onDismissError={() => setError(null)}
+          onDismissNotice={() => setNotice(null)}
+        />
+      </main>
+    </I18nProvider>
   );
 }

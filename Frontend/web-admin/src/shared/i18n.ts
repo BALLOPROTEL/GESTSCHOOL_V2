@@ -1,5 +1,3 @@
-import { RefObject, useLayoutEffect } from "react";
-
 export type UiLanguage = "fr" | "en" | "ar";
 
 export type UiLanguageMeta = {
@@ -18,18 +16,11 @@ export const UI_LANGUAGE_META: Record<UiLanguage, UiLanguageMeta> = {
 };
 
 type TargetLanguage = Exclude<UiLanguage, "fr">;
-type AttributeName = "placeholder" | "title" | "aria-label" | "alt" | "data-label";
 type ExactTranslations = Record<TargetLanguage, Record<string, string>>;
 type PatternTranslation = {
   pattern: RegExp;
   translate: (match: RegExpExecArray, translate: (value: string) => string) => string;
 };
-
-const TRANSLATABLE_ATTRIBUTES: AttributeName[] = ["placeholder", "title", "aria-label", "alt", "data-label"];
-const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "TEXTAREA"]);
-
-const textSourceMap = new WeakMap<Text, string>();
-const attributeSourceMap = new WeakMap<Element, Map<AttributeName, string>>();
 
 const EXACT_TRANSLATIONS: ExactTranslations = {
   en: {
@@ -849,8 +840,17 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Tâches prioritaires": "Priority tasks",
     "Bienvenue, voici l'état opérationnel de l'établissement aujourd'hui.":
       "Welcome. Here is today's operational overview of the school.",
+    "Vue rapide du suivi familial et des notifications utiles.":
+      "Quick overview of family tracking and useful notifications.",
+    "Vue rapide de vos classes, élèves et actions pédagogiques.":
+      "Quick overview of your classes, students, and teaching actions.",
     "Recouvrement & encaissements": "Collections & payments",
     "Lecture rapide issue des factures disponibles.": "Quick overview based on available invoices.",
+    "À calculer": "To be calculated",
+    "Le backend ne fournit pas encore de synthèse financière exploitable pour ce profil.":
+      "The backend does not yet provide a usable financial summary for this profile.",
+    Dû: "Due",
+    Encaissé: "Collected",
     "Suivi opérationnel": "Operational monitoring",
     "Indicateurs clés du périmètre visible.": "Key indicators for the visible scope.",
     "Factures ouvertes": "Open invoices",
@@ -931,6 +931,7 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Bulletins à publier": "Report cards to publish",
     "Alertes & suivi": "Alerts & follow-up",
     "Aucune alerte à traiter.": "No alert to handle.",
+    Afficher: "Show",
     "Effacer filtre": "Clear filter",
     "Aucun module trouve": "No module found",
     "Essayez un mot-cle plus simple.": "Try a simpler keyword.",
@@ -2277,8 +2278,17 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Tâches prioritaires": "المهام ذات الأولوية",
     "Bienvenue, voici l'état opérationnel de l'établissement aujourd'hui.":
       "مرحبًا، إليك النظرة التشغيلية للمؤسسة التعليمية اليوم.",
+    "Vue rapide du suivi familial et des notifications utiles.":
+      "نظرة سريعة على متابعة الأسرة والإشعارات المفيدة.",
+    "Vue rapide de vos classes, élèves et actions pédagogiques.":
+      "نظرة سريعة على صفوفك وطلابك والمهام التعليمية.",
     "Recouvrement & encaissements": "التحصيل والمدفوعات",
     "Lecture rapide issue des factures disponibles.": "نظرة سريعة استنادًا إلى الفواتير المتاحة.",
+    "À calculer": "بانتظار الاحتساب",
+    "Le backend ne fournit pas encore de synthèse financière exploitable pour ce profil.":
+      "لا توفر الواجهة الخلفية بعد ملخصًا ماليًا قابلاً للاستخدام لهذا الملف.",
+    Dû: "المستحق",
+    Encaissé: "المحصّل",
     "Suivi opérationnel": "المتابعة التشغيلية",
     "Indicateurs clés du périmètre visible.": "المؤشرات الرئيسية للنطاق المعروض.",
     "Factures ouvertes": "الفواتير المفتوحة",
@@ -2353,6 +2363,7 @@ const EXACT_TRANSLATIONS: ExactTranslations = {
     "Bulletins à publier": "كشوف للنشر",
     "Alertes & suivi": "تنبيهات ومتابعة",
     "Aucune alerte à traiter.": "لا توجد تنبيهات للمعالجة.",
+    Afficher: "إظهار",
     "Effacer filtre": "مسح المرشح",
     "Aucun module trouve": "لم يتم العثور على وحدة",
     "Essayez un mot-cle plus simple.": "جرّب كلمة مفتاحية أبسط.",
@@ -3288,122 +3299,4 @@ export const translateUiString = (language: UiLanguage, source: string): string 
   }
 
   return source;
-};
-
-const isSourceOrKnownTranslation = (currentValue: string, source: string): boolean => {
-  if (currentValue === source) return true;
-  return UI_LANGUAGE_ORDER.some((candidateLanguage) => translateUiString(candidateLanguage, source) === currentValue);
-};
-
-const shouldTranslateTextNode = (node: Text): boolean => {
-  const source = node.nodeValue;
-  if (!source || !normalizeSource(source)) return false;
-
-  const parent = node.parentElement;
-  if (!parent) return false;
-  if (SKIP_TAGS.has(parent.tagName)) return false;
-  if (parent.closest("[data-i18n-skip='true']")) return false;
-
-  return true;
-};
-
-const translateTextNode = (node: Text, language: UiLanguage): void => {
-  if (!shouldTranslateTextNode(node)) return;
-
-  const currentValue = node.nodeValue ?? "";
-  const previousSource = textSourceMap.get(node);
-  const source =
-    previousSource && isSourceOrKnownTranslation(currentValue, previousSource)
-      ? previousSource
-      : currentValue;
-
-  if (source !== previousSource) {
-    textSourceMap.set(node, source);
-  }
-
-  const translated = translateUiString(language, source);
-  if (node.nodeValue !== translated) {
-    node.nodeValue = translated;
-  }
-};
-
-const translateAttributes = (element: Element, language: UiLanguage): void => {
-  let sourceAttributes = attributeSourceMap.get(element);
-  if (!sourceAttributes) {
-    sourceAttributes = new Map<AttributeName, string>();
-    attributeSourceMap.set(element, sourceAttributes);
-  }
-
-  for (const attributeName of TRANSLATABLE_ATTRIBUTES) {
-    if (!element.hasAttribute(attributeName)) continue;
-
-    const currentValue = element.getAttribute(attributeName) || "";
-    const previousSource = sourceAttributes.get(attributeName);
-    const source =
-      previousSource && isSourceOrKnownTranslation(currentValue, previousSource)
-        ? previousSource
-        : currentValue;
-
-    if (source !== previousSource) {
-      sourceAttributes.set(attributeName, source);
-    }
-
-    const translated = translateUiString(language, source);
-    if (element.getAttribute(attributeName) !== translated) {
-      element.setAttribute(attributeName, translated);
-    }
-  }
-};
-
-const translateTree = (root: Element, language: UiLanguage): void => {
-  translateAttributes(root, language);
-
-  const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let currentTextNode = textWalker.nextNode();
-  while (currentTextNode) {
-    translateTextNode(currentTextNode as Text, language);
-    currentTextNode = textWalker.nextNode();
-  }
-
-  const elementWalker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-  let currentElementNode = elementWalker.nextNode();
-  while (currentElementNode) {
-    translateAttributes(currentElementNode as Element, language);
-    currentElementNode = elementWalker.nextNode();
-  }
-};
-
-export const useDomTranslation = (rootRef: RefObject<Element>, language: UiLanguage): void => {
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    let frameId = 0;
-    const runTranslation = (): void => {
-      frameId = 0;
-      translateTree(root, language);
-    };
-
-    runTranslation();
-
-    const observer = new MutationObserver(() => {
-      if (frameId) return;
-      frameId = window.requestAnimationFrame(runTranslation);
-    });
-
-    observer.observe(root, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: TRANSLATABLE_ATTRIBUTES
-    });
-
-    return () => {
-      observer.disconnect();
-      if (frameId) {
-        window.cancelAnimationFrame(frameId);
-      }
-    };
-  }, [language, rootRef]);
 };
