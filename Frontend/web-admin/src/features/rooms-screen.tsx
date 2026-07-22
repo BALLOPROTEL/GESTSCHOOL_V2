@@ -53,6 +53,8 @@ import {
   statusLabel,
   trackLabel
 } from "./rooms/rooms-screen-model";
+import { useI18n } from "../shared/i18n-context";
+
 
 type RoomsScreenProps = {
   api: (path: string, init?: RequestInit) => Promise<Response>;
@@ -68,6 +70,7 @@ type RoomsScreenProps = {
 };
 
 export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const { api, classes, cycles, levels, onError, onNotice, periods, remoteEnabled = true, schoolYears, subjects } = props;
   const [activeStep, setActiveStep] = useState("list");
   const [rooms, setRooms] = useState<RoomRecord[]>([]);
@@ -323,7 +326,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   };
 
   return (
-    <WorkflowGuide className="module-v3-workflow" title="Salles" steps={steps} activeStepId={activeStep} onStepChange={setActiveStep}>
+    <WorkflowGuide className="module-v3-workflow" title={tr("Salles")} steps={steps} activeStepId={activeStep} onStepChange={setActiveStep}>
       <div className="rooms-screen-shell module-v3-shell">
       {activeStep === "list" ? (
         <RoomsListSection
@@ -345,23 +348,23 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
       {activeStep === "form" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Fiche salle</p><h2>{editingRoomId ? "Modifier la salle" : "Ajouter une salle"}</h2></div><span className="module-header-badge">{SCHOOL_NAME}</span></div>
+          <div className="table-header"><div><p className="section-kicker">{tr("Fiche salle")}</p><h2>{editingRoomId ? tr("Modifier la salle") : tr("Ajouter une salle")}</h2></div><span className="module-header-badge">{SCHOOL_NAME}</span></div>
           <form className="form-grid module-form teachers-form-grid" onSubmit={submitRoom}>
-            <label>Code *<input value={roomForm.code} onChange={(event) => setRoomForm((prev) => ({ ...prev, code: event.target.value }))} required /></label>
-            <label>Nom *<input value={roomForm.name} onChange={(event) => setRoomForm((prev) => ({ ...prev, name: event.target.value }))} required /></label>
-            <label>Type *<select value={roomForm.roomTypeId} onChange={(event) => setRoomForm((prev) => ({ ...prev, roomTypeId: event.target.value }))} required><option value="">Choisir</option>{roomTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
-            <label>Capacité *<input type="number" min="1" value={roomForm.capacity} onChange={(event) => setRoomForm((prev) => ({ ...prev, capacity: event.target.value }))} required /></label>
-            <label>Capacité examen<input type="number" min="1" max={roomForm.capacity || undefined} value={roomForm.examCapacity} onChange={(event) => setRoomForm((prev) => ({ ...prev, examCapacity: event.target.value }))} /></label>
-            <label>Statut *<select value={roomForm.status} onChange={(event) => setRoomForm((prev) => ({ ...prev, status: event.target.value }))} required>{ROOM_STATUSES.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
-            <label>Bâtiment<input value={roomForm.building} onChange={(event) => setRoomForm((prev) => ({ ...prev, building: event.target.value }))} /></label>
-            <label>Étage<input value={roomForm.floor} onChange={(event) => setRoomForm((prev) => ({ ...prev, floor: event.target.value }))} /></label>
-            <label>Localisation<input value={roomForm.location} onChange={(event) => setRoomForm((prev) => ({ ...prev, location: event.target.value }))} /></label>
-            <label>Usage de la salle *<select value={roomForm.isSharedBetweenCurricula ? "shared" : "dedicated"} onChange={(event) => setRoomForm((prev) => ({ ...prev, isSharedBetweenCurricula: event.target.value === "shared", defaultTrack: event.target.value === "shared" ? "" : prev.defaultTrack }))} required><option value="shared">Partagée entre cursus</option><option value="dedicated">Réservée à un cursus</option></select></label>
-            <label>{roomForm.isSharedBetweenCurricula ? "Cursus dédié" : "Cursus dédié *"}<select value={roomForm.defaultTrack} onChange={(event) => setRoomForm((prev) => ({ ...prev, defaultTrack: event.target.value as RoomForm["defaultTrack"] }))} disabled={roomForm.isSharedBetweenCurricula} required={!roomForm.isSharedBetweenCurricula}><option value="">Choisir</option>{TRACKS.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</select></label>
-            <label>Établissement *<select value={roomForm.establishmentId} onChange={(event) => setRoomForm((prev) => ({ ...prev, establishmentId: event.target.value }))}><option value="">Al Manarat Islamiyat</option></select></label>
-            <label className="form-grid-span-full">Description<input value={roomForm.description} onChange={(event) => setRoomForm((prev) => ({ ...prev, description: event.target.value }))} /></label>
-            <label className="form-grid-span-full">Notes internes<textarea value={roomForm.notes} onChange={(event) => setRoomForm((prev) => ({ ...prev, notes: event.target.value }))} /></label>
-            <div className="actions"><button type="submit">{editingRoomId ? "Mettre à jour" : "Créer la salle"}</button><button type="button" className="button-ghost" onClick={() => { setEditingRoomId(null); setRoomForm(defaultRoomForm()); }}>Réinitialiser</button></div>
+            <label>{tr("Code *")}<input value={roomForm.code} onChange={(event) => setRoomForm((prev) => ({ ...prev, code: event.target.value }))} required /></label>
+            <label>{tr("Nom *")}<input value={roomForm.name} onChange={(event) => setRoomForm((prev) => ({ ...prev, name: event.target.value }))} required /></label>
+            <label>{tr("Type *")}<select value={roomForm.roomTypeId} onChange={(event) => setRoomForm((prev) => ({ ...prev, roomTypeId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{roomTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
+            <label>{tr("Capacité *")}<input type="number" min="1" value={roomForm.capacity} onChange={(event) => setRoomForm((prev) => ({ ...prev, capacity: event.target.value }))} required /></label>
+            <label>{tr("Capacité examen")}<input type="number" min="1" max={roomForm.capacity || undefined} value={roomForm.examCapacity} onChange={(event) => setRoomForm((prev) => ({ ...prev, examCapacity: event.target.value }))} /></label>
+            <label>{tr("Statut *")}<select value={roomForm.status} onChange={(event) => setRoomForm((prev) => ({ ...prev, status: event.target.value }))} required>{ROOM_STATUSES.map((status) => <option key={status} value={status}>{tr(statusLabel(status))}</option>)}</select></label>
+            <label>{tr("Bâtiment")}<input value={roomForm.building} onChange={(event) => setRoomForm((prev) => ({ ...prev, building: event.target.value }))} /></label>
+            <label>{tr("Étage")}<input value={roomForm.floor} onChange={(event) => setRoomForm((prev) => ({ ...prev, floor: event.target.value }))} /></label>
+            <label>{tr("Localisation")}<input value={roomForm.location} onChange={(event) => setRoomForm((prev) => ({ ...prev, location: event.target.value }))} /></label>
+            <label>{tr("Usage de la salle *")}<select value={roomForm.isSharedBetweenCurricula ? "shared" : "dedicated"} onChange={(event) => setRoomForm((prev) => ({ ...prev, isSharedBetweenCurricula: event.target.value === "shared", defaultTrack: event.target.value === "shared" ? "" : prev.defaultTrack }))} required><option value="shared">{tr("Partagée entre cursus")}</option><option value="dedicated">{tr("Réservée à un cursus")}</option></select></label>
+            <label>{roomForm.isSharedBetweenCurricula ? tr("Cursus dédié") : tr("Cursus dédié *")}<select value={roomForm.defaultTrack} onChange={(event) => setRoomForm((prev) => ({ ...prev, defaultTrack: event.target.value as RoomForm["defaultTrack"] }))} disabled={roomForm.isSharedBetweenCurricula} required={!roomForm.isSharedBetweenCurricula}><option value="">{tr("Choisir")}</option>{TRACKS.map((track) => <option key={track} value={track}>{tr(trackLabel(track))}</option>)}</select></label>
+            <label>{tr("Établissement *")}<select value={roomForm.establishmentId} onChange={(event) => setRoomForm((prev) => ({ ...prev, establishmentId: event.target.value }))}><option value="">{tr("Al Manarat Islamiyat")}</option></select></label>
+            <label className="form-grid-span-full">{tr("Description")}<input value={roomForm.description} onChange={(event) => setRoomForm((prev) => ({ ...prev, description: event.target.value }))} /></label>
+            <label className="form-grid-span-full">{tr("Notes internes")}<textarea value={roomForm.notes} onChange={(event) => setRoomForm((prev) => ({ ...prev, notes: event.target.value }))} /></label>
+            <div className="actions"><button type="submit">{editingRoomId ? tr("Mettre à jour") : tr("Créer la salle")}</button><button type="button" className="button-ghost" onClick={() => { setEditingRoomId(null); setRoomForm(defaultRoomForm()); }}>{tr("Réinitialiser")}</button></div>
           </form>
         </section>
       ) : null}
@@ -369,23 +372,23 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
       {activeStep === "detail" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header">
-            <div><p className="section-kicker">Dossier salle</p><h2>{detail?.name || selectedRoom?.name || "Aucune salle sélectionnée"}</h2></div>
+            <div><p className="section-kicker">{tr("Dossier salle")}</p><h2>{detail?.name || selectedRoom?.name || tr("Aucune salle sélectionnée")}</h2></div>
             {selectedRoom ? (
-              <div className="module-inline-strip"><button type="button" className="button-ghost" onClick={() => editRoom(selectedRoom)}>Modifier</button><button type="button" onClick={() => setActiveStep("assignments")}>Affecter</button></div>
+              <div className="module-inline-strip"><button type="button" className="button-ghost" onClick={() => editRoom(selectedRoom)}>{tr("Modifier")}</button><button type="button" onClick={() => setActiveStep("assignments")}>{tr("Affecter")}</button></div>
             ) : null}
           </div>
           {!detail ? (
             <div className="empty-state">
-              <p className="section-lead">Sélectionnez une salle depuis la liste pour consulter sa fiche.</p>
-              <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>Retour à la liste des salles</button>
+              <p className="section-lead">{tr("Sélectionnez une salle depuis la liste pour consulter sa fiche.")}</p>
+              <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>{tr("Retour à la liste des salles")}</button>
             </div>
           ) : (
             <div className="teachers-detail-grid">
-              <article className="module-overview-card teachers-identity-card"><span>{detail.code}</span><strong>{detail.name}</strong><small>{detail.roomTypeName || "Type non renseigné"} - {statusLabel(detail.status)}</small><small>{detail.building || "Bâtiment non renseigné"} - {detail.location || "Localisation libre"}</small></article>
-              <article className="module-overview-card"><span>Capacité</span><strong>{detail.capacity}</strong><small>Examen: {detail.examCapacity || "-"}</small></article>
-              <article className="module-overview-card"><span>Cursus</span><strong>{detail.isSharedBetweenCurricula ? "Partagée" : trackLabel(detail.defaultTrack)}</strong><small>Compatibilité salle</small></article>
-              <article className="module-overview-card"><span>Affectations</span><strong>{detail.assignments.length}</strong><small>Historique et usage</small></article>
-              <article className="module-overview-card"><span>Disponibilités</span><strong>{detail.availabilities.length}</strong><small>Maintenance / réservations</small></article>
+              <article className="module-overview-card teachers-identity-card"><span>{detail.code}</span><strong>{detail.name}</strong><small>{detail.roomTypeName || tr("Type non renseigné")} - {tr(statusLabel(detail.status))}</small><small>{detail.building || tr("Bâtiment non renseigné")} - {detail.location || tr("Localisation libre")}</small></article>
+              <article className="module-overview-card"><span>{tr("Capacité")}</span><strong>{detail.capacity}</strong><small>{tr("Examen: ")}{detail.examCapacity || "-"}</small></article>
+              <article className="module-overview-card"><span>{tr("Cursus")}</span><strong>{detail.isSharedBetweenCurricula ? tr("Partagée") : tr(trackLabel(detail.defaultTrack))}</strong><small>{tr("Compatibilité salle")}</small></article>
+              <article className="module-overview-card"><span>{tr("Affectations")}</span><strong>{detail.assignments.length}</strong><small>{tr("Historique et usage")}</small></article>
+              <article className="module-overview-card"><span>{tr("Disponibilités")}</span><strong>{detail.availabilities.length}</strong><small>{tr("Maintenance / réservations")}</small></article>
             </div>
           )}
         </section>
@@ -393,27 +396,27 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
       {activeStep === "assignments" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Affectations salles</p><h2>Usage pédagogique et cursus</h2></div></div>
+          <div className="table-header"><div><p className="section-kicker">{tr("Affectations salles")}</p><h2>{tr("Usage pédagogique et cursus")}</h2></div></div>
           <form className="form-grid module-form teachers-form-grid" onSubmit={submitAssignment}>
-            <label>Salle *<select value={assignmentForm.roomId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, roomId: event.target.value }))} required><option value="">Choisir</option>{rooms.filter((room) => room.status === "ACTIVE").map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
-            <label>Année scolaire *<select value={assignmentForm.schoolYearId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))} required><option value="">Choisir</option>{schoolYears.map((year) => <option key={year.id} value={year.id}>{year.label || year.code}</option>)}</select></label>
-            <label>Type d'affectation *<select value={assignmentForm.assignmentType} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, assignmentType: event.target.value }))} required>{ASSIGNMENT_TYPES.map((type) => <option key={type} value={type}>{assignmentTypeLabel(type)}</option>)}</select></label>
-            <label>Cursus<select value={assignmentForm.track} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, track: event.target.value as RoomAssignmentForm["track"] }))}><option value="">Partagé / non spécifié</option>{TRACKS.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</select></label>
-            <label>Classe<select value={assignmentForm.classId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, classId: event.target.value }))}><option value="">Optionnelle</option>{filteredClasses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-            <label>Niveau<select value={assignmentForm.levelId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, levelId: event.target.value }))}><option value="">Optionnel</option>{levels.map((level) => <option key={level.id} value={level.id}>{level.label}</option>)}</select></label>
-            <label>Cycle<select value={assignmentForm.cycleId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, cycleId: event.target.value }))}><option value="">Optionnel</option>{cycles.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.label}</option>)}</select></label>
-            <label>Matière<select value={assignmentForm.subjectId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, subjectId: event.target.value }))}><option value="">Optionnelle</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}</select></label>
-            <label>Période<select value={assignmentForm.periodId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, periodId: event.target.value }))}><option value="">Optionnelle</option>{filteredPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select></label>
-            <label>Date de début *<input type="date" value={assignmentForm.startDate} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, startDate: event.target.value }))} required /></label>
-            <label>Date de fin<input type="date" value={assignmentForm.endDate} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, endDate: event.target.value }))} /></label>
-            <label>Statut *<select value={assignmentForm.status} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, status: event.target.value }))} required>{ASSIGNMENT_STATUSES.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
-            <label className="form-grid-span-full">Commentaire<input value={assignmentForm.comment} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
-            <div className="actions"><button type="submit">Créer l'affectation</button></div>
+            <label>{tr("Salle *")}<select value={assignmentForm.roomId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, roomId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{rooms.filter((room) => room.status === "ACTIVE").map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
+            <label>{tr("Année scolaire *")}<select value={assignmentForm.schoolYearId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{schoolYears.map((year) => <option key={year.id} value={year.id}>{year.label || year.code}</option>)}</select></label>
+            <label>{tr("Type d'affectation *")}<select value={assignmentForm.assignmentType} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, assignmentType: event.target.value }))} required>{ASSIGNMENT_TYPES.map((type) => <option key={type} value={type}>{tr(assignmentTypeLabel(type))}</option>)}</select></label>
+            <label>{tr("Cursus")}<select value={assignmentForm.track} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, track: event.target.value as RoomAssignmentForm["track"] }))}><option value="">{tr("Partagé / non spécifié")}</option>{TRACKS.map((track) => <option key={track} value={track}>{tr(trackLabel(track))}</option>)}</select></label>
+            <label>{tr("Classe")}<select value={assignmentForm.classId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, classId: event.target.value }))}><option value="">{tr("Optionnelle")}</option>{filteredClasses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            <label>{tr("Niveau")}<select value={assignmentForm.levelId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, levelId: event.target.value }))}><option value="">{tr("Optionnel")}</option>{levels.map((level) => <option key={level.id} value={level.id}>{level.label}</option>)}</select></label>
+            <label>{tr("Cycle")}<select value={assignmentForm.cycleId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, cycleId: event.target.value }))}><option value="">{tr("Optionnel")}</option>{cycles.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.label}</option>)}</select></label>
+            <label>{tr("Matière")}<select value={assignmentForm.subjectId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, subjectId: event.target.value }))}><option value="">{tr("Optionnelle")}</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}</select></label>
+            <label>{tr("Période")}<select value={assignmentForm.periodId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, periodId: event.target.value }))}><option value="">{tr("Optionnelle")}</option>{filteredPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select></label>
+            <label>{tr("Date de début *")}<input type="date" value={assignmentForm.startDate} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, startDate: event.target.value }))} required /></label>
+            <label>{tr("Date de fin")}<input type="date" value={assignmentForm.endDate} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, endDate: event.target.value }))} /></label>
+            <label>{tr("Statut *")}<select value={assignmentForm.status} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, status: event.target.value }))} required>{ASSIGNMENT_STATUSES.map((status) => <option key={status} value={status}>{tr(statusLabel(status))}</option>)}</select></label>
+            <label className="form-grid-span-full">{tr("Commentaire")}<input value={assignmentForm.comment} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
+            <div className="actions"><button type="submit">{tr("Créer l'affectation")}</button></div>
           </form>
           <div className="table-wrap">
-            <table data-responsive-table="true"><thead><tr><th>Salle</th><th>Type</th><th>Classe</th><th>Matière</th><th>Cursus</th><th>Année</th><th>Période</th><th>Statut</th><th>Action</th></tr></thead>
-              <tbody>{selectedAssignments.length === 0 ? <tr><td colSpan={9} className="empty-row">Aucune affectation enregistrée.</td></tr> : selectedAssignments.map((item) => (
-                <tr key={item.id}><td>{item.roomLabel}</td><td>{assignmentTypeLabel(item.assignmentType)}</td><td>{item.classLabel || item.levelLabel || item.cycleLabel || "-"}</td><td>{item.subjectLabel || "-"}</td><td>{trackLabel(item.track)}</td><td>{item.schoolYearCode}</td><td>{item.periodLabel || "-"}</td><td><span className="status-pill">{statusLabel(item.status)}</span></td><td><button type="button" className="button-ghost" onClick={() => void archiveResource(`/rooms/assignments/${item.id}`, "Affectation salle archivée.")}>Archiver</button></td></tr>
+            <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Classe")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Statut")}</th><th>{tr("Action")}</th></tr></thead>
+              <tbody>{selectedAssignments.length === 0 ? <tr><td colSpan={9} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedAssignments.map((item) => (
+                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Type")}>{tr(assignmentTypeLabel(item.assignmentType))}</td><td data-label={tr("Classe")}>{item.classLabel || item.levelLabel || item.cycleLabel || "-"}</td><td data-label={tr("Matière")}>{item.subjectLabel || "-"}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(item.status))}</span></td><td data-label={tr("Action")}><button type="button" className="button-ghost" onClick={() => void archiveResource(`/rooms/assignments/${item.id}`, "Affectation salle archivée.")}>{tr("Archiver")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -422,22 +425,22 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
       {activeStep === "availability" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Disponibilités</p><h2>Réservations, maintenance et indisponibilités</h2></div></div>
+          <div className="table-header"><div><p className="section-kicker">{tr("Disponibilités")}</p><h2>{tr("Réservations, maintenance et indisponibilités")}</h2></div></div>
           <form className="form-grid module-form teachers-form-grid" onSubmit={submitAvailability}>
-            <label>Salle *<select value={availabilityForm.roomId} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, roomId: event.target.value }))} required><option value="">Choisir</option>{rooms.map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
-            <label>Jour<select value={availabilityForm.dayOfWeek} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}><option value="">Tous</option>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabel(day)}</option>)}</select></label>
-            <label>Début *<input type="time" value={availabilityForm.startTime} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, startTime: event.target.value }))} required /></label>
-            <label>Fin *<input type="time" value={availabilityForm.endTime} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, endTime: event.target.value }))} required /></label>
-            <label>Type *<select value={availabilityForm.availabilityType} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, availabilityType: event.target.value }))} required>{AVAILABILITY_TYPES.map((type) => <option key={type} value={type}>{availabilityTypeLabel(type)}</option>)}</select></label>
-            <label>Année scolaire<select value={availabilityForm.schoolYearId} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}><option value="">Toutes</option>{schoolYears.map((year) => <option key={year.id} value={year.id}>{year.label || year.code}</option>)}</select></label>
-            <label>Période<select value={availabilityForm.periodId} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, periodId: event.target.value }))}><option value="">Optionnelle</option>{periods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select></label>
-            <label className="form-grid-span-full">Commentaire<input value={availabilityForm.comment} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
-            <div className="actions"><button type="submit">Déclarer une indisponibilité</button></div>
+            <label>{tr("Salle *")}<select value={availabilityForm.roomId} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, roomId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{rooms.map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
+            <label>{tr("Jour")}<select value={availabilityForm.dayOfWeek} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}><option value="">{tr("Tous")}</option>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{tr(dayLabel(day))}</option>)}</select></label>
+            <label>{tr("Début *")}<input type="time" value={availabilityForm.startTime} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, startTime: event.target.value }))} required /></label>
+            <label>{tr("Fin *")}<input type="time" value={availabilityForm.endTime} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, endTime: event.target.value }))} required /></label>
+            <label>{tr("Type *")}<select value={availabilityForm.availabilityType} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, availabilityType: event.target.value }))} required>{AVAILABILITY_TYPES.map((type) => <option key={type} value={type}>{tr(availabilityTypeLabel(type))}</option>)}</select></label>
+            <label>{tr("Année scolaire")}<select value={availabilityForm.schoolYearId} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}><option value="">{tr("Toutes")}</option>{schoolYears.map((year) => <option key={year.id} value={year.id}>{year.label || year.code}</option>)}</select></label>
+            <label>{tr("Période")}<select value={availabilityForm.periodId} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, periodId: event.target.value }))}><option value="">{tr("Optionnelle")}</option>{periods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select></label>
+            <label className="form-grid-span-full">{tr("Commentaire")}<input value={availabilityForm.comment} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
+            <div className="actions"><button type="submit">{tr("Déclarer une indisponibilité")}</button></div>
           </form>
           <div className="table-wrap">
-            <table data-responsive-table="true"><thead><tr><th>Salle</th><th>Jour</th><th>Début</th><th>Fin</th><th>Type</th><th>Année</th><th>Période</th><th>Action</th></tr></thead>
-              <tbody>{selectedAvailabilities.length === 0 ? <tr><td colSpan={8} className="empty-row">Aucune indisponibilité enregistrée.</td></tr> : selectedAvailabilities.map((item) => (
-                <tr key={item.id}><td>{item.roomLabel}</td><td>{dayLabel(item.dayOfWeek)}</td><td>{item.startTime || "-"}</td><td>{item.endTime || "-"}</td><td>{availabilityTypeLabel(item.availabilityType)}</td><td>{item.schoolYearCode || "-"}</td><td>{item.periodLabel || "-"}</td><td><button type="button" className="button-danger" onClick={() => void archiveResource(`/rooms/availabilities/${item.id}`, "Indisponibilité supprimée.")}>Supprimer</button></td></tr>
+            <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Jour")}</th><th>{tr("Début")}</th><th>{tr("Fin")}</th><th>{tr("Type")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Action")}</th></tr></thead>
+              <tbody>{selectedAvailabilities.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune indisponibilité enregistrée.")}</td></tr> : selectedAvailabilities.map((item) => (
+                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Jour")}>{tr(dayLabel(item.dayOfWeek))}</td><td data-label={tr("Début")}>{item.startTime || "-"}</td><td data-label={tr("Fin")}>{item.endTime || "-"}</td><td data-label={tr("Type")}>{tr(availabilityTypeLabel(item.availabilityType))}</td><td data-label={tr("Année")}>{item.schoolYearCode || "-"}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Action")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/rooms/availabilities/${item.id}`, "Indisponibilité supprimée.")}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -446,11 +449,11 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
       {activeStep === "occupancy" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Occupation</p><h2>Synthèse d'occupation par salle</h2></div></div>
+          <div className="table-header"><div><p className="section-kicker">{tr("Occupation")}</p><h2>{tr("Synthèse d'occupation par salle")}</h2></div></div>
           <div className="table-wrap">
-            <table data-responsive-table="true"><thead><tr><th>Salle</th><th>Type</th><th>Capacité</th><th>Cursus</th><th>Affectations</th><th>FR</th><th>AR</th><th>Partage</th><th>Classes</th><th>Matières</th><th>Statut</th></tr></thead>
-              <tbody>{occupancy.length === 0 ? <tr><td colSpan={11} className="empty-row">Aucune occupation calculée pour le moment.</td></tr> : occupancy.map((item) => (
-                <tr key={item.roomId}><td>{item.roomLabel}</td><td>{item.roomTypeName || "-"}</td><td>{item.capacity}</td><td>{item.isSharedBetweenCurricula ? "Partagée" : trackLabel(item.defaultTrack)}</td><td>{item.assignmentsCount}</td><td>{item.francophoneAssignmentsCount}</td><td>{item.arabophoneAssignmentsCount}</td><td>{item.sharedAssignmentsCount}</td><td>{item.classes.join(", ") || "-"}</td><td>{item.subjects.join(", ") || "-"}</td><td><span className="status-pill">{statusLabel(item.status)}</span></td></tr>
+            <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Capacité")}</th><th>{tr("Cursus")}</th><th>{tr("Affectations")}</th><th>{tr("FR")}</th><th>{tr("AR")}</th><th>{tr("Partage")}</th><th>{tr("Classes")}</th><th>{tr("Matières")}</th><th>{tr("Statut")}</th></tr></thead>
+              <tbody>{occupancy.length === 0 ? <tr><td colSpan={11} className="empty-row">{tr("Aucune occupation calculée pour le moment.")}</td></tr> : occupancy.map((item) => (
+                <tr key={item.roomId}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Type")}>{item.roomTypeName || "-"}</td><td data-label={tr("Capacité")}>{item.capacity}</td><td data-label={tr("Cursus")}>{item.isSharedBetweenCurricula ? tr("Partagée") : tr(trackLabel(item.defaultTrack))}</td><td data-label={tr("Affectations")}>{item.assignmentsCount}</td><td data-label={tr("FR")}>{item.francophoneAssignmentsCount}</td><td data-label={tr("AR")}>{item.arabophoneAssignmentsCount}</td><td data-label={tr("Partage")}>{item.sharedAssignmentsCount}</td><td data-label={tr("Classes")}>{item.classes.join(", ") || "-"}</td><td data-label={tr("Matières")}>{item.subjects.join(", ") || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(item.status))}</span></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -459,18 +462,18 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
       {activeStep === "types" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
-          <div className="table-header"><div><p className="section-kicker">Typologie</p><h2>Typologie des salles</h2></div></div>
+          <div className="table-header"><div><p className="section-kicker">{tr("Typologie")}</p><h2>{tr("Typologie des salles")}</h2></div></div>
           <form className="form-grid module-form teachers-form-grid" onSubmit={submitRoomType}>
-            <label>Code *<input value={roomTypeForm.code} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, code: event.target.value }))} required placeholder="CLASSROOM" /></label>
-            <label>Nom *<input value={roomTypeForm.name} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, name: event.target.value }))} required placeholder="Salle de classe" /></label>
-            <label>Statut *<select value={roomTypeForm.status} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, status: event.target.value }))} required>{ROOM_TYPE_STATUSES.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
-            <label className="form-grid-span-full">Description<input value={roomTypeForm.description} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, description: event.target.value }))} /></label>
-            <div className="actions"><button type="submit">Ajouter le type</button></div>
+            <label>{tr("Code *")}<input value={roomTypeForm.code} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, code: event.target.value }))} required placeholder={tr("CLASSROOM")} /></label>
+            <label>{tr("Nom *")}<input value={roomTypeForm.name} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, name: event.target.value }))} required placeholder={tr("Salle de classe")} /></label>
+            <label>{tr("Statut *")}<select value={roomTypeForm.status} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, status: event.target.value }))} required>{ROOM_TYPE_STATUSES.map((status) => <option key={status} value={status}>{tr(statusLabel(status))}</option>)}</select></label>
+            <label className="form-grid-span-full">{tr("Description")}<input value={roomTypeForm.description} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, description: event.target.value }))} /></label>
+            <div className="actions"><button type="submit">{tr("Ajouter le type")}</button></div>
           </form>
           <div className="table-wrap">
-            <table data-responsive-table="true"><thead><tr><th>Code</th><th>Nom</th><th>Description</th><th>Statut</th></tr></thead>
-              <tbody>{roomTypes.length === 0 ? <tr><td colSpan={4} className="empty-row">Aucun type de salle enregistré.</td></tr> : roomTypes.map((type) => (
-                <tr key={type.id}><td>{type.code}</td><td>{type.name}</td><td>{type.description || "-"}</td><td><span className="status-pill">{statusLabel(type.status)}</span></td></tr>
+            <table data-responsive-table="true"><thead><tr><th>{tr("Code")}</th><th>{tr("Nom")}</th><th>{tr("Description")}</th><th>{tr("Statut")}</th></tr></thead>
+              <tbody>{roomTypes.length === 0 ? <tr><td colSpan={4} className="empty-row">{tr("Aucun type de salle enregistré.")}</td></tr> : roomTypes.map((type) => (
+                <tr key={type.id}><td data-label={tr("Code")}>{type.code}</td><td data-label={tr("Nom")}>{type.name}</td><td data-label={tr("Description")}>{type.description || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(type.status))}</span></td></tr>
               ))}</tbody>
             </table>
           </div>

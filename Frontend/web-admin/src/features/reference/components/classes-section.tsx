@@ -19,8 +19,11 @@ import {
 } from "../utils/reference-ui";
 import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
+import { useI18n } from "../../../shared/i18n-context";
+
 
 export function ClassesSection(): JSX.Element {
+  const { t: tr } = useI18n();
   const ctx = useReferenceScreenContext();
   const {
     classCycleOptions,
@@ -54,15 +57,13 @@ export function ClassesSection(): JSX.Element {
 <article id="reference-classes" data-step-id="classes" className="panel table-panel module-modern module-stack reference-card">
             <div className="reference-card-head">
               <div>
-                <h3>Classe</h3>
+                <h3>{tr("Classe")}</h3>
                 <p className="section-lead">
-                  Instance reelle d'affectation pour une annee donnee, par exemple 6e A. Ici on separe
-                  volontairement le niveau abstrait de la classe concrete.
-                </p>
+                  {tr("Instance reelle d'affectation pour une annee donnee, par exemple 6e A. Ici on separe\n                  volontairement le niveau abstrait de la classe concrete.")}</p>
               </div>
               <div className="module-inline-strip">
-                <span className="module-inline-pill">{classes.length} classe(s)</span>
-                <span className="module-inline-pill">Niveau et annee obligatoires</span>
+                <span className="module-inline-pill">{classes.length} {tr("classe(s)")}</span>
+                <span className="module-inline-pill">{tr("Niveau et annee obligatoires")}</span>
               </div>
             </div>
             <div className="reference-section-grid">
@@ -155,7 +156,7 @@ export function ClassesSection(): JSX.Element {
                 <label>
                   {renderFieldLabel("Annee scolaire", { required: true })}
                   <select value={classForm.schoolYearId} onChange={(event) => setClassForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}>
-                    <option value="">Choisir</option>
+                    <option value="">{tr("Choisir")}</option>
                     {schoolYears.map((item) => (
                       <option key={item.id} value={item.id}>
                         {formatSchoolYearOptionLabel(item)}
@@ -180,7 +181,7 @@ export function ClassesSection(): JSX.Element {
                       }));
                     }}
                   >
-                    <option value="">Choisir</option>
+                    <option value="">{tr("Choisir")}</option>
                     {levels.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label} - {cycleById.get(item.cycleId)?.label || "-"}
@@ -191,12 +192,12 @@ export function ClassesSection(): JSX.Element {
                 </label>
                 <label>
                   {renderFieldLabel("Nom de la classe", { required: true })}
-                  <input value={classForm.label} onChange={(event) => setClassForm((prev) => ({ ...prev, label: event.target.value }))} placeholder="6e A" />
+                  <input value={classForm.label} onChange={(event) => setClassForm((prev) => ({ ...prev, label: event.target.value }))} placeholder={tr("6e A")} />
                   {fieldError(classErrors, "label")}
                 </label>
                 <label>
                   {renderFieldLabel("Code", { required: true })}
-                  <input value={classForm.code} onChange={(event) => setClassForm((prev) => ({ ...prev, code: event.target.value }))} placeholder="6A-2526" />
+                  <input value={classForm.code} onChange={(event) => setClassForm((prev) => ({ ...prev, code: event.target.value }))} placeholder={tr("6A-2526")} />
                   {fieldError(classErrors, "code")}
                 </label>
                 <label>
@@ -204,7 +205,7 @@ export function ClassesSection(): JSX.Element {
                   <select value={classForm.track} onChange={(event) => setClassForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))}>
                     {ACADEMIC_TRACK_OPTIONS.map((track) => (
                       <option key={track} value={track}>
-                        {formatAcademicTrackLabel(track)}
+                        {tr(formatAcademicTrackLabel(track))}
                       </option>
                     ))}
                   </select>
@@ -220,7 +221,7 @@ export function ClassesSection(): JSX.Element {
                   <select value={classForm.status} onChange={(event) => setClassForm((prev) => ({ ...prev, status: event.target.value as "ACTIVE" | "INACTIVE" }))}>
                     {REFERENCE_STATUS_OPTIONS.map((option) => (
                       <option key={option} value={option}>
-                        {formatReferenceStatusLabel(option)}
+                        {tr(formatReferenceStatusLabel(option))}
                       </option>
                     ))}
                   </select>
@@ -228,12 +229,12 @@ export function ClassesSection(): JSX.Element {
                 </label>
                 <label>
                   {renderFieldLabel("Titulaire / professeur principal")}
-                  <input value={classForm.homeroomTeacherName} onChange={(event) => setClassForm((prev) => ({ ...prev, homeroomTeacherName: event.target.value }))} placeholder="M. Diallo" />
+                  <input value={classForm.homeroomTeacherName} onChange={(event) => setClassForm((prev) => ({ ...prev, homeroomTeacherName: event.target.value }))} placeholder={tr("M. Diallo")} />
                   {fieldError(classErrors, "homeroomTeacherName")}
                 </label>
                 <label>
                   {renderFieldLabel("Salle principale")}
-                  <input value={classForm.mainRoom} onChange={(event) => setClassForm((prev) => ({ ...prev, mainRoom: event.target.value }))} placeholder="B-12" />
+                  <input value={classForm.mainRoom} onChange={(event) => setClassForm((prev) => ({ ...prev, mainRoom: event.target.value }))} placeholder={tr("B-12")} />
                   {fieldError(classErrors, "mainRoom")}
                 </label>
                 <label>
@@ -243,17 +244,17 @@ export function ClassesSection(): JSX.Element {
                 </label>
                 <label>
                   {renderFieldLabel("Filiere")}
-                  <input value={classForm.filiere} onChange={(event) => setClassForm((prev) => ({ ...prev, filiere: event.target.value }))} placeholder="General" />
+                  <input value={classForm.filiere} onChange={(event) => setClassForm((prev) => ({ ...prev, filiere: event.target.value }))} placeholder={tr("General")} />
                   {fieldError(classErrors, "filiere")}
                 </label>
                 <label>
                   {renderFieldLabel("Serie")}
-                  <input value={classForm.series} onChange={(event) => setClassForm((prev) => ({ ...prev, series: event.target.value }))} placeholder="D" />
+                  <input value={classForm.series} onChange={(event) => setClassForm((prev) => ({ ...prev, series: event.target.value }))} placeholder={tr("D")} />
                   {fieldError(classErrors, "series")}
                 </label>
                 <label>
                   {renderFieldLabel("Specialite")}
-                  <input value={classForm.speciality} onChange={(event) => setClassForm((prev) => ({ ...prev, speciality: event.target.value }))} placeholder="Sciences" />
+                  <input value={classForm.speciality} onChange={(event) => setClassForm((prev) => ({ ...prev, speciality: event.target.value }))} placeholder={tr("Sciences")} />
                   {fieldError(classErrors, "speciality")}
                 </label>
                 <label>
@@ -270,7 +271,7 @@ export function ClassesSection(): JSX.Element {
                 <label>
                   {renderFieldLabel("Cycle")}
                   <select className="reference-derived-select" value={selectedClassCycleId} disabled>
-                    {selectedClassCycleId ? null : <option value="">Selectionner un niveau</option>}
+                    {selectedClassCycleId ? null : <option value="">{tr("Selectionner un niveau")}</option>}
                     {classCycleOptions.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -286,11 +287,11 @@ export function ClassesSection(): JSX.Element {
                 </label>
                 <label className="form-grid-span-full">
                   {renderFieldLabel("Description")}
-                  <textarea value={classForm.description} onChange={(event) => setClassForm((prev) => ({ ...prev, description: event.target.value }))} placeholder="Contraintes d'affectation, orientation, salle specialisee..." />
+                  <textarea value={classForm.description} onChange={(event) => setClassForm((prev) => ({ ...prev, description: event.target.value }))} placeholder={tr("Contraintes d'affectation, orientation, salle specialisee...")} />
                   {fieldError(classErrors, "description")}
                 </label>
                 <div className="actions">
-                  <button type="submit">Creer la classe</button>
+                  <button type="submit">{tr("Creer la classe")}</button>
                 </div>
               </form>
             </div>
@@ -298,7 +299,7 @@ export function ClassesSection(): JSX.Element {
               <label>
                 {renderFieldLabel("Filtre annee")}
                 <select value={classYearFilter} onChange={(event) => setClassYearFilter(event.target.value)}>
-                  <option value="">Toutes les annees</option>
+                  <option value="">{tr("Toutes les annees")}</option>
                   {schoolYears.map((item) => (
                     <option key={item.id} value={item.id}>
                       {formatSchoolYearOptionLabel(item)}
@@ -309,7 +310,7 @@ export function ClassesSection(): JSX.Element {
               <label>
                 {renderFieldLabel("Filtre niveau")}
                 <select value={classLevelFilter} onChange={(event) => setClassLevelFilter(event.target.value)}>
-                  <option value="">Tous les niveaux</option>
+                  <option value="">{tr("Tous les niveaux")}</option>
                   {levels.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.label}
@@ -322,26 +323,26 @@ export function ClassesSection(): JSX.Element {
               <table data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Annee</th>
-                    <th>Classe</th>
-                    <th>Niveau</th>
-                    <th>Capacite</th>
-                    <th>Statut</th>
-                    <th>Action</th>
+                    <th>{tr("Annee")}</th>
+                    <th>{tr("Classe")}</th>
+                    <th>{tr("Niveau")}</th>
+                    <th>{tr("Capacite")}</th>
+                    <th>{tr("Statut")}</th>
+                    <th>{tr("Action")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {shownClasses.length === 0 ? (
-                    <tr><td colSpan={6} className="empty-row">Aucune classe pour le filtre courant.</td></tr>
+                    <tr><td colSpan={6} className="empty-row">{tr("Aucune classe pour le filtre courant.")}</td></tr>
                   ) : (
                     shownClasses.map((item) => (
                       <tr key={item.id}>
-                        <td>{formatSchoolYearOptionLabel(schoolYearById.get(item.schoolYearId))}</td>
-                        <td>{item.label} ({item.code})</td>
-                        <td>{levelById.get(item.levelId)?.label || "-"}</td>
-                        <td>{item.actualCapacity ?? item.capacity ?? "-"} / {item.capacity ?? "-"}</td>
-                        <td>{formatReferenceStatusLabel(item.status)}</td>
-                        <td>
+                        <td data-label={tr("Annee")}>{formatSchoolYearOptionLabel(schoolYearById.get(item.schoolYearId))}</td>
+                        <td data-label={tr("Classe")}>{item.label} ({item.code})</td>
+                        <td data-label={tr("Niveau")}>{levelById.get(item.levelId)?.label || "-"}</td>
+                        <td data-label={tr("Capacite")}>{item.actualCapacity ?? item.capacity ?? "-"} / {item.capacity ?? "-"}</td>
+                        <td data-label={tr("Statut")}>{tr(formatReferenceStatusLabel(item.status))}</td>
+                        <td data-label={tr("Action")}>
                           <ReferenceActionMenu
                             label={`Options classe ${item.label}`}
                             onDelete={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}

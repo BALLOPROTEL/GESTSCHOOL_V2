@@ -1388,3 +1388,161 @@ audit mocked complet valide sans constat.
 
 Message de commit propose :
 `refactor(web-admin): replace global DOM observers with scoped React boundaries`.
+
+## LOT 8D - Migration declarative finale et dette visuelle (2026-07-21)
+
+### Diagnostic et metriques initiales
+
+L'audit a inventorie 25 fichiers CSS, 24 896 lignes, 571 119 octets source,
+1 202 declarations `!important`, 125 media queries et 4 styles React inline.
+Le build initial produisait un chunk CSS global de 443 532 octets (68 469
+octets gzip) et un chunk JS principal de 391 551 octets (115 698 octets gzip).
+Le parseur CSS a releve 22 regles strictement identiques pouvant etre retirees
+sans arbitrage visuel. Les autres repetitions de selecteurs correspondent a la
+cascade, aux themes ou aux breakpoints et n'ont pas ete traitees comme mortes
+sans preuve.
+
+| Fichier CSS | Lignes finales | Octets | `!important` | Responsabilite | Dette et decision |
+| --- | ---: | ---: | ---: | --- | --- |
+| `premium-v3-foundation.css` | 4 658 | 118 442 | 345 | fondation V3 | monolithe conserve, consolidation future par domaine |
+| `features.css` | 3 472 | 79 103 | 0 | ecrans metier | 7 doublons stricts retires |
+| `erp-refinement.css` | 3 025 | 75 377 | 142 | raffinements historiques | specifite historique conservee |
+| `layout.css` | 1 713 | 34 427 | 29 | shell et grilles | 10 doublons et une media query vide retires |
+| `auth-premium.css` | 1 399 | 30 438 | 0 | authentification premium | conserve |
+| `theme-overrides.css` | 1 196 | 22 236 | 0 | clair/sombre | 2 doublons stricts retires |
+| `responsive.css` | 1 095 | 22 107 | 47 | responsive historique | conserve apres audit visuel |
+| `auth.css` | 943 | 20 499 | 0 | authentification | conserve |
+| `mobile-product.css` | 912 | 27 077 | 359 | experience mobile | dette haute, mais pas de reecriture sans comparaison visuelle dediee |
+| `header.css` | 896 | 18 292 | 0 | header | conserve |
+| `profile-premium.css` | 849 | 18 490 | 3 | profil | conserve |
+| `tables.css` | 798 | 23 731 | 180 | tableaux responsifs | 1 doublon strict retire, budget surveille |
+| `utilities.css` | 739 | 14 757 | 48 | utilitaires | conserve |
+| `feature-foundation.css` | 615 | 10 719 | 0 | base des modules | conserve |
+| `pilotage.css` | 560 | 14 094 | 0 | pilotage | conserve |
+| `controls-foundation.css` | 497 | 8 398 | 1 | controles | conserve |
+| `forms.css` | 438 | 10 852 | 8 | formulaires | conserve |
+| `responsive-foundation.css` | 243 | 3 617 | 0 | base responsive | 2 doublons stricts retires |
+| `v3-module-unification.css` | 203 | 6 720 | 34 | homogeneite modules | conserve |
+| `teachers.css` | 202 | 3 872 | 0 | enseignants | conserve |
+| `globals.css` | 113 | 2 041 | 0 | tokens et reset | conserve comme source commune |
+| `parents.css` | 68 | 1 508 | 0 | parents | conserve |
+| `auth-canvas.css` | 57 | 886 | 0 | fond auth | conserve |
+| `dashboard.css` | 50 | 768 | 0 | dashboard | conserve |
+| `rooms.css` | 34 | 709 | 0 | salles | conserve |
+
+### Migration des 18 ecrans legacy
+
+Les textes d'interface, attributs accessibles, statuts, labels dynamiques et
+metadonnees mobiles sont maintenant produits avant rendu par React et
+`useI18n`. Les donnees metier libres ne sont pas traduites. Chaque table des
+features declare `data-responsive-table` et chaque cellule fournit son
+`data-label` traduit ou un `colSpan` explicite.
+
+| Ecran | Composants migres | Etat |
+| --- | --- | --- |
+| IAM | `iam-screen.tsx` | declaratif |
+| Enseignants | `teachers-screen.tsx`, liste | declaratif |
+| Salles | `rooms-screen.tsx`, liste | declaratif |
+| Eleves | `students-panel.tsx` | declaratif |
+| Parents | `parents-screen.tsx`, liste | declaratif |
+| Referentiel | ecran et six sections | declaratif |
+| Comptabilite | `finance-screen.tsx` | declaratif |
+| Messagerie | `messages-screen.tsx` | declaratif |
+| Rapports | `reports-screen.tsx` | declaratif |
+| Mosquee | `construction-page.tsx` | declaratif, feature flag conserve |
+| Notes et bulletins | `grades-screen.tsx` | declaratif |
+| Pilotage | `pilotage-screen.tsx` | declaratif |
+| Absences | `school-life-panel.tsx` | declaratif |
+| Emploi du temps | `school-life-panel.tsx` | declaratif |
+| Notifications | `school-life-panel.tsx` | declaratif |
+| Portail enseignant | `portal-teacher-screen.tsx` | declaratif, feature flag conserve |
+| Portail parent | `portal-parent-screen.tsx` | declaratif |
+| Portail eleve | `student-portal-placeholder-screen.tsx` | declaratif, feature flag conserve |
+
+`LegacyDomEnhancementsBoundary` et `responsive-tables.ts` ont ete supprimes.
+Le routeur rend directement les 18 ecrans. Il ne reste aucun constructeur
+`MutationObserver` dans le code de production. Un test statique interdit son
+retour, exige les metadonnees des tableaux et verifie l'absence de la boundary.
+
+### Scripts visuels legacy
+
+| Script supprime | Couverture de remplacement |
+| --- | --- |
+| `auth-iam-visual-audit.mjs` | authentification implicite et workflow IAM du gate central |
+| `auth-visual-audit.mjs` | bootstrap/login de chaque workflow central et tests auth |
+| `dashboard-visual-audit.mjs` | workflow Dashboard central |
+| `enrollments-visual-audit.mjs` | workflow Inscriptions central |
+| `finance-visual-audit.mjs` | workflow Comptabilite central |
+| `iam-visual-audit.mjs` | workflow Utilisateurs et droits central |
+| `parents-visual-audit.mjs` | workflow Parents central |
+| `rooms-visual-audit.mjs` | workflow Salles central |
+| `students-visual-audit.mjs` | workflow Eleves central |
+| `teachers-visual-audit.mjs` | workflow Enseignants central |
+| `visual-audit.mjs` | matrice officielle `visual-audit-core-workflows.mjs` |
+| `visual-audit-notes-bulletins.mjs` | workflow Notes et bulletins central |
+| `visual-audit-profile.mjs` | nouveaux workflows Profil, Preferences et Journal d'activite |
+
+Avant le lot, 13 scripts legacy etaient encore presents mais aucun n'etait
+utilise par la CI ou une release. Apres le lot, aucun ne subsiste et le runner
+central est l'unique source de preuve. La facturation utilisateur reste
+desactivee par feature flag et couverte par ses tests, sans fausse navigation
+visuelle.
+
+### Nettoyage CSS et garde anti-regression
+
+Le retrait mecanique a ete limite a 22 regles dont le selecteur, le contexte
+d'at-rule et les declarations etaient strictement identiques, en conservant la
+derniere occurrence selon l'ordre reel d'import. Aucune règle seulement
+similaire n'a ete supprimee. Les budgets du smoke sont fixes a 575 000 octets
+source et 1 200 `!important` : ils autorisent une petite marge, mais bloquent le
+retour immediat a l'etat initial. Le smoke interdit aussi les observers, la
+boundary et les 13 scripts retires.
+
+| Metrique | Avant | Apres | Evolution |
+| --- | ---: | ---: | ---: |
+| Fichiers CSS | 25 | 25 | 0 |
+| Lignes CSS | 24 896 | 24 775 | -121 |
+| CSS source | 571 119 | 569 160 octets | -1 959 octets |
+| `!important` | 1 202 | 1 196 | -6 |
+| Media queries | 125 | 124 | -1 |
+| Chunk CSS global | 443 532 | 442 624 octets | -908 octets |
+| Chunk CSS global gzip | 68 469 | 68 348 octets | -121 octets |
+| Chunk JS principal | 391 551 | 391 095 octets | -456 octets |
+| Chunk JS principal gzip | 115 698 | 115 185 octets | -513 octets |
+| Ecrans sous boundary | 18 | 0 | -18 |
+| Observers DOM applicatifs | 1 local temporaire | 0 | -1 |
+| Scripts visuels legacy | 13 | 0 | -13 |
+
+### Validations finales
+
+| Controle | Resultat |
+| --- | --- |
+| Tests i18n/observers/tableaux cibles | OK, 2 fichiers et 8 tests lors de la migration |
+| Tests frontend complets | OK, 24 fichiers et 109 tests |
+| Lint frontend | OK |
+| Build frontend | OK avec URL HTTPS explicite, Vite 7.3.6 et 155 modules |
+| Refus d'une API localhost au build production | OK, echec explicite attendu |
+| Smoke frontend | OK, 569 160 octets CSS, 1 196 `!important`, zero observer |
+| Tests du collecteur visuel | OK, 6 tests |
+| Lint du collecteur visuel | OK |
+| Audit visuel mocked CI | OK, 67/67 workflows et zero constat |
+| Audit visuel mocked complet | OK, 133/133 workflows et zero constat |
+| `git diff --check` | A relancer apres cette documentation |
+
+### Dette restante, actions et verdict
+
+Les 1 196 `!important`, notamment dans `mobile-product.css`,
+`premium-v3-foundation.css` et `tables.css`, restent une dette mesuree. Leur
+retrait exige des comparaisons visuelles par composant et n'a pas ete simule par
+une hausse de specificite. Les 4 styles inline restants sont dynamiques et n'ont
+pas ete transformes sans benefice demontre. L'audit integre avec API,
+PostgreSQL et Redis reels reste reserve au LOT 10.
+
+Aucune action de configuration n'est requise de l'utilisateur pour ce lot.
+Conserver les budgets smoke et le runner central comme gates officiels.
+
+Verdict LOT 8D : **GO pour revue**, sans changement metier, backend, contrat API,
+dependance ou design demande.
+
+Message de commit propose :
+`refactor(web-admin): complete declarative UI and retire legacy visual debt`.

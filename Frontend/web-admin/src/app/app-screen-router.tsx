@@ -38,7 +38,6 @@ import type { AppApiClient } from "./app-data-loaders";
 import type { AppDomainActions, AppDomainData } from "./use-app-data";
 import { FeatureUnavailableScreen } from "./app-shell-panels";
 import { getScreenAccessDecision, hasScreenAccess } from "./navigation/screen-registry";
-import { LegacyDomEnhancementsBoundary } from "./shell/legacy-dom-enhancements-boundary";
 
 type AvailableScreenAction = {
   id: string;
@@ -126,11 +125,6 @@ export function AppScreenRouter({
 
   const { finance, parentDirectory, parentPortal, reference, teacherPortal } = data;
   const sharedScreenCallbacks = { onError, onNotice };
-  const renderLegacyScreen = (screen: JSX.Element): JSX.Element => (
-    <LegacyDomEnhancementsBoundary language={uiLanguage}>
-      {screen}
-    </LegacyDomEnhancementsBoundary>
-  );
   const renderDashboard = (): JSX.Element => (
     <DashboardScreen
       currentRole={currentRole}
@@ -163,7 +157,7 @@ export function AppScreenRouter({
     case "dashboard":
       return renderDashboard();
     case "iam":
-      return renderLegacyScreen(
+      return (
         <IamScreen
           api={api}
           initialUsers={data.users}
@@ -176,7 +170,7 @@ export function AppScreenRouter({
         />
       );
     case "teachers":
-      return renderLegacyScreen(
+      return (
         <TeachersScreen
           api={api}
           classes={reference.classes}
@@ -192,7 +186,7 @@ export function AppScreenRouter({
         />
       );
     case "rooms":
-      return renderLegacyScreen(
+      return (
         <RoomsScreen
           api={api}
           classes={reference.classes}
@@ -206,7 +200,7 @@ export function AppScreenRouter({
         />
       );
     case "students":
-      return renderLegacyScreen(
+      return (
         <StudentsScreen
           api={api}
           initialStudents={data.students}
@@ -217,7 +211,7 @@ export function AppScreenRouter({
         />
       );
     case "parents":
-      return renderLegacyScreen(
+      return (
         <ParentsScreen
           api={api}
           initialParents={parentDirectory.records}
@@ -230,7 +224,7 @@ export function AppScreenRouter({
         />
       );
     case "reference":
-      return renderLegacyScreen(
+      return (
         <ReferenceScreen
           api={api}
           data={reference}
@@ -257,7 +251,7 @@ export function AppScreenRouter({
         />
       );
     case "finance":
-      return renderLegacyScreen(
+      return (
         <FinanceScreen
           api={api}
           initialData={finance}
@@ -342,11 +336,9 @@ export function AppScreenRouter({
         <ForbiddenScreen currentRoleLabel={currentRoleLabel} />
       );
     case "messages":
-      return renderLegacyScreen(
-        <MessagesScreen currentRoleLabel={currentRoleLabel} onSelectScreen={onSelectScreen} />
-      );
+      return <MessagesScreen currentRoleLabel={currentRoleLabel} onSelectScreen={onSelectScreen} />;
     case "reports":
-      return renderLegacyScreen(
+      return (
         <ReportsScreen
           api={api}
           schoolYears={reference.schoolYears}
@@ -358,9 +350,9 @@ export function AppScreenRouter({
         />
       );
     case "mosquee":
-      return renderLegacyScreen(<ConstructionPageMosquee />);
+      return <ConstructionPageMosquee />;
     case "grades":
-      return renderLegacyScreen(
+      return (
         <GradesScreen
           api={api}
           initialReportCards={data.reportCards}
@@ -375,7 +367,7 @@ export function AppScreenRouter({
         />
       );
     case "schoolLifeOverview":
-      return renderLegacyScreen(
+      return (
         <PilotageScreen
           api={api}
           students={data.students}
@@ -402,7 +394,7 @@ export function AppScreenRouter({
           : tab === "schoolLifeTimetable"
             ? "timetable"
             : "notifications";
-      return renderLegacyScreen(
+      return (
         <SchoolLifePanel
           api={api}
           students={data.students}
@@ -420,7 +412,7 @@ export function AppScreenRouter({
       );
     }
     case "teacherPortal":
-      return renderLegacyScreen(
+      return (
         <PortalTeacherScreen
           api={api}
           initialData={teacherPortal}
@@ -433,7 +425,7 @@ export function AppScreenRouter({
         />
       );
     case "parentPortal":
-      return renderLegacyScreen(
+      return (
         <PortalParentScreen
           api={api}
           initialData={parentPortal}
@@ -445,7 +437,7 @@ export function AppScreenRouter({
         />
       );
     case "studentPortal":
-      return renderLegacyScreen(<StudentPortalPlaceholderScreen />);
+      return <StudentPortalPlaceholderScreen />;
     default:
       return renderDashboard();
   }

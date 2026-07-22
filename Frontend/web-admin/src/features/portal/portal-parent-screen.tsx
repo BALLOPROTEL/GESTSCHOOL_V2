@@ -11,6 +11,8 @@ import {
 import type { AcademicTrack, ReportCard, ReportCardMode } from "../../shared/types/app";
 import { usePortalParentData } from "./hooks/use-portal-parent-data";
 import type { ParentPortalData, PortalApiClient } from "./types/portal-parent";
+import { useI18n } from "../../shared/i18n-context";
+
 
 type PortalParentScreenProps = {
   api: PortalApiClient;
@@ -70,6 +72,7 @@ export function PortalParentScreen({
   onDataChange,
   onError
 }: PortalParentScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     data,
     loadData,
@@ -98,92 +101,89 @@ export function PortalParentScreen({
     <>
       <section className="panel table-panel workflow-section">
         <div className="table-header">
-          <h2>Portail parent metier</h2>
+          <h2>{tr("Portail parent metier")}</h2>
           <div className="actions">
             <button type="button" className="button-ghost" onClick={() => void loadData(studentFilter)}>
-              Recharger
-            </button>
+              {tr("Recharger")}</button>
           </div>
         </div>
         <div className="metrics-grid">
           <article className="metric-card">
-            <span>Enfants lies</span>
+            <span>{tr("Enfants lies")}</span>
             <strong>{data.overview?.childrenCount ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Factures ouvertes</span>
+            <span>{tr("Factures ouvertes")}</span>
             <strong>{data.overview?.openInvoicesCount ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Reste a payer</span>
+            <span>{tr("Reste a payer")}</span>
             <strong>{formatMoney(data.overview?.remainingAmount ?? 0)}</strong>
           </article>
           <article className="metric-card">
-            <span>Absences/retards</span>
+            <span>{tr("Absences/retards")}</span>
             <strong>{data.overview?.absencesCount ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Bulletins</span>
+            <span>{tr("Bulletins")}</span>
             <strong>{data.overview?.reportCardsCount ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Notifications</span>
+            <span>{tr("Notifications")}</span>
             <strong>{data.overview?.notificationsCount ?? 0}</strong>
           </article>
         </div>
         <form className="filter-grid" onSubmit={(event) => void submitFilters(event)}>
           <label>
-            Enfant
-            <select value={studentFilter} onChange={(event) => setStudentFilter(event.target.value)}>
-              <option value="">Tous</option>
+            {tr("Enfant")}<select value={studentFilter} onChange={(event) => setStudentFilter(event.target.value)}>
+              <option value="">{tr("Tous")}</option>
               {data.children.map((item) => (
                 <option key={item.linkId} value={item.studentId}>
                   {item.matricule} - {item.studentName}
-                  {item.primaryTrack ? ` (${formatAcademicTrackLabel(item.primaryTrack)})` : ""}
+                  {item.primaryTrack ? ` (${tr(formatAcademicTrackLabel(item.primaryTrack))})` : ""}
                 </option>
               ))}
             </select>
           </label>
           <div className="actions">
-            <button type="submit">Filtrer</button>
+            <button type="submit">{tr("Filtrer")}</button>
             <button type="button" className="button-ghost" onClick={() => void resetFilters()}>
-              Reinitialiser
-            </button>
+              {tr("Reinitialiser")}</button>
           </div>
         </form>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Eleve</th>
-                <th>Classe principale</th>
-                <th>Classe secondaire</th>
-                <th>Parcours actifs</th>
+                <th>{tr("Eleve")}</th>
+                <th>{tr("Classe principale")}</th>
+                <th>{tr("Classe secondaire")}</th>
+                <th>{tr("Parcours actifs")}</th>
               </tr>
             </thead>
             <tbody>
               {data.children.length === 0 ? (
-                <tr><td colSpan={4} className="empty-row">Aucun parcours parent-eleve.</td></tr>
+                <tr><td colSpan={4} className="empty-row">{tr("Aucun parcours parent-eleve.")}</td></tr>
               ) : (
                 data.children.map((item) => (
                   <tr key={`child-placement-summary-${item.linkId}`}>
-                    <td>{item.matricule} - {item.studentName}</td>
-                    <td>
-                      {[item.primaryPlacement?.classLabel || item.classLabel, item.primaryPlacement?.track ? formatAcademicTrackLabel(item.primaryPlacement.track) : item.primaryTrack ? formatAcademicTrackLabel(item.primaryTrack) : undefined]
+                    <td data-label={tr("Eleve")}>{item.matricule} - {item.studentName}</td>
+                    <td data-label={tr("Classe principale")}>
+                      {[item.primaryPlacement?.classLabel || item.classLabel, item.primaryPlacement?.track ? tr(formatAcademicTrackLabel(item.primaryPlacement.track)) : item.primaryTrack ? tr(formatAcademicTrackLabel(item.primaryTrack)) : undefined]
                         .filter(Boolean)
                         .join(" / ") || "-"}
                     </td>
-                    <td>
-                      {[item.secondaryPlacement?.classLabel || item.secondaryClassLabel, item.secondaryPlacement?.track ? formatAcademicTrackLabel(item.secondaryPlacement.track) : undefined]
+                    <td data-label={tr("Classe secondaire")}>
+                      {[item.secondaryPlacement?.classLabel || item.secondaryClassLabel, item.secondaryPlacement?.track ? tr(formatAcademicTrackLabel(item.secondaryPlacement.track)) : undefined]
                         .filter(Boolean)
                         .join(" / ") || "-"}
                     </td>
-                    <td>
+                    <td data-label={tr("Parcours actifs")}>
                       {item.placements?.length ? (
                         item.placements
                           .map((placement) => {
                             const placementParts = [
-                              formatAcademicTrackLabel(placement.track),
+                              tr(formatAcademicTrackLabel(placement.track)),
                               placement.levelCode,
                               placement.classLabel,
                               placement.schoolYearCode
@@ -192,7 +192,7 @@ export function PortalParentScreen({
                           })
                           .join(" | ")
                       ) : (
-                        "Aucun parcours actif"
+                        tr("Aucun parcours actif")
                       )}
                     </td>
                   </tr>
@@ -205,31 +205,31 @@ export function PortalParentScreen({
 
       <div className="split-grid">
         <section className="panel table-panel workflow-section">
-          <div className="table-header"><h2>Notes</h2></div>
+          <div className="table-header"><h2>{tr("Notes")}</h2></div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Eleve</th>
-                  <th>Cursus</th>
-                  <th>Matiere</th>
-                  <th>Periode</th>
-                  <th>Evaluation</th>
-                  <th>Note</th>
+                  <th>{tr("Eleve")}</th>
+                  <th>{tr("Cursus")}</th>
+                  <th>{tr("Matiere")}</th>
+                  <th>{tr("Periode")}</th>
+                  <th>{tr("Evaluation")}</th>
+                  <th>{tr("Note")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.grades.length === 0 ? (
-                  <tr><td colSpan={6} className="empty-row">Aucune note.</td></tr>
+                  <tr><td colSpan={6} className="empty-row">{tr("Aucune note.")}</td></tr>
                 ) : (
                   data.grades.map((item) => (
                     <tr key={item.id}>
-                      <td>{item.studentName || "-"}</td>
-                      <td>{formatAcademicTrackLabel(item.track)}</td>
-                      <td>{item.subjectLabel || "-"}</td>
-                      <td>{item.periodLabel || "-"}</td>
-                      <td>{item.assessmentLabel}</td>
-                      <td>{item.score}/{item.scoreMax}</td>
+                      <td data-label={tr("Eleve")}>{item.studentName || "-"}</td>
+                      <td data-label={tr("Cursus")}>{tr(formatAcademicTrackLabel(item.track))}</td>
+                      <td data-label={tr("Matiere")}>{item.subjectLabel || "-"}</td>
+                      <td data-label={tr("Periode")}>{item.periodLabel || "-"}</td>
+                      <td data-label={tr("Evaluation")}>{item.assessmentLabel}</td>
+                      <td data-label={tr("Note")}>{item.score}/{item.scoreMax}</td>
                     </tr>
                   ))
                 )}
@@ -239,41 +239,40 @@ export function PortalParentScreen({
         </section>
 
         <section className="panel table-panel workflow-section">
-          <div className="table-header"><h2>Bulletins</h2></div>
+          <div className="table-header"><h2>{tr("Bulletins")}</h2></div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Eleve</th>
-                  <th>Mode</th>
-                  <th>Contexte</th>
-                  <th>Periode</th>
-                  <th>Moyenne</th>
-                  <th>Rang</th>
-                  <th>Action</th>
+                  <th>{tr("Eleve")}</th>
+                  <th>{tr("Mode")}</th>
+                  <th>{tr("Contexte")}</th>
+                  <th>{tr("Periode")}</th>
+                  <th>{tr("Moyenne")}</th>
+                  <th>{tr("Rang")}</th>
+                  <th>{tr("Action")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.reportCards.length === 0 ? (
-                  <tr><td colSpan={7} className="empty-row">Aucun bulletin.</td></tr>
+                  <tr><td colSpan={7} className="empty-row">{tr("Aucun bulletin.")}</td></tr>
                 ) : (
                   data.reportCards.map((item) => (
                     <tr key={item.id}>
-                      <td>{item.studentName || "-"}</td>
-                      <td>{formatReportCardModeLabel(item.mode)}</td>
-                      <td>{formatReportCardContext(item)}</td>
-                      <td>{item.periodLabel || "-"}</td>
-                      <td>{formatReportCardAverage(item)}</td>
-                      <td>{item.classRank || "-"}</td>
-                      <td>
+                      <td data-label={tr("Eleve")}>{item.studentName || "-"}</td>
+                      <td data-label={tr("Mode")}>{tr(formatReportCardModeLabel(item.mode))}</td>
+                      <td data-label={tr("Contexte")}>{formatReportCardContext(item)}</td>
+                      <td data-label={tr("Periode")}>{item.periodLabel || "-"}</td>
+                      <td data-label={tr("Moyenne")}>{formatReportCardAverage(item)}</td>
+                      <td data-label={tr("Rang")}>{item.classRank || "-"}</td>
+                      <td data-label={tr("Action")}>
                         {item.pdfDataUrl ? (
                           <button
                             type="button"
                             className="button-ghost"
                             onClick={() => window.open(item.pdfDataUrl, "_blank", "noopener,noreferrer")}
                           >
-                            Consulter le PDF
-                          </button>
+                            {tr("Consulter le PDF")}</button>
                         ) : (
                           "-"
                         )}
@@ -289,31 +288,31 @@ export function PortalParentScreen({
 
       <div className="split-grid">
         <section className="panel table-panel workflow-section">
-          <div className="table-header"><h2>Absences</h2></div>
+          <div className="table-header"><h2>{tr("Absences")}</h2></div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Eleve</th>
-                  <th>Classe</th>
-                  <th>Cursus</th>
-                  <th>Statut</th>
-                  <th>Validation</th>
+                  <th>{tr("Date")}</th>
+                  <th>{tr("Eleve")}</th>
+                  <th>{tr("Classe")}</th>
+                  <th>{tr("Cursus")}</th>
+                  <th>{tr("Statut")}</th>
+                  <th>{tr("Validation")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.attendance.length === 0 ? (
-                  <tr><td colSpan={6} className="empty-row">Aucune absence.</td></tr>
+                  <tr><td colSpan={6} className="empty-row">{tr("Aucune absence.")}</td></tr>
                 ) : (
                   data.attendance.map((item) => (
                     <tr key={item.id}>
-                      <td>{item.attendanceDate}</td>
-                      <td>{item.studentName || "-"}</td>
-                      <td>{item.classLabel || "-"}</td>
-                      <td>{formatAcademicTrackLabel(item.track)}</td>
-                      <td>{formatAttendanceStatusLabel(item.status)}</td>
-                      <td>{formatValidationStatusLabel(item.justificationStatus)}</td>
+                      <td data-label={tr("Date")}>{item.attendanceDate}</td>
+                      <td data-label={tr("Eleve")}>{item.studentName || "-"}</td>
+                      <td data-label={tr("Classe")}>{item.classLabel || "-"}</td>
+                      <td data-label={tr("Cursus")}>{tr(formatAcademicTrackLabel(item.track))}</td>
+                      <td data-label={tr("Statut")}>{tr(formatAttendanceStatusLabel(item.status))}</td>
+                      <td data-label={tr("Validation")}>{tr(formatValidationStatusLabel(item.justificationStatus))}</td>
                     </tr>
                   ))
                 )}
@@ -323,35 +322,35 @@ export function PortalParentScreen({
         </section>
 
         <section className="panel table-panel workflow-section">
-          <div className="table-header"><h2>Comptabilite famille</h2></div>
+          <div className="table-header"><h2>{tr("Comptabilite famille")}</h2></div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Facture</th>
-                  <th>Eleve</th>
-                  <th>Classe principale</th>
-                  <th>Classe secondaire</th>
-                  <th>Du</th>
-                  <th>Paye</th>
-                  <th>Reste</th>
-                  <th>Statut</th>
+                  <th>{tr("Facture")}</th>
+                  <th>{tr("Eleve")}</th>
+                  <th>{tr("Classe principale")}</th>
+                  <th>{tr("Classe secondaire")}</th>
+                  <th>{tr("Du")}</th>
+                  <th>{tr("Paye")}</th>
+                  <th>{tr("Reste")}</th>
+                  <th>{tr("Statut")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.invoices.length === 0 ? (
-                  <tr><td colSpan={8} className="empty-row">Aucune facture.</td></tr>
+                  <tr><td colSpan={8} className="empty-row">{tr("Aucune facture.")}</td></tr>
                 ) : (
                   data.invoices.map((item) => (
                     <tr key={item.id}>
-                      <td>{item.invoiceNo}</td>
-                      <td>{item.studentName || "-"}</td>
-                      <td>{[item.primaryClassLabel, item.primaryTrack ? formatAcademicTrackLabel(item.primaryTrack) : undefined].filter(Boolean).join(" / ") || "-"}</td>
-                      <td>{[item.secondaryClassLabel, item.secondaryTrack ? formatAcademicTrackLabel(item.secondaryTrack) : undefined].filter(Boolean).join(" / ") || "-"}</td>
-                      <td>{formatAmount(item.amountDue)}</td>
-                      <td>{formatAmount(item.amountPaid)}</td>
-                      <td>{formatAmount(item.remainingAmount)}</td>
-                      <td>{formatInvoiceStatusLabel(item.status)}</td>
+                      <td data-label={tr("Facture")}>{item.invoiceNo}</td>
+                      <td data-label={tr("Eleve")}>{item.studentName || "-"}</td>
+                      <td data-label={tr("Classe principale")}>{[item.primaryClassLabel, item.primaryTrack ? tr(formatAcademicTrackLabel(item.primaryTrack)) : undefined].filter(Boolean).join(" / ") || "-"}</td>
+                      <td data-label={tr("Classe secondaire")}>{[item.secondaryClassLabel, item.secondaryTrack ? tr(formatAcademicTrackLabel(item.secondaryTrack)) : undefined].filter(Boolean).join(" / ") || "-"}</td>
+                      <td data-label={tr("Du")}>{formatAmount(item.amountDue)}</td>
+                      <td data-label={tr("Paye")}>{formatAmount(item.amountPaid)}</td>
+                      <td data-label={tr("Reste")}>{formatAmount(item.remainingAmount)}</td>
+                      <td data-label={tr("Statut")}>{tr(formatInvoiceStatusLabel(item.status))}</td>
                     </tr>
                   ))
                 )}
@@ -363,29 +362,29 @@ export function PortalParentScreen({
 
       <div className="split-grid">
         <section className="panel table-panel workflow-section">
-          <div className="table-header"><h2>Paiements</h2></div>
+          <div className="table-header"><h2>{tr("Paiements")}</h2></div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Eleve</th>
-                  <th>Facture</th>
-                  <th>Recu</th>
-                  <th>Montant</th>
+                  <th>{tr("Date")}</th>
+                  <th>{tr("Eleve")}</th>
+                  <th>{tr("Facture")}</th>
+                  <th>{tr("Recu")}</th>
+                  <th>{tr("Montant")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.payments.length === 0 ? (
-                  <tr><td colSpan={5} className="empty-row">Aucun paiement.</td></tr>
+                  <tr><td colSpan={5} className="empty-row">{tr("Aucun paiement.")}</td></tr>
                 ) : (
                   data.payments.map((item) => (
                     <tr key={item.id}>
-                      <td>{new Date(item.paidAt).toLocaleString(locale)}</td>
-                      <td>{item.studentName || "-"}</td>
-                      <td>{item.invoiceNo || "-"}</td>
-                      <td>{item.receiptNo}</td>
-                      <td>{formatAmount(item.paidAmount)}</td>
+                      <td data-label={tr("Date")}>{new Date(item.paidAt).toLocaleString(locale)}</td>
+                      <td data-label={tr("Eleve")}>{item.studentName || "-"}</td>
+                      <td data-label={tr("Facture")}>{item.invoiceNo || "-"}</td>
+                      <td data-label={tr("Recu")}>{item.receiptNo}</td>
+                      <td data-label={tr("Montant")}>{formatAmount(item.paidAmount)}</td>
                     </tr>
                   ))
                 )}
@@ -395,31 +394,31 @@ export function PortalParentScreen({
         </section>
 
         <section className="panel table-panel workflow-section">
-          <div className="table-header"><h2>Emploi du temps</h2></div>
+          <div className="table-header"><h2>{tr("Emploi du temps")}</h2></div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Eleve</th>
-                  <th>Cursus</th>
-                  <th>Jour</th>
-                  <th>Matiere</th>
-                  <th>Horaire</th>
-                  <th>Salle</th>
+                  <th>{tr("Eleve")}</th>
+                  <th>{tr("Cursus")}</th>
+                  <th>{tr("Jour")}</th>
+                  <th>{tr("Matiere")}</th>
+                  <th>{tr("Horaire")}</th>
+                  <th>{tr("Salle")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.timetable.length === 0 ? (
-                  <tr><td colSpan={6} className="empty-row">Aucun creneau.</td></tr>
+                  <tr><td colSpan={6} className="empty-row">{tr("Aucun creneau.")}</td></tr>
                 ) : (
                   data.timetable.map((item) => (
                     <tr key={`${item.slotId}:${item.placementId || item.studentId}`}>
-                      <td>{item.studentName}</td>
-                      <td>{formatAcademicTrackLabel(item.track)}</td>
-                      <td>{formatWeekdayLabel(item.dayOfWeek)}</td>
-                      <td>{item.subjectLabel}</td>
-                      <td>{item.startTime} - {item.endTime}</td>
-                      <td>{item.room || "-"}</td>
+                      <td data-label={tr("Eleve")}>{item.studentName}</td>
+                      <td data-label={tr("Cursus")}>{tr(formatAcademicTrackLabel(item.track))}</td>
+                      <td data-label={tr("Jour")}>{tr(formatWeekdayLabel(item.dayOfWeek))}</td>
+                      <td data-label={tr("Matiere")}>{item.subjectLabel}</td>
+                      <td data-label={tr("Horaire")}>{item.startTime} - {item.endTime}</td>
+                      <td data-label={tr("Salle")}>{item.room || "-"}</td>
                     </tr>
                   ))
                 )}
@@ -430,29 +429,29 @@ export function PortalParentScreen({
       </div>
 
       <section className="panel table-panel workflow-section">
-        <div className="table-header"><h2>Notifications recues</h2></div>
+        <div className="table-header"><h2>{tr("Notifications recues")}</h2></div>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Titre</th>
-                <th>Message</th>
-                <th>Cible</th>
-                <th>Statut</th>
+                <th>{tr("Date")}</th>
+                <th>{tr("Titre")}</th>
+                <th>{tr("Message")}</th>
+                <th>{tr("Cible")}</th>
+                <th>{tr("Statut")}</th>
               </tr>
             </thead>
             <tbody>
               {data.notifications.length === 0 ? (
-                <tr><td colSpan={5} className="empty-row">Aucune notification.</td></tr>
+                <tr><td colSpan={5} className="empty-row">{tr("Aucune notification.")}</td></tr>
               ) : (
                 data.notifications.map((item) => (
                   <tr key={item.id}>
-                    <td>{new Date(item.createdAt).toLocaleString(locale)}</td>
-                    <td>{item.title}</td>
-                    <td>{item.message}</td>
-                    <td>{item.studentName || formatAudienceRoleLabel(item.audienceRole) || "-"}</td>
-                    <td>{formatPortalNotificationStatusLabel(item.status)}</td>
+                    <td data-label={tr("Date")}>{new Date(item.createdAt).toLocaleString(locale)}</td>
+                    <td data-label={tr("Titre")}>{item.title}</td>
+                    <td data-label={tr("Message")}>{item.message}</td>
+                    <td data-label={tr("Cible")}>{item.studentName || tr(formatAudienceRoleLabel(item.audienceRole)) || "-"}</td>
+                    <td data-label={tr("Statut")}>{tr(formatPortalNotificationStatusLabel(item.status))}</td>
                   </tr>
                 ))
               )}

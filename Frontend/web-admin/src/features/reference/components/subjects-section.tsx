@@ -18,8 +18,11 @@ import {
 } from "../utils/reference-ui";
 import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
+import { useI18n } from "../../../shared/i18n-context";
+
 
 export function SubjectsSection(): JSX.Element {
+  const { t: tr } = useI18n();
   const ctx = useReferenceScreenContext();
   const {
     createRef,
@@ -43,14 +46,13 @@ export function SubjectsSection(): JSX.Element {
 <article id="reference-subjects" data-step-id="subjects" className="panel table-panel module-modern module-stack reference-card">
             <div className="reference-card-head">
               <div>
-                <h3>Matiere</h3>
+                <h3>{tr("Matiere")}</h3>
                 <p className="section-lead">
-                  Discipline enseignee, distincte de son affectation a une classe, de son enseignant et de son emploi du temps.
-                </p>
+                  {tr("Discipline enseignee, distincte de son affectation a une classe, de son enseignant et de son emploi du temps.")}</p>
               </div>
               <div className="module-inline-strip">
-                <span className="module-inline-pill">{subjects.length} matiere(s)</span>
-                <span className="module-inline-pill">{subjectForm.levelIds.length} niveau(x) selectionne(s)</span>
+                <span className="module-inline-pill">{subjects.length} {tr("matiere(s)")}</span>
+                <span className="module-inline-pill">{subjectForm.levelIds.length} {tr("niveau(x) selectionne(s)")}</span>
               </div>
             </div>
             <div className="reference-section-grid">
@@ -124,12 +126,12 @@ export function SubjectsSection(): JSX.Element {
               >
                 <label>
                   {renderFieldLabel("Nom de la matiere", { required: true })}
-                  <input value={subjectForm.label} onChange={(event) => setSubjectForm((prev) => ({ ...prev, label: event.target.value }))} placeholder="Mathematiques" />
+                  <input value={subjectForm.label} onChange={(event) => setSubjectForm((prev) => ({ ...prev, label: event.target.value }))} placeholder={tr("Mathematiques")} />
                   {fieldError(subjectErrors, "label")}
                 </label>
                 <label>
                   {renderFieldLabel("Code", { required: true })}
-                  <input value={subjectForm.code} onChange={(event) => setSubjectForm((prev) => ({ ...prev, code: event.target.value }))} placeholder="MATH" />
+                  <input value={subjectForm.code} onChange={(event) => setSubjectForm((prev) => ({ ...prev, code: event.target.value }))} placeholder={tr("MATH")} />
                   {fieldError(subjectErrors, "code")}
                 </label>
                 <label>
@@ -137,7 +139,7 @@ export function SubjectsSection(): JSX.Element {
                   <select value={subjectForm.status} onChange={(event) => setSubjectForm((prev) => ({ ...prev, status: event.target.value as "ACTIVE" | "INACTIVE" }))}>
                     {REFERENCE_STATUS_OPTIONS.map((option) => (
                       <option key={option} value={option}>
-                        {formatReferenceStatusLabel(option)}
+                        {tr(formatReferenceStatusLabel(option))}
                       </option>
                     ))}
                   </select>
@@ -148,7 +150,7 @@ export function SubjectsSection(): JSX.Element {
                   <select value={subjectForm.nature} onChange={(event) => setSubjectForm((prev) => ({ ...prev, nature: event.target.value as SubjectNature }))}>
                     {SUBJECT_NATURE_OPTIONS.map((option) => (
                       <option key={option} value={option}>
-                        {formatSubjectNatureLabel(option)}
+                        {tr(formatSubjectNatureLabel(option))}
                       </option>
                     ))}
                   </select>
@@ -156,7 +158,7 @@ export function SubjectsSection(): JSX.Element {
                 </label>
                 <label>
                   {renderFieldLabel("Libelle court")}
-                  <input value={subjectForm.shortLabel} onChange={(event) => setSubjectForm((prev) => ({ ...prev, shortLabel: event.target.value }))} placeholder="Maths" />
+                  <input value={subjectForm.shortLabel} onChange={(event) => setSubjectForm((prev) => ({ ...prev, shortLabel: event.target.value }))} placeholder={tr("Maths")} />
                   {fieldError(subjectErrors, "shortLabel")}
                 </label>
                 <label>
@@ -180,7 +182,7 @@ export function SubjectsSection(): JSX.Element {
                       }));
                     }}
                   >
-                    <option value="">Tous les cycles</option>
+                    <option value="">{tr("Tous les cycles")}</option>
                     {cycles.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -190,7 +192,7 @@ export function SubjectsSection(): JSX.Element {
                 </label>
                 <label>
                   {renderFieldLabel("Categorie / groupe")}
-                  <input value={subjectForm.category} onChange={(event) => setSubjectForm((prev) => ({ ...prev, category: event.target.value }))} placeholder="Scientifique" />
+                  <input value={subjectForm.category} onChange={(event) => setSubjectForm((prev) => ({ ...prev, category: event.target.value }))} placeholder={tr("Scientifique")} />
                   {fieldError(subjectErrors, "category")}
                 </label>
                 <label>
@@ -218,7 +220,7 @@ export function SubjectsSection(): JSX.Element {
                   >
                     {subjectAvailableLevels.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {cycleById.get(item.cycleId)?.label || "-"} - {item.label} ({formatAcademicTrackLabel(item.track)})
+                        {cycleById.get(item.cycleId)?.label || "-"} - {item.label} ({tr(formatAcademicTrackLabel(item.track))})
                       </option>
                     ))}
                   </select>
@@ -226,21 +228,19 @@ export function SubjectsSection(): JSX.Element {
                 </label>
                 <label className="form-grid-span-full">
                   {renderFieldLabel("Description")}
-                  <textarea value={subjectForm.description} onChange={(event) => setSubjectForm((prev) => ({ ...prev, description: event.target.value }))} placeholder="Portee de la discipline, evaluation, obligations..." />
+                  <textarea value={subjectForm.description} onChange={(event) => setSubjectForm((prev) => ({ ...prev, description: event.target.value }))} placeholder={tr("Portee de la discipline, evaluation, obligations...")} />
                   {fieldError(subjectErrors, "description")}
                 </label>
                 <div className="reference-toggle-grid form-grid-span-full">
                   <label className="check-row reference-check-row">
                     <input type="checkbox" checked={subjectForm.isGraded} onChange={(event) => setSubjectForm((prev) => ({ ...prev, isGraded: event.target.checked }))} />
-                    Matiere notee
-                  </label>
+                    {tr("Matiere notee")}</label>
                   <label className="check-row reference-check-row">
                     <input type="checkbox" checked={subjectForm.isOptional} onChange={(event) => setSubjectForm((prev) => ({ ...prev, isOptional: event.target.checked }))} />
-                    Matiere optionnelle
-                  </label>
+                    {tr("Matiere optionnelle")}</label>
                 </div>
                 <div className="actions">
-                  <button type="submit">Creer la matiere</button>
+                  <button type="submit">{tr("Creer la matiere")}</button>
                 </div>
               </form>
             </div>
@@ -248,26 +248,26 @@ export function SubjectsSection(): JSX.Element {
               <table data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Matiere</th>
-                    <th>Nature</th>
-                    <th>Cycles</th>
-                    <th>Niveaux</th>
-                    <th>Statut</th>
-                    <th>Action</th>
+                    <th>{tr("Matiere")}</th>
+                    <th>{tr("Nature")}</th>
+                    <th>{tr("Cycles")}</th>
+                    <th>{tr("Niveaux")}</th>
+                    <th>{tr("Statut")}</th>
+                    <th>{tr("Action")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {subjects.length === 0 ? (
-                    <tr><td colSpan={6} className="empty-row">Aucune matiere configuree.</td></tr>
+                    <tr><td colSpan={6} className="empty-row">{tr("Aucune matiere configuree.")}</td></tr>
                   ) : (
                     subjects.map((item) => (
                       <tr key={item.id}>
-                        <td>{item.label} ({item.code})</td>
-                        <td>{formatSubjectNatureLabel(item.nature)}</td>
-                        <td>{formatSubjectCycles(item.levelIds)}</td>
-                        <td>{formatSubjectLevels(item.levelIds)}</td>
-                        <td>{formatReferenceStatusLabel(item.status)}</td>
-                        <td>
+                        <td data-label={tr("Matiere")}>{item.label} ({item.code})</td>
+                        <td data-label={tr("Nature")}>{tr(formatSubjectNatureLabel(item.nature))}</td>
+                        <td data-label={tr("Cycles")}>{formatSubjectCycles(item.levelIds)}</td>
+                        <td data-label={tr("Niveaux")}>{formatSubjectLevels(item.levelIds)}</td>
+                        <td data-label={tr("Statut")}>{tr(formatReferenceStatusLabel(item.status))}</td>
+                        <td data-label={tr("Action")}>
                           <ReferenceActionMenu
                             label={`Options matiere ${item.label}`}
                             onDelete={() => void deleteRef(`/subjects/${item.id}`, "Matiere supprimee.")}

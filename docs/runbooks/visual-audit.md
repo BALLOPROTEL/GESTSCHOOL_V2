@@ -96,32 +96,19 @@ console, d'un `pageerror`, d'un chargement bloque, d'un overflow et d'un selecte
 critique absent. Ils prouvent aussi qu'une allowlist precise ne masque pas une
 autre erreur.
 
-## Inventaire des scripts historiques
+## Source officielle unique
 
 | Scripts | Etat | Usage |
 | --- | --- | --- |
 | `scripts/visual-audit-core-workflows.mjs` | Gate central strict | CI et audits complets mocked/integrated |
 | `scripts/visual-audit/lib/*` | Actif | Collecteur et tests du mecanisme |
 | `Frontend/web-admin/scripts/smoke-tests.mjs` | Actif | Smoke statique de structure, distinct du visuel |
-| `Frontend/web-admin/scripts/auth-iam-visual-audit.mjs` | Legacy | Ancienne recette authentification/IAM |
-| `Frontend/web-admin/scripts/auth-visual-audit.mjs` | Legacy | Ancienne recette authentification |
-| `Frontend/web-admin/scripts/dashboard-visual-audit.mjs` | Legacy | Ancienne recette tableau de bord |
-| `Frontend/web-admin/scripts/enrollments-visual-audit.mjs` | Legacy | Ancienne recette inscriptions |
-| `Frontend/web-admin/scripts/finance-visual-audit.mjs` | Legacy | Ancienne recette comptabilite |
-| `Frontend/web-admin/scripts/iam-visual-audit.mjs` | Legacy | Ancienne recette IAM |
-| `Frontend/web-admin/scripts/parents-visual-audit.mjs` | Legacy | Ancienne recette parents |
-| `Frontend/web-admin/scripts/rooms-visual-audit.mjs` | Legacy | Ancienne recette salles |
-| `Frontend/web-admin/scripts/students-visual-audit.mjs` | Legacy | Ancienne recette eleves |
-| `Frontend/web-admin/scripts/teachers-visual-audit.mjs` | Legacy | Ancienne recette enseignants |
-| `Frontend/web-admin/scripts/visual-audit.mjs` | Legacy | Ancien audit multi-ecrans |
-| `scripts/visual-audit-notes-bulletins.mjs` | Legacy | Ancienne recette notes/bulletins |
-| `scripts/visual-audit-profile.mjs` | Legacy | Ancienne recette profil |
-
-Ces 13 scripts historiques restent disponibles pour comparer des ecrans
-specialises, mais ils ne sont appeles ni par la CI ni par les scripts de release
-et ne constituent pas une preuve de release. Le nombre de 14 mentionne dans le
-brief LOT 8A n'est pas retrouve dans l'arbre courant : aucun quatorzieme script
-ne doit etre invente. Leur suppression ou migration releve du LOT 8D.
+Les 13 scripts historiques specialises ont ete supprimes au LOT 8D apres
+verification de leur couverture. Les parcours profil, preferences et journal
+d'activite auparavant verifies par un script separe font maintenant partie du
+gate central strict. La facturation utilisateur reste desactivee par feature
+flag et est couverte par les tests de flags. Aucun script visuel parallele ne
+constitue une preuve de release.
 
 ## Resultat de reference du LOT 7
 
@@ -134,3 +121,10 @@ ne doit etre invente. Leur suppression ou migration releve du LOT 8D.
 
 Le gate est donc fiable, mais la recette mocked globale reste rouge jusqu'a la
 correction de ces traductions.
+
+## Resultat de reference du LOT 8D
+
+- Mode mocked CI : 67 workflows, 67 succes, aucun constat.
+- Mode mocked complet : 133 workflows, 133 succes, aucun constat.
+- Le perimetre supplementaire couvre Profil, Preferences et Journal d'activite.
+- Aucun script visuel specialise n'est conserve en parallele du gate central.

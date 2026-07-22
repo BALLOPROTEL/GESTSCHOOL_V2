@@ -10,6 +10,26 @@ const SEARCH_SOURCE = "Rechercher un module, un écran, une action...";
 const PREVIEW_SOURCE = "Mode aperçu local";
 const FEATURE_DISABLED_SOURCE = "Fonctionnalité désactivée";
 const USER_CONTENT = "Commentaire libre saisi par la famille";
+const LEGACY_SCREEN_LABELS = [
+  "Comptes utilisateurs",
+  "Base enseignants",
+  "Ajouter une salle",
+  "Ajouter un élève",
+  "Liste des responsables",
+  "Annee scolaire",
+  "Console de recouvrement",
+  "Messagerie",
+  "Indicateurs executifs",
+  "Module Mosquée",
+  "Saisie des notes",
+  "Vie scolaire",
+  "Journal des absences",
+  "Grille d'emploi du temps",
+  "Historique notifications",
+  "Portail enseignant",
+  "Portail parent",
+  "Portail élève"
+] as const;
 
 afterEach(cleanup);
 
@@ -87,5 +107,31 @@ describe("declarative i18n", () => {
       translateUiString("en", "Cette fonctionnalité n’est pas activée dans cet environnement.")
     ).toBe("This feature is not enabled in this environment.");
     expect(translateUiString("ar", "Ouvrir mon profil")).toBe("فتح ملفي الشخصي");
+  });
+
+  it("conserve une traduction déclarative pour les dix-huit destinations migrées", () => {
+    const missingEnglish = LEGACY_SCREEN_LABELS.filter(
+      (source) => translateUiString("en", source) === source
+    );
+    const missingArabic = LEGACY_SCREEN_LABELS.filter(
+      (source) => translateUiString("ar", source) === source
+    );
+
+    expect(missingEnglish).toEqual([]);
+    expect(missingArabic).toEqual([]);
+  });
+
+  it("traduit les libellés dynamiques des indicateurs de notes", () => {
+    for (const source of [
+      "Contexte appliqué",
+      "Dans le contexte choisi",
+      "Matières avec notes",
+      "Calculées le",
+      "Bulletins générés le",
+      "Moyennes et rangs calculés le"
+    ]) {
+      expect(translateUiString("en", source)).not.toBe(source);
+      expect(translateUiString("ar", source)).not.toBe(source);
+    }
   });
 });

@@ -3,6 +3,8 @@ import { type FormEvent, useMemo, useState } from "react";
 import type { AcademicTrack, FieldErrors, Student } from "../../../shared/types/app";
 import { fieldError } from "../../../shared/utils/form-ui";
 import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm } from "../types/students";
+import { useI18n } from "../../../shared/i18n-context";
+
 
 type StudentsPanelProps = {
   editingStudentId: string | null;
@@ -86,6 +88,7 @@ const getStudentInitials = (student: Student): string => {
 };
 
 export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     editingStudentId,
     onDeleteStudent,
@@ -145,17 +148,15 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
     <div className="students-v3-shell students-screen-shell">
       <header className="students-v3-page-header">
         <div>
-          <h1>Élèves</h1>
-          <p>Gérez et consultez les dossiers administratifs des élèves.</p>
+          <h1>{tr("Élèves")}</h1>
+          <p>{tr("Gérez et consultez les dossiers administratifs des élèves.")}</p>
         </div>
         {studentWorkflowStep === "entry" ? (
           <button type="button" className="button-ghost" onClick={() => onStudentWorkflowStepChange("list")}>
-            Base élèves
-          </button>
+            {tr("Base élèves")}</button>
         ) : (
           <button type="button" onClick={openStudentForm}>
-            Ajouter un élève
-          </button>
+            {tr("Ajouter un élève")}</button>
         )}
       </header>
 
@@ -163,34 +164,31 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
           <section className="panel editor-panel module-modern students-v3-form-card">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Dossier administratif</p>
-                <h2>{editingStudentId ? "Modifier le dossier" : "Ajouter un élève"}</h2>
+                <p className="section-kicker">{tr("Dossier administratif")}</p>
+                <h2>{editingStudentId ? tr("Modifier le dossier") : tr("Ajouter un élève")}</h2>
               </div>
               <span className="students-overview-status">
-                {editingStudentId ? "Mode édition" : "Nouveau dossier"}
+                {editingStudentId ? tr("Mode édition") : tr("Nouveau dossier")}
               </span>
             </div>
             <p className="section-lead">
-              Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.
-            </p>
+              {tr("Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.")}</p>
             <form className="form-grid module-form students-form-grid" onSubmit={onSubmitStudent}>
               <fieldset className="students-form-section">
-                <legend>Identité</legend>
+                <legend>{tr("Identité")}</legend>
                 <label>
-                  Matricule *
-                  <input
+                  {tr("Matricule *")}<input
                     value={studentForm.matricule}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, matricule: event.target.value }))
                     }
                     required
                   />
-                  <small>Matricule obligatoire pour enregistrer le dossier.</small>
+                  <small>{tr("Matricule obligatoire pour enregistrer le dossier.")}</small>
                   {fieldError(studentErrors, "matricule")}
                 </label>
                 <label>
-                  Prénom *
-                  <input
+                  {tr("Prénom *")}<input
                     value={studentForm.firstName}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, firstName: event.target.value }))
@@ -200,8 +198,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   {fieldError(studentErrors, "firstName")}
                 </label>
                 <label>
-                  Nom *
-                  <input
+                  {tr("Nom *")}<input
                     value={studentForm.lastName}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, lastName: event.target.value }))
@@ -211,8 +208,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   {fieldError(studentErrors, "lastName")}
                 </label>
                 <label>
-                  Sexe *
-                  <select
+                  {tr("Sexe *")}<select
                     value={studentForm.sex}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({
@@ -222,14 +218,13 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     }
                     required
                   >
-                    <option value="M">M</option>
-                    <option value="F">F</option>
+                    <option value="M">{tr("M")}</option>
+                    <option value="F">{tr("F")}</option>
                   </select>
                   {fieldError(studentErrors, "sex")}
                 </label>
                 <label>
-                  Date de naissance *
-                  <input
+                  {tr("Date de naissance *")}<input
                     type="date"
                     value={studentForm.birthDate}
                     onChange={(event) =>
@@ -240,8 +235,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   {fieldError(studentErrors, "birthDate")}
                 </label>
                 <label>
-                  Lieu de naissance
-                  <input
+                  {tr("Lieu de naissance")}<input
                     value={studentForm.birthPlace}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, birthPlace: event.target.value }))
@@ -249,8 +243,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   />
                 </label>
                 <label>
-                  Nationalité
-                  <input
+                  {tr("Nationalité")}<input
                     value={studentForm.nationality}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, nationality: event.target.value }))
@@ -260,10 +253,9 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
               </fieldset>
 
               <fieldset className="students-form-section">
-                <legend>Coordonnées utiles</legend>
+                <legend>{tr("Coordonnées utiles")}</legend>
                 <label>
-                  Téléphone principal du responsable
-                  <input
+                  {tr("Téléphone principal du responsable")}<input
                     value={studentForm.phone}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, phone: event.target.value }))
@@ -271,8 +263,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   />
                 </label>
                 <label>
-                  Email
-                  <input
+                  {tr("Email")}<input
                     type="email"
                     value={studentForm.email}
                     onChange={(event) =>
@@ -282,8 +273,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   {fieldError(studentErrors, "email")}
                 </label>
                 <label className="span-2">
-                  Adresse
-                  <input
+                  {tr("Adresse")}<input
                     value={studentForm.address}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, address: event.target.value }))
@@ -293,10 +283,9 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
               </fieldset>
 
               <fieldset className="students-form-section">
-                <legend>Scolarité administrative</legend>
+                <legend>{tr("Scolarité administrative")}</legend>
                 <label>
-                  Établissement *
-                  <select
+                  {tr("Établissement *")}<select
                     value={studentForm.establishmentId}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, establishmentId: event.target.value }))
@@ -312,8 +301,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   {fieldError(studentErrors, "establishmentId")}
                 </label>
                 <label>
-                  Date d’admission
-                  <input
+                  {tr("Date d’admission")}<input
                     type="date"
                     value={studentForm.admissionDate}
                     onChange={(event) =>
@@ -323,26 +311,24 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   {fieldError(studentErrors, "admissionDate")}
                 </label>
                 <label>
-                  Statut *
-                  <select
+                  {tr("Statut *")}<select
                     value={studentForm.status}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, status: event.target.value }))
                     }
                     required
                   >
-                    <option value="ACTIVE">Actif</option>
-                    <option value="INACTIVE">Inactif</option>
-                    <option value="PENDING">En attente</option>
-                    <option value="DRAFT">Brouillon</option>
-                    <option value="SUSPENDED">Suspendu</option>
-                    <option value="ARCHIVED">Archivé</option>
+                    <option value="ACTIVE">{tr("Actif")}</option>
+                    <option value="INACTIVE">{tr("Inactif")}</option>
+                    <option value="PENDING">{tr("En attente")}</option>
+                    <option value="DRAFT">{tr("Brouillon")}</option>
+                    <option value="SUSPENDED">{tr("Suspendu")}</option>
+                    <option value="ARCHIVED">{tr("Archivé")}</option>
                   </select>
                   {fieldError(studentErrors, "status")}
                 </label>
                 <label>
-                  Langue principale
-                  <input
+                  {tr("Langue principale")}<input
                     value={studentForm.primaryLanguage}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, primaryLanguage: event.target.value }))
@@ -352,10 +338,9 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
               </fieldset>
 
               <fieldset className="students-form-section">
-                <legend>Informations complémentaires</legend>
+                <legend>{tr("Informations complémentaires")}</legend>
                 <label className="span-2">
-                  Besoins particuliers
-                  <textarea
+                  {tr("Besoins particuliers")}<textarea
                     value={studentForm.specialNeeds}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, specialNeeds: event.target.value }))
@@ -364,8 +349,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                   />
                 </label>
                 <label className="span-2">
-                  Notes administratives
-                  <textarea
+                  {tr("Notes administratives")}<textarea
                     value={studentForm.administrativeNotes}
                     onChange={(event) =>
                       onStudentFormChange((prev) => ({ ...prev, administrativeNotes: event.target.value }))
@@ -376,17 +360,15 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
               </fieldset>
 
               <div className="actions span-2">
-                <button type="submit">{editingStudentId ? "Enregistrer le dossier" : "Créer le dossier"}</button>
+                <button type="submit">{editingStudentId ? tr("Enregistrer le dossier") : tr("Créer le dossier")}</button>
                 <button type="button" className="button-ghost" onClick={onResetStudentForm}>
-                  Réinitialiser
-                </button>
+                  {tr("Réinitialiser")}</button>
                 <button
                   type="button"
                   className="button-ghost"
                   onClick={() => onStudentWorkflowStepChange("list")}
                 >
-                  Voir la base élèves
-                </button>
+                  {tr("Voir la base élèves")}</button>
               </div>
             </form>
           </section>
@@ -394,104 +376,101 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
 
       {studentWorkflowStep === "list" ? (
         <>
-          <section className="panel students-v3-filter-card" aria-label="Filtres élèves">
+          <section className="panel students-v3-filter-card" aria-label={tr("Filtres élèves")}>
             <label className="students-v3-search-field">
-              <span>Recherche rapide</span>
+              <span>{tr("Recherche rapide")}</span>
               <input
                 className="search-input"
-                placeholder="Nom, matricule ou classe..."
+                placeholder={tr("Nom, matricule ou classe...")}
                 value={studentSearch}
                 onChange={(event) => onSearchChange(event.target.value)}
               />
             </label>
             <label className="students-v3-filter-field">
-              <span>Statut</span>
+              <span>{tr("Statut")}</span>
               <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="ALL">Tous les statuts</option>
-                <option value="ACTIVE">Actifs</option>
-                <option value="INACTIVE">Inactifs</option>
-                <option value="PENDING">En attente</option>
-                <option value="DRAFT">Brouillons</option>
-                <option value="SUSPENDED">Suspendus</option>
-                <option value="ARCHIVED">Archivés</option>
+                <option value="ALL">{tr("Tous les statuts")}</option>
+                <option value="ACTIVE">{tr("Actifs")}</option>
+                <option value="INACTIVE">{tr("Inactifs")}</option>
+                <option value="PENDING">{tr("En attente")}</option>
+                <option value="DRAFT">{tr("Brouillons")}</option>
+                <option value="SUSPENDED">{tr("Suspendus")}</option>
+                <option value="ARCHIVED">{tr("Archivés")}</option>
               </select>
             </label>
             <label className="students-v3-filter-field">
-              <span>Cursus</span>
+              <span>{tr("Cursus")}</span>
               <select value={trackFilter} onChange={(event) => setTrackFilter(event.target.value)}>
-                <option value="ALL">Tous les cursus</option>
-                <option value="FRANCOPHONE">Francophone</option>
-                <option value="ARABOPHONE">Arabophone</option>
-                <option value="BICURSUS">Bi-cursus</option>
-                <option value="UNASSIGNED">À régulariser</option>
+                <option value="ALL">{tr("Tous les cursus")}</option>
+                <option value="FRANCOPHONE">{tr("Francophone")}</option>
+                <option value="ARABOPHONE">{tr("Arabophone")}</option>
+                <option value="BICURSUS">{tr("Bi-cursus")}</option>
+                <option value="UNASSIGNED">{tr("À régulariser")}</option>
               </select>
             </label>
             <button type="button" className="button-ghost" onClick={resetListFilters} disabled={!hasListFilters}>
-              Réinitialiser
-            </button>
+              {tr("Réinitialiser")}</button>
           </section>
 
           <section className="panel table-panel module-modern students-list-panel students-v3-table-card">
             <div className="students-v3-table-head">
               <div>
-                <h2>Base élèves ({filteredStudents.length})</h2>
-                <p>Statuts et placements issus des inscriptions validées.</p>
+                <h2>{tr("Base élèves (")}{filteredStudents.length})</h2>
+                <p>{tr("Statuts et placements issus des inscriptions validées.")}</p>
               </div>
               <span className="students-overview-status">
-                {studentsLoading ? "Synchronisation en cours" : `${students.length} dossier(s)`}
+                {studentsLoading ? tr("Synchronisation en cours") : `${students.length} dossier(s)`}
               </span>
             </div>
             <div className="table-wrap">
               <table className="students-v3-table" data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Élève</th>
-                    <th>Matricule</th>
-                    <th>Classe / cursus</th>
-                    <th>Statut</th>
-                    <th className="students-v3-actions-heading" aria-label="Actions"></th>
+                    <th>{tr("Élève")}</th>
+                    <th>{tr("Matricule")}</th>
+                    <th>{tr("Classe / cursus")}</th>
+                    <th>{tr("Statut")}</th>
+                    <th className="students-v3-actions-heading" aria-label={tr("Actions")}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {studentsLoading ? (
                     <tr>
                       <td colSpan={5} className="empty-row">
-                        Chargement...
-                      </td>
+                        {tr("Chargement...")}</td>
                     </tr>
                   ) : filteredStudents.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="empty-row">
-                        Aucun élève enregistré.
-                      </td>
+                        {tr("Aucun élève enregistré.")}</td>
                     </tr>
                   ) : (
                     filteredStudents.map((item) => (
                       <tr key={item.id}>
-                        <td data-label="Élève">
+                        <td data-label={tr("Élève")}>
                           <div className="students-v3-student-cell">
                             <span className="students-v3-avatar">{getStudentInitials(item)}</span>
                             <div>
                               <strong>{getStudentDisplayName(item)}</strong>
-                              <small>{item.birthDate || "Date de naissance à compléter"}</small>
+                              <small>{item.birthDate || tr("Date de naissance à compléter")}</small>
                             </div>
                           </div>
                         </td>
-                        <td data-label="Matricule" className="students-v3-muted-cell">
+                        <td data-label={tr("Matricule")} className="students-v3-muted-cell">
                           {item.matricule}
                         </td>
-                        <td data-label="Classe / cursus">
+                        <td data-label={tr("Classe / cursus")}>
                           <div className="students-v3-class-cell">
                             <strong>{formatPrimaryClass(item)}</strong>
                             <span className="students-v3-class-badge">{formatStudentTracks(item)}</span>
                           </div>
                         </td>
-                        <td data-label="Statut">
+                        <td data-label={tr("Statut")}>
                           <span className={getStudentStatusClassName(item.status)}>
                             {formatStudentStatus(item.status)}
                           </span>
                         </td>
-                        <td data-label="Actions">
+                        <td data-label={tr("Actions")}>
                           <div className="students-v3-action-cell v3-action-cell">
                             <button
                               type="button"
@@ -512,8 +491,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                                     onViewStudent(item);
                                   }}
                                 >
-                                  Voir
-                                </button>
+                                  {tr("Voir")}</button>
                                 <button
                                   type="button"
                                   role="menuitem"
@@ -522,8 +500,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                                     onEditStudent(item);
                                   }}
                                 >
-                                  Modifier
-                                </button>
+                                  {tr("Modifier")}</button>
                                 <button
                                   type="button"
                                   role="menuitem"
@@ -533,8 +510,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                                     onDeleteStudent(item.id);
                                   }}
                                 >
-                                  Archiver
-                                </button>
+                                  {tr("Archiver")}</button>
                               </div>
                             ) : null}
                           </div>
@@ -546,10 +522,10 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
               </table>
             </div>
             {selectedStudent ? (
-              <aside className="students-detail-panel" aria-label="Dossier consulté">
+              <aside className="students-detail-panel" aria-label={tr("Dossier consulté")}>
                 <div className="table-header">
                   <div>
-                    <p className="section-kicker">Dossier consulté</p>
+                    <p className="section-kicker">{tr("Dossier consulté")}</p>
                     <h3>{getStudentDisplayName(selectedStudent)}</h3>
                   </div>
                   <span className={getStudentStatusClassName(selectedStudent.status)}>
@@ -558,19 +534,19 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 </div>
                 <div className="students-detail-grid">
                   <div>
-                    <span>Matricule</span>
+                    <span>{tr("Matricule")}</span>
                     <strong>{selectedStudent.matricule}</strong>
                   </div>
                   <div>
-                    <span>Date de naissance</span>
+                    <span>{tr("Date de naissance")}</span>
                     <strong>{selectedStudent.birthDate || "-"}</strong>
                   </div>
                   <div>
-                    <span>Cursus</span>
+                    <span>{tr("Cursus")}</span>
                     <strong>{formatStudentTracks(selectedStudent)}</strong>
                   </div>
                   <div>
-                    <span>Classe principale</span>
+                    <span>{tr("Classe principale")}</span>
                     <strong>{formatPrimaryClass(selectedStudent)}</strong>
                   </div>
                 </div>

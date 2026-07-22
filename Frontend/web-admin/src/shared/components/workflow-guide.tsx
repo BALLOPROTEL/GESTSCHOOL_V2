@@ -1,5 +1,6 @@
 import { Children, ReactNode, cloneElement, isValidElement } from "react";
 
+import { useI18n } from "../i18n-context";
 import type { WorkflowStepDef } from "../types/app";
 
 type WorkflowGuideProps = {
@@ -12,6 +13,7 @@ type WorkflowGuideProps = {
 };
 
 export function WorkflowGuide(props: WorkflowGuideProps): JSX.Element {
+  const { t } = useI18n();
   const { title, steps, activeStepId, onStepChange, children, className } = props;
   const activeStep = steps.find((step) => step.id === activeStepId) || steps[0];
 
@@ -54,7 +56,7 @@ export function WorkflowGuide(props: WorkflowGuideProps): JSX.Element {
   return (
     <section className={["workflow-shell workflow-shell-compact", className].filter(Boolean).join(" ")}>
       {steps.length > 1 ? (
-        <div className="workflow-tabs" role="tablist" aria-label={title}>
+        <div className="workflow-tabs" role="tablist" aria-label={t(title)}>
           {steps.map((step) => (
             <button
               key={step.id}
@@ -64,7 +66,7 @@ export function WorkflowGuide(props: WorkflowGuideProps): JSX.Element {
               className={`workflow-tab ${step.id === activeStep.id ? "is-active" : ""}`.trim()}
               onClick={() => onStepChange(step.id)}
             >
-              {step.title}
+              {t(step.title)}
             </button>
           ))}
         </div>

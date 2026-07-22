@@ -15,6 +15,7 @@ import type {
 } from "../../shared/types/app";
 import { useGradesData } from "./hooks/use-grades-data";
 import type { GradesApiClient } from "./types/grades";
+import { useI18n } from "../../shared/i18n-context";
 
 type GradesScreenProps = {
   api: GradesApiClient;
@@ -117,6 +118,7 @@ export function GradesScreen({
   onError,
   onNotice
 }: GradesScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     applyGradeFilters,
     classSummary,
@@ -341,7 +343,7 @@ export function GradesScreen({
 
   return (
     <WorkflowGuide
-      title="Notes & bulletins"
+      title={tr("Notes & bulletins")}
       steps={gradeSteps}
       activeStepId={gradesWorkflowStep}
       onStepChange={scrollToGrades}
@@ -353,18 +355,16 @@ export function GradesScreen({
       >
         <div className="table-header">
           <div>
-            <p className="section-kicker">Contexte de travail</p>
-            <h2>Vue d’ensemble</h2>
+            <p className="section-kicker">{tr("Contexte de travail")}</p>
+            <h2>{tr("Vue d’ensemble")}</h2>
           </div>
-          <span className="module-header-badge">{isOverviewContextReady ? "Contexte appliqué" : "À définir"}</span>
+          <span className="module-header-badge">{isOverviewContextReady ? tr("Contexte appliqué") : tr("À définir")}</span>
         </div>
         <p className="section-lead">
-          Choisissez l’année scolaire, la classe et la période avant de saisir, calculer ou générer les bulletins.
-        </p>
+          {tr("Choisissez l’année scolaire, la classe et la période avant de saisir, calculer ou générer les bulletins.")}</p>
         <form className="filter-grid module-filter" onSubmit={(event) => void applyGradeFilters(event)}>
           <label>
-            Année scolaire *
-            <select
+            {tr("Année scolaire *")}<select
               value={gradeFilters.schoolYearId}
               onChange={(event) =>
                 setGradeFilters((previous) => ({
@@ -377,7 +377,7 @@ export function GradesScreen({
               }
               required
             >
-              <option value="">Choisir...</option>
+              <option value="">{tr("Choisir...")}</option>
               {schoolYears.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label || item.code}
@@ -386,8 +386,7 @@ export function GradesScreen({
             </select>
           </label>
           <label>
-            Classe *
-            <select
+            {tr("Classe *")}<select
               value={gradeFilters.classId}
               onChange={(event) => {
                 const classId = event.target.value;
@@ -405,7 +404,7 @@ export function GradesScreen({
               }}
               required
             >
-              <option value="">Choisir...</option>
+              <option value="">{tr("Choisir...")}</option>
               {filterClasses.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.code} - {item.label}
@@ -414,15 +413,14 @@ export function GradesScreen({
             </select>
           </label>
           <label>
-            Période *
-            <select
+            {tr("Période *")}<select
               value={gradeFilters.academicPeriodId}
               onChange={(event) =>
                 setGradeFilters((previous) => ({ ...previous, academicPeriodId: event.target.value }))
               }
               required
             >
-              <option value="">Choisir...</option>
+              <option value="">{tr("Choisir...")}</option>
               {filterPeriods.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.code} - {item.label}
@@ -431,8 +429,7 @@ export function GradesScreen({
             </select>
           </label>
           <label>
-            Cursus
-            <select
+            {tr("Cursus")}<select
               value={gradeFilters.track}
               onChange={(event) =>
                 setGradeFilters((previous) => ({
@@ -442,18 +439,17 @@ export function GradesScreen({
                 }))
               }
             >
-              <option value="MIXED">Tous les cursus</option>
-              <option value="FRANCOPHONE">Francophone</option>
-              <option value="ARABOPHONE">Arabophone</option>
+              <option value="MIXED">{tr("Tous les cursus")}</option>
+              <option value="FRANCOPHONE">{tr("Francophone")}</option>
+              <option value="ARABOPHONE">{tr("Arabophone")}</option>
             </select>
           </label>
           <label>
-            Élève
-            <select
+            {tr("Élève")}<select
               value={gradeFilters.studentId}
               onChange={(event) => setGradeFilters((previous) => ({ ...previous, studentId: event.target.value }))}
             >
-              <option value="">Tous</option>
+              <option value="">{tr("Tous")}</option>
               {filterStudents.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.matricule} - {formatStudentName(item)}
@@ -462,79 +458,76 @@ export function GradesScreen({
             </select>
           </label>
           <div className="actions">
-            <button type="submit">Afficher les données</button>
+            <button type="submit">{tr("Afficher les données")}</button>
             <button type="button" className="button-ghost" onClick={() => void resetGradeFilters()}>
-              Réinitialiser les filtres
-            </button>
+              {tr("Réinitialiser les filtres")}</button>
           </div>
         </form>
         <div className="module-overview-grid">
           <article className="module-overview-card">
-            <span>Notes saisies</span>
+            <span>{tr("Notes saisies")}</span>
             <strong>{contextGrades.length}</strong>
-            <small>{isOverviewContextReady ? "Dans le contexte choisi" : "Tous contextes"}</small>
+            <small>{isOverviewContextReady ? tr("Dans le contexte choisi") : tr("Tous contextes")}</small>
           </article>
           <article className="module-overview-card">
-            <span>Élèves concernés</span>
+            <span>{tr("Élèves concernés")}</span>
             <strong>{isOverviewContextReady ? filterStudents.length : students.length}</strong>
-            <small>{gradeFilters.studentId ? "Lecture ciblée" : "Dossiers concernés"}</small>
+            <small>{gradeFilters.studentId ? tr("Lecture ciblée") : tr("Dossiers concernés")}</small>
           </article>
           <article className="module-overview-card">
-            <span>Matières évaluées</span>
+            <span>{tr("Matières évaluées")}</span>
             <strong>{contextSubjectCount}</strong>
-            <small>{contextSubjectCount > 0 ? "Matières avec notes" : "Aucune matière évaluée"}</small>
+            <small>{contextSubjectCount > 0 ? tr("Matières avec notes") : tr("Aucune matière évaluée")}</small>
           </article>
           <article className="module-overview-card">
-            <span>Bulletins générés</span>
+            <span>{tr("Bulletins générés")}</span>
             <strong>{contextReportCards.length}</strong>
-            <small>Bulletins PDF disponibles</small>
+            <small>{tr("Bulletins PDF disponibles")}</small>
           </article>
           <article className="module-overview-card">
-            <span>Moyennes calculées</span>
+            <span>{tr("Moyennes calculées")}</span>
             <strong>{hasOverviewSummary ? classSummary?.students.length || 0 : 0}</strong>
-            <small>{hasOverviewSummary && summaryComputedAt ? `Calculées le ${formatDateTime(summaryComputedAt)}` : "Moyennes non calculées"}</small>
+            <small>{hasOverviewSummary && summaryComputedAt ? <>{tr("Calculées le")} {formatDateTime(summaryComputedAt)}</> : tr("Moyennes non calculées")}</small>
           </article>
           <article className="module-overview-card">
-            <span>Notes manquantes</span>
+            <span>{tr("Notes manquantes")}</span>
             <strong>{hasOverviewSummary ? contextMissingGrades : "-"}</strong>
-            <small>{hasOverviewSummary ? "Après calcul" : "À vérifier après calcul"}</small>
+            <small>{hasOverviewSummary ? tr("Après calcul") : tr("À vérifier après calcul")}</small>
           </article>
         </div>
         <div className="module-inline-strip">
-          <span className="module-inline-pill">Année : {formatSchoolYearLabel(gradeFilters.schoolYearId)}</span>
-          <span className="module-inline-pill">Classe : {filterClass?.label || "-"}</span>
-          <span className="module-inline-pill">Période : {periodById.get(gradeFilters.academicPeriodId)?.label || "-"}</span>
-          <span className="module-inline-pill">Cursus : {formatTrackLabel(gradeFilters.track)}</span>
+          <span className="module-inline-pill">{tr("Année : ")}{formatSchoolYearLabel(gradeFilters.schoolYearId)}</span>
+          <span className="module-inline-pill">{tr("Classe : ")}{filterClass?.label || "-"}</span>
+          <span className="module-inline-pill">{tr("Période : ")}{periodById.get(gradeFilters.academicPeriodId)?.label || "-"}</span>
+          <span className="module-inline-pill">{tr("Cursus : ")}{tr(formatTrackLabel(gradeFilters.track))}</span>
           <span className="module-inline-pill">
-            {reportsGeneratedAt ? `Bulletins générés le ${formatDateTime(reportsGeneratedAt)}` : "Bulletins non régénérés"}
+            {reportsGeneratedAt ? <>{tr("Bulletins générés le")} {formatDateTime(reportsGeneratedAt)}</> : tr("Bulletins non régénérés")}
           </span>
         </div>
         {!isOverviewContextReady ? (
-          <p className="empty-row">Sélectionnez un contexte pour afficher les indicateurs de travail.</p>
+          <p className="empty-row">{tr("Sélectionnez un contexte pour afficher les indicateurs de travail.")}</p>
         ) : contextGrades.length === 0 ? (
-          <p className="empty-row">Aucune note enregistrée pour ce contexte. Saisissez d’abord une évaluation.</p>
+          <p className="empty-row">{tr("Aucune note enregistrée pour ce contexte. Saisissez d’abord une évaluation.")}</p>
         ) : !hasOverviewSummary ? (
-          <p className="empty-row">Des notes existent pour ce contexte. Calculez les moyennes depuis l’onglet Moyennes & rangs.</p>
+          <p className="empty-row">{tr("Des notes existent pour ce contexte. Calculez les moyennes depuis l’onglet Moyennes & rangs.")}</p>
         ) : null}
       </section>
 
       <section id="grades-entry" data-step-id="entry" className="panel editor-panel workflow-section module-modern">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Saisie</p>
-            <h2>Saisie des notes par évaluation</h2>
+            <p className="section-kicker">{tr("Saisie")}</p>
+            <h2>{tr("Saisie des notes par évaluation")}</h2>
           </div>
-          <span className="module-header-badge">Validation par ligne</span>
+          <span className="module-header-badge">{tr("Validation par ligne")}</span>
         </div>
         <p className="section-lead">
-          Créez une évaluation, puis saisissez les notes des élèves dans une grille unique.
-        </p>
+          {tr("Créez une évaluation, puis saisissez les notes des élèves dans une grille unique.")}</p>
         <form className="module-form" onSubmit={(event) => void submitGradesBulk(event)}>
           <div className="form-grid">
             <label>
-              Classe *
-              <select value={gradeForm.classId} onChange={(event) => setClassOnGradeForm(event.target.value)} required>
-                <option value="">Choisir...</option>
+              {tr("Classe *")}<select value={gradeForm.classId} onChange={(event) => setClassOnGradeForm(event.target.value)} required>
+                <option value="">{tr("Choisir...")}</option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -544,13 +537,12 @@ export function GradesScreen({
               {renderFieldError(gradeErrors, "classId")}
             </label>
             <label>
-              Matière *
-              <select
+              {tr("Matière *")}<select
                 value={gradeForm.subjectId}
                 onChange={(event) => setGradeForm((previous) => ({ ...previous, subjectId: event.target.value }))}
                 required
               >
-                <option value="">Choisir...</option>
+                <option value="">{tr("Choisir...")}</option>
                 {subjects.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -560,15 +552,14 @@ export function GradesScreen({
               {renderFieldError(gradeErrors, "subjectId")}
             </label>
             <label>
-              Période *
-              <select
+              {tr("Période *")}<select
                 value={gradeForm.academicPeriodId}
                 onChange={(event) =>
                   setGradeForm((previous) => ({ ...previous, academicPeriodId: event.target.value }))
                 }
                 required
               >
-                <option value="">Choisir...</option>
+                <option value="">{tr("Choisir...")}</option>
                 {gradeFormPeriods.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -578,8 +569,7 @@ export function GradesScreen({
               {renderFieldError(gradeErrors, "academicPeriodId")}
             </label>
             <label>
-              Type d’évaluation *
-              <select
+              {tr("Type d’évaluation *")}<select
                 value={gradeForm.assessmentType}
                 onChange={(event) =>
                   setGradeForm((previous) => ({
@@ -589,17 +579,16 @@ export function GradesScreen({
                 }
                 required
               >
-                <option value="DEVOIR">Devoir</option>
-                <option value="INTERROGATION">Interrogation</option>
-                <option value="COMPOSITION">Composition</option>
-                <option value="EXAMEN">Examen</option>
-                <option value="PROJET">Projet</option>
-                <option value="PARTICIPATION">Participation</option>
+                <option value="DEVOIR">{tr("Devoir")}</option>
+                <option value="INTERROGATION">{tr("Interrogation")}</option>
+                <option value="COMPOSITION">{tr("Composition")}</option>
+                <option value="EXAMEN">{tr("Examen")}</option>
+                <option value="PROJET">{tr("Projet")}</option>
+                <option value="PARTICIPATION">{tr("Participation")}</option>
               </select>
             </label>
             <label>
-              Libellé de l’évaluation *
-              <input
+              {tr("Libellé de l’évaluation *")}<input
                 value={gradeForm.assessmentLabel}
                 onChange={(event) => setGradeForm((previous) => ({ ...previous, assessmentLabel: event.target.value }))}
                 required
@@ -607,8 +596,7 @@ export function GradesScreen({
               {renderFieldError(gradeErrors, "assessmentLabel")}
             </label>
             <label>
-              Date d’évaluation *
-              <input
+              {tr("Date d’évaluation *")}<input
                 type="date"
                 value={gradeForm.assessmentDate}
                 onChange={(event) => setGradeForm((previous) => ({ ...previous, assessmentDate: event.target.value }))}
@@ -617,8 +605,7 @@ export function GradesScreen({
               {renderFieldError(gradeErrors, "assessmentDate")}
             </label>
             <label>
-              Barème *
-              <input
+              {tr("Barème *")}<input
                 type="number"
                 min={1}
                 step="0.01"
@@ -629,8 +616,7 @@ export function GradesScreen({
               {renderFieldError(gradeErrors, "scoreMax")}
             </label>
             <label>
-              Coefficient *
-              <input
+              {tr("Coefficient *")}<input
                 type="number"
                 min={0.01}
                 step="0.01"
@@ -641,8 +627,7 @@ export function GradesScreen({
               {renderFieldError(gradeErrors, "coefficient")}
             </label>
             <label>
-              Cursus *
-              <select
+              {tr("Cursus *")}<select
                 value={gradeForm.track}
                 onChange={(event) =>
                   setGradeForm((previous) => ({
@@ -652,14 +637,13 @@ export function GradesScreen({
                 }
                 required
               >
-                <option value="MIXED">Mixte</option>
-                <option value="FRANCOPHONE">Francophone</option>
-                <option value="ARABOPHONE">Arabophone</option>
+                <option value="MIXED">{tr("Mixte")}</option>
+                <option value="FRANCOPHONE">{tr("Francophone")}</option>
+                <option value="ARABOPHONE">{tr("Arabophone")}</option>
               </select>
             </label>
             <label>
-              Commentaire
-              <input
+              {tr("Commentaire")}<input
                 value={gradeForm.comment}
                 onChange={(event) => setGradeForm((previous) => ({ ...previous, comment: event.target.value }))}
               />
@@ -669,21 +653,20 @@ export function GradesScreen({
             <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Élève</th>
-                  <th>Matricule</th>
-                  <th>Note</th>
-                  <th>Absent</th>
-                  <th>Dispensé</th>
-                  <th>Commentaire</th>
-                  <th>Statut</th>
+                  <th>{tr("Élève")}</th>
+                  <th>{tr("Matricule")}</th>
+                  <th>{tr("Note")}</th>
+                  <th>{tr("Absent")}</th>
+                  <th>{tr("Dispensé")}</th>
+                  <th>{tr("Commentaire")}</th>
+                  <th>{tr("Statut")}</th>
                 </tr>
               </thead>
               <tbody>
                 {gridStudents.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="empty-row">
-                      Aucun élève disponible pour cette classe.
-                    </td>
+                      {tr("Aucun élève disponible pour cette classe.")}</td>
                   </tr>
                 ) : (
                   gridStudents.map((student) => {
@@ -691,11 +674,11 @@ export function GradesScreen({
                     const scoreError = gradeRowErrors[`score-${student.id}`];
                     return (
                       <tr key={student.id}>
-                        <td data-label="Élève">{formatStudentName(student)}</td>
-                        <td data-label="Matricule">{student.matricule}</td>
-                        <td data-label="Note">
+                        <td data-label={tr("Élève")}>{formatStudentName(student)}</td>
+                        <td data-label={tr("Matricule")}>{student.matricule}</td>
+                        <td data-label={tr("Note")}>
                           <label className="inline-field">
-                            <span className="sr-only">Note de {formatStudentName(student)}</span>
+                            <span className="sr-only">{tr("Note de ")}{formatStudentName(student)}</span>
                             <input
                               type="number"
                               min={0}
@@ -708,7 +691,7 @@ export function GradesScreen({
                             {scoreError ? <span className="field-error" role="alert">{scoreError}</span> : null}
                           </label>
                         </td>
-                        <td data-label="Absent">
+                        <td data-label={tr("Absent")}>
                           <input
                             type="checkbox"
                             checked={Boolean(row?.absent)}
@@ -722,7 +705,7 @@ export function GradesScreen({
                             aria-label={`Absent ${formatStudentName(student)}`}
                           />
                         </td>
-                        <td data-label="Dispensé">
+                        <td data-label={tr("Dispensé")}>
                           <input
                             type="checkbox"
                             checked={Boolean(row?.exempted)}
@@ -736,14 +719,14 @@ export function GradesScreen({
                             aria-label={`Dispensé ${formatStudentName(student)}`}
                           />
                         </td>
-                        <td data-label="Commentaire">
+                        <td data-label={tr("Commentaire")}>
                           <input
                             value={row?.comment || ""}
                             onChange={(event) => updateGradeRow(student.id, { comment: event.target.value })}
                             aria-label={`Commentaire ${formatStudentName(student)}`}
                           />
                         </td>
-                        <td data-label="Statut">{row?.absent ? "Absent" : row?.exempted ? "Dispensé" : row?.score ? "Prêt" : "À saisir"}</td>
+                        <td data-label={tr("Statut")}>{row?.absent ? tr("Absent") : row?.exempted ? tr("Dispensé") : row?.score ? tr("Prêt") : tr("À saisir")}</td>
                       </tr>
                     );
                   })
@@ -753,13 +736,11 @@ export function GradesScreen({
           </div>
           {renderFieldError(gradeErrors, "grades")}
           <div className="actions">
-            <button type="submit">Enregistrer les notes</button>
+            <button type="submit">{tr("Enregistrer les notes")}</button>
             <button type="button" className="button-ghost" onClick={resetGradeEntry}>
-              Réinitialiser la saisie
-            </button>
+              {tr("Réinitialiser la saisie")}</button>
             <button type="button" className="button-ghost" onClick={() => scrollToGrades("filters")}>
-              Retour à la vue d’ensemble
-            </button>
+              {tr("Retour à la vue d’ensemble")}</button>
           </div>
         </form>
       </section>
@@ -767,8 +748,8 @@ export function GradesScreen({
       <section data-step-id="entry" className="panel table-panel workflow-section module-modern">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Registre</p>
-            <h2>Notes enregistrées</h2>
+            <p className="section-kicker">{tr("Registre")}</p>
+            <h2>{tr("Notes enregistrées")}</h2>
           </div>
           <span className="module-header-badge">{pluralize(grades.length, "ligne", "lignes")}</span>
         </div>
@@ -776,47 +757,44 @@ export function GradesScreen({
           <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Élève</th>
-                <th>Classe</th>
-                <th>Matière</th>
-                <th>Période</th>
-                <th>Évaluation</th>
-                <th>Type</th>
-                <th>Note</th>
-                <th>Barème</th>
-                <th>Coefficient</th>
-                <th>Date</th>
-                <th>Actions</th>
+                <th>{tr("Élève")}</th>
+                <th>{tr("Classe")}</th>
+                <th>{tr("Matière")}</th>
+                <th>{tr("Période")}</th>
+                <th>{tr("Évaluation")}</th>
+                <th>{tr("Type")}</th>
+                <th>{tr("Note")}</th>
+                <th>{tr("Barème")}</th>
+                <th>{tr("Coefficient")}</th>
+                <th>{tr("Date")}</th>
+                <th>{tr("Actions")}</th>
               </tr>
             </thead>
             <tbody>
               {grades.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="empty-row">
-                    Aucune note enregistrée.
-                  </td>
+                    {tr("Aucune note enregistrée.")}</td>
                 </tr>
               ) : (
                 grades.map((item) => (
                   <tr key={item.id}>
-                    <td data-label="Élève">{item.studentName || formatStudentName(studentById.get(item.studentId))}</td>
-                    <td data-label="Classe">{classById.get(item.classId)?.label || "-"}</td>
-                    <td data-label="Matière">{item.subjectLabel || subjectById.get(item.subjectId)?.label || "-"}</td>
-                    <td data-label="Période">{periodById.get(item.academicPeriodId)?.label || "-"}</td>
-                    <td data-label="Évaluation">{item.assessmentLabel}</td>
-                    <td data-label="Type">{formatAssessmentTypeLabel(item.assessmentType)}</td>
-                    <td data-label="Note">{item.absent ? "Absent" : item.exempted ? "Dispensé" : item.score.toFixed(2)}</td>
-                    <td data-label="Barème">{item.scoreMax}</td>
-                    <td data-label="Coefficient">{item.coefficient ?? 1}</td>
-                    <td data-label="Date">{formatDate(item.assessmentDate)}</td>
-                    <td data-label="Actions">
+                    <td data-label={tr("Élève")}>{item.studentName || formatStudentName(studentById.get(item.studentId))}</td>
+                    <td data-label={tr("Classe")}>{classById.get(item.classId)?.label || "-"}</td>
+                    <td data-label={tr("Matière")}>{item.subjectLabel || subjectById.get(item.subjectId)?.label || "-"}</td>
+                    <td data-label={tr("Période")}>{periodById.get(item.academicPeriodId)?.label || "-"}</td>
+                    <td data-label={tr("Évaluation")}>{item.assessmentLabel}</td>
+                    <td data-label={tr("Type")}>{tr(formatAssessmentTypeLabel(item.assessmentType))}</td>
+                    <td data-label={tr("Note")}>{item.absent ? tr("Absent") : item.exempted ? tr("Dispensé") : item.score.toFixed(2)}</td>
+                    <td data-label={tr("Barème")}>{item.scoreMax}</td>
+                    <td data-label={tr("Coefficient")}>{item.coefficient ?? 1}</td>
+                    <td data-label={tr("Date")}>{formatDate(item.assessmentDate)}</td>
+                    <td data-label={tr("Actions")}>
                       <div className="actions">
                         <button type="button" className="button-ghost" onClick={() => editGrade(item)}>
-                          Modifier
-                        </button>
+                          {tr("Modifier")}</button>
                         <button type="button" className="button-danger" onClick={() => void removeGrade(item.id)}>
-                          Supprimer
-                        </button>
+                          {tr("Supprimer")}</button>
                       </div>
                     </td>
                   </tr>
@@ -830,24 +808,22 @@ export function GradesScreen({
       <section id="grades-summary" data-step-id="summary" className="panel table-panel workflow-section module-modern">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Synthèse</p>
-            <h2>Moyennes & rangs</h2>
+            <p className="section-kicker">{tr("Synthèse")}</p>
+            <h2>{tr("Moyennes & rangs")}</h2>
           </div>
           <span className="module-header-badge">{pluralize(classSummary?.students.length || 0, "ligne", "lignes")}</span>
         </div>
         <p className="section-lead">
           {summaryComputedAt
-            ? `Moyennes et rangs calculés le ${formatDateTime(summaryComputedAt)}.`
-            : "Calculez les moyennes à partir du contexte choisi dans la vue d’ensemble."}
+            ? <>{tr("Moyennes et rangs calculés le")} {formatDateTime(summaryComputedAt)}.</>
+            : tr("Calculez les moyennes à partir du contexte choisi dans la vue d’ensemble.")}
         </p>
         {classSummary && classSummary.students.length > 0 ? (
           <div className="actions">
             <button type="button" onClick={() => void computeClassSummary()}>
-              Recalculer les moyennes/rangs
-            </button>
+              {tr("Recalculer les moyennes/rangs")}</button>
             <button type="button" className="button-ghost" onClick={() => void computeClassSummary()}>
-              Actualiser les résultats
-            </button>
+              {tr("Actualiser les résultats")}</button>
           </div>
         ) : null}
         {classSummary && classSummary.students.length > 0 ? (
@@ -856,15 +832,15 @@ export function GradesScreen({
               <table data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Rang</th>
-                    <th>Élève</th>
-                    <th>Matricule</th>
-                    <th>Moyenne générale</th>
-                    <th>Nombre de matières</th>
-                    <th>Notes manquantes</th>
-                    <th>Appréciation</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
+                    <th>{tr("Rang")}</th>
+                    <th>{tr("Élève")}</th>
+                    <th>{tr("Matricule")}</th>
+                    <th>{tr("Moyenne générale")}</th>
+                    <th>{tr("Nombre de matières")}</th>
+                    <th>{tr("Notes manquantes")}</th>
+                    <th>{tr("Appréciation")}</th>
+                    <th>{tr("Statut")}</th>
+                    <th>{tr("Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -875,22 +851,22 @@ export function GradesScreen({
                       const isDetailOpen = selectedSummaryStudentId === item.studentId;
                       return (
                         <tr key={item.studentId} className={isDetailOpen ? "is-selected-row" : undefined}>
-                          <td data-label="Rang">{item.classRank}</td>
-                          <td data-label="Élève">{item.studentName}</td>
-                          <td data-label="Matricule">{item.matricule}</td>
-                          <td data-label="Moyenne générale">{item.averageGeneral.toFixed(2)}</td>
-                          <td data-label="Nombre de matières">{item.noteCount}</td>
-                          <td data-label="Notes manquantes">{item.missingGrades ?? 0}</td>
-                          <td data-label="Appréciation">{item.appreciation}</td>
-                          <td data-label="Statut">{item.noteCount > 0 ? "Calculé" : "Incomplet"}</td>
-                          <td data-label="Actions">
+                          <td data-label={tr("Rang")}>{item.classRank}</td>
+                          <td data-label={tr("Élève")}>{item.studentName}</td>
+                          <td data-label={tr("Matricule")}>{item.matricule}</td>
+                          <td data-label={tr("Moyenne générale")}>{item.averageGeneral.toFixed(2)}</td>
+                          <td data-label={tr("Nombre de matières")}>{item.noteCount}</td>
+                          <td data-label={tr("Notes manquantes")}>{item.missingGrades ?? 0}</td>
+                          <td data-label={tr("Appréciation")}>{item.appreciation}</td>
+                          <td data-label={tr("Statut")}>{item.noteCount > 0 ? tr("Calculé") : tr("Incomplet")}</td>
+                          <td data-label={tr("Actions")}>
                             <button
                               type="button"
                               className={`button-ghost${isDetailOpen ? " is-active" : ""}`}
                               aria-expanded={isDetailOpen}
                               onClick={() => setSelectedSummaryStudentId(item.studentId)}
                             >
-                              {isDetailOpen ? "Détail ouvert" : "Voir détail"}
+                              {isDetailOpen ? tr("Détail ouvert") : tr("Voir détail")}
                             </button>
                           </td>
                         </tr>
@@ -903,40 +879,39 @@ export function GradesScreen({
               <div className="panel nested-panel">
                 <div className="table-header">
                   <div>
-                    <p className="section-kicker">Détail élève</p>
+                    <p className="section-kicker">{tr("Détail élève")}</p>
                     <h3>{selectedSummaryStudent.studentName}</h3>
                   </div>
-                  <span className="module-header-badge">{formatTrackLabel(selectedSummaryStudent.track)}</span>
+                  <span className="module-header-badge">{tr(formatTrackLabel(selectedSummaryStudent.track))}</span>
                 </div>
                 <div className="table-wrap">
                   <table data-responsive-table="true">
                     <thead>
                       <tr>
-                        <th>Matière</th>
-                        <th>Moyenne matière</th>
-                        <th>Coefficient</th>
-                        <th>Nombre de notes</th>
-                        <th>Notes manquantes</th>
-                        <th>Appréciation</th>
+                        <th>{tr("Matière")}</th>
+                        <th>{tr("Moyenne matière")}</th>
+                        <th>{tr("Coefficient")}</th>
+                        <th>{tr("Nombre de notes")}</th>
+                        <th>{tr("Notes manquantes")}</th>
+                        <th>{tr("Appréciation")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedSummarySubjectRows.length > 0 ? (
                         selectedSummarySubjectRows.map((subject) => (
                           <tr key={subject.subjectId}>
-                            <td data-label="Matière">{subject.subjectLabel}</td>
-                            <td data-label="Moyenne matière">{subject.average.toFixed(2)}</td>
-                            <td data-label="Coefficient">{subject.coefficient ?? 1}</td>
-                            <td data-label="Nombre de notes">{subject.noteCount}</td>
-                            <td data-label="Notes manquantes">{subject.missingGrades}</td>
-                            <td data-label="Appréciation">{subject.average >= 14 ? "Très bien" : subject.average >= 10 ? "Satisfaisant" : "À renforcer"}</td>
+                            <td data-label={tr("Matière")}>{subject.subjectLabel}</td>
+                            <td data-label={tr("Moyenne matière")}>{subject.average.toFixed(2)}</td>
+                            <td data-label={tr("Coefficient")}>{subject.coefficient ?? 1}</td>
+                            <td data-label={tr("Nombre de notes")}>{subject.noteCount}</td>
+                            <td data-label={tr("Notes manquantes")}>{subject.missingGrades}</td>
+                            <td data-label={tr("Appréciation")}>{subject.average >= 14 ? tr("Très bien") : subject.average >= 10 ? tr("Satisfaisant") : tr("À renforcer")}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
                           <td colSpan={6} className="empty-row">
-                            Aucun détail de matière disponible.
-                          </td>
+                            {tr("Aucun détail de matière disponible.")}</td>
                         </tr>
                       )}
                     </tbody>
@@ -947,10 +922,9 @@ export function GradesScreen({
           </>
         ) : (
           <div className="empty-state-block">
-            <p className="subtle">Aucune moyenne calculée pour l’instant.</p>
+            <p className="subtle">{tr("Aucune moyenne calculée pour l’instant.")}</p>
             <button type="button" onClick={() => void computeClassSummary()}>
-              Calculer les moyennes/rangs
-            </button>
+              {tr("Calculer les moyennes/rangs")}</button>
           </div>
         )}
       </section>
@@ -958,19 +932,17 @@ export function GradesScreen({
       <section id="grades-reports" data-step-id="reports" className="panel editor-panel workflow-section module-modern">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Publication</p>
-            <h2>Génération des bulletins</h2>
+            <p className="section-kicker">{tr("Publication")}</p>
+            <h2>{tr("Génération des bulletins")}</h2>
           </div>
           <span className="module-header-badge">{pluralize(reportCards.length, "bulletin", "bulletins")}</span>
         </div>
         <p className="section-lead">
-          Générez un bulletin individuel ou les bulletins de toute une classe après calcul des moyennes.
-        </p>
+          {tr("Générez un bulletin individuel ou les bulletins de toute une classe après calcul des moyennes.")}</p>
         <form className="module-form" onSubmit={(event) => void generateReport(event)}>
           <div className="form-grid">
             <label>
-              Année scolaire *
-              <select
+              {tr("Année scolaire *")}<select
                 value={reportForm.schoolYearId}
                 onChange={(event) =>
                   setReportForm((previous) => ({
@@ -983,7 +955,7 @@ export function GradesScreen({
                 }
                 required
               >
-                <option value="">Choisir...</option>
+                <option value="">{tr("Choisir...")}</option>
                 {schoolYears.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.label || item.code}
@@ -993,9 +965,8 @@ export function GradesScreen({
               {renderFieldError(reportErrors, "schoolYearId")}
             </label>
             <label>
-              Classe *
-              <select value={reportForm.classId} onChange={(event) => setClassOnReportForm(event.target.value)} required>
-                <option value="">Choisir...</option>
+              {tr("Classe *")}<select value={reportForm.classId} onChange={(event) => setClassOnReportForm(event.target.value)} required>
+                <option value="">{tr("Choisir...")}</option>
                 {reportFormClasses.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -1005,15 +976,14 @@ export function GradesScreen({
               {renderFieldError(reportErrors, "classId")}
             </label>
             <label>
-              Période *
-              <select
+              {tr("Période *")}<select
                 value={reportForm.academicPeriodId}
                 onChange={(event) =>
                   setReportForm((previous) => ({ ...previous, academicPeriodId: event.target.value }))
                 }
                 required
               >
-                <option value="">Choisir...</option>
+                <option value="">{tr("Choisir...")}</option>
                 {reportFormPeriods.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code} - {item.label}
@@ -1023,41 +993,39 @@ export function GradesScreen({
               {renderFieldError(reportErrors, "academicPeriodId")}
             </label>
             <label>
-              Cursus *
-              <select
+              {tr("Cursus *")}<select
                 value={reportForm.track}
                 onChange={(event) =>
                   setReportForm((previous) => ({ ...previous, track: event.target.value as typeof previous.track }))
                 }
                 required
               >
-                <option value="MIXED">Mixte</option>
-                <option value="FRANCOPHONE">Francophone</option>
-                <option value="ARABOPHONE">Arabophone</option>
+                <option value="MIXED">{tr("Mixte")}</option>
+                <option value="FRANCOPHONE">{tr("Francophone")}</option>
+                <option value="ARABOPHONE">{tr("Arabophone")}</option>
               </select>
             </label>
             <label>
-              Mode *
-              <select
+              {tr("Mode *")}<select
                 value={reportForm.mode}
                 onChange={(event) =>
                   setReportForm((previous) => ({ ...previous, mode: event.target.value as typeof previous.mode }))
                 }
                 required
               >
-                <option value="student">Générer pour un élève</option>
-                <option value="class">Générer pour toute la classe</option>
+                <option value="student">{tr("Générer pour un élève")}</option>
+                <option value="class">{tr("Générer pour toute la classe")}</option>
               </select>
             </label>
             <label>
-              Élève {reportForm.mode === "student" ? "*" : ""}
+              {tr("Élève ")}{reportForm.mode === "student" ? "*" : ""}
               <select
                 value={reportForm.studentId}
                 onChange={(event) => setReportForm((previous) => ({ ...previous, studentId: event.target.value }))}
                 disabled={reportForm.mode === "class"}
                 required={reportForm.mode === "student"}
               >
-                <option value="">Choisir...</option>
+                <option value="">{tr("Choisir...")}</option>
                 {reportStudents.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.matricule} - {formatStudentName(item)}
@@ -1076,40 +1044,35 @@ export function GradesScreen({
                   setReportForm((previous) => ({ ...previous, regenerateExisting: event.target.checked }))
                 }
               />
-              Régénérer les PDF existants
-            </label>
+              {tr("Régénérer les PDF existants")}</label>
             <label className="module-inline-pill">
               <input
                 type="checkbox"
                 checked={reportForm.publish}
                 onChange={(event) => setReportForm((previous) => ({ ...previous, publish: event.target.checked }))}
               />
-              Publier dans le portail
-            </label>
+              {tr("Publier dans le portail")}</label>
           </div>
           {!hasMatchingSummary ? (
-            <p className="empty-row">Calculez d’abord les moyennes et rangs avant de générer les bulletins.</p>
+            <p className="empty-row">{tr("Calculez d’abord les moyennes et rangs avant de générer les bulletins.")}</p>
           ) : reportMissingGrades > 0 ? (
             <p className="empty-row">
-              Attention : {reportMissingGrades} note{reportMissingGrades > 1 ? "s" : ""} manquante{reportMissingGrades > 1 ? "s" : ""}
-              . Une confirmation sera demandée avant génération.
-            </p>
+              {tr("Attention : ")}{reportMissingGrades} {tr("note")}{reportMissingGrades > 1 ? "s" : ""} {tr("manquante")}{reportMissingGrades > 1 ? "s" : ""}
+              {tr(". Une confirmation sera demandée avant génération.")}</p>
           ) : null}
           <div className="actions">
             <button type="submit" disabled={!hasMatchingSummary}>
-              {reportForm.mode === "class" ? "Générer les bulletins de la classe" : "Générer le bulletin"}
+              {reportForm.mode === "class" ? tr("Générer les bulletins de la classe") : tr("Générer le bulletin")}
             </button>
             <button type="button" className="button-ghost" onClick={() => void loadReportCards()}>
-              Actualiser les bulletins
-            </button>
+              {tr("Actualiser les bulletins")}</button>
             {reportPdfUrl ? (
               <button
                 type="button"
                 className="button-ghost"
                 onClick={() => window.open(reportPdfUrl, "_blank", "noopener,noreferrer")}
               >
-                Voir le dernier PDF
-              </button>
+                {tr("Voir le dernier PDF")}</button>
             ) : null}
           </div>
         </form>
@@ -1118,8 +1081,8 @@ export function GradesScreen({
       <section data-step-id="reports" className="panel table-panel workflow-section module-modern">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Bibliothèque</p>
-            <h2>Bulletins générés</h2>
+            <p className="section-kicker">{tr("Bibliothèque")}</p>
+            <h2>{tr("Bulletins générés")}</h2>
           </div>
           <span className="module-header-badge">{pluralize(reportCards.length, "fichier", "fichiers")}</span>
         </div>
@@ -1127,51 +1090,48 @@ export function GradesScreen({
           <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Élève</th>
-                <th>Classe</th>
-                <th>Type de bulletin</th>
-                <th>Cursus</th>
-                <th>Période</th>
-                <th>Moyenne</th>
-                <th>Rang</th>
-                <th>Appréciation</th>
-                <th>Statut</th>
-                <th>Généré le</th>
-                <th>Actions</th>
+                <th>{tr("Élève")}</th>
+                <th>{tr("Classe")}</th>
+                <th>{tr("Type de bulletin")}</th>
+                <th>{tr("Cursus")}</th>
+                <th>{tr("Période")}</th>
+                <th>{tr("Moyenne")}</th>
+                <th>{tr("Rang")}</th>
+                <th>{tr("Appréciation")}</th>
+                <th>{tr("Statut")}</th>
+                <th>{tr("Généré le")}</th>
+                <th>{tr("Actions")}</th>
               </tr>
             </thead>
             <tbody>
               {reportCards.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="empty-row">
-                    Aucun bulletin généré.
-                  </td>
+                    {tr("Aucun bulletin généré.")}</td>
                 </tr>
               ) : (
                 reportCards.map((item) => (
                   <tr key={item.id}>
-                    <td data-label="Élève">{item.studentName || formatStudentName(studentById.get(item.studentId))}</td>
-                    <td data-label="Classe">{formatReportCardContext(item)}</td>
-                    <td data-label="Type de bulletin">{formatReportCardModeLabel(item.mode)}</td>
-                    <td data-label="Cursus">{formatTrackLabel(item.track)}</td>
-                    <td data-label="Période">{item.periodLabel || periodById.get(item.academicPeriodId)?.label || "-"}</td>
-                    <td data-label="Moyenne">{formatReportCardAverage(item)}</td>
-                    <td data-label="Rang">{item.classRank || "-"}</td>
-                    <td data-label="Appréciation">{item.appreciation || "-"}</td>
-                    <td data-label="Statut">{item.publishedAt ? "Publié" : "Généré"}</td>
-                    <td data-label="Généré le">
+                    <td data-label={tr("Élève")}>{item.studentName || formatStudentName(studentById.get(item.studentId))}</td>
+                    <td data-label={tr("Classe")}>{formatReportCardContext(item)}</td>
+                    <td data-label={tr("Type de bulletin")}>{tr(formatReportCardModeLabel(item.mode))}</td>
+                    <td data-label={tr("Cursus")}>{tr(formatTrackLabel(item.track))}</td>
+                    <td data-label={tr("Période")}>{item.periodLabel || periodById.get(item.academicPeriodId)?.label || "-"}</td>
+                    <td data-label={tr("Moyenne")}>{formatReportCardAverage(item)}</td>
+                    <td data-label={tr("Rang")}>{item.classRank || "-"}</td>
+                    <td data-label={tr("Appréciation")}>{item.appreciation || "-"}</td>
+                    <td data-label={tr("Statut")}>{item.publishedAt ? tr("Publié") : tr("Généré")}</td>
+                    <td data-label={tr("Généré le")}>
                       {item.generatedAt || item.publishedAt || reportsGeneratedAt
                         ? formatDateTime(item.generatedAt || item.publishedAt || reportsGeneratedAt)
                         : "-"}
                     </td>
-                    <td data-label="Actions">
+                    <td data-label={tr("Actions")}>
                       <div className="actions">
                         <button type="button" className="button-ghost" onClick={() => void openReportCardPdf(item.id)}>
-                          Ouvrir PDF
-                        </button>
+                          {tr("Ouvrir PDF")}</button>
                         <button type="button" className="button-ghost" onClick={() => void downloadReportCardPdf(item.id)}>
-                          Télécharger PDF
-                        </button>
+                          {tr("Télécharger PDF")}</button>
                       </div>
                     </td>
                   </tr>

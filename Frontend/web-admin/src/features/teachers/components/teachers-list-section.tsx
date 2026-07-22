@@ -13,6 +13,8 @@ import {
   teacherTypeLabel,
   trackLabel
 } from "../teachers-screen-model";
+import { useI18n } from "../../../shared/i18n-context";
+
 
 const teacherInitials = (teacher: TeacherRecord): string => {
   const source = teacher.fullName || `${teacher.firstName} ${teacher.lastName}`;
@@ -37,6 +39,7 @@ export function TeachersListSection(props: {
   teachers: TeacherRecord[];
   language?: UiLanguage;
 }): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     filters,
     loading,
@@ -174,14 +177,14 @@ export function TeachersListSection(props: {
                   <td data-label={t("Type")} className="teachers-v3-muted-cell">{t(teacherTypeLabel(teacher.teacherType))}</td>
                   <td data-label={t("Charge")}>
                     <div className="teachers-v3-stack-cell">
-                      <strong>{teacher.workloadHoursTotal} h</strong>
+                      <strong>{teacher.workloadHoursTotal} {tr("h")}</strong>
                       <small>{pluralize(teacher.activeAssignmentsCount, "affectation", "affectations")}</small>
                     </div>
                   </td>
                   <td data-label={t("Cursus")}>
                     <div className="teachers-v3-track-cell">
-                      <span>{teacher.francophoneWorkloadHoursTotal} h FR</span>
-                      <span>{teacher.arabophoneWorkloadHoursTotal} h AR</span>
+                      <span>{teacher.francophoneWorkloadHoursTotal} {tr("h FR")}</span>
+                      <span>{teacher.arabophoneWorkloadHoursTotal} {tr("h AR")}</span>
                     </div>
                   </td>
                   <td data-label={t("Statut")}>

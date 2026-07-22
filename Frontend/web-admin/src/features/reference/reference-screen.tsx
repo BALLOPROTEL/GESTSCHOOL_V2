@@ -14,6 +14,8 @@ import { SchoolYearsSection } from "./components/school-years-section";
 import { SubjectsSection } from "./components/subjects-section";
 import { useReferenceScreenState } from "./hooks/use-reference-screen-state";
 import type { ReferenceApiClient, ReferenceData } from "./types/reference";
+import { useI18n } from "../../shared/i18n-context";
+
 
 type ReferenceScreenProps = {
   api: ReferenceApiClient;
@@ -36,6 +38,7 @@ export function ReferenceScreen({
   onError,
   onNotice
 }: ReferenceScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const { schoolYears, cycles, levels, classes, subjects, periods } = data;
   const state = useReferenceScreenState({
     api,
@@ -149,7 +152,7 @@ export function ReferenceScreen({
         <div id="reference-workflow" className="reference-workflow-shell">
           <WorkflowGuide
             className="module-v3-workflow"
-            title="Referentiel academique"
+            title={tr("Referentiel academique")}
             steps={referenceSteps}
             activeStepId={state.referenceWorkflowStep}
             onStepChange={selectReferencePage}

@@ -19,6 +19,8 @@ import type {
 import type { AttendanceSummary, NotificationItem } from "../school-life/types/school-life";
 import { fetchGrades } from "../grades/services/grades-service";
 import { fetchAttendanceSummary, fetchNotifications } from "../school-life/services/school-life-service";
+import { useI18n } from "../../shared/i18n-context";
+
 
 type PilotageScreenProps = {
   api: (path: string, init?: RequestInit) => Promise<Response>;
@@ -176,13 +178,14 @@ function PilotageAlertList({
   alerts: AlertItem[];
   onSelectScreen: (screen: ScreenId) => void;
 }): JSX.Element {
+  const { t: tr } = useI18n();
   return (
     <section className="pilotage-card pilotage-alerts" aria-labelledby="pilotage-alerts-title">
       <div className="pilotage-card__header">
         <div>
-          <span className="pilotage-eyebrow">Alertes</span>
-          <h3 id="pilotage-alerts-title">À traiter en priorité</h3>
-          <p>Chaque alerte renvoie vers le module qui permet de corriger la situation.</p>
+          <span className="pilotage-eyebrow">{tr("Alertes")}</span>
+          <h3 id="pilotage-alerts-title">{tr("À traiter en priorité")}</h3>
+          <p>{tr("Chaque alerte renvoie vers le module qui permet de corriger la situation.")}</p>
         </div>
       </div>
       <div className="pilotage-alert-list">
@@ -212,8 +215,9 @@ function PilotageQuickActions({
   actions: QuickAction[];
   onSelectScreen: (screen: ScreenId) => void;
 }): JSX.Element {
+  const { t: tr } = useI18n();
   return (
-    <section className="pilotage-quick-actions" aria-label="Actions rapides de pilotage">
+    <section className="pilotage-quick-actions" aria-label={tr("Actions rapides de pilotage")}>
       {actions.map((action) => (
         <button
           key={action.screen}
@@ -230,6 +234,7 @@ function PilotageQuickActions({
 }
 
 export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     api,
     classes,
@@ -680,22 +685,20 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
     <section className="pilotage-screen" aria-labelledby="pilotage-title">
       <div className="pilotage-hero">
         <div>
-          <span className="pilotage-eyebrow">Console opérationnelle</span>
-          <h2 id="pilotage-title">Pilotage</h2>
+          <span className="pilotage-eyebrow">{tr("Console opérationnelle")}</span>
+          <h2 id="pilotage-title">{tr("Pilotage")}</h2>
           <p>
-            Analysez la situation de l’établissement, repérez les alertes et ouvrez directement
-            les modules d’action.
-          </p>
+            {tr("Analysez la situation de l’établissement, repérez les alertes et ouvrez directement\n            les modules d’action.")}</p>
         </div>
-        <div className="pilotage-hero__summary" aria-label="Résumé du périmètre">
+        <div className="pilotage-hero__summary" aria-label={tr("Résumé du périmètre")}>
           <strong>{formatNumber(activeStudents.length, locale)}</strong>
-          <span>élèves actifs suivis</span>
+          <span>{tr("élèves actifs suivis")}</span>
         </div>
       </div>
 
-      <section className="pilotage-filters" aria-label="Filtres du pilotage">
+      <section className="pilotage-filters" aria-label={tr("Filtres du pilotage")}>
         <label>
-          <span>Année scolaire</span>
+          <span>{tr("Année scolaire")}</span>
           <select
             value={filters.schoolYearId}
             onChange={(event) =>
@@ -707,7 +710,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
               }))
             }
           >
-            <option value="">Toutes les années</option>
+            <option value="">{tr("Toutes les années")}</option>
             {schoolYears.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.label || item.code}
@@ -716,7 +719,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
           </select>
         </label>
         <label>
-          <span>Cursus</span>
+          <span>{tr("Cursus")}</span>
           <select
             value={filters.track}
             onChange={(event) =>
@@ -727,13 +730,13 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
               }))
             }
           >
-            <option value="">Tous les cursus</option>
+            <option value="">{tr("Tous les cursus")}</option>
             <option value="FRANCOPHONE">{TRACK_LABELS.FRANCOPHONE}</option>
             <option value="ARABOPHONE">{TRACK_LABELS.ARABOPHONE}</option>
           </select>
         </label>
         <label>
-          <span>Niveau</span>
+          <span>{tr("Niveau")}</span>
           <select
             value={filters.levelId}
             onChange={(event) =>
@@ -744,7 +747,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
               }))
             }
           >
-            <option value="">Tous les niveaux</option>
+            <option value="">{tr("Tous les niveaux")}</option>
             {levels
               .filter((item) => !filters.track || item.track === filters.track)
               .map((item) => (
@@ -755,12 +758,12 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
           </select>
         </label>
         <label>
-          <span>Classe</span>
+          <span>{tr("Classe")}</span>
           <select
             value={filters.classId}
             onChange={(event) => setFilters((current) => ({ ...current, classId: event.target.value }))}
           >
-            <option value="">Toutes les classes</option>
+            <option value="">{tr("Toutes les classes")}</option>
             {classOptions.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.label} {levelById.get(item.levelId)?.label ? `- ${levelById.get(item.levelId)?.label}` : ""}
@@ -769,12 +772,12 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
           </select>
         </label>
         <label>
-          <span>Période</span>
+          <span>{tr("Période")}</span>
           <select
             value={filters.periodId}
             onChange={(event) => setFilters((current) => ({ ...current, periodId: event.target.value }))}
           >
-            <option value="">Toutes les périodes</option>
+            <option value="">{tr("Toutes les périodes")}</option>
             {periodOptions.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.label}
@@ -788,7 +791,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
 
       <div className="pilotage-grid">
         <PilotageDomainCard
-          title="Scolarité"
+          title={tr("Scolarité")}
           eyebrow="scolarite"
           description="Suivi des effectifs, inscriptions, classes et cursus actifs."
           kpis={schoolKpis}
@@ -796,7 +799,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
           onAction={() => onSelectScreen("enrollments")}
         />
         <PilotageDomainCard
-          title="Vie scolaire"
+          title={tr("Vie scolaire")}
           eyebrow="vie-scolaire"
           description="Lecture opérationnelle des notes, bulletins, absences et notifications."
           kpis={schoolLifeKpis}
@@ -804,7 +807,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
           onAction={() => onSelectScreen("schoolLifeAttendance")}
         />
         <PilotageDomainCard
-          title="Finance"
+          title={tr("Finance")}
           eyebrow="finance"
           description="Situation de recouvrement et niveau des impayés."
           kpis={financeKpis}

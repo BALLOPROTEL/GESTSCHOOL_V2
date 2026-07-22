@@ -16,8 +16,11 @@ import {
 } from "../utils/reference-ui";
 import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
+import { useI18n } from "../../../shared/i18n-context";
+
 
 export function SchoolYearsSection(): JSX.Element {
+  const { t: tr } = useI18n();
   const ctx = useReferenceScreenContext();
   const {
     activeSchoolYear,
@@ -38,15 +41,14 @@ export function SchoolYearsSection(): JSX.Element {
 <article id="reference-years" data-step-id="years" className="panel table-panel module-modern module-stack reference-card">
             <div className="reference-card-head">
               <div>
-                <h3>Annee scolaire</h3>
+                <h3>{tr("Annee scolaire")}</h3>
                 <p className="section-lead">
-                  Base temporelle de tout le logiciel. Une seule annee peut etre active a la fois pour
-                  {` ${SCHOOL_NAME}`}.
+                  {tr("Base temporelle de tout le logiciel. Une seule annee peut etre active a la fois pour")}{` ${SCHOOL_NAME}`}.
                 </p>
               </div>
               <div className="module-inline-strip">
-                <span className="module-inline-pill">{activeSchoolYear ? `Active: ${formatSchoolYearOptionLabel(activeSchoolYear)}` : "Aucune active"}</span>
-                <span className="module-inline-pill">Libelle unique par etablissement</span>
+                <span className="module-inline-pill">{activeSchoolYear ? tr(`Active: ${formatSchoolYearOptionLabel(activeSchoolYear)}`) : tr("Aucune active")}</span>
+                <span className="module-inline-pill">{tr("Libelle unique par etablissement")}</span>
               </div>
             </div>
             <div className="reference-section-grid">
@@ -133,7 +135,7 @@ export function SchoolYearsSection(): JSX.Element {
                   <select value={syForm.status} onChange={(event) => setSyForm((prev) => ({ ...prev, status: event.target.value as SchoolYearStatus }))}>
                     {SCHOOL_YEAR_STATUS_OPTIONS.map((option) => (
                       <option key={option} value={option}>
-                        {formatSchoolYearStatusLabel(option)}
+                        {tr(formatSchoolYearStatusLabel(option))}
                       </option>
                     ))}
                   </select>
@@ -141,13 +143,13 @@ export function SchoolYearsSection(): JSX.Element {
                 </label>
                 <label>
                   {renderFieldLabel("Code")}
-                  <input value={syForm.code} onChange={(event) => setSyForm((prev) => ({ ...prev, code: event.target.value }))} placeholder="AS-2025-2026" />
+                  <input value={syForm.code} onChange={(event) => setSyForm((prev) => ({ ...prev, code: event.target.value }))} placeholder={tr("AS-2025-2026")} />
                   {fieldError(schoolYearErrors, "code")}
                 </label>
                 <label>
                   {renderFieldLabel("Annee precedente liee")}
                   <select value={syForm.previousYearId} onChange={(event) => setSyForm((prev) => ({ ...prev, previousYearId: event.target.value }))}>
-                    <option value="">Aucune</option>
+                    <option value="">{tr("Aucune")}</option>
                     {schoolYears.map((item) => (
                       <option key={item.id} value={item.id}>
                         {formatSchoolYearOptionLabel(item)}
@@ -169,17 +171,16 @@ export function SchoolYearsSection(): JSX.Element {
                 </label>
                 <label className="form-grid-span-full">
                   {renderFieldLabel("Commentaire")}
-                  <textarea value={syForm.comment} onChange={(event) => setSyForm((prev) => ({ ...prev, comment: event.target.value }))} placeholder="Notes de cadrage, reconduction, decisions..." />
+                  <textarea value={syForm.comment} onChange={(event) => setSyForm((prev) => ({ ...prev, comment: event.target.value }))} placeholder={tr("Notes de cadrage, reconduction, decisions...")} />
                   {fieldError(schoolYearErrors, "comment")}
                 </label>
                 <div className="reference-toggle-grid form-grid-span-full">
                   <label className="check-row reference-check-row">
                     <input type="checkbox" checked={syForm.isDefault} onChange={(event) => setSyForm((prev) => ({ ...prev, isDefault: event.target.checked }))} />
-                    Annee par defaut pour les nouveaux ecrans et workflows
-                  </label>
+                    {tr("Annee par defaut pour les nouveaux ecrans et workflows")}</label>
                 </div>
                 <div className="actions">
-                  <button type="submit">Creer l'annee scolaire</button>
+                  <button type="submit">{tr("Creer l'annee scolaire")}</button>
                 </div>
               </form>
             </div>
@@ -187,24 +188,24 @@ export function SchoolYearsSection(): JSX.Element {
               <table data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Libelle</th>
-                    <th>Code</th>
-                    <th>Dates</th>
-                    <th>Statut</th>
-                    <th>Options</th>
+                    <th>{tr("Libelle")}</th>
+                    <th>{tr("Code")}</th>
+                    <th>{tr("Dates")}</th>
+                    <th>{tr("Statut")}</th>
+                    <th>{tr("Options")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {schoolYears.length === 0 ? (
-                    <tr><td colSpan={5} className="empty-row">Aucune annee scolaire pour le moment.</td></tr>
+                    <tr><td colSpan={5} className="empty-row">{tr("Aucune annee scolaire pour le moment.")}</td></tr>
                   ) : (
                     schoolYears.map((item) => (
                       <tr key={item.id}>
-                        <td>{item.label || item.code}</td>
-                        <td>{item.code}</td>
-                        <td>{item.startDate} au {item.endDate}</td>
-                        <td>{formatSchoolYearStatusLabel(item.status)}</td>
-                        <td>
+                        <td data-label={tr("Libelle")}>{item.label || item.code}</td>
+                        <td data-label={tr("Code")}>{item.code}</td>
+                        <td data-label={tr("Dates")}>{item.startDate} {tr("au ")}{item.endDate}</td>
+                        <td data-label={tr("Statut")}>{tr(formatSchoolYearStatusLabel(item.status))}</td>
+                        <td data-label={tr("Options")}>
                           <ReferenceActionMenu
                             label={`Options annee scolaire ${item.label || item.code}`}
                             onDelete={() => void deleteRef(`/school-years/${item.id}`, "Annee scolaire supprimee.")}

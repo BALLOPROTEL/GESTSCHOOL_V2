@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import type { ScreenId } from "../shared/types/app";
+import { useI18n } from "../shared/i18n-context";
 
 type MessageBubble = {
   id: string;
@@ -140,6 +141,7 @@ function getThreadInitials(value: string): string {
 }
 
 export function MessagesScreen(props: MessagesScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const { currentRoleLabel, onSelectScreen } = props;
   const [activeThreadId, setActiveThreadId] = useState(THREADS[0]?.id ?? "");
 
@@ -157,48 +159,44 @@ export function MessagesScreen(props: MessagesScreenProps): JSX.Element {
       <section className="panel table-panel workflow-section module-modern messages-hero">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Messagerie interne</p>
-            <h2>Communication d'equipe (apercu gele)</h2>
+            <p className="section-kicker">{tr("Messagerie interne")}</p>
+            <h2>{tr("Communication d'equipe (apercu gele)")}</h2>
           </div>
           <span className="module-header-badge">{currentRoleLabel}</span>
         </div>
         <div className="notice-card notice-warning" role="status">
-          <strong>Garde-fou Lot 0</strong>
+          <strong>{tr("Garde-fou Lot 0")}</strong>
           <p>
-            Ce module est volontairement marque UI-only : les fils ci-dessous sont des exemples locaux,
-            aucun message n'est persiste et aucun backend messagerie n'est branche pour le moment.
-          </p>
+            {tr("Ce module est volontairement marque UI-only : les fils ci-dessous sont des exemples locaux,\n            aucun message n'est persiste et aucun backend messagerie n'est branche pour le moment.")}</p>
         </div>
         <p className="section-lead">
-          Inbox equipe, lecture des priorites, fil actif et zone de composition deja cadres dans une
-          interface premium. Le branchement metier et l'envoi reel restent geles jusqu'a arbitrage.
-        </p>
+          {tr("Inbox equipe, lecture des priorites, fil actif et zone de composition deja cadres dans une\n          interface premium. Le branchement metier et l'envoi reel restent geles jusqu'a arbitrage.")}</p>
         <div className="module-overview-grid">
           <article className="module-overview-card">
-            <span>Conversations</span>
+            <span>{tr("Conversations")}</span>
             <strong>{conversationCount}</strong>
-            <small>Espaces de travail actifs</small>
+            <small>{tr("Espaces de travail actifs")}</small>
           </article>
           <article className="module-overview-card">
-            <span>Messages</span>
+            <span>{tr("Messages")}</span>
             <strong>{messageCount}</strong>
-            <small>Historique demo non persiste</small>
+            <small>{tr("Historique demo non persiste")}</small>
           </article>
           <article className="module-overview-card">
-            <span>Non lus</span>
+            <span>{tr("Non lus")}</span>
             <strong>{unreadCount}</strong>
-            <small>Priorites immediates</small>
+            <small>{tr("Priorites immediates")}</small>
           </article>
           <article className="module-overview-card">
-            <span>Participants</span>
+            <span>{tr("Participants")}</span>
             <strong>{participantCount}</strong>
-            <small>Canaux equipes metier</small>
+            <small>{tr("Canaux equipes metier")}</small>
           </article>
         </div>
         <div className="module-inline-strip">
-          <span className="module-inline-pill">Vue inbox premium</span>
-          <span className="module-inline-pill">Canaux finances / scolarite / bulletins</span>
-          <span className="module-inline-pill">Lot 0: UI-only, backend absent</span>
+          <span className="module-inline-pill">{tr("Vue inbox premium")}</span>
+          <span className="module-inline-pill">{tr("Canaux finances / scolarite / bulletins")}</span>
+          <span className="module-inline-pill">{tr("Lot 0: UI-only, backend absent")}</span>
         </div>
       </section>
 
@@ -206,15 +204,15 @@ export function MessagesScreen(props: MessagesScreenProps): JSX.Element {
         <article className="panel table-panel workflow-section module-modern messages-list-panel">
           <div className="table-header">
             <div>
-              <p className="section-kicker">Boite principale</p>
-              <h2>Conversations</h2>
+              <p className="section-kicker">{tr("Boite principale")}</p>
+              <h2>{tr("Conversations")}</h2>
             </div>
-            <span className="module-header-badge">{unreadCount} non lus</span>
+            <span className="module-header-badge">{unreadCount} {tr("non lus")}</span>
           </div>
           <div className="messages-thread-summary">
-            <span>{conversationCount} fil(s) actifs</span>
-            <span>Priorisation immediate</span>
-            <span>Canaux metier centralises</span>
+            <span>{conversationCount} {tr("fil(s) actifs")}</span>
+            <span>{tr("Priorisation immediate")}</span>
+            <span>{tr("Canaux metier centralises")}</span>
           </div>
           <div className="messages-thread-list">
             {THREADS.map((thread) => (
@@ -254,20 +252,19 @@ export function MessagesScreen(props: MessagesScreenProps): JSX.Element {
         <article className="panel editor-panel workflow-section module-modern messages-conversation-panel">
           <div className="table-header">
             <div>
-              <p className="section-kicker">Fil actif</p>
+              <p className="section-kicker">{tr("Fil actif")}</p>
               <h2>{activeThread.title}</h2>
             </div>
             <span className="module-header-badge">{activeThread.channelLabel}</span>
           </div>
           <div className="messages-conversation-toolbar">
             <div className="messages-conversation-meta">
-              <span>{activeThread.participants} participant(s)</span>
+              <span>{activeThread.participants} {tr("participant(s)")}</span>
               <span>{activeThread.priority}</span>
               <span>{activeThread.audience}</span>
             </div>
             <span className="messages-conversation-status">
-              {activeThread.messages.length} message(s) dans ce fil
-            </span>
+              {activeThread.messages.length} {tr("message(s) dans ce fil")}</span>
           </div>
           <div className="messages-conversation-stream">
             <div className="messages-bubble-list">
@@ -288,21 +285,19 @@ export function MessagesScreen(props: MessagesScreenProps): JSX.Element {
           </div>
           <div className="messages-compose-card">
             <div className="messages-compose-copy">
-              <strong>Zone de composition prete</strong>
+              <strong>{tr("Zone de composition prete")}</strong>
               <p>
-                Le module est cree pour la v2. On branchera ensuite l'envoi, les canaux, les pieces
-                jointes et les regles metier.
-              </p>
+                {tr("Le module est cree pour la v2. On branchera ensuite l'envoi, les canaux, les pieces\n                jointes et les regles metier.")}</p>
             </div>
             <div className="messages-compose-editor">
               <textarea
                 disabled
-                placeholder="Zone de saisie verrouillee en attendant le branchement backend et les regles metier."
+                placeholder={tr("Zone de saisie verrouillee en attendant le branchement backend et les regles metier.")}
               />
               <div className="messages-compose-hints">
-                <span>Pieces jointes a venir</span>
-                <span>Canaux et droits par role</span>
-                <span>Historique auditables</span>
+                <span>{tr("Pieces jointes a venir")}</span>
+                <span>{tr("Canaux et droits par role")}</span>
+                <span>{tr("Historique auditables")}</span>
               </div>
             </div>
             <div className="messages-compose-actions">
@@ -311,11 +306,9 @@ export function MessagesScreen(props: MessagesScreenProps): JSX.Element {
                 className="button-ghost"
                 onClick={() => onSelectScreen("schoolLifeNotifications")}
               >
-                Ouvrir les notifications
-              </button>
+                {tr("Ouvrir les notifications")}</button>
               <button type="button" disabled>
-                Envoi bientot disponible
-              </button>
+                {tr("Envoi bientot disponible")}</button>
             </div>
           </div>
         </article>
@@ -324,35 +317,32 @@ export function MessagesScreen(props: MessagesScreenProps): JSX.Element {
           <article className="panel table-panel workflow-section module-modern messages-side-card">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Regles du module</p>
-                <h2>Cadre de la v2</h2>
+                <p className="section-kicker">{tr("Regles du module")}</p>
+                <h2>{tr("Cadre de la v2")}</h2>
               </div>
             </div>
             <div className="module-inline-stack">
-              <span className="module-inline-pill">Inbox equipe</span>
-              <span className="module-inline-pill">Priorisation des fils</span>
-              <span className="module-inline-pill">Historique lisible</span>
-              <span className="module-inline-pill">Branchement metier apres validation</span>
+              <span className="module-inline-pill">{tr("Inbox equipe")}</span>
+              <span className="module-inline-pill">{tr("Priorisation des fils")}</span>
+              <span className="module-inline-pill">{tr("Historique lisible")}</span>
+              <span className="module-inline-pill">{tr("Branchement metier apres validation")}</span>
             </div>
           </article>
 
           <article className="panel table-panel workflow-section module-modern messages-side-card">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Raccourcis lies</p>
-                <h2>Continuer le workflow</h2>
+                <p className="section-kicker">{tr("Raccourcis lies")}</p>
+                <h2>{tr("Continuer le workflow")}</h2>
               </div>
             </div>
             <div className="messages-side-actions">
               <button type="button" className="button-ghost" onClick={() => onSelectScreen("students")}>
-                Ouvrir les eleves
-              </button>
+                {tr("Ouvrir les eleves")}</button>
               <button type="button" className="button-ghost" onClick={() => onSelectScreen("finance")}>
-                Aller a la finance
-              </button>
+                {tr("Aller a la finance")}</button>
               <button type="button" className="button-ghost" onClick={() => onSelectScreen("grades")}>
-                Revoir les bulletins
-              </button>
+                {tr("Revoir les bulletins")}</button>
             </div>
           </article>
         </aside>

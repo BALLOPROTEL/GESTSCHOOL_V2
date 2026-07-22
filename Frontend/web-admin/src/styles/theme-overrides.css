@@ -702,12 +702,6 @@ code {
     flex-wrap: wrap;
   }
 
-  .app-sidebar {
-    position: static;
-    top: auto;
-    padding: 0.8rem;
-  }
-
   .sidebar-group {
     display: flex;
     gap: 0.48rem;
@@ -838,10 +832,6 @@ code {
 
   .panel {
     padding: 0.9rem;
-  }
-
-  .app-shell {
-    grid-template-columns: 1fr;
   }
 
   .app-sidebar {

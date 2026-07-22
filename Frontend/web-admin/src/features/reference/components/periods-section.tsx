@@ -17,8 +17,11 @@ import {
 } from "../utils/reference-ui";
 import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
+import { useI18n } from "../../../shared/i18n-context";
+
 
 export function PeriodsSection(): JSX.Element {
+  const { t: tr } = useI18n();
   const ctx = useReferenceScreenContext();
   const {
     createRef,
@@ -42,14 +45,13 @@ export function PeriodsSection(): JSX.Element {
 <article id="reference-periods" data-step-id="periods" className="panel table-panel module-modern module-stack reference-card">
             <div className="reference-card-head">
               <div>
-                <h3>Periode</h3>
+                <h3>{tr("Periode")}</h3>
                 <p className="section-lead">
-                  Decoupage pedagogique ou evaluatif de l'annee: trimestre, semestre, bimestre ou libre.
-                </p>
+                  {tr("Decoupage pedagogique ou evaluatif de l'annee: trimestre, semestre, bimestre ou libre.")}</p>
               </div>
               <div className="module-inline-strip">
-                <span className="module-inline-pill">{periods.length} periode(s)</span>
-                <span className="module-inline-pill">Dates bornees dans l'annee</span>
+                <span className="module-inline-pill">{periods.length} {tr("periode(s)")}</span>
+                <span className="module-inline-pill">{tr("Dates bornees dans l'annee")}</span>
               </div>
             </div>
             <div className="reference-section-grid">
@@ -155,7 +157,7 @@ export function PeriodsSection(): JSX.Element {
                 <label>
                   {renderFieldLabel("Annee scolaire", { required: true })}
                   <select value={periodForm.schoolYearId} onChange={(event) => setPeriodForm((prev) => ({ ...prev, schoolYearId: event.target.value, parentPeriodId: "" }))}>
-                    <option value="">Choisir</option>
+                    <option value="">{tr("Choisir")}</option>
                     {schoolYears.map((item) => (
                       <option key={item.id} value={item.id}>
                         {formatSchoolYearOptionLabel(item)}
@@ -166,12 +168,12 @@ export function PeriodsSection(): JSX.Element {
                 </label>
                 <label>
                   {renderFieldLabel("Nom de la periode", { required: true })}
-                  <input value={periodForm.label} onChange={(event) => setPeriodForm((prev) => ({ ...prev, label: event.target.value }))} placeholder="Trimestre 1" />
+                  <input value={periodForm.label} onChange={(event) => setPeriodForm((prev) => ({ ...prev, label: event.target.value }))} placeholder={tr("Trimestre 1")} />
                   {fieldError(periodErrors, "label")}
                 </label>
                 <label>
                   {renderFieldLabel("Code", { required: true })}
-                  <input value={periodForm.code} onChange={(event) => setPeriodForm((prev) => ({ ...prev, code: event.target.value }))} placeholder="T1-2526" />
+                  <input value={periodForm.code} onChange={(event) => setPeriodForm((prev) => ({ ...prev, code: event.target.value }))} placeholder={tr("T1-2526")} />
                   {fieldError(periodErrors, "code")}
                 </label>
                 <label>
@@ -205,7 +207,7 @@ export function PeriodsSection(): JSX.Element {
                   <select value={periodForm.status} onChange={(event) => setPeriodForm((prev) => ({ ...prev, status: event.target.value as PeriodStatus }))}>
                     {PERIOD_STATUS_OPTIONS.map((option) => (
                       <option key={option} value={option}>
-                        {formatReferenceStatusLabel(option)}
+                        {tr(formatReferenceStatusLabel(option))}
                       </option>
                     ))}
                   </select>
@@ -214,7 +216,7 @@ export function PeriodsSection(): JSX.Element {
                 <label>
                   {renderFieldLabel("Periode parent")}
                   <select value={periodForm.parentPeriodId} onChange={(event) => setPeriodForm((prev) => ({ ...prev, parentPeriodId: event.target.value }))}>
-                    <option value="">Aucune</option>
+                    <option value="">{tr("Aucune")}</option>
                     {periodParents.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -235,17 +237,16 @@ export function PeriodsSection(): JSX.Element {
                 </label>
                 <label className="form-grid-span-full">
                   {renderFieldLabel("Commentaire")}
-                  <textarea value={periodForm.comment} onChange={(event) => setPeriodForm((prev) => ({ ...prev, comment: event.target.value }))} placeholder="Consignes de saisie, verrouillage, mode de calcul..." />
+                  <textarea value={periodForm.comment} onChange={(event) => setPeriodForm((prev) => ({ ...prev, comment: event.target.value }))} placeholder={tr("Consignes de saisie, verrouillage, mode de calcul...")} />
                   {fieldError(periodErrors, "comment")}
                 </label>
                 <div className="reference-toggle-grid form-grid-span-full">
                   <label className="check-row reference-check-row">
                     <input type="checkbox" checked={periodForm.isGradeEntryOpen} onChange={(event) => setPeriodForm((prev) => ({ ...prev, isGradeEntryOpen: event.target.checked }))} />
-                    Periode de saisie des notes ouverte
-                  </label>
+                    {tr("Periode de saisie des notes ouverte")}</label>
                 </div>
                 <div className="actions">
-                  <button type="submit">Creer la periode</button>
+                  <button type="submit">{tr("Creer la periode")}</button>
                 </div>
               </form>
             </div>
@@ -253,7 +254,7 @@ export function PeriodsSection(): JSX.Element {
               <label>
                 {renderFieldLabel("Filtre annee")}
                 <select value={periodYearFilter} onChange={(event) => setPeriodYearFilter(event.target.value)}>
-                  <option value="">Toutes les annees</option>
+                  <option value="">{tr("Toutes les annees")}</option>
                   {schoolYears.map((item) => (
                     <option key={item.id} value={item.id}>
                       {formatSchoolYearOptionLabel(item)}
@@ -266,26 +267,26 @@ export function PeriodsSection(): JSX.Element {
               <table data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Annee</th>
-                    <th>Periode</th>
-                    <th>Type</th>
-                    <th>Dates</th>
-                    <th>Statut</th>
-                    <th>Action</th>
+                    <th>{tr("Annee")}</th>
+                    <th>{tr("Periode")}</th>
+                    <th>{tr("Type")}</th>
+                    <th>{tr("Dates")}</th>
+                    <th>{tr("Statut")}</th>
+                    <th>{tr("Action")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {shownPeriods.length === 0 ? (
-                    <tr><td colSpan={6} className="empty-row">Aucune periode pour le filtre courant.</td></tr>
+                    <tr><td colSpan={6} className="empty-row">{tr("Aucune periode pour le filtre courant.")}</td></tr>
                   ) : (
                     shownPeriods.map((item) => (
                       <tr key={item.id}>
-                        <td>{formatSchoolYearOptionLabel(schoolYearById.get(item.schoolYearId))}</td>
-                        <td>{item.label} ({item.code})</td>
-                        <td>{formatPeriodTypeLabel(item.periodType)}</td>
-                        <td>{item.startDate} au {item.endDate}</td>
-                        <td>{formatReferenceStatusLabel(item.status)}</td>
-                        <td>
+                        <td data-label={tr("Annee")}>{formatSchoolYearOptionLabel(schoolYearById.get(item.schoolYearId))}</td>
+                        <td data-label={tr("Periode")}>{item.label} ({item.code})</td>
+                        <td data-label={tr("Type")}>{tr(formatPeriodTypeLabel(item.periodType))}</td>
+                        <td data-label={tr("Dates")}>{item.startDate} {tr("au ")}{item.endDate}</td>
+                        <td data-label={tr("Statut")}>{tr(formatReferenceStatusLabel(item.status))}</td>
+                        <td data-label={tr("Action")}>
                           <ReferenceActionMenu
                             label={`Options periode ${item.label}`}
                             onDelete={() => void deleteRef(`/academic-periods/${item.id}`, "Periode supprimee.")}

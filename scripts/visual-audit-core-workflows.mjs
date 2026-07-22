@@ -61,7 +61,10 @@ const allWorkflows = [
   { key: "reference", nav: /Référentiel/u, required: ["Annee scolaire"] },
   { key: "pilotage", nav: /Pilotage/u, required: ["CONSOLE OPÉRATIONNELLE", "Scolarité", "Finance"] },
   { key: "parents", nav: /Parents/u, required: ["Liste des responsables"] },
-  { key: "reports", nav: /Rapports & conformité/u, required: ["Indicateurs executifs"] }
+  { key: "reports", nav: /Rapports & conformité/u, required: ["Indicateurs executifs"] },
+  { key: "profile", userAction: /Mon profil/u, required: ["Mon profil", "Informations personnelles", "Sécurité du compte"] },
+  { key: "preferences", userAction: /Préférences/u, required: ["Préférences", "Enregistrer les préférences"] },
+  { key: "activity", userAction: /Journal d’activité/u, required: ["Journal d’activité"] }
 ];
 
 const criticalKeys = new Set(["dashboard", "students", "enrollments", "finance", "grades"]);
@@ -260,6 +263,40 @@ async function clickFirstVisible(locator) {
 async function openModule(page, workflow, language = "fr") {
   if (workflow.key === "dashboard") {
     await page.locator(".screen-host").waitFor({ state: "visible", timeout: 15_000 });
+    return;
+  }
+  if (workflow.userAction) {
+    const previousText = await page.locator(".screen-host").innerText();
+    const desktopTrigger = page.locator(".sidebar-user-card").first();
+    if (await desktopTrigger.isVisible().catch(() => false)) {
+      await desktopTrigger.click();
+      const desktopAction = page
+        .locator(".sidebar-user-dropdown .sidebar-user-action")
+        .filter({ hasText: workflow.userAction });
+      if (!(await clickFirstVisible(desktopAction))) {
+        throw new Error(`Action utilisateur absente pour ${workflow.key}.`);
+      }
+    } else {
+      const toggle = page.locator(".header-mobile-toggle").first();
+      await toggle.click();
+      await page.locator("#header-mobile-panel.is-open").waitFor({ state: "visible" });
+      const mobileAction = page
+        .locator("#header-mobile-panel .header-mobile-link")
+        .filter({ hasText: workflow.userAction });
+      if (!(await clickFirstVisible(mobileAction))) {
+        throw new Error(`Action utilisateur mobile absente pour ${workflow.key}.`);
+      }
+    }
+    await page.waitForFunction(
+      (before) => {
+        const host = document.querySelector(".screen-host");
+        return Boolean(host && host.textContent && host.textContent !== before);
+      },
+      previousText,
+      { timeout: 15_000 }
+    );
+    await page.locator(".screen-loading").waitFor({ state: "hidden", timeout: 15_000 }).catch(() => undefined);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     return;
   }
   const localized = contentFor(workflow, language);

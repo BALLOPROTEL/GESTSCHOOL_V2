@@ -30,6 +30,8 @@ import {
   statusPillClassName,
   trackLabel
 } from "./parents/parents-screen-model";
+import { useI18n } from "../shared/i18n-context";
+
 
 type ParentsScreenProps = {
   api: (path: string, init?: RequestInit) => Promise<Response>;
@@ -82,6 +84,7 @@ export function ParentsScreen({
   students,
   users
 }: ParentsScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const [activeStep, setActiveStep] = useState("list");
   const [parents, setParents] = useState<ParentRecord[]>(initialParents);
   const [relations, setRelations] = useState<ParentStudentRelation[]>(initialRelations);
@@ -323,7 +326,7 @@ export function ParentsScreen({
 
   return (
     <WorkflowGuide
-      title="Parents"
+      title={tr("Parents")}
       steps={steps}
       activeStepId={activeStep}
       onStepChange={setActiveStep}
@@ -347,86 +350,78 @@ export function ParentsScreen({
           <section className="panel editor-panel workflow-section module-modern parents-entry-panel">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Fiche responsable</p>
-                <h2>{editingParentId ? "Modifier le responsable" : "Ajouter un responsable"}</h2>
+                <p className="section-kicker">{tr("Fiche responsable")}</p>
+                <h2>{editingParentId ? tr("Modifier le responsable") : tr("Ajouter un responsable")}</h2>
               </div>
-              <span className="students-overview-status">Dossier responsable</span>
+              <span className="students-overview-status">{tr("Dossier responsable")}</span>
             </div>
             <form className="module-form parents-form" onSubmit={(event) => void submitParent(event)}>
               <fieldset className="students-form-section parents-form-section">
-                <legend>Identité</legend>
+                <legend>{tr("Identité")}</legend>
                 <div className="form-grid students-form-grid">
                   <label>
-                    Rôle parental *
-                    <select
+                    {tr("Rôle parental *")}<select
                       required
                       value={parentForm.parentalRole}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, parentalRole: event.target.value }))}
                     >
                       {PARENT_ROLES.map((role) => (
-                        <option key={role} value={role}>{roleLabel(role)}</option>
+                        <option key={role} value={role}>{tr(roleLabel(role))}</option>
                       ))}
                     </select>
                   </label>
                   <label>
-                    Prénom *
-                    <input
+                    {tr("Prénom *")}<input
                       required
                       value={parentForm.firstName}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, firstName: event.target.value }))}
                     />
                   </label>
                   <label>
-                    Nom *
-                    <input
+                    {tr("Nom *")}<input
                       required
                       value={parentForm.lastName}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, lastName: event.target.value }))}
                     />
                   </label>
                   <label>
-                    Sexe
-                    <select
+                    {tr("Sexe")}<select
                       value={parentForm.sex}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, sex: event.target.value as "" | "M" | "F" }))}
                     >
-                      <option value="">Non renseigné</option>
-                      <option value="M">M</option>
-                      <option value="F">F</option>
+                      <option value="">{tr("Non renseigné")}</option>
+                      <option value="M">{tr("M")}</option>
+                      <option value="F">{tr("F")}</option>
                     </select>
                   </label>
                 </div>
               </fieldset>
 
               <fieldset className="students-form-section parents-form-section">
-                <legend>Contact</legend>
+                <legend>{tr("Contact")}</legend>
                 <div className="form-grid students-form-grid">
                   <label>
-                    Téléphone principal *
-                    <input
+                    {tr("Téléphone principal *")}<input
                       required
                       value={parentForm.primaryPhone}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, primaryPhone: event.target.value }))}
                     />
                   </label>
                   <label>
-                    Téléphone secondaire
-                    <input
+                    {tr("Téléphone secondaire")}<input
                       value={parentForm.secondaryPhone}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, secondaryPhone: event.target.value }))}
                     />
                   </label>
                   <label>
-                    Email
-                    <input
+                    {tr("Email")}<input
                       type="email"
                       value={parentForm.email}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, email: event.target.value }))}
                     />
                   </label>
                   <label className="span-2">
-                    Adresse
-                    <input
+                    {tr("Adresse")}<input
                       value={parentForm.address}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, address: event.target.value }))}
                     />
@@ -435,32 +430,28 @@ export function ParentsScreen({
               </fieldset>
 
               <fieldset className="students-form-section parents-form-section">
-                <legend>Informations complémentaires</legend>
+                <legend>{tr("Informations complémentaires")}</legend>
                 <div className="form-grid students-form-grid">
                   <label>
-                    Profession
-                    <input
+                    {tr("Profession")}<input
                       value={parentForm.profession}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, profession: event.target.value }))}
                     />
                   </label>
                   <label>
-                    Type de pièce d’identité
-                    <input
+                    {tr("Type de pièce d’identité")}<input
                       value={parentForm.identityDocumentType}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, identityDocumentType: event.target.value }))}
                     />
                   </label>
                   <label>
-                    Numéro de pièce
-                    <input
+                    {tr("Numéro de pièce")}<input
                       value={parentForm.identityDocumentNumber}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, identityDocumentNumber: event.target.value }))}
                     />
                   </label>
                   <label className="span-2">
-                    Notes administratives
-                    <textarea
+                    {tr("Notes administratives")}<textarea
                       value={parentForm.notes}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, notes: event.target.value }))}
                       rows={3}
@@ -470,40 +461,38 @@ export function ParentsScreen({
               </fieldset>
 
               <fieldset className="students-form-section parents-form-section">
-                <legend>Portail</legend>
+                <legend>{tr("Portail")}</legend>
                 <div className="form-grid students-form-grid">
                   <label>
-                    Statut *
-                    <select
+                    {tr("Statut *")}<select
                       required
                       value={parentForm.status}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, status: event.target.value }))}
                     >
                       {PARENT_STATUSES.map((status) => (
-                        <option key={status} value={status}>{statusLabel(status)}</option>
+                        <option key={status} value={status}>{tr(statusLabel(status))}</option>
                       ))}
                     </select>
                   </label>
                   <label>
-                    Compte portail optionnel
-                    <select
+                    {tr("Compte portail optionnel")}<select
                       value={parentForm.userId}
                       onChange={(event) => setParentForm((prev) => ({ ...prev, userId: event.target.value }))}
                     >
-                      <option value="">Aucun compte portail</option>
+                      <option value="">{tr("Aucun compte portail")}</option>
                       {portalParentUsers.map((user) => (
                         <option key={user.id} value={user.id}>{user.username}</option>
                       ))}
                     </select>
                   </label>
-                  <p className="form-help span-2">Le compte portail n’est pas créé automatiquement.</p>
+                  <p className="form-help span-2">{tr("Le compte portail n’est pas créé automatiquement.")}</p>
                 </div>
               </fieldset>
 
               <div className="actions">
-                <button type="submit">{editingParentId ? "Enregistrer le responsable" : "Créer le responsable"}</button>
-                <button type="button" className="button-ghost" onClick={resetParentForm}>Réinitialiser</button>
-                <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>Voir la liste</button>
+                <button type="submit">{editingParentId ? tr("Enregistrer le responsable") : tr("Créer le responsable")}</button>
+                <button type="button" className="button-ghost" onClick={resetParentForm}>{tr("Réinitialiser")}</button>
+                <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>{tr("Voir la liste")}</button>
               </div>
             </form>
           </section>
@@ -513,8 +502,8 @@ export function ParentsScreen({
           <section className="panel table-panel workflow-section module-modern">
             <div className="table-header">
               <div>
-                <p className="section-kicker">Relation parent-élève</p>
-                <h2>Liens parent-élève</h2>
+                <p className="section-kicker">{tr("Relation parent-élève")}</p>
+                <h2>{tr("Liens parent-élève")}</h2>
               </div>
               <span className="students-overview-status">
                 {relations.length === 1 ? "1 lien" : `${relations.length} liens`}
@@ -522,55 +511,51 @@ export function ParentsScreen({
             </div>
             <form className="form-grid module-form students-form-grid parents-links-form" onSubmit={(event) => void submitLink(event)}>
               <label>
-                Parent *
-                <select
+                {tr("Parent *")}<select
                   required
                   value={linkForm.parentId}
                   onChange={(event) => setLinkForm((prev) => ({ ...prev, parentId: event.target.value }))}
                 >
-                  <option value="">Choisir</option>
+                  <option value="">{tr("Choisir")}</option>
                   {parents.filter((parent) => parent.status === "ACTIVE").map((parent) => (
-                    <option key={parent.id} value={parent.id}>{parent.fullName} - {roleLabel(parent.parentalRole)}</option>
+                    <option key={parent.id} value={parent.id}>{parent.fullName} - {tr(roleLabel(parent.parentalRole))}</option>
                   ))}
                 </select>
               </label>
               <label>
-                Élève *
-                <select
+                {tr("Élève *")}<select
                   required
                   value={linkForm.studentId}
                   onChange={(event) => setLinkForm((prev) => ({ ...prev, studentId: event.target.value }))}
                 >
-                  <option value="">Choisir</option>
+                  <option value="">{tr("Choisir")}</option>
                   {students.map((student) => (
                     <option key={student.id} value={student.id}>{buildStudentOption(student)}</option>
                   ))}
                 </select>
               </label>
               <label>
-                Relation *
-                <select
+                {tr("Relation *")}<select
                   required
                   value={linkForm.relationType}
                   onChange={(event) => setLinkForm((prev) => ({ ...prev, relationType: event.target.value }))}
                 >
                   {PARENT_RELATIONS.map((role) => (
-                    <option key={role} value={role}>{roleLabel(role)}</option>
+                    <option key={role} value={role}>{tr(roleLabel(role))}</option>
                   ))}
                 </select>
               </label>
               <label className="span-2">
-                Commentaire
-                <input value={linkForm.comment} onChange={(event) => setLinkForm((prev) => ({ ...prev, comment: event.target.value }))} />
+                {tr("Commentaire")}<input value={linkForm.comment} onChange={(event) => setLinkForm((prev) => ({ ...prev, comment: event.target.value }))} />
               </label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.isPrimaryContact} onChange={(event) => setLinkForm((prev) => ({ ...prev, isPrimaryContact: event.target.checked }))} /> Contact principal</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.legalGuardian} onChange={(event) => setLinkForm((prev) => ({ ...prev, legalGuardian: event.target.checked }))} /> Tuteur légal</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.financialResponsible} onChange={(event) => setLinkForm((prev) => ({ ...prev, financialResponsible: event.target.checked }))} /> Responsable financier</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.emergencyContact} onChange={(event) => setLinkForm((prev) => ({ ...prev, emergencyContact: event.target.checked }))} /> Contact d’urgence</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.pickupAuthorized} onChange={(event) => setLinkForm((prev) => ({ ...prev, pickupAuthorized: event.target.checked }))} /> Autorisé à récupérer l’élève</label>
-              <label className="check-row"><input type="checkbox" checked={linkForm.livesWithStudent} onChange={(event) => setLinkForm((prev) => ({ ...prev, livesWithStudent: event.target.checked }))} /> Vit avec l’élève</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.isPrimaryContact} onChange={(event) => setLinkForm((prev) => ({ ...prev, isPrimaryContact: event.target.checked }))} /> {tr("Contact principal")}</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.legalGuardian} onChange={(event) => setLinkForm((prev) => ({ ...prev, legalGuardian: event.target.checked }))} /> {tr("Tuteur légal")}</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.financialResponsible} onChange={(event) => setLinkForm((prev) => ({ ...prev, financialResponsible: event.target.checked }))} /> {tr("Responsable financier")}</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.emergencyContact} onChange={(event) => setLinkForm((prev) => ({ ...prev, emergencyContact: event.target.checked }))} /> {tr("Contact d’urgence")}</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.pickupAuthorized} onChange={(event) => setLinkForm((prev) => ({ ...prev, pickupAuthorized: event.target.checked }))} /> {tr("Autorisé à récupérer l’élève")}</label>
+              <label className="check-row"><input type="checkbox" checked={linkForm.livesWithStudent} onChange={(event) => setLinkForm((prev) => ({ ...prev, livesWithStudent: event.target.checked }))} /> {tr("Vit avec l’élève")}</label>
               <div className="actions span-2">
-                <button type="submit">Créer le lien parent-élève</button>
+                <button type="submit">{tr("Créer le lien parent-élève")}</button>
               </div>
             </form>
 
@@ -578,37 +563,36 @@ export function ParentsScreen({
               <table data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Responsable</th>
-                    <th>Élève</th>
-                    <th>Relation</th>
-                    <th>Cursus élève</th>
-                    <th>Rôles</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
+                    <th>{tr("Responsable")}</th>
+                    <th>{tr("Élève")}</th>
+                    <th>{tr("Relation")}</th>
+                    <th>{tr("Cursus élève")}</th>
+                    <th>{tr("Rôles")}</th>
+                    <th>{tr("Statut")}</th>
+                    <th>{tr("Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {relations.length === 0 ? (
-                    <tr><td colSpan={7} className="empty-row">Aucun lien parent-élève enregistré.</td></tr>
+                    <tr><td colSpan={7} className="empty-row">{tr("Aucun lien parent-élève enregistré.")}</td></tr>
                   ) : (
                     relations.map((relation) => (
                       <tr key={relation.id}>
-                        <td data-label="Responsable">{relation.parentName || relation.parentUsername || "-"}</td>
-                        <td data-label="Élève">{relation.studentMatricule} - {relation.studentName}</td>
-                        <td data-label="Relation">{roleLabel(relation.relationType)}</td>
-                        <td data-label="Cursus élève">
+                        <td data-label={tr("Responsable")}>{relation.parentName || relation.parentUsername || "-"}</td>
+                        <td data-label={tr("Élève")}>{relation.studentMatricule} - {relation.studentName}</td>
+                        <td data-label={tr("Relation")}>{tr(roleLabel(relation.relationType))}</td>
+                        <td data-label={tr("Cursus élève")}>
                           {formatStudentTracks(relation)}
                         </td>
-                        <td data-label="Rôles">
+                        <td data-label={tr("Rôles")}>
                           {formatRelationRoles(relation)}
                         </td>
-                        <td data-label="Statut">
-                          <span className={statusPillClassName(relation.status)}>{statusLabel(relation.status)}</span>
+                        <td data-label={tr("Statut")}>
+                          <span className={statusPillClassName(relation.status)}>{tr(statusLabel(relation.status))}</span>
                         </td>
-                        <td data-label="Actions">
+                        <td data-label={tr("Actions")}>
                           <button type="button" className="button-danger" onClick={() => void archiveLink(relation.id)}>
-                            Archiver
-                          </button>
+                            {tr("Archiver")}</button>
                         </td>
                       </tr>
                     ))

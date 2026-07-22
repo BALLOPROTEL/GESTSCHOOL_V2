@@ -8,6 +8,8 @@ import type {
 } from "../../shared/types/app";
 import { useReportsData } from "./hooks/use-reports-data";
 import type { ReportsApiClient } from "./types/reports";
+import { useI18n } from "../../shared/i18n-context";
+
 
 type ReportsScreenProps = {
   api: ReportsApiClient;
@@ -30,6 +32,7 @@ export function ReportsScreen({
   onError,
   onNotice
 }: ReportsScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     analyticsFilters,
     analyticsOverview,
@@ -60,7 +63,7 @@ export function ReportsScreen({
         <h4>{title}</h4>
         <div className="trend-list">
           {points.length === 0 ? (
-            <p className="subtle">Aucune donnee.</p>
+            <p className="subtle">{tr("Aucune donnee.")}</p>
           ) : (
             points.map((point) => (
               <div key={`${title}-${point.bucket}`} className="trend-row">
@@ -88,16 +91,16 @@ export function ReportsScreen({
   return (
     <WorkflowGuide
       className="module-v3-workflow"
-      title="Rapports avances et conformite"
+      title={tr("Rapports avances et conformite")}
       steps={reportSteps}
       activeStepId={reportWorkflowStep}
       onStepChange={setReportWorkflowStep}
     >
       <section className="panel table-panel" data-step-id="overview">
         <div className="table-header">
-          <h2>Filtrer la fenetre de pilotage</h2>
+          <h2>{tr("Filtrer la fenetre de pilotage")}</h2>
           <span className="subtle">
-            Derniere generation:{" "}
+            {tr("Derniere generation:")}{" "}
             {analyticsOverview?.generatedAt
               ? new Date(analyticsOverview.generatedAt).toLocaleString(locale)
               : "-"}
@@ -111,8 +114,7 @@ export function ReportsScreen({
           }}
         >
           <label>
-            Du
-            <input
+            {tr("Du")}<input
               type="date"
               value={analyticsFilters.from}
               onChange={(event) =>
@@ -121,8 +123,7 @@ export function ReportsScreen({
             />
           </label>
           <label>
-            Au
-            <input
+            {tr("Au")}<input
               type="date"
               value={analyticsFilters.to}
               onChange={(event) =>
@@ -131,8 +132,7 @@ export function ReportsScreen({
             />
           </label>
           <label>
-            Annee scolaire
-            <select
+            {tr("Annee scolaire")}<select
               value={analyticsFilters.schoolYearId}
               onChange={(event) =>
                 setAnalyticsFilters((prev) => ({
@@ -141,7 +141,7 @@ export function ReportsScreen({
                 }))
               }
             >
-              <option value="">Toutes</option>
+              <option value="">{tr("Toutes")}</option>
               {schoolYears.map((year) => (
                 <option key={year.id} value={year.id}>
                   {year.code}
@@ -150,62 +150,56 @@ export function ReportsScreen({
             </select>
           </label>
           <div className="actions">
-            <button type="submit">Actualiser KPI</button>
+            <button type="submit">{tr("Actualiser KPI")}</button>
             <button
               type="button"
               className="button-ghost"
               onClick={resetAnalyticsFilters}
             >
-              Reinitialiser
-            </button>
+              {tr("Reinitialiser")}</button>
           </div>
         </form>
         <div className="metrics-grid reports-grid">
           <article className="metric-card">
-            <span>Eleves actifs</span>
+            <span>{tr("Eleves actifs")}</span>
             <strong>{analyticsOverview?.students.active ?? 0}</strong>
             <small className="subtle">
-              +{analyticsOverview?.students.createdInWindow ?? 0} sur la periode
-            </small>
+              +{analyticsOverview?.students.createdInWindow ?? 0} {tr("sur la periode")}</small>
           </article>
           <article className="metric-card">
-            <span>Inscriptions actives</span>
+            <span>{tr("Inscriptions actives")}</span>
             <strong>{analyticsOverview?.academics.activeEnrollments ?? 0}</strong>
             <small className="subtle">
-              {analyticsOverview?.academics.classes ?? 0} classes surveillees
-            </small>
+              {analyticsOverview?.academics.classes ?? 0} {tr("classes surveillees")}</small>
           </article>
           <article className="metric-card">
-            <span>Recouvrement</span>
+            <span>{tr("Recouvrement")}</span>
             <strong>
               {(analyticsOverview?.finance.recoveryRatePercent ?? 0).toFixed(1)}%
             </strong>
             <small className="subtle">
-              Reste {formatMoney(analyticsOverview?.finance.remainingAmount ?? 0)}
+              {tr("Reste ")}{formatMoney(analyticsOverview?.finance.remainingAmount ?? 0)}
             </small>
           </article>
           <article className="metric-card">
-            <span>Absences</span>
+            <span>{tr("Absences")}</span>
             <strong>{analyticsOverview?.schoolLife.absences ?? 0}</strong>
             <small className="subtle">
-              {analyticsOverview?.schoolLife.justificationRatePercent?.toFixed(1) ?? "0.0"}% justifiees
-            </small>
+              {analyticsOverview?.schoolLife.justificationRatePercent?.toFixed(1) ?? "0.0"}{tr("% justifiees")}</small>
           </article>
           <article className="metric-card">
-            <span>Dons mosquee</span>
+            <span>{tr("Dons mosquee")}</span>
             <strong>
               {formatMoney(analyticsOverview?.mosquee.donationsInWindow ?? 0)}
             </strong>
             <small className="subtle">
-              {analyticsOverview?.mosquee.donationsCountInWindow ?? 0} transactions
-            </small>
+              {analyticsOverview?.mosquee.donationsCountInWindow ?? 0} {tr("transactions")}</small>
           </article>
           <article className="metric-card">
-            <span>Alertes notifications</span>
+            <span>{tr("Alertes notifications")}</span>
             <strong>{analyticsOverview?.schoolLife.notificationsFailed ?? 0}</strong>
             <small className="subtle">
-              {analyticsOverview?.schoolLife.notificationsQueued ?? 0} en attente
-            </small>
+              {analyticsOverview?.schoolLife.notificationsQueued ?? 0} {tr("en attente")}</small>
           </article>
         </div>
         <div className="split-grid">
@@ -217,9 +211,9 @@ export function ReportsScreen({
 
       <section className="panel table-panel" data-step-id="compliance">
         <div className="table-header">
-          <h2>Journal de conformite</h2>
+          <h2>{tr("Journal de conformite")}</h2>
           <span className="subtle">
-            {auditLogs ? `${auditLogs.total} evenement(s)` : "Aucun chargement"}
+            {auditLogs ? `${auditLogs.total} evenement(s)` : tr("Aucun chargement")}
           </span>
         </div>
         <form
@@ -232,34 +226,31 @@ export function ReportsScreen({
           }}
         >
           <label>
-            Ressource
-            <input
+            {tr("Ressource")}<input
               value={auditFilters.resource}
               onChange={(event) =>
                 setAuditFilters((prev) => ({ ...prev, resource: event.target.value }))
               }
-              placeholder="users, finance, auth..."
+              placeholder={tr("users, finance, auth...")}
             />
           </label>
           <label>
-            Action
-            <input
+            {tr("Action")}<input
               value={auditFilters.action}
               onChange={(event) =>
                 setAuditFilters((prev) => ({ ...prev, action: event.target.value }))
               }
-              placeholder="USER_CREATED..."
+              placeholder={tr("USER_CREATED...")}
             />
           </label>
           <label>
-            Utilisateur
-            <select
+            {tr("Utilisateur")}<select
               value={auditFilters.userId}
               onChange={(event) =>
                 setAuditFilters((prev) => ({ ...prev, userId: event.target.value }))
               }
             >
-              <option value="">Tous</option>
+              <option value="">{tr("Tous")}</option>
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.username}
@@ -268,18 +259,16 @@ export function ReportsScreen({
             </select>
           </label>
           <label>
-            Recherche
-            <input
+            {tr("Recherche")}<input
               value={auditFilters.q}
               onChange={(event) =>
                 setAuditFilters((prev) => ({ ...prev, q: event.target.value }))
               }
-              placeholder="ID ressource, identifiant utilisateur..."
+              placeholder={tr("ID ressource, identifiant utilisateur...")}
             />
           </label>
           <label>
-            Du
-            <input
+            {tr("Du")}<input
               type="date"
               value={auditFilters.from}
               onChange={(event) =>
@@ -288,8 +277,7 @@ export function ReportsScreen({
             />
           </label>
           <label>
-            Au
-            <input
+            {tr("Au")}<input
               type="date"
               value={auditFilters.to}
               onChange={(event) =>
@@ -298,8 +286,7 @@ export function ReportsScreen({
             />
           </label>
           <label>
-            Taille page
-            <select
+            {tr("Taille page")}<select
               value={auditFilters.pageSize}
               onChange={(event) =>
                 setAuditFilters((prev) => ({
@@ -315,44 +302,42 @@ export function ReportsScreen({
             </select>
           </label>
           <div className="actions">
-            <button type="submit">Filtrer audit</button>
+            <button type="submit">{tr("Filtrer audit")}</button>
             <button
               type="button"
               className="button-ghost"
               onClick={resetAuditFilters}
             >
-              Reinitialiser
-            </button>
+              {tr("Reinitialiser")}</button>
           </div>
         </form>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Utilisateur</th>
-                <th>Action</th>
-                <th>Ressource</th>
-                <th>ID Ressource</th>
-                <th>Payload</th>
+                <th>{tr("Date")}</th>
+                <th>{tr("Utilisateur")}</th>
+                <th>{tr("Action")}</th>
+                <th>{tr("Ressource")}</th>
+                <th>{tr("ID Ressource")}</th>
+                <th>{tr("Payload")}</th>
               </tr>
             </thead>
             <tbody>
               {!auditLogs || auditLogs.items.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="empty-row">
-                    Aucun log d'audit.
-                  </td>
+                    {tr("Aucun log d'audit.")}</td>
                 </tr>
               ) : (
                 auditLogs.items.map((item) => (
                   <tr key={item.id}>
-                    <td>{new Date(item.createdAt).toLocaleString(locale)}</td>
-                    <td>{item.username || "-"}</td>
-                    <td>{item.action}</td>
-                    <td>{item.resource}</td>
-                    <td>{item.resourceId || "-"}</td>
-                    <td>{item.payloadPreview || "-"}</td>
+                    <td data-label={tr("Date")}>{new Date(item.createdAt).toLocaleString(locale)}</td>
+                    <td data-label={tr("Utilisateur")}>{item.username || "-"}</td>
+                    <td data-label={tr("Action")}>{item.action}</td>
+                    <td data-label={tr("Ressource")}>{item.resource}</td>
+                    <td data-label={tr("ID Ressource")}>{item.resourceId || "-"}</td>
+                    <td data-label={tr("Payload")}>{item.payloadPreview || "-"}</td>
                   </tr>
                 ))
               )}
@@ -361,7 +346,7 @@ export function ReportsScreen({
         </div>
         <div className="pagination-row">
           <span className="subtle">
-            Page {auditLogs?.page || 1} / {auditLogs?.totalPages || 1}
+            {tr("Page ")}{auditLogs?.page || 1} / {auditLogs?.totalPages || 1}
           </span>
           <div className="actions">
             <button
@@ -375,8 +360,7 @@ export function ReportsScreen({
                 void loadAuditLogs(next);
               }}
             >
-              Prec.
-            </button>
+              {tr("Prec.")}</button>
             <button
               type="button"
               className="button-ghost"
@@ -391,46 +375,42 @@ export function ReportsScreen({
                 void loadAuditLogs(next);
               }}
             >
-              Suiv.
-            </button>
+              {tr("Suiv.")}</button>
           </div>
         </div>
       </section>
 
       <section className="panel table-panel" data-step-id="export">
         <div className="table-header">
-          <h2>Livrables d'export</h2>
-          <span className="subtle">Exporter des preuves exploitables pour audit et pilotage.</span>
+          <h2>{tr("Livrables d'export")}</h2>
+          <span className="subtle">{tr("Exporter des preuves exploitables pour audit et pilotage.")}</span>
         </div>
         <div className="split-grid">
           <article className="panel soft-card">
-            <h3>Pack audit</h3>
+            <h3>{tr("Pack audit")}</h3>
             <p className="subtle">
-              Exporte les actions sensibles (auth, permissions, creation/suppression).
-            </p>
+              {tr("Exporte les actions sensibles (auth, permissions, creation/suppression).")}</p>
             <label>
-              Format
-              <select
+              {tr("Format")}<select
                 value={auditExportFormat}
                 onChange={(event) =>
                   setAuditExportFormat(event.target.value as "PDF" | "EXCEL")
                 }
               >
-                <option value="PDF">PDF</option>
-                <option value="EXCEL">Excel</option>
+                <option value="PDF">{tr("PDF")}</option>
+                <option value="EXCEL">{tr("Excel")}</option>
               </select>
             </label>
             <button type="button" onClick={() => void exportCurrentAuditLogs()}>
-              Exporter audit
-            </button>
+              {tr("Exporter audit")}</button>
           </article>
           <article className="panel soft-card">
-            <h3>Points de controle avant mise en ligne</h3>
+            <h3>{tr("Points de controle avant mise en ligne")}</h3>
             <ul className="plain-list">
-              <li>API de production avec sondes de sante et metriques d'exploitation</li>
-              <li>Sauvegarde PostgreSQL automatisee</li>
-              <li>Notifications externes avec suivi de delivrabilite</li>
-              <li>Exports PDF et Excel metier pour la finance, la mosquee et l'audit</li>
+              <li>{tr("API de production avec sondes de sante et metriques d'exploitation")}</li>
+              <li>{tr("Sauvegarde PostgreSQL automatisee")}</li>
+              <li>{tr("Notifications externes avec suivi de delivrabilite")}</li>
+              <li>{tr("Exports PDF et Excel metier pour la finance, la mosquee et l'audit")}</li>
             </ul>
           </article>
         </div>

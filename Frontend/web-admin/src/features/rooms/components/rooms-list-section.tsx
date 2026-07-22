@@ -10,6 +10,8 @@ import {
   statusLabel,
   trackLabel
 } from "../rooms-screen-model";
+import { useI18n } from "../../../shared/i18n-context";
+
 
 const getRoomInitials = (room: RoomRecord): string =>
   (room.code || room.name)
@@ -33,6 +35,7 @@ export function RoomsListSection(props: {
   rooms: RoomRecord[];
   setFilters: Dispatch<SetStateAction<RoomFilters>>;
 }): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     filters,
     loading,
@@ -52,20 +55,20 @@ export function RoomsListSection(props: {
     <section className="panel table-panel workflow-section module-modern teachers-panel rooms-v3-table-card">
       <div className="v3-table-head">
         <div>
-          <p className="section-kicker">Registre salles</p>
-          <h2>Salles, capacités et usages</h2>
-          <p>Capacité, cursus, occupation et disponibilité des ressources physiques.</p>
+          <p className="section-kicker">{tr("Registre salles")}</p>
+          <h2>{tr("Salles, capacités et usages")}</h2>
+          <p>{tr("Capacité, cursus, occupation et disponibilité des ressources physiques.")}</p>
         </div>
-        <button type="button" onClick={onAddRoom}>Ajouter une salle</button>
+        <button type="button" onClick={onAddRoom}>{tr("Ajouter une salle")}</button>
       </div>
       <div className="filter-grid module-filter teachers-filter-grid">
-        <label>Recherche<input value={filters.search} onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))} placeholder="Code, nom, bâtiment" /></label>
-        <label>Type<select value={filters.roomTypeId} onChange={(event) => setFilters((prev) => ({ ...prev, roomTypeId: event.target.value }))}><option value="">Tous</option>{roomTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
-        <label>Cursus<select value={filters.track} onChange={(event) => setFilters((prev) => ({ ...prev, track: event.target.value }))}><option value="">Tous</option>{TRACKS.map((track) => <option key={track} value={track}>{trackLabel(track)}</option>)}</select></label>
-        <label>Statut<select value={filters.status} onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option>{ROOM_STATUSES.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
-        <label>Capacité min.<input type="number" min="0" value={filters.minCapacity} onChange={(event) => setFilters((prev) => ({ ...prev, minCapacity: event.target.value }))} /></label>
+        <label>{tr("Recherche")}<input value={filters.search} onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))} placeholder={tr("Code, nom, bâtiment")} /></label>
+        <label>{tr("Type")}<select value={filters.roomTypeId} onChange={(event) => setFilters((prev) => ({ ...prev, roomTypeId: event.target.value }))}><option value="">{tr("Tous")}</option>{roomTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
+        <label>{tr("Cursus")}<select value={filters.track} onChange={(event) => setFilters((prev) => ({ ...prev, track: event.target.value }))}><option value="">{tr("Tous")}</option>{TRACKS.map((track) => <option key={track} value={track}>{tr(trackLabel(track))}</option>)}</select></label>
+        <label>{tr("Statut")}<select value={filters.status} onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">{tr("Tous")}</option>{ROOM_STATUSES.map((status) => <option key={status} value={status}>{tr(statusLabel(status))}</option>)}</select></label>
+        <label>{tr("Capacité min.")}<input type="number" min="0" value={filters.minCapacity} onChange={(event) => setFilters((prev) => ({ ...prev, minCapacity: event.target.value }))} /></label>
         <div className="actions">
-          <button type="button" onClick={onFilter}>Filtrer</button>
+          <button type="button" onClick={onFilter}>{tr("Filtrer")}</button>
           <button
             type="button"
             className="button-ghost"
@@ -74,16 +77,15 @@ export function RoomsListSection(props: {
               onReload();
             }}
           >
-            Réinitialiser
-          </button>
+            {tr("Réinitialiser")}</button>
         </div>
       </div>
       <div className="table-wrap">
         <table data-responsive-table="true">
-          <thead><tr><th>Salle</th><th>Type</th><th>Capacité</th><th>Cursus</th><th>Bâtiment</th><th>Occupation</th><th>Statut</th><th aria-label="Actions"></th></tr></thead>
-          <tbody>{rooms.length === 0 ? <tr><td colSpan={8} className="empty-row">{loading ? "Chargement..." : "Aucune salle enregistrée."}</td></tr> : rooms.map((room) => (
+          <thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Capacité")}</th><th>{tr("Cursus")}</th><th>{tr("Bâtiment")}</th><th>{tr("Occupation")}</th><th>{tr("Statut")}</th><th aria-label={tr("Actions")}></th></tr></thead>
+          <tbody>{rooms.length === 0 ? <tr><td colSpan={8} className="empty-row">{loading ? tr("Chargement...") : tr("Aucune salle enregistrée.")}</td></tr> : rooms.map((room) => (
             <tr key={room.id}>
-              <td data-label="Salle">
+              <td data-label={tr("Salle")}>
                 <div className="v3-table-entity-cell">
                   <span className="v3-avatar">{getRoomInitials(room)}</span>
                   <div>
@@ -92,13 +94,13 @@ export function RoomsListSection(props: {
                   </div>
                 </div>
               </td>
-              <td data-label="Type">{room.roomTypeName || "-"}</td>
-              <td data-label="Capacité">{room.capacity}</td>
-              <td data-label="Cursus">{room.isSharedBetweenCurricula ? "Partagée" : trackLabel(room.defaultTrack)}</td>
-              <td data-label="Bâtiment" className="v3-muted-cell">{room.building || SCHOOL_NAME}</td>
-              <td data-label="Occupation">{room.activeAssignmentsCount ? `${room.activeAssignmentsCount} affectation(s)` : "Aucune"}</td>
-              <td data-label="Statut"><span className="status-pill">{statusLabel(room.status)}</span></td>
-              <td data-label="Actions">
+              <td data-label={tr("Type")}>{room.roomTypeName || "-"}</td>
+              <td data-label={tr("Capacité")}>{room.capacity}</td>
+              <td data-label={tr("Cursus")}>{room.isSharedBetweenCurricula ? tr("Partagée") : tr(trackLabel(room.defaultTrack))}</td>
+              <td data-label={tr("Bâtiment")} className="v3-muted-cell">{room.building || SCHOOL_NAME}</td>
+              <td data-label={tr("Occupation")}>{room.activeAssignmentsCount ? `${room.activeAssignmentsCount} affectation(s)` : tr("Aucune")}</td>
+              <td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(room.status))}</span></td>
+              <td data-label={tr("Actions")}>
                 <div className="v3-action-cell">
                   <button
                     type="button"
@@ -111,9 +113,9 @@ export function RoomsListSection(props: {
                   </button>
                   {openRoomActionMenuId === room.id ? (
                     <div className="v3-action-menu" role="menu">
-                      <button type="button" onClick={() => { setOpenRoomActionMenuId(null); onOpenDetail(room.id); }}>Voir</button>
-                      <button type="button" onClick={() => { setOpenRoomActionMenuId(null); onEditRoom(room); }}>Modifier</button>
-                      <button type="button" className="is-danger" onClick={() => { setOpenRoomActionMenuId(null); onArchiveRoom(room.id); }}>Supprimer</button>
+                      <button type="button" onClick={() => { setOpenRoomActionMenuId(null); onOpenDetail(room.id); }}>{tr("Voir")}</button>
+                      <button type="button" onClick={() => { setOpenRoomActionMenuId(null); onEditRoom(room); }}>{tr("Modifier")}</button>
+                      <button type="button" className="is-danger" onClick={() => { setOpenRoomActionMenuId(null); onArchiveRoom(room.id); }}>{tr("Supprimer")}</button>
                     </div>
                   ) : null}
                 </div>

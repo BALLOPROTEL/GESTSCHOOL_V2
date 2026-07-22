@@ -669,12 +669,6 @@
     box-shadow: -1px 0 0 color-mix(in srgb, var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) 82%, transparent);
   }
 
-  .table-wrap table[data-responsive-table="true"] td:has(.v3-more-button[aria-expanded="true"]),
-  .table-wrap table[data-responsive-table="true"] td:has(.v3-action-menu) {
-    z-index: 100 !important;
-    overflow: visible !important;
-  }
-
   .table-wrap table[data-responsive-table="true"] .v3-action-menu {
     right: 0.35rem !important;
     z-index: 110 !important;

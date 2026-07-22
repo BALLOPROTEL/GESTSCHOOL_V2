@@ -10,6 +10,7 @@ import type {
 } from "../../shared/types/app";
 import { useFinanceData } from "./hooks/use-finance-data";
 import type { FinanceApiClient, FinanceData } from "./types/finance";
+import { useI18n } from "../../shared/i18n-context";
 
 type FinanceScreenProps = {
   api: FinanceApiClient;
@@ -83,6 +84,7 @@ export function FinanceScreen({
   onError,
   onNotice
 }: FinanceScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const [openFeePlanActionMenuId, setOpenFeePlanActionMenuId] = useState<string | null>(null);
   const [openInvoiceActionMenuId, setOpenInvoiceActionMenuId] = useState<string | null>(null);
   const [openPaymentActionMenuId, setOpenPaymentActionMenuId] = useState<string | null>(null);
@@ -165,13 +167,13 @@ export function FinanceScreen({
   return (
     <div className="finance-v3-shell module-v3-shell">
       <header className="finance-mobile-heading">
-        <h1>Comptabilité</h1>
-        <p>Suivez le recouvrement, les factures et les paiements de l’établissement.</p>
+        <h1>{tr("Comptabilité")}</h1>
+        <p>{tr("Suivez le recouvrement, les factures et les paiements de l’établissement.")}</p>
       </header>
 
       <WorkflowGuide
         className="module-v3-workflow"
-        title="Comptabilité"
+        title={tr("Comptabilité")}
         steps={financeSteps}
         activeStepId={financeWorkflowStep}
         onStepChange={scrollToFinance}
@@ -180,45 +182,43 @@ export function FinanceScreen({
         <section className="panel table-panel workflow-section module-modern module-overview-shell finance-screen-shell">
           <div className="table-header">
             <div>
-              <p className="section-kicker">Recouvrement</p>
-              <h2>Console de recouvrement</h2>
+              <p className="section-kicker">{tr("Recouvrement")}</p>
+              <h2>{tr("Console de recouvrement")}</h2>
             </div>
             <span className="module-header-badge">
-              {(recovery?.totals.recoveryRatePercent || 0).toFixed(1)}% recouvrement
-            </span>
+              {(recovery?.totals.recoveryRatePercent || 0).toFixed(1)}{tr("% recouvrement")}</span>
           </div>
           <p className="section-lead">
-            Suivez les montants facturés, encaissés et restant à recouvrer pour l’année scolaire sélectionnée.
-          </p>
+            {tr("Suivez les montants facturés, encaissés et restant à recouvrer pour l’année scolaire sélectionnée.")}</p>
           <div className="module-overview-grid">
             <article className="module-overview-card">
-              <span>Total facturé</span>
+              <span>{tr("Total facturé")}</span>
               <strong>{formatMoney(recovery?.totals.amountDue || 0)}</strong>
-              <small>Factures émises</small>
+              <small>{tr("Factures émises")}</small>
             </article>
             <article className="module-overview-card">
-              <span>Montant encaissé</span>
+              <span>{tr("Montant encaissé")}</span>
               <strong>{formatMoney(recovery?.totals.amountPaid || 0)}</strong>
-              <small>Paiements confirmés</small>
+              <small>{tr("Paiements confirmés")}</small>
             </article>
             <article className="module-overview-card">
-              <span>Reste à recouvrer</span>
+              <span>{tr("Reste à recouvrer")}</span>
               <strong>{formatMoney(recovery?.totals.remainingAmount || 0)}</strong>
-              <small>Suivi des impayés</small>
+              <small>{tr("Suivi des impayés")}</small>
             </article>
             <article className="module-overview-card">
-              <span>Factures en retard</span>
+              <span>{tr("Factures en retard")}</span>
               <strong>{overdueInvoicesCount}</strong>
-              <small>Relances prioritaires</small>
+              <small>{tr("Relances prioritaires")}</small>
             </article>
           </div>
           <div className="module-inline-strip">
-            <span className="module-inline-pill">Factures ouvertes : {openInvoicesCount}</span>
+            <span className="module-inline-pill">{tr("Factures ouvertes : ")}{openInvoicesCount}</span>
             <span className="module-inline-pill">
-              Factures payées : {paidInvoicesCount}
+              {tr("Factures payées : ")}{paidInvoicesCount}
             </span>
             <span className="module-inline-pill">
-              Paiements reçus : {payments.length}
+              {tr("Paiements reçus : ")}{payments.length}
             </span>
           </div>
         </section>
@@ -227,54 +227,52 @@ export function FinanceScreen({
       <section id="finance-overview" data-step-id="overview" className="panel table-panel workflow-section module-modern finance-screen-shell">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Synthèse</p>
-            <h2>Synthèse du recouvrement</h2>
+            <p className="section-kicker">{tr("Synthèse")}</p>
+            <h2>{tr("Synthèse du recouvrement")}</h2>
           </div>
-          <span className="module-header-badge">Pilotage journalier</span>
+          <span className="module-header-badge">{tr("Pilotage journalier")}</span>
         </div>
-        <p className="section-lead">Suivez la santé financière avant de passer aux opérations de saisie.</p>
+        <p className="section-lead">{tr("Suivez la santé financière avant de passer aux opérations de saisie.")}</p>
         <div className="metrics-grid">
           <article className="metric-card">
-            <span>Total dû</span>
+            <span>{tr("Total dû")}</span>
             <strong>{formatMoney(recovery?.totals.amountDue || 0)}</strong>
           </article>
           <article className="metric-card">
-            <span>Montant encaissé</span>
+            <span>{tr("Montant encaissé")}</span>
             <strong>{formatMoney(recovery?.totals.amountPaid || 0)}</strong>
           </article>
           <article className="metric-card">
-            <span>Reste à recouvrer</span>
+            <span>{tr("Reste à recouvrer")}</span>
             <strong>{formatMoney(recovery?.totals.remainingAmount || 0)}</strong>
           </article>
           <article className="metric-card">
-            <span>Taux de recouvrement</span>
+            <span>{tr("Taux de recouvrement")}</span>
             <strong>{(recovery?.totals.recoveryRatePercent || 0).toFixed(2)}%</strong>
           </article>
           <article className="metric-card">
-            <span>Factures ouvertes</span>
+            <span>{tr("Factures ouvertes")}</span>
             <strong>{openInvoicesCount}</strong>
           </article>
           <article className="metric-card">
-            <span>Factures en retard</span>
+            <span>{tr("Factures en retard")}</span>
             <strong>{overdueInvoicesCount}</strong>
           </article>
           <article className="metric-card">
-            <span>Paiements reçus</span>
+            <span>{tr("Paiements reçus")}</span>
             <strong>{payments.length}</strong>
           </article>
         </div>
         <div className="actions">
           <button type="button" className="button-ghost" onClick={() => void loadFinance()}>
-            Recharger la comptabilité
-          </button>
+            {tr("Recharger la comptabilité")}</button>
           {receiptPdfUrl ? (
             <button
               type="button"
               className="button-ghost"
               onClick={() => window.open(receiptPdfUrl, "_blank", "noopener,noreferrer")}
             >
-              Ouvrir le dernier reçu
-            </button>
+              {tr("Ouvrir le dernier reçu")}</button>
           ) : null}
         </div>
       </section>
@@ -282,21 +280,20 @@ export function FinanceScreen({
       <section id="finance-fee-plans" data-step-id="feePlans" className="panel editor-panel workflow-section module-modern finance-screen-shell">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Tarification</p>
-            <h2>Plans de frais</h2>
+            <p className="section-kicker">{tr("Tarification")}</p>
+            <h2>{tr("Plans de frais")}</h2>
           </div>
-          <span className="module-header-badge">{feePlans.length} plan(s)</span>
+          <span className="module-header-badge">{feePlans.length} {tr("plan(s)")}</span>
         </div>
-        <p className="section-lead">Définissez les frais par année et niveau, puis réutilisez-les pour la facturation.</p>
+        <p className="section-lead">{tr("Définissez les frais par année et niveau, puis réutilisez-les pour la facturation.")}</p>
         <form className="form-grid module-form" onSubmit={(event) => void submitFeePlan(event)}>
           <label>
-            Année scolaire *
-            <select
+            {tr("Année scolaire *")}<select
               value={feePlanForm.schoolYearId}
               onChange={(event) => setFeePlanForm((previous) => ({ ...previous, schoolYearId: event.target.value }))}
               required
             >
-              <option value="">Choisir...</option>
+              <option value="">{tr("Choisir...")}</option>
               {schoolYears.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.code}
@@ -306,13 +303,12 @@ export function FinanceScreen({
             {renderFieldError(feePlanErrors, "schoolYearId")}
           </label>
           <label>
-            Niveau *
-            <select
+            {tr("Niveau *")}<select
               value={feePlanForm.levelId}
               onChange={(event) => setFeePlanForm((previous) => ({ ...previous, levelId: event.target.value }))}
               required
             >
-              <option value="">Choisir...</option>
+              <option value="">{tr("Choisir...")}</option>
               {levels.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.code} - {item.label}
@@ -322,8 +318,7 @@ export function FinanceScreen({
             {renderFieldError(feePlanErrors, "levelId")}
           </label>
           <label>
-            Libellé *
-            <input
+            {tr("Libellé *")}<input
               value={feePlanForm.label}
               onChange={(event) => setFeePlanForm((previous) => ({ ...previous, label: event.target.value }))}
               required
@@ -331,8 +326,7 @@ export function FinanceScreen({
             {renderFieldError(feePlanErrors, "label")}
           </label>
           <label>
-            Montant total *
-            <input
+            {tr("Montant total *")}<input
               type="number"
               min={1}
               value={feePlanForm.totalAmount}
@@ -342,8 +336,7 @@ export function FinanceScreen({
             {renderFieldError(feePlanErrors, "totalAmount")}
           </label>
           <label>
-            Devise *
-            <input
+            {tr("Devise *")}<input
               maxLength={3}
               value={feePlanForm.currency}
               onChange={(event) =>
@@ -352,52 +345,51 @@ export function FinanceScreen({
             />
             {renderFieldError(feePlanErrors, "currency")}
           </label>
-          <button type="submit">Créer le plan de frais</button>
+          <button type="submit">{tr("Créer le plan de frais")}</button>
         </form>
       </section>
 
       <section data-step-id="feePlans" className="panel table-panel workflow-section module-modern finance-screen-shell">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Catalogue</p>
-            <h2>Liste des plans de frais</h2>
+            <p className="section-kicker">{tr("Catalogue")}</p>
+            <h2>{tr("Liste des plans de frais")}</h2>
           </div>
-          <span className="module-header-badge">{feePlans.length} plan(s)</span>
+          <span className="module-header-badge">{feePlans.length} {tr("plan(s)")}</span>
         </div>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Libellé</th>
-                <th>Année scolaire</th>
-                <th>Niveau</th>
-                <th>Cursus</th>
-                <th>Montant total</th>
-                <th>Devise</th>
-                <th>Statut</th>
-                <th aria-label="Actions"></th>
+                <th>{tr("Libellé")}</th>
+                <th>{tr("Année scolaire")}</th>
+                <th>{tr("Niveau")}</th>
+                <th>{tr("Cursus")}</th>
+                <th>{tr("Montant total")}</th>
+                <th>{tr("Devise")}</th>
+                <th>{tr("Statut")}</th>
+                <th aria-label={tr("Actions")}></th>
               </tr>
             </thead>
             <tbody>
               {feePlans.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="empty-row">
-                    Aucun plan de frais.
-                  </td>
+                    {tr("Aucun plan de frais.")}</td>
                 </tr>
               ) : (
                 feePlans.map((item) => {
                   const usageCount = planInvoiceCount(item.id);
                   return (
                     <tr key={item.id}>
-                      <td data-label="Libellé">{item.label}</td>
-                      <td data-label="Année scolaire">{schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
-                      <td data-label="Niveau">{levelById.get(item.levelId)?.label || "-"}</td>
-                      <td data-label="Cursus">Selon inscription</td>
-                      <td data-label="Montant total">{formatMoney(item.totalAmount, item.currency)}</td>
-                      <td data-label="Devise">{formatCurrencyLabel(item.currency)}</td>
-                      <td data-label="Statut"><span className="status-pill is-success">Actif</span></td>
-                      <td data-label="Actions">
+                      <td data-label={tr("Libellé")}>{item.label}</td>
+                      <td data-label={tr("Année scolaire")}>{schoolYearById.get(item.schoolYearId)?.code || "-"}</td>
+                      <td data-label={tr("Niveau")}>{levelById.get(item.levelId)?.label || "-"}</td>
+                      <td data-label={tr("Cursus")}>{tr("Selon inscription")}</td>
+                      <td data-label={tr("Montant total")}>{formatMoney(item.totalAmount, item.currency)}</td>
+                      <td data-label={tr("Devise")}>{formatCurrencyLabel(item.currency)}</td>
+                      <td data-label={tr("Statut")}><span className="status-pill is-success">{tr("Actif")}</span></td>
+                      <td data-label={tr("Actions")}>
                         <div className="v3-action-cell">
                           <button
                             type="button"
@@ -413,7 +405,7 @@ export function FinanceScreen({
                           {openFeePlanActionMenuId === item.id ? (
                             <div className="v3-action-menu" role="menu">
                               <span className="v3-action-menu-note">
-                                {usageCount > 0 ? `${usageCount} facture(s) liée(s)` : "Plan protégé"}
+                                {usageCount > 0 ? `${usageCount} facture(s) liée(s)` : tr("Plan protégé")}
                               </span>
                             </div>
                           ) : null}
@@ -431,21 +423,20 @@ export function FinanceScreen({
       <section id="finance-invoices" data-step-id="invoices" className="panel editor-panel workflow-section module-modern finance-screen-shell">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Facturation</p>
-            <h2>Factures</h2>
+            <p className="section-kicker">{tr("Facturation")}</p>
+            <h2>{tr("Factures")}</h2>
           </div>
-          <span className="module-header-badge">{invoices.length} facture(s)</span>
+          <span className="module-header-badge">{invoices.length} {tr("facture(s)")}</span>
         </div>
-        <p className="section-lead">Associez un élève, une année et un montant dû pour générer une facture claire.</p>
+        <p className="section-lead">{tr("Associez un élève, une année et un montant dû pour générer une facture claire.")}</p>
         <form className="form-grid module-form" onSubmit={(event) => void submitInvoice(event)}>
           <label>
-            Élève *
-            <select
+            {tr("Élève *")}<select
               value={invoiceForm.studentId}
               onChange={(event) => setInvoiceForm((previous) => ({ ...previous, studentId: event.target.value }))}
               required
             >
-              <option value="">Choisir...</option>
+              <option value="">{tr("Choisir...")}</option>
               {students.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.matricule} - {item.firstName} {item.lastName}
@@ -455,13 +446,12 @@ export function FinanceScreen({
             {renderFieldError(invoiceErrors, "studentId")}
           </label>
           <label>
-            Année scolaire *
-            <select
+            {tr("Année scolaire *")}<select
               value={invoiceForm.schoolYearId}
               onChange={(event) => setInvoiceForm((previous) => ({ ...previous, schoolYearId: event.target.value }))}
               required
             >
-              <option value="">Choisir...</option>
+              <option value="">{tr("Choisir...")}</option>
               {schoolYears.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.code}
@@ -471,12 +461,11 @@ export function FinanceScreen({
             {renderFieldError(invoiceErrors, "schoolYearId")}
           </label>
           <label>
-            Plan de frais (optionnel)
-            <select
+            {tr("Plan de frais (optionnel)")}<select
               value={invoiceForm.feePlanId}
               onChange={(event) => setInvoiceForm((previous) => ({ ...previous, feePlanId: event.target.value }))}
             >
-              <option value="">Aucun (montant manuel)</option>
+              <option value="">{tr("Aucun (montant manuel)")}</option>
               {feePlans.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
@@ -486,86 +475,83 @@ export function FinanceScreen({
             {renderFieldError(invoiceErrors, "feePlanId")}
           </label>
           <label>
-            Montant dû si saisie manuelle
-            <input
+            {tr("Montant dû si saisie manuelle")}<input
               type="number"
               min={1}
               value={invoiceForm.amountDue}
               onChange={(event) => setInvoiceForm((previous) => ({ ...previous, amountDue: event.target.value }))}
-              placeholder="Requis si aucun plan de frais"
+              placeholder={tr("Requis si aucun plan de frais")}
             />
             {renderFieldError(invoiceErrors, "amountDue")}
           </label>
           <label>
-            Date d’échéance *
-            <input
+            {tr("Date d’échéance *")}<input
               type="text"
               inputMode="numeric"
-              placeholder="aaaa-mm-jj"
+              placeholder={tr("aaaa-mm-jj")}
               value={invoiceForm.dueDate}
               onChange={(event) => setInvoiceForm((previous) => ({ ...previous, dueDate: event.target.value }))}
               required
             />
             {renderFieldError(invoiceErrors, "dueDate")}
           </label>
-          <button type="submit">Créer la facture</button>
+          <button type="submit">{tr("Créer la facture")}</button>
         </form>
       </section>
 
       <section data-step-id="invoices" className="panel table-panel workflow-section module-modern finance-screen-shell">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Registre</p>
-            <h2>Liste des factures</h2>
+            <p className="section-kicker">{tr("Registre")}</p>
+            <h2>{tr("Liste des factures")}</h2>
           </div>
-          <span className="module-header-badge">{invoices.length} facture(s)</span>
+          <span className="module-header-badge">{invoices.length} {tr("facture(s)")}</span>
         </div>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Numéro</th>
-                <th>Élève</th>
-                <th>Classe / cursus</th>
-                <th>Montant dû</th>
-                <th>Payé</th>
-                <th>Reste</th>
-                <th>Date d’échéance</th>
-                <th>Statut</th>
-                <th aria-label="Actions"></th>
+                <th>{tr("Numéro")}</th>
+                <th>{tr("Élève")}</th>
+                <th>{tr("Classe / cursus")}</th>
+                <th>{tr("Montant dû")}</th>
+                <th>{tr("Payé")}</th>
+                <th>{tr("Reste")}</th>
+                <th>{tr("Date d’échéance")}</th>
+                <th>{tr("Statut")}</th>
+                <th aria-label={tr("Actions")}></th>
               </tr>
             </thead>
             <tbody>
               {invoices.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="empty-row">
-                    Aucune facture.
-                  </td>
+                    {tr("Aucune facture.")}</td>
                 </tr>
               ) : (
                 invoices.map((item) => (
                   <tr key={item.id}>
-                    <td data-label="Numéro">{item.invoiceNo}</td>
-                    <td data-label="Élève">{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
-                    <td data-label="Classe / cursus">
-                      {[item.primaryClassLabel, item.primaryTrack ? formatAcademicTrackLabel(item.primaryTrack) : undefined]
+                    <td data-label={tr("Numéro")}>{item.invoiceNo}</td>
+                    <td data-label={tr("Élève")}>{item.studentName || studentById.get(item.studentId)?.matricule || "-"}</td>
+                    <td data-label={tr("Classe / cursus")}>
+                      {[item.primaryClassLabel, item.primaryTrack ? tr(formatAcademicTrackLabel(item.primaryTrack)) : undefined]
                         .filter(Boolean)
                         .join(" / ") || "-"}
                     </td>
-                    <td data-label="Montant dû">{formatMoney(item.amountDue)}</td>
-                    <td data-label="Payé">{formatMoney(item.amountPaid)}</td>
-                    <td data-label="Reste">{formatMoney(item.remainingAmount)}</td>
-                    <td data-label="Date d’échéance">{item.dueDate ? new Date(item.dueDate).toLocaleDateString(locale) : "-"}</td>
-                    <td data-label="Statut">
+                    <td data-label={tr("Montant dû")}>{formatMoney(item.amountDue)}</td>
+                    <td data-label={tr("Payé")}>{formatMoney(item.amountPaid)}</td>
+                    <td data-label={tr("Reste")}>{formatMoney(item.remainingAmount)}</td>
+                    <td data-label={tr("Date d’échéance")}>{item.dueDate ? new Date(item.dueDate).toLocaleDateString(locale) : "-"}</td>
+                    <td data-label={tr("Statut")}>
                       <span className={`status-pill ${item.status === "PAID" ? "is-success" : "is-muted"}`}>
                         {invoiceStatusLabel(item)}
                       </span>
                     </td>
-                    <td data-label="Actions">
+                    <td data-label={tr("Actions")}>
                       {item.status === "VOID" ? (
-                        <span className="finance-safe-note">Annulée</span>
+                        <span className="finance-safe-note">{tr("Annulée")}</span>
                       ) : item.remainingAmount <= 0 ? (
-                        <span className="finance-safe-note">Soldée</span>
+                        <span className="finance-safe-note">{tr("Soldée")}</span>
                       ) : (
                         <div className="v3-action-cell">
                           <button
@@ -587,8 +573,7 @@ export function FinanceScreen({
                                   setPaymentForm((previous) => ({ ...previous, invoiceId: item.id }));
                                 }}
                               >
-                                Enregistrer paiement
-                              </button>
+                                {tr("Enregistrer paiement")}</button>
                               {item.amountPaid <= 0 ? (
                                 <button
                                   type="button"
@@ -598,8 +583,7 @@ export function FinanceScreen({
                                     void voidInvoice(item.id);
                                   }}
                                 >
-                                  Annuler
-                                </button>
+                                  {tr("Annuler")}</button>
                               ) : null}
                             </div>
                           ) : null}
@@ -617,32 +601,30 @@ export function FinanceScreen({
       <section id="finance-payments" data-step-id="payments" className="panel editor-panel workflow-section module-modern finance-screen-shell">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Encaissements</p>
-            <h2>Paiements</h2>
+            <p className="section-kicker">{tr("Encaissements")}</p>
+            <h2>{tr("Paiements")}</h2>
           </div>
-          <span className="module-header-badge">{payments.length} reçu(s)</span>
+          <span className="module-header-badge">{payments.length} {tr("reçu(s)")}</span>
         </div>
-        <p className="section-lead">Enregistrez chaque encaissement et rattachez-le à la facture correspondante.</p>
+        <p className="section-lead">{tr("Enregistrez chaque encaissement et rattachez-le à la facture correspondante.")}</p>
         <form className="form-grid module-form" onSubmit={(event) => void submitPayment(event)}>
           <label>
-            Facture *
-            <select
+            {tr("Facture *")}<select
               value={paymentForm.invoiceId}
               onChange={(event) => setPaymentForm((previous) => ({ ...previous, invoiceId: event.target.value }))}
               required
             >
-              <option value="">Choisir...</option>
+              <option value="">{tr("Choisir...")}</option>
               {invoices.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.invoiceNo} - reste {formatMoney(item.remainingAmount)}
+                  {item.invoiceNo} {tr("- reste ")}{formatMoney(item.remainingAmount)}
                 </option>
               ))}
             </select>
             {renderFieldError(paymentErrors, "invoiceId")}
           </label>
           <label>
-            Montant versé *
-            <input
+            {tr("Montant versé *")}<input
               type="number"
               min={1}
               max={selectedPaymentInvoice?.remainingAmount}
@@ -653,8 +635,7 @@ export function FinanceScreen({
             {renderFieldError(paymentErrors, "paidAmount")}
           </label>
           <label>
-            Mode de paiement *
-            <select
+            {tr("Mode de paiement *")}<select
               value={paymentForm.paymentMethod}
               onChange={(event) =>
                 setPaymentForm((previous) => ({
@@ -663,18 +644,17 @@ export function FinanceScreen({
                 }))
               }
             >
-              <option value="CASH">{formatChannelLabel("CASH")}</option>
-              <option value="MOBILE_MONEY">{formatChannelLabel("MOBILE_MONEY")}</option>
-              <option value="BANK">{formatChannelLabel("BANK")}</option>
+              <option value="CASH">{tr(formatChannelLabel("CASH"))}</option>
+              <option value="MOBILE_MONEY">{tr(formatChannelLabel("MOBILE_MONEY"))}</option>
+              <option value="BANK">{tr(formatChannelLabel("BANK"))}</option>
             </select>
             {renderFieldError(paymentErrors, "paymentMethod")}
           </label>
           <label>
-            Date de paiement *
-            <input
+            {tr("Date de paiement *")}<input
               type="text"
               inputMode="numeric"
-              placeholder="aaaa-mm-jj"
+              placeholder={tr("aaaa-mm-jj")}
               value={paymentForm.paidAt}
               onChange={(event) => setPaymentForm((previous) => ({ ...previous, paidAt: event.target.value }))}
               required
@@ -682,26 +662,24 @@ export function FinanceScreen({
             {renderFieldError(paymentErrors, "paidAt")}
           </label>
           <label>
-            Référence externe
-            <input
+            {tr("Référence externe")}<input
               value={paymentForm.referenceExternal}
               onChange={(event) => setPaymentForm((previous) => ({ ...previous, referenceExternal: event.target.value }))}
             />
           </label>
           <div className="finance-payment-context">
-            <strong>Reste à payer</strong>
+            <strong>{tr("Reste à payer")}</strong>
             <span>{selectedPaymentInvoice ? formatMoney(selectedPaymentInvoice.remainingAmount) : "-"}</span>
           </div>
           <div className="actions form-grid-span-full finance-action-grid">
-            <button type="submit">Enregistrer le paiement</button>
+            <button type="submit">{tr("Enregistrer le paiement")}</button>
             <button
               type="button"
               className="button-ghost"
               onClick={() => void initiateOnlinePayment(paymentForm.invoiceId)}
               disabled={!remoteEnabled || !paymentForm.invoiceId || selectedPaymentInvoice?.remainingAmount === 0}
             >
-              Paiement en ligne PayDunya
-            </button>
+              {tr("Paiement en ligne PayDunya")}</button>
           </div>
         </form>
       </section>
@@ -709,45 +687,44 @@ export function FinanceScreen({
       <section data-step-id="payments" className="panel table-panel workflow-section module-modern finance-screen-shell">
         <div className="table-header">
           <div>
-            <p className="section-kicker">Historique</p>
-            <h2>Historique des paiements</h2>
+            <p className="section-kicker">{tr("Historique")}</p>
+            <h2>{tr("Historique des paiements")}</h2>
           </div>
-          <span className="module-header-badge">{payments.length} opération(s)</span>
+          <span className="module-header-badge">{payments.length} {tr("opération(s)")}</span>
         </div>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Reçu</th>
-                <th>Facture</th>
-                <th>Élève</th>
-                <th>Montant</th>
-                <th>Mode</th>
-                <th>Référence</th>
-                <th>Date</th>
-                <th>Statut</th>
-                <th aria-label="Actions"></th>
+                <th>{tr("Reçu")}</th>
+                <th>{tr("Facture")}</th>
+                <th>{tr("Élève")}</th>
+                <th>{tr("Montant")}</th>
+                <th>{tr("Mode")}</th>
+                <th>{tr("Référence")}</th>
+                <th>{tr("Date")}</th>
+                <th>{tr("Statut")}</th>
+                <th aria-label={tr("Actions")}></th>
               </tr>
             </thead>
             <tbody>
               {payments.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="empty-row">
-                    Aucun paiement.
-                  </td>
+                    {tr("Aucun paiement.")}</td>
                 </tr>
               ) : (
                 payments.map((item) => (
                   <tr key={item.id}>
-                    <td data-label="Reçu">{item.receiptNo}</td>
-                    <td data-label="Facture">{item.invoiceNo || "-"}</td>
-                    <td data-label="Élève">{item.studentName || "-"}</td>
-                    <td data-label="Montant">{formatMoney(item.paidAmount)}</td>
-                    <td data-label="Mode">{formatChannelLabel(item.paymentMethod)}</td>
-                    <td data-label="Référence">{item.referenceExternal || "-"}</td>
-                    <td data-label="Date">{new Date(item.paidAt).toLocaleString(locale)}</td>
-                    <td data-label="Statut"><span className="status-pill is-success">Enregistré</span></td>
-                    <td data-label="Actions">
+                    <td data-label={tr("Reçu")}>{item.receiptNo}</td>
+                    <td data-label={tr("Facture")}>{item.invoiceNo || "-"}</td>
+                    <td data-label={tr("Élève")}>{item.studentName || "-"}</td>
+                    <td data-label={tr("Montant")}>{formatMoney(item.paidAmount)}</td>
+                    <td data-label={tr("Mode")}>{tr(formatChannelLabel(item.paymentMethod))}</td>
+                    <td data-label={tr("Référence")}>{item.referenceExternal || "-"}</td>
+                    <td data-label={tr("Date")}>{new Date(item.paidAt).toLocaleString(locale)}</td>
+                    <td data-label={tr("Statut")}><span className="status-pill is-success">{tr("Enregistré")}</span></td>
+                    <td data-label={tr("Actions")}>
                       {remoteEnabled ? (
                         <div className="v3-action-cell">
                           <button
@@ -768,13 +745,12 @@ export function FinanceScreen({
                                   void openReceipt(item.id);
                                 }}
                               >
-                                Reçu en PDF
-                              </button>
+                                {tr("Reçu en PDF")}</button>
                             </div>
                           ) : null}
                         </div>
                       ) : (
-                        <span className="finance-safe-note">PDF non disponible en aperçu</span>
+                        <span className="finance-safe-note">{tr("PDF non disponible en aperçu")}</span>
                       )}
                     </td>
                   </tr>

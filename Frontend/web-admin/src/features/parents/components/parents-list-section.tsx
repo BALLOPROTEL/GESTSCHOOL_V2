@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import type { ParentRecord } from "../../../shared/types/app";
 import { SCHOOL_NAME, roleLabel, statusLabel, statusPillClassName } from "../parents-screen-model";
+import { useI18n } from "../../../shared/i18n-context";
+
 
 const getParentInitials = (parent: ParentRecord): string => {
   const parts = parent.fullName.trim().split(/\s+/u).filter(Boolean);
@@ -18,6 +20,7 @@ export function ParentsListSection(props: {
   selectedParent?: ParentRecord;
   shownParents: ParentRecord[];
 }): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     loading,
     onArchiveParent,
@@ -35,16 +38,16 @@ export function ParentsListSection(props: {
       <section className="panel table-panel workflow-section module-modern parents-v3-table-card">
         <div className="v3-table-head">
           <div>
-            <p className="section-kicker">Responsables</p>
-            <h2>Liste des responsables</h2>
-            <p>Contacts parentaux, comptes portail et rattachements élèves.</p>
+            <p className="section-kicker">{tr("Responsables")}</p>
+            <h2>{tr("Liste des responsables")}</h2>
+            <p>{tr("Contacts parentaux, comptes portail et rattachements élèves.")}</p>
           </div>
           <div className="students-table-toolbar">
             <label className="students-search-field">
-              <span>Recherche rapide</span>
+              <span>{tr("Recherche rapide")}</span>
               <input
                 className="search-input"
-                placeholder="Nom, téléphone, email"
+                placeholder={tr("Nom, téléphone, email")}
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
               />
@@ -52,48 +55,47 @@ export function ParentsListSection(props: {
           </div>
         </div>
         <p className="section-lead">
-          Un responsable est une personne rattachée à un ou plusieurs élèves. Le compte portail reste optionnel.
-        </p>
+          {tr("Un responsable est une personne rattachée à un ou plusieurs élèves. Le compte portail reste optionnel.")}</p>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Responsable</th>
-                <th>Rôle</th>
-                <th>Téléphone</th>
-                <th>Email</th>
-                <th>Élèves liés</th>
-                <th>Portail</th>
-                <th>Statut</th>
-                <th aria-label="Actions"></th>
+                <th>{tr("Responsable")}</th>
+                <th>{tr("Rôle")}</th>
+                <th>{tr("Téléphone")}</th>
+                <th>{tr("Email")}</th>
+                <th>{tr("Élèves liés")}</th>
+                <th>{tr("Portail")}</th>
+                <th>{tr("Statut")}</th>
+                <th aria-label={tr("Actions")}></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="empty-row">Chargement...</td></tr>
+                <tr><td colSpan={8} className="empty-row">{tr("Chargement...")}</td></tr>
               ) : shownParents.length === 0 ? (
-                <tr><td colSpan={8} className="empty-row">Aucun responsable enregistré.</td></tr>
+                <tr><td colSpan={8} className="empty-row">{tr("Aucun responsable enregistré.")}</td></tr>
               ) : (
                 shownParents.map((parent) => (
                   <tr key={parent.id}>
-                    <td data-label="Responsable">
+                    <td data-label={tr("Responsable")}>
                       <div className="v3-table-entity-cell">
                         <span className="v3-avatar">{getParentInitials(parent)}</span>
                         <div>
                           <strong>{parent.fullName}</strong>
-                          <small>{parent.profession || "Profession non renseignée"}</small>
+                          <small>{parent.profession || tr("Profession non renseignée")}</small>
                         </div>
                       </div>
                     </td>
-                    <td data-label="Rôle">{roleLabel(parent.parentalRole)}</td>
-                    <td data-label="Téléphone">{parent.primaryPhone}</td>
-                    <td data-label="Email">{parent.email || "-"}</td>
-                    <td data-label="Élèves liés">{parent.childrenCount}</td>
-                    <td data-label="Portail">{parent.userUsername ? "Lié" : "Non lié"}</td>
-                    <td data-label="Statut">
-                      <span className={statusPillClassName(parent.status)}>{statusLabel(parent.status)}</span>
+                    <td data-label={tr("Rôle")}>{tr(roleLabel(parent.parentalRole))}</td>
+                    <td data-label={tr("Téléphone")}>{parent.primaryPhone}</td>
+                    <td data-label={tr("Email")}>{parent.email || "-"}</td>
+                    <td data-label={tr("Élèves liés")}>{parent.childrenCount}</td>
+                    <td data-label={tr("Portail")}>{parent.userUsername ? tr("Lié") : tr("Non lié")}</td>
+                    <td data-label={tr("Statut")}>
+                      <span className={statusPillClassName(parent.status)}>{tr(statusLabel(parent.status))}</span>
                     </td>
-                    <td data-label="Actions">
+                    <td data-label={tr("Actions")}>
                       <div className="v3-action-cell">
                         <button
                           type="button"
@@ -106,9 +108,9 @@ export function ParentsListSection(props: {
                         </button>
                         {openParentActionMenuId === parent.id ? (
                           <div className="v3-action-menu" role="menu">
-                            <button type="button" onClick={() => { setOpenParentActionMenuId(null); onSelectParent(parent.id); }}>Voir</button>
-                            <button type="button" onClick={() => { setOpenParentActionMenuId(null); onEditParent(parent); }}>Modifier</button>
-                            <button type="button" className="is-danger" onClick={() => { setOpenParentActionMenuId(null); onArchiveParent(parent.id); }}>Archiver</button>
+                            <button type="button" onClick={() => { setOpenParentActionMenuId(null); onSelectParent(parent.id); }}>{tr("Voir")}</button>
+                            <button type="button" onClick={() => { setOpenParentActionMenuId(null); onEditParent(parent); }}>{tr("Modifier")}</button>
+                            <button type="button" className="is-danger" onClick={() => { setOpenParentActionMenuId(null); onArchiveParent(parent.id); }}>{tr("Archiver")}</button>
                           </div>
                         ) : null}
                       </div>
@@ -125,31 +127,31 @@ export function ParentsListSection(props: {
         <section className="panel table-panel workflow-section module-modern parents-detail-panel">
           <div className="table-header">
             <div>
-              <p className="section-kicker">Dossier responsable</p>
+              <p className="section-kicker">{tr("Dossier responsable")}</p>
               <h2>{selectedParent.fullName}</h2>
             </div>
-            <span className={statusPillClassName(selectedParent.status)}>{statusLabel(selectedParent.status)}</span>
+            <span className={statusPillClassName(selectedParent.status)}>{tr(statusLabel(selectedParent.status))}</span>
           </div>
           <div className="students-overview-grid">
             <article className="students-overview-card">
-              <span>Rôle</span>
-              <strong>{roleLabel(selectedParent.parentalRole)}</strong>
-              <small>{selectedParent.userUsername ? "Compte portail lié" : "Aucun compte portail"}</small>
+              <span>{tr("Rôle")}</span>
+              <strong>{tr(roleLabel(selectedParent.parentalRole))}</strong>
+              <small>{selectedParent.userUsername ? tr("Compte portail lié") : tr("Aucun compte portail")}</small>
             </article>
             <article className="students-overview-card">
-              <span>Contact</span>
+              <span>{tr("Contact")}</span>
               <strong>{selectedParent.primaryPhone}</strong>
-              <small>{selectedParent.email || "Email non renseigné"}</small>
+              <small>{selectedParent.email || tr("Email non renseigné")}</small>
             </article>
             <article className="students-overview-card">
-              <span>Élèves liés</span>
+              <span>{tr("Élèves liés")}</span>
               <strong>{selectedParent.childrenCount}</strong>
-              <small>{selectedParent.primaryChildrenCount} contact principal</small>
+              <small>{selectedParent.primaryChildrenCount} {tr("contact principal")}</small>
             </article>
             <article className="students-overview-card">
-              <span>Établissement</span>
+              <span>{tr("Établissement")}</span>
               <strong>{SCHOOL_NAME}</strong>
-              <small>{selectedParent.profession || "Profession non renseignée"}</small>
+              <small>{selectedParent.profession || tr("Profession non renseignée")}</small>
             </article>
           </div>
         </section>

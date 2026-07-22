@@ -24,6 +24,7 @@ import type {
 } from "../../shared/types/app";
 import { useIamManagement } from "./hooks/use-iam-management";
 import type { IamApiClient } from "./types/iam";
+import { useI18n } from "../../shared/i18n-context";
 
 type IamScreenProps = {
   api: IamApiClient;
@@ -96,6 +97,7 @@ export function IamScreen({
   onNotice,
   onUsersChange
 }: IamScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const [openUserActionMenuId, setOpenUserActionMenuId] = useState<string | null>(null);
   const {
     accountParents,
@@ -154,21 +156,20 @@ export function IamScreen({
   return (
     <WorkflowGuide
       className="module-v3-workflow"
-      title="Utilisateurs & droits"
+      title={tr("Utilisateurs & droits")}
       steps={iamSteps}
       activeStepId={iamWorkflowStep}
       onStepChange={goToStep}
     >
       <div className="iam-v3-shell module-v3-shell">
         <section id="iam-accounts" data-step-id="accounts" className="panel editor-panel workflow-section module-modern iam-v3-form-card">
-          <h2>{editingUserId ? "Modifier l'utilisateur" : "Créer l'utilisateur"}</h2>
+          <h2>{editingUserId ? tr("Modifier l'utilisateur") : tr("Créer l'utilisateur")}</h2>
           <form className="iam-account-form" onSubmit={(event) => void submitUser(event)}>
             <fieldset className="iam-form-section">
-              <legend>Accès au système</legend>
+              <legend>{tr("Accès au système")}</legend>
               <div className="form-grid iam-form-grid">
                 <label>
-                  Identifiant ou email *
-                  <input
+                  {tr("Identifiant ou email *")}<input
                     value={userForm.username}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, username: event.target.value }))}
                     required
@@ -176,23 +177,20 @@ export function IamScreen({
                   {fieldError(userErrors, "username")}
                 </label>
                 <label>
-                  Adresse email de contact
-                  <input
+                  {tr("Adresse email de contact")}<input
                     type="email"
                     value={userForm.email}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
                   />
                 </label>
                 <label>
-                  Téléphone
-                  <input
+                  {tr("Téléphone")}<input
                     value={userForm.phone}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, phone: event.target.value }))}
                   />
                 </label>
                 <label>
-                  Statut du compte *
-                  <select
+                  {tr("Statut du compte *")}<select
                     value={userForm.status}
                     onChange={(event) =>
                       setUserForm((prev) => ({
@@ -202,9 +200,9 @@ export function IamScreen({
                       }))
                     }
                   >
-                    <option value="PENDING_ACTIVATION">En attente d’activation</option>
-                    <option value="ACTIVE">Actif</option>
-                    <option value="INACTIVE">Inactif</option>
+                    <option value="PENDING_ACTIVATION">{tr("En attente d’activation")}</option>
+                    <option value="ACTIVE">{tr("Actif")}</option>
+                    <option value="INACTIVE">{tr("Inactif")}</option>
                   </select>
                 </label>
                 {!editingUserId ? (
@@ -217,21 +215,18 @@ export function IamScreen({
                       }
                       disabled={userForm.status !== "PENDING_ACTIVATION"}
                     />
-                    Envoyer l’email d’activation immédiatement
-                  </label>
+                    {tr("Envoyer l’email d’activation immédiatement")}</label>
                 ) : null}
                 <p className="iam-inline-help">
-                  Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.
-                </p>
+                  {tr("Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.")}</p>
               </div>
             </fieldset>
 
             <fieldset className="iam-form-section">
-              <legend>Nature du compte</legend>
+              <legend>{tr("Nature du compte")}</legend>
               <div className="form-grid iam-form-grid">
                 <label>
-                  Type de personne
-                  <select
+                  {tr("Type de personne")}<select
                     value={userForm.accountType}
                     onChange={(event) => setUserAccountType(event.target.value as AccountType)}
                   >
@@ -241,38 +236,34 @@ export function IamScreen({
                   </select>
                 </label>
                 <label>
-                  Rôle d'accès *
-                  <select
+                  {tr("Rôle d'accès *")}<select
                     value={userForm.roleId}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, roleId: event.target.value as Role }))}
                   >
                     {compatibleUserRoles.map((role) => (
-                      <option key={role} value={role}>{formatRoleLabel(role)}</option>
+                      <option key={role} value={role}>{tr(formatRoleLabel(role))}</option>
                     ))}
                   </select>
                   {fieldError(userErrors, "roleId")}
                 </label>
                 <label>
-                  Établissement
-                  <select
+                  {tr("Établissement")}<select
                     value={userForm.establishmentId}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, establishmentId: event.target.value }))}
                   >
-                    <option value="">Al Manarat Islamiyat</option>
+                    <option value="">{tr("Al Manarat Islamiyat")}</option>
                   </select>
                 </label>
                 {userForm.accountType === "STAFF" ? (
                   <>
                     <label>
-                      Fonction
-                      <input
+                      {tr("Fonction")}<input
                         value={userForm.staffFunction}
                         onChange={(event) => setUserForm((prev) => ({ ...prev, staffFunction: event.target.value }))}
                       />
                     </label>
                     <label>
-                      Département
-                      <input
+                      {tr("Département")}<input
                         value={userForm.department}
                         onChange={(event) => setUserForm((prev) => ({ ...prev, department: event.target.value }))}
                       />
@@ -280,8 +271,7 @@ export function IamScreen({
                   </>
                 ) : null}
                 <label className="form-grid-span-full">
-                  Notes internes
-                  <textarea
+                  {tr("Notes internes")}<textarea
                     rows={2}
                     value={userForm.notes}
                     onChange={(event) => setUserForm((prev) => ({ ...prev, notes: event.target.value }))}
@@ -291,16 +281,15 @@ export function IamScreen({
             </fieldset>
 
             <fieldset className="iam-form-section">
-              <legend>Rattachement métier</legend>
+              <legend>{tr("Rattachement métier")}</legend>
               <div className="form-grid iam-form-grid">
                 {userForm.accountType === "TEACHER" ? (
                   <label className="form-grid-span-full">
-                    Fiche enseignant
-                    <select
+                    {tr("Fiche enseignant")}<select
                       value={userForm.teacherId}
                       onChange={(event) => setUserForm((prev) => ({ ...prev, teacherId: event.target.value }))}
                     >
-                      <option value="">Choisir une fiche enseignant</option>
+                      <option value="">{tr("Choisir une fiche enseignant")}</option>
                       {accountTeachers.map((teacher) => (
                         <option
                           key={teacher.id}
@@ -311,18 +300,17 @@ export function IamScreen({
                         </option>
                       ))}
                     </select>
-                    {accountTeachers.length === 0 ? <small>Créez d'abord la fiche enseignant dans le module Enseignants.</small> : null}
+                    {accountTeachers.length === 0 ? <small>{tr("Créez d'abord la fiche enseignant dans le module Enseignants.")}</small> : null}
                     {fieldError(userErrors, "teacherId")}
                   </label>
                 ) : null}
                 {userForm.accountType === "PARENT" ? (
                   <label className="form-grid-span-full">
-                    Fiche parent
-                    <select
+                    {tr("Fiche parent")}<select
                       value={userForm.parentId}
                       onChange={(event) => setUserForm((prev) => ({ ...prev, parentId: event.target.value }))}
                     >
-                      <option value="">Choisir une fiche parent</option>
+                      <option value="">{tr("Choisir une fiche parent")}</option>
                       {accountParents.map((parent) => (
                         <option
                           key={parent.id}
@@ -333,18 +321,17 @@ export function IamScreen({
                         </option>
                       ))}
                     </select>
-                    {accountParents.length === 0 ? <small>Créez d'abord la fiche parent dans le module Parents.</small> : null}
+                    {accountParents.length === 0 ? <small>{tr("Créez d'abord la fiche parent dans le module Parents.")}</small> : null}
                     {fieldError(userErrors, "parentId")}
                   </label>
                 ) : null}
                 {userForm.accountType === "STUDENT" ? (
                   <label className="form-grid-span-full">
-                    Fiche élève
-                    <select
+                    {tr("Fiche élève")}<select
                       value={userForm.studentId}
                       onChange={(event) => setUserForm((prev) => ({ ...prev, studentId: event.target.value }))}
                     >
-                      <option value="">Choisir une fiche élève</option>
+                      <option value="">{tr("Choisir une fiche élève")}</option>
                       {students.map((student) => (
                         <option
                           key={student.id}
@@ -355,14 +342,13 @@ export function IamScreen({
                         </option>
                       ))}
                     </select>
-                    {students.length === 0 ? <small>Créez d'abord la fiche élève dans le module Élèves.</small> : null}
+                    {students.length === 0 ? <small>{tr("Créez d'abord la fiche élève dans le module Élèves.")}</small> : null}
                     {fieldError(userErrors, "studentId")}
                   </label>
                 ) : null}
                 {userForm.accountType === "STAFF" ? (
                   <label className="form-grid-span-full">
-                    Nom complet *
-                    <input
+                    {tr("Nom complet *")}<input
                       value={userForm.staffDisplayName}
                       onChange={(event) => setUserForm((prev) => ({ ...prev, staffDisplayName: event.target.value, displayName: event.target.value }))}
                     />
@@ -371,26 +357,25 @@ export function IamScreen({
                 ) : null}
                 {userForm.accountType !== "STAFF" ? (
                   <p className="iam-inline-help form-grid-span-full">
-                    Identité synchronisée depuis le profil métier.
-                  </p>
+                    {tr("Identité synchronisée depuis le profil métier.")}</p>
                 ) : null}
                 {fieldError(userErrors, "businessProfile")}
               </div>
             </fieldset>
 
             <aside className="iam-account-summary">
-              <p className="section-kicker">Résumé identité</p>
-              <h3>{selectedBusinessDisplayName || "Aucune identité sélectionnée"}</h3>
-              <span>{formatAccountTypeLabel(userForm.accountType)} / {formatRoleLabel(userForm.roleId)}</span>
-              <small>{selectedBusinessEmail || "Email non renseigné"} - {selectedBusinessPhone || "Téléphone non renseigné"}</small>
-              {selectedBusinessAlreadyLinked ? <strong className="danger-text">Fiche déjà rattachée à un autre compte</strong> : null}
-              {selectedBusinessIsInactive ? <strong className="danger-text">Fiche inactive ou archivée</strong> : null}
+              <p className="section-kicker">{tr("Résumé identité")}</p>
+              <h3>{selectedBusinessDisplayName || tr("Aucune identité sélectionnée")}</h3>
+              <span>{tr(formatAccountTypeLabel(userForm.accountType))} / {tr(formatRoleLabel(userForm.roleId))}</span>
+              <small>{selectedBusinessEmail || tr("Email non renseigné")} - {selectedBusinessPhone || tr("Téléphone non renseigné")}</small>
+              {selectedBusinessAlreadyLinked ? <strong className="danger-text">{tr("Fiche déjà rattachée à un autre compte")}</strong> : null}
+              {selectedBusinessIsInactive ? <strong className="danger-text">{tr("Fiche inactive ou archivée")}</strong> : null}
             </aside>
 
             <div className="actions">
-              <button type="submit">{editingUserId ? "Mettre à jour" : "Créer l'utilisateur"}</button>
+              <button type="submit">{editingUserId ? tr("Mettre à jour") : tr("Créer l'utilisateur")}</button>
               <button type="button" className="button-ghost" onClick={resetUserForm}>
-                {editingUserId ? "Annuler" : "Réinitialiser"}
+                {editingUserId ? tr("Annuler") : tr("Réinitialiser")}
               </button>
             </div>
           </form>
@@ -399,56 +384,55 @@ export function IamScreen({
         <section data-step-id="accounts" className="panel table-panel workflow-section module-modern iam-v3-table-card">
           <div className="v3-table-head">
             <div>
-              <p className="section-kicker">Accès</p>
-              <h2>Comptes utilisateurs</h2>
-              <p>Profils, rattachements métier et sécurité d’accès.</p>
+              <p className="section-kicker">{tr("Accès")}</p>
+              <h2>{tr("Comptes utilisateurs")}</h2>
+              <p>{tr("Profils, rattachements métier et sécurité d’accès.")}</p>
             </div>
-            <span className="v3-count-badge">{users.length} compte(s)</span>
+            <span className="v3-count-badge">{users.length} {tr("compte(s)")}</span>
           </div>
           <div className="table-wrap">
             <table data-responsive-table="true" data-testid="iam-users-table">
               <thead>
                 <tr>
-                  <th>Identifiant</th>
-                  <th>Nom complet</th>
-                  <th>Type de personne</th>
-                  <th>Rôle d'accès</th>
-                  <th>Rattachement</th>
-                  <th>Statut</th>
-                  <th>Dernière mise à jour</th>
-                  <th aria-label="Actions"></th>
+                  <th>{tr("Identifiant")}</th>
+                  <th>{tr("Nom complet")}</th>
+                  <th>{tr("Type de personne")}</th>
+                  <th>{tr("Rôle d'accès")}</th>
+                  <th>{tr("Rattachement")}</th>
+                  <th>{tr("Statut")}</th>
+                  <th>{tr("Dernière mise à jour")}</th>
+                  <th aria-label={tr("Actions")}></th>
                 </tr>
               </thead>
               <tbody>
                 {users.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="empty-row">
-                      Aucun utilisateur.
-                    </td>
+                      {tr("Aucun utilisateur.")}</td>
                   </tr>
                 ) : (
                   users.map((item) => (
                     <tr key={item.id}>
-                      <td data-label="Identifiant">
+                      <td data-label={tr("Identifiant")}>
                         <div className="v3-table-entity-cell">
                           <span className="v3-avatar">{getUserInitials(item)}</span>
                           <div>
                             <strong>{item.username}</strong>
-                            <small>{item.email || "Email non renseigné"}</small>
+                            <small>{item.email || tr("Email non renseigné")}</small>
                           </div>
                         </div>
                       </td>
-                      <td data-label="Nom complet">{formatUserFullName(item)}</td>
-                      <td data-label="Type de personne">{item.accountType ? formatAccountTypeLabel(item.accountType) : EMPTY_VALUE_LABEL}</td>
-                      <td data-label="Rôle d'accès">{formatRoleLabel(item.roleId || item.role)}</td>
-                      <td data-label="Rattachement">{formatUserAttachment(item)}</td>
-                      <td data-label="Statut">
+                      <td data-label={tr("Nom complet")}>{formatUserFullName(item)}</td>
+                      <td data-label={tr("Type de personne")}>{item.accountType ? tr(formatAccountTypeLabel(item.accountType)) : EMPTY_VALUE_LABEL}</td>
+                      <td data-label={tr("Rôle d'accès")}>{tr(formatRoleLabel(item.roleId || item.role))}</td>
+                      <td data-label={tr("Rattachement")}>{formatUserAttachment(item)}</td>
+                      <td data-label={tr("Statut")}>
                         <span className={`status-pill ${item.status === "PENDING_ACTIVATION" ? "is-warning" : item.isActive ? "is-success" : "is-muted"}`.trim()}>
                           {formatUserStatusLabel(item.status || (item.isActive ? "ACTIVE" : "INACTIVE"))}
                         </span>
                       </td>
-                      <td data-label="Dernière mise à jour">{new Date(item.updatedAt).toLocaleString(locale)}</td>
-                      <td data-label="Actions">
+                      <td data-label={tr("Dernière mise à jour")}>{new Date(item.updatedAt).toLocaleString(locale)}</td>
+                      <td data-label={tr("Actions")}>
                         <div className="v3-action-cell">
                           <button
                             type="button"
@@ -468,8 +452,7 @@ export function IamScreen({
                                   startEditUser(item);
                                 }}
                               >
-                                Modifier
-                              </button>
+                                {tr("Modifier")}</button>
                               {item.status === "PENDING_ACTIVATION" ? (
                                 <button
                                   type="button"
@@ -478,8 +461,7 @@ export function IamScreen({
                                     void resendUserActivation(item);
                                   }}
                                 >
-                                  Renvoyer l’activation
-                                </button>
+                                  {tr("Renvoyer l’activation")}</button>
                               ) : null}
                               <button
                                 type="button"
@@ -488,7 +470,7 @@ export function IamScreen({
                                   void toggleUserAccountStatus(item, !item.isActive);
                                 }}
                               >
-                                {item.isActive ? "Désactiver" : "Réactiver"}
+                                {item.isActive ? tr("Désactiver") : tr("Réactiver")}
                               </button>
                               <button
                                 type="button"
@@ -498,8 +480,7 @@ export function IamScreen({
                                   void deleteUserAccount(item.id);
                                 }}
                               >
-                                Supprimer
-                              </button>
+                                {tr("Supprimer")}</button>
                             </div>
                           ) : null}
                         </div>
@@ -514,11 +495,10 @@ export function IamScreen({
 
         <section id="iam-permissions" data-step-id="permissions" className="panel table-panel workflow-section module-modern iam-permissions-panel">
           <div className="table-header iam-permissions-header">
-            <h2>Droits par profil</h2>
+            <h2>{tr("Droits par profil")}</h2>
             <div className="inline-actions iam-permissions-actions">
               <label className="iam-permissions-target">
-                Profil à configurer
-                <select
+                {tr("Profil à configurer")}<select
                   value={rolePermissionTarget}
                   onChange={(event) => {
                     const nextRole = event.target.value as Role;
@@ -528,41 +508,38 @@ export function IamScreen({
                 >
                   {ROLE_VALUES.map((role) => (
                     <option key={role} value={role}>
-                      {formatRoleLabel(role)}
+                      {tr(formatRoleLabel(role))}
                     </option>
                   ))}
                 </select>
               </label>
               <button type="button" className="button-ghost" onClick={() => void loadRolePermissions(rolePermissionTarget)}>
-                Recharger
-              </button>
+                {tr("Recharger")}</button>
               <button type="button" onClick={() => void saveCurrentRolePermissions()}>
-                Enregistrer les droits
-              </button>
+                {tr("Enregistrer les droits")}</button>
             </div>
           </div>
           <p className="subtle">
-            Sélectionnez les actions autorisées pour chaque ressource.
-          </p>
+            {tr("Sélectionnez les actions autorisées pour chaque ressource.")}</p>
           <div className="table-wrap iam-permissions-wrap">
             <table className="iam-permissions-table" data-responsive-table="true" data-testid="iam-permissions-table">
               <thead>
                 <tr>
-                  <th>Ressource</th>
+                  <th>{tr("Ressource")}</th>
                   {PERMISSION_ACTION_VALUES.map((action) => (
-                    <th key={action}>{formatPermissionActionLabel(action)}</th>
+                    <th key={action}>{tr(formatPermissionActionLabel(action))}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {PERMISSION_RESOURCE_VALUES.map((resource) => (
                   <tr key={resource}>
-                    <td>{formatPermissionResourceLabel(resource)}</td>
+                    <td data-label={tr("Ressource")}>{tr(formatPermissionResourceLabel(resource))}</td>
                     {PERMISSION_ACTION_VALUES.map((action) => (
-                      <td key={`${resource}:${action}`}>
+                      <td data-label={tr(formatPermissionActionLabel(action))} key={`${resource}:${action}`}>
                         <input
                           type="checkbox"
-                          aria-label={`${formatPermissionResourceLabel(resource)} - ${formatPermissionActionLabel(action)}`}
+                          aria-label={`${tr(formatPermissionResourceLabel(resource))} - ${tr(formatPermissionActionLabel(action))}`}
                           checked={getEffectivePermission(resource, action)}
                           onChange={(event) =>
                             toggleRolePermission(resource, action, event.target.checked)

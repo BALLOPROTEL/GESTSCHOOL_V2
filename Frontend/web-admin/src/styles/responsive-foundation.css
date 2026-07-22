@@ -27,10 +27,6 @@
     align-items: stretch;
   }
 
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
   .app-sidebar {
     position: static;
   }
@@ -118,12 +114,6 @@
   .brand-block {
     gap: 0.8rem;
     align-items: flex-start;
-  }
-
-  .brand-logo {
-    width: 3.85rem;
-    height: 3.85rem;
-    border-radius: 1rem;
   }
 
   .brand-name {

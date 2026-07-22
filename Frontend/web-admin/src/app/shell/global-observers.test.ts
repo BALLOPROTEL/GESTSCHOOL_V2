@@ -11,26 +11,46 @@ const productionSources = Object.entries(sourceFiles).filter(
 );
 
 describe("global observer guard", () => {
-  it("interdit la réintroduction d'un MutationObserver dans le shell global", () => {
+  it("interdit tout MutationObserver applicatif", () => {
     const observerOwners = productionSources
       .filter(([, source]) => source.includes("new MutationObserver"))
       .map(([path]) => path);
 
-    expect(observerOwners).toHaveLength(1);
-    expect(observerOwners[0]).toMatch(/legacy-dom-enhancements-boundary\.tsx$/u);
-    expect(sourceFiles[observerOwners[0]]).toContain("data-legacy-dom-enhancements");
+    expect(observerOwners).toEqual([]);
   });
 
-  it("interdit les anciens branchements globaux i18n et tableaux", () => {
+  it("interdit les anciens branchements i18n, tableaux et boundary legacy", () => {
     const forbiddenGlobalBindings = productionSources.filter(
-      ([path, source]) =>
+      ([, source]) =>
         source.includes("useDomTranslation") ||
         source.includes("decorateResponsiveTables") ||
-        (source.includes("decorateLegacyResponsiveTables") &&
-          !path.endsWith("legacy-dom-enhancements-boundary.tsx") &&
-          !path.endsWith("responsive-tables.ts"))
+        source.includes("decorateLegacyResponsiveTables") ||
+        source.includes("LegacyDomEnhancementsBoundary") ||
+        source.includes("data-legacy-dom-enhancements")
     );
 
     expect(forbiddenGlobalBindings).toEqual([]);
+  });
+
+  it("exige des métadonnées responsives déclaratives sur chaque tableau métier", () => {
+    const featureSources = productionSources.filter(([path]) => path.includes("/features/"));
+    const tablesWithoutMetadata: string[] = [];
+    const cellsWithoutLabels: string[] = [];
+
+    for (const [path, source] of featureSources) {
+      for (const match of source.matchAll(/<table\b[^>]*>/gu)) {
+        if (!match[0].includes('data-responsive-table="true"')) {
+          tablesWithoutMetadata.push(path);
+        }
+      }
+      for (const match of source.matchAll(/<td\b[^>]*>/gu)) {
+        if (!match[0].includes("data-label=") && !match[0].includes("colSpan=")) {
+          cellsWithoutLabels.push(path);
+        }
+      }
+    }
+
+    expect([...new Set(tablesWithoutMetadata)]).toEqual([]);
+    expect([...new Set(cellsWithoutLabels)]).toEqual([]);
   });
 });

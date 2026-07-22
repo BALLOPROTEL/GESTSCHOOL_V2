@@ -9,6 +9,8 @@ import {
 import type { AcademicTrack, FieldErrors, Period, Subject } from "../../shared/types/app";
 import { usePortalTeacherData } from "./hooks/use-portal-teacher-data";
 import type { PortalApiClient, TeacherPortalData } from "./types/portal-teacher";
+import { useI18n } from "../../shared/i18n-context";
+
 
 type PortalTeacherScreenProps = {
   api: PortalApiClient;
@@ -53,6 +55,7 @@ export function PortalTeacherScreen({
   onError,
   onNotice
 }: PortalTeacherScreenProps): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     attendanceForm,
     attendanceStudents,
@@ -96,36 +99,35 @@ export function PortalTeacherScreen({
     <>
       <section className="panel table-panel workflow-section">
         <div className="table-header">
-          <h2>Portail enseignant metier</h2>
+          <h2>{tr("Portail enseignant metier")}</h2>
           <div className="actions">
             <button type="button" className="button-ghost" onClick={() => void loadData(filters)}>
-              Recharger
-            </button>
+              {tr("Recharger")}</button>
           </div>
         </div>
         <div className="metrics-grid">
           <article className="metric-card">
-            <span>Classes</span>
+            <span>{tr("Classes")}</span>
             <strong>{data.overview?.classesCount ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Eleves suivis</span>
+            <span>{tr("Eleves suivis")}</span>
             <strong>{data.overview?.studentsCount ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Notes saisies</span>
+            <span>{tr("Notes saisies")}</span>
             <strong>{data.overview?.gradesCount ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Justifs en attente</span>
+            <span>{tr("Justifs en attente")}</span>
             <strong>{data.overview?.pendingJustifications ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Creneaux EDT</span>
+            <span>{tr("Creneaux EDT")}</span>
             <strong>{data.overview?.timetableSlotsCount ?? 0}</strong>
           </article>
           <article className="metric-card">
-            <span>Notifications</span>
+            <span>{tr("Notifications")}</span>
             <strong>{data.overview?.notificationsCount ?? 0}</strong>
           </article>
         </div>
@@ -137,26 +139,24 @@ export function PortalTeacherScreen({
           }}
         >
           <label>
-            Classe
-            <select
+            {tr("Classe")}<select
               value={filters.classId}
               onChange={(event) => setFilters((previous) => ({ ...previous, classId: event.target.value }))}
             >
-              <option value="">Toutes</option>
+              <option value="">{tr("Toutes")}</option>
               {data.classes.map((item) => (
                 <option key={item.assignmentId} value={item.classId}>
-                  {item.classLabel} ({formatAcademicTrackLabel(item.track)}) - {item.schoolYearCode}
+                  {item.classLabel} ({tr(formatAcademicTrackLabel(item.track))}) - {item.schoolYearCode}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            Matiere
-            <select
+            {tr("Matiere")}<select
               value={filters.subjectId}
               onChange={(event) => setFilters((previous) => ({ ...previous, subjectId: event.target.value }))}
             >
-              <option value="">Toutes</option>
+              <option value="">{tr("Toutes")}</option>
               {subjects.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.code} - {item.label}
@@ -165,12 +165,11 @@ export function PortalTeacherScreen({
             </select>
           </label>
           <label>
-            Periode
-            <select
+            {tr("Periode")}<select
               value={filters.academicPeriodId}
               onChange={(event) => setFilters((previous) => ({ ...previous, academicPeriodId: event.target.value }))}
             >
-              <option value="">Toutes</option>
+              <option value="">{tr("Toutes")}</option>
               {teacherPeriods.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.code} - {item.label}
@@ -179,60 +178,55 @@ export function PortalTeacherScreen({
             </select>
           </label>
           <label>
-            Eleve
-            <select
+            {tr("Eleve")}<select
               value={filters.studentId}
               onChange={(event) => setFilters((previous) => ({ ...previous, studentId: event.target.value }))}
             >
-              <option value="">Tous</option>
+              <option value="">{tr("Tous")}</option>
               {teacherStudentsForClass.map((item) => (
                 <option key={item.enrollmentId} value={item.studentId}>
-                  {item.matricule} - {item.studentName} ({formatAcademicTrackLabel(item.track)})
+                  {item.matricule} - {item.studentName} ({tr(formatAcademicTrackLabel(item.track))})
                 </option>
               ))}
             </select>
           </label>
           <div className="actions">
-            <button type="submit">Filtrer</button>
+            <button type="submit">{tr("Filtrer")}</button>
             <button type="button" className="button-ghost" onClick={() => void resetFilters()}>
-              Reinitialiser
-            </button>
+              {tr("Reinitialiser")}</button>
           </div>
         </form>
       </section>
 
       <section className="panel table-panel workflow-section">
         <div className="table-header">
-          <h2>Actions metier</h2>
+          <h2>{tr("Actions metier")}</h2>
         </div>
         <div className="split-grid">
           <form data-step-id="teacher-grade" className="form-grid compact-form" onSubmit={(event) => void submitGrade(event)}>
-            <h3>Saisir une note</h3>
+            <h3>{tr("Saisir une note")}</h3>
             <label>
-              Classe
-              <select value={gradeForm.classId} onChange={(event) => setGradeForm((previous) => ({ ...previous, classId: event.target.value }))}>
+              {tr("Classe")}<select value={gradeForm.classId} onChange={(event) => setGradeForm((previous) => ({ ...previous, classId: event.target.value }))}>
                 {data.classes.map((item) => (
                   <option key={item.assignmentId} value={item.classId}>
-                    {item.classLabel} ({formatAcademicTrackLabel(item.track)})
+                    {item.classLabel} ({tr(formatAcademicTrackLabel(item.track))})
                   </option>
                 ))}
               </select>
               {renderFieldError(errors, "classId")}
             </label>
             <label>
-              Eleve
-              <select value={gradeForm.studentId} onChange={(event) => setGradeForm((previous) => ({ ...previous, studentId: event.target.value }))}>
+              {tr("Eleve")}<select value={gradeForm.studentId} onChange={(event) => setGradeForm((previous) => ({ ...previous, studentId: event.target.value }))}>
                 {teacherStudentsForClass.map((item) => (
                   <option key={item.enrollmentId} value={item.studentId}>
-                    {item.matricule} - {item.studentName} ({formatAcademicTrackLabel(item.track)})
+                    {item.matricule} - {item.studentName} ({tr(formatAcademicTrackLabel(item.track))})
                   </option>
                 ))}
               </select>
               {renderFieldError(errors, "studentId")}
             </label>
             <label>
-              Matiere
-              <select value={gradeForm.subjectId} onChange={(event) => setGradeForm((previous) => ({ ...previous, subjectId: event.target.value }))}>
+              {tr("Matiere")}<select value={gradeForm.subjectId} onChange={(event) => setGradeForm((previous) => ({ ...previous, subjectId: event.target.value }))}>
                 {subjects.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code}
@@ -242,8 +236,7 @@ export function PortalTeacherScreen({
               {renderFieldError(errors, "subjectId")}
             </label>
             <label>
-              Periode
-              <select
+              {tr("Periode")}<select
                 value={gradeForm.academicPeriodId}
                 onChange={(event) => setGradeForm((previous) => ({ ...previous, academicPeriodId: event.target.value }))}
               >
@@ -256,16 +249,14 @@ export function PortalTeacherScreen({
               {renderFieldError(errors, "academicPeriodId")}
             </label>
             <label>
-              Evaluation
-              <input
+              {tr("Evaluation")}<input
                 value={gradeForm.assessmentLabel}
                 onChange={(event) => setGradeForm((previous) => ({ ...previous, assessmentLabel: event.target.value }))}
               />
               {renderFieldError(errors, "assessmentLabel")}
             </label>
             <label>
-              Note
-              <input
+              {tr("Note")}<input
                 type="number"
                 min={0}
                 step="0.01"
@@ -275,8 +266,7 @@ export function PortalTeacherScreen({
               {renderFieldError(errors, "score")}
             </label>
             <label>
-              Bareme
-              <input
+              {tr("Bareme")}<input
                 type="number"
                 min={1}
                 step="0.01"
@@ -285,25 +275,23 @@ export function PortalTeacherScreen({
               />
               {renderFieldError(errors, "scoreMax")}
             </label>
-            <button type="submit">Enregistrer note</button>
+            <button type="submit">{tr("Enregistrer note")}</button>
           </form>
 
           <form data-step-id="teacher-attendance" className="form-grid compact-form" onSubmit={(event) => void submitAttendanceBulk(event)}>
-            <h3>Pointage en masse</h3>
+            <h3>{tr("Pointage en masse")}</h3>
             <label>
-              Classe
-              <select value={attendanceForm.classId} onChange={(event) => setAttendanceForm((previous) => ({ ...previous, classId: event.target.value }))}>
+              {tr("Classe")}<select value={attendanceForm.classId} onChange={(event) => setAttendanceForm((previous) => ({ ...previous, classId: event.target.value }))}>
                 {data.classes.map((item) => (
                   <option key={item.assignmentId} value={item.classId}>
-                    {item.classLabel} ({formatAcademicTrackLabel(item.track)})
+                    {item.classLabel} ({tr(formatAcademicTrackLabel(item.track))})
                   </option>
                 ))}
               </select>
               {renderFieldError(errors, "classId")}
             </label>
             <label>
-              Date
-              <input
+              {tr("Date")}<input
                 type="date"
                 value={attendanceForm.attendanceDate}
                 onChange={(event) => setAttendanceForm((previous) => ({ ...previous, attendanceDate: event.target.value }))}
@@ -311,20 +299,18 @@ export function PortalTeacherScreen({
               {renderFieldError(errors, "attendanceDate")}
             </label>
             <label>
-              Statut
-              <select
+              {tr("Statut")}<select
                 value={attendanceForm.defaultStatus}
                 onChange={(event) => setAttendanceForm((previous) => ({ ...previous, defaultStatus: event.target.value }))}
               >
-                <option value="PRESENT">{formatAttendanceStatusLabel("PRESENT")}</option>
-                <option value="ABSENT">{formatAttendanceStatusLabel("ABSENT")}</option>
-                <option value="LATE">{formatAttendanceStatusLabel("LATE")}</option>
-                <option value="EXCUSED">{formatAttendanceStatusLabel("EXCUSED")}</option>
+                <option value="PRESENT">{tr(formatAttendanceStatusLabel("PRESENT"))}</option>
+                <option value="ABSENT">{tr(formatAttendanceStatusLabel("ABSENT"))}</option>
+                <option value="LATE">{tr(formatAttendanceStatusLabel("LATE"))}</option>
+                <option value="EXCUSED">{tr(formatAttendanceStatusLabel("EXCUSED"))}</option>
               </select>
             </label>
             <label>
-              Eleves (multi-select)
-              <select
+              {tr("Eleves (multi-select)")}<select
                 multiple
                 value={attendanceStudents}
                 onChange={(event) =>
@@ -333,94 +319,90 @@ export function PortalTeacherScreen({
               >
                 {teacherStudentsForClass.map((item) => (
                   <option key={item.enrollmentId} value={item.studentId}>
-                    {item.matricule} - {item.studentName} ({formatAcademicTrackLabel(item.track)})
+                    {item.matricule} - {item.studentName} ({tr(formatAcademicTrackLabel(item.track))})
                   </option>
                 ))}
               </select>
               {renderFieldError(errors, "students")}
             </label>
-            <button type="submit">Enregistrer pointage</button>
+            <button type="submit">{tr("Enregistrer pointage")}</button>
           </form>
 
           <form data-step-id="teacher-notifications" className="form-grid compact-form" onSubmit={(event) => void submitNotification(event)}>
-            <h3>Notifier les parents</h3>
+            <h3>{tr("Notifier les parents")}</h3>
             <label>
-              Classe
-              <select value={notificationForm.classId} onChange={(event) => setNotificationForm((previous) => ({ ...previous, classId: event.target.value }))}>
+              {tr("Classe")}<select value={notificationForm.classId} onChange={(event) => setNotificationForm((previous) => ({ ...previous, classId: event.target.value }))}>
                 {data.classes.map((item) => (
                   <option key={item.assignmentId} value={item.classId}>
-                    {item.classLabel} ({formatAcademicTrackLabel(item.track)})
+                    {item.classLabel} ({tr(formatAcademicTrackLabel(item.track))})
                   </option>
                 ))}
               </select>
               {renderFieldError(errors, "classId")}
             </label>
             <label>
-              Eleve cible (optionnel)
-              <select
+              {tr("Eleve cible (optionnel)")}<select
                 value={notificationForm.studentId}
                 onChange={(event) => setNotificationForm((previous) => ({ ...previous, studentId: event.target.value }))}
               >
-                <option value="">Tous les parents de la classe</option>
+                <option value="">{tr("Tous les parents de la classe")}</option>
                 {teacherStudentsForClass.map((item) => (
                   <option key={item.enrollmentId} value={item.studentId}>
-                    {item.studentName} ({formatAcademicTrackLabel(item.track)})
+                    {item.studentName} ({tr(formatAcademicTrackLabel(item.track))})
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Titre
-              <input
+              {tr("Titre")}<input
                 value={notificationForm.title}
                 onChange={(event) => setNotificationForm((previous) => ({ ...previous, title: event.target.value }))}
               />
               {renderFieldError(errors, "title")}
             </label>
             <label>
-              Message
-              <textarea
+              {tr("Message")}<textarea
                 rows={3}
                 value={notificationForm.message}
                 onChange={(event) => setNotificationForm((previous) => ({ ...previous, message: event.target.value }))}
               />
               {renderFieldError(errors, "message")}
             </label>
-            <button type="submit">Envoyer notification</button>
+            <button type="submit">{tr("Envoyer notification")}</button>
           </form>
         </div>
       </section>
 
       <section className="panel table-panel workflow-section">
         <div className="table-header">
-          <h2>Notes recentes</h2>
+          <h2>{tr("Notes recentes")}</h2>
         </div>
         <div className="table-wrap">
-          <table>
+          <table data-responsive-table="true">
             <thead>
               <tr>
-                <th>Eleve</th>
-                <th>Cursus</th>
-                <th>Matiere</th>
-                <th>Periode</th>
-                <th>Evaluation</th>
-                <th>Note</th>
+                <th>{tr("Eleve")}</th>
+                <th>{tr("Cursus")}</th>
+                <th>{tr("Matiere")}</th>
+                <th>{tr("Periode")}</th>
+                <th>{tr("Evaluation")}</th>
+                <th>{tr("Note")}</th>
               </tr>
             </thead>
             <tbody>
               {data.grades.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="empty-row">Aucune note.</td>
+                  <td colSpan={6} className="empty-row">{tr("Aucune note.")}</td>
                 </tr>
               ) : (
                 data.grades.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.studentName || "-"}</td>
-                    <td>{formatAcademicTrackLabel(item.track)}</td>
-                    <td>{item.subjectLabel || "-"}</td>
-                    <td>{periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
-                    <td>{item.assessmentLabel}</td>
-                    <td>{item.score}/{item.scoreMax}</td>
+                    <td data-label={tr("Eleve")}>{item.studentName || "-"}</td>
+                    <td data-label={tr("Cursus")}>{tr(formatAcademicTrackLabel(item.track))}</td>
+                    <td data-label={tr("Matiere")}>{item.subjectLabel || "-"}</td>
+                    <td data-label={tr("Periode")}>{periods.find((period) => period.id === item.academicPeriodId)?.label || "-"}</td>
+                    <td data-label={tr("Evaluation")}>{item.assessmentLabel}</td>
+                    <td data-label={tr("Note")}>{item.score}/{item.scoreMax}</td>
                   </tr>
                 ))
               )}
@@ -432,32 +414,32 @@ export function PortalTeacherScreen({
       <div className="split-grid">
         <section className="panel table-panel workflow-section">
           <div className="table-header">
-            <h2>Emploi du temps</h2>
+            <h2>{tr("Emploi du temps")}</h2>
           </div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Jour</th>
-                  <th>Classe</th>
-                  <th>Cursus</th>
-                  <th>Matiere</th>
-                  <th>Horaire</th>
-                  <th>Salle</th>
+                  <th>{tr("Jour")}</th>
+                  <th>{tr("Classe")}</th>
+                  <th>{tr("Cursus")}</th>
+                  <th>{tr("Matiere")}</th>
+                  <th>{tr("Horaire")}</th>
+                  <th>{tr("Salle")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.timetable.length === 0 ? (
-                  <tr><td colSpan={6} className="empty-row">Aucun creneau.</td></tr>
+                  <tr><td colSpan={6} className="empty-row">{tr("Aucun creneau.")}</td></tr>
                 ) : (
                   data.timetable.map((item) => (
                     <tr key={item.id}>
-                      <td>{formatWeekdayLabel(item.dayOfWeek)}</td>
-                      <td>{item.classLabel || "-"}</td>
-                      <td>{formatAcademicTrackLabel(item.track)}</td>
-                      <td>{item.subjectLabel || "-"}</td>
-                      <td>{item.startTime} - {item.endTime}</td>
-                      <td>{item.room || "-"}</td>
+                      <td data-label={tr("Jour")}>{tr(formatWeekdayLabel(item.dayOfWeek))}</td>
+                      <td data-label={tr("Classe")}>{item.classLabel || "-"}</td>
+                      <td data-label={tr("Cursus")}>{tr(formatAcademicTrackLabel(item.track))}</td>
+                      <td data-label={tr("Matiere")}>{item.subjectLabel || "-"}</td>
+                      <td data-label={tr("Horaire")}>{item.startTime} - {item.endTime}</td>
+                      <td data-label={tr("Salle")}>{item.room || "-"}</td>
                     </tr>
                   ))
                 )}
@@ -468,28 +450,28 @@ export function PortalTeacherScreen({
 
         <section className="panel table-panel workflow-section">
           <div className="table-header">
-            <h2>Notifications</h2>
+            <h2>{tr("Notifications")}</h2>
           </div>
           <div className="table-wrap">
-            <table>
+            <table data-responsive-table="true">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Titre</th>
-                  <th>Cible</th>
-                  <th>Statut</th>
+                  <th>{tr("Date")}</th>
+                  <th>{tr("Titre")}</th>
+                  <th>{tr("Cible")}</th>
+                  <th>{tr("Statut")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.notifications.length === 0 ? (
-                  <tr><td colSpan={4} className="empty-row">Aucune notification.</td></tr>
+                  <tr><td colSpan={4} className="empty-row">{tr("Aucune notification.")}</td></tr>
                 ) : (
                   data.notifications.map((item) => (
                     <tr key={item.id}>
-                      <td>{new Date(item.createdAt).toLocaleString(locale)}</td>
-                      <td>{item.title}</td>
-                      <td>{item.studentName || formatAudienceRoleLabel(item.audienceRole) || "-"}</td>
-                      <td>{formatPortalNotificationStatusLabel(item.status)}</td>
+                      <td data-label={tr("Date")}>{new Date(item.createdAt).toLocaleString(locale)}</td>
+                      <td data-label={tr("Titre")}>{item.title}</td>
+                      <td data-label={tr("Cible")}>{item.studentName || tr(formatAudienceRoleLabel(item.audienceRole)) || "-"}</td>
+                      <td data-label={tr("Statut")}>{tr(formatPortalNotificationStatusLabel(item.status))}</td>
                     </tr>
                   ))
                 )}

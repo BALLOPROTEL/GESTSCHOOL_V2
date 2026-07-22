@@ -43,6 +43,8 @@ import type {
   TimetableGrid,
   TimetableSlot
 } from "./types/school-life";
+import { useI18n } from "../../shared/i18n-context";
+
 
 type LoadWarningKey = "attendance" | "attachments" | "timetable" | "notifications";
 
@@ -60,6 +62,7 @@ const loadWarningText = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
 
 export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
+  const { t: tr } = useI18n();
   const {
     api,
     students,
@@ -154,7 +157,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     loadWarnings[key] ? (
       <div className="notice-card notice-info" role="status">
         <strong>{label}</strong>
-        <p>Les donnees sont temporairement indisponibles. Vous pouvez continuer a consulter l'ecran puis reessayer.</p>
+        <p>{tr("Les donnees sont temporairement indisponibles. Vous pouvez continuer a consulter l'ecran puis reessayer.")}</p>
       </div>
     ) : null;
 
@@ -766,41 +769,37 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     <div className={`school-life-root focus-${focusSection}${readOnly ? " read-only" : ""}`}>
       {showAttendance ? (
       <WorkflowGuide
-        title="Absences"
+        title={tr("Absences")}
         steps={attendanceSteps}
         activeStepId={attendanceWorkflowStep}
         onStepChange={setAttendanceWorkflowStep}
       >
       <section data-step-id="absences" className="panel editor-panel workflow-section module-modern">
-        <h2>Absences</h2>
-        <p className="section-lead">Saisissez un pointage individuel clair, lisible et rapidement exploitable.</p>
+        <h2>{tr("Absences")}</h2>
+        <p className="section-lead">{tr("Saisissez un pointage individuel clair, lisible et rapidement exploitable.")}</p>
         {renderLoadWarning("attendance", "Journal des absences indisponible")}
         <form className="form-grid module-form" onSubmit={(event) => void submitAttendance(event)}>
           <label>
-            Eleve
-            <select value={attendanceForm.studentId} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, studentId: event.target.value }))} required>
-              <option value="">Choisir...</option>
+            {tr("Eleve")}<select value={attendanceForm.studentId} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, studentId: event.target.value }))} required>
+              <option value="">{tr("Choisir...")}</option>
               {students.map((item) => (
                 <option key={item.id} value={item.id}>{item.matricule} - {item.firstName} {item.lastName}</option>
               ))}
             </select>
           </label>
           <label>
-            Classe
-            <select value={attendanceForm.classId} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, classId: event.target.value }))} required>
-              <option value="">Choisir...</option>
+            {tr("Classe")}<select value={attendanceForm.classId} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, classId: event.target.value }))} required>
+              <option value="">{tr("Choisir...")}</option>
               {classes.map((item) => (
                 <option key={item.id} value={item.id}>{item.code} - {item.label}</option>
               ))}
             </select>
           </label>
           <label>
-            Date
-            <input type="date" value={attendanceForm.attendanceDate} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, attendanceDate: event.target.value }))} required />
+            {tr("Date")}<input type="date" value={attendanceForm.attendanceDate} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, attendanceDate: event.target.value }))} required />
           </label>
           <label>
-            Statut
-            <select value={attendanceForm.status} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, status: event.target.value }))}>
+            {tr("Statut")}<select value={attendanceForm.status} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, status: event.target.value }))}>
               <option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option>
               <option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option>
               <option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option>
@@ -808,26 +807,24 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
             </select>
           </label>
           <label>
-            Motif
-            <input value={attendanceForm.reason} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, reason: event.target.value }))} />
+            {tr("Motif")}<input value={attendanceForm.reason} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, reason: event.target.value }))} />
           </label>
-          <button type="submit">Enregistrer</button>
+          <button type="submit">{tr("Enregistrer")}</button>
         </form>
       </section>
 
       <section data-step-id="bulk" className="panel editor-panel workflow-section module-modern">
-        <h2>Absences - saisie de masse</h2>
-        <p className="section-lead">Traitez une classe complete sans perdre la lisibilite du journal des absences.</p>
+        <h2>{tr("Absences - saisie de masse")}</h2>
+        <p className="section-lead">{tr("Traitez une classe complete sans perdre la lisibilite du journal des absences.")}</p>
         <form className="form-grid module-form" onSubmit={(event) => void submitBulkAttendance(event)}>
           <div className="split-grid">
-            <label>Classe<select value={bulkAttendanceForm.classId} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, classId: event.target.value }))} required><option value="">Choisir...</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
-            <label>Date<input type="date" value={bulkAttendanceForm.attendanceDate} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, attendanceDate: event.target.value }))} required /></label>
-            <label>Statut<select value={bulkAttendanceForm.defaultStatus} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, defaultStatus: event.target.value }))}><option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option><option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option><option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option><option value="EXCUSED">{labelFromMap(attendanceStatusLabels, "EXCUSED")}</option></select></label>
-            <label>Motif global<input value={bulkAttendanceForm.reason} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, reason: event.target.value }))} /></label>
+            <label>{tr("Classe")}<select value={bulkAttendanceForm.classId} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, classId: event.target.value }))} required><option value="">{tr("Choisir...")}</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
+            <label>{tr("Date")}<input type="date" value={bulkAttendanceForm.attendanceDate} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, attendanceDate: event.target.value }))} required /></label>
+            <label>{tr("Statut")}<select value={bulkAttendanceForm.defaultStatus} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, defaultStatus: event.target.value }))}><option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option><option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option><option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option><option value="EXCUSED">{labelFromMap(attendanceStatusLabels, "EXCUSED")}</option></select></label>
+            <label>{tr("Motif global")}<input value={bulkAttendanceForm.reason} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, reason: event.target.value }))} /></label>
           </div>
           <label>
-            Eleves concernes
-            <select
+            {tr("Eleves concernes")}<select
               multiple
               className="multi-select"
               value={bulkAttendanceForm.studentIds}
@@ -842,48 +839,48 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               ))}
             </select>
           </label>
-          <p className="subtle hint">Ctrl/Cmd + clic pour multi-selection.</p>
-          <button type="submit">Enregistrer en masse</button>
+          <p className="subtle hint">{tr("Ctrl/Cmd + clic pour multi-selection.")}</p>
+          <button type="submit">{tr("Enregistrer en masse")}</button>
         </form>
       </section>
       <section data-step-id="journal" className="panel table-panel workflow-section module-modern">
         <div className="table-header">
-          <h2>Journal des absences</h2>
-          <span className="subtle">Filtre rapide, puis actions sur chaque ligne.</span>
+          <h2>{tr("Journal des absences")}</h2>
+          <span className="subtle">{tr("Filtre rapide, puis actions sur chaque ligne.")}</span>
         </div>
         {renderLoadWarning("attendance", "Journal des absences indisponible")}
         <form className="filter-grid module-filter" onSubmit={(event) => void applyAttendanceFilters(event)}>
-          <label>Classe<select value={attendanceFilters.classId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">Toutes</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
-          <label>Eleve<select value={attendanceFilters.studentId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">Tous</option>{students.map((item) => <option key={item.id} value={item.id}>{item.matricule}</option>)}</select></label>
-          <label>Statut<select value={attendanceFilters.status} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option><option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option><option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option><option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option><option value="EXCUSED">{labelFromMap(attendanceStatusLabels, "EXCUSED")}</option></select></label>
-          <label>Du<input type="date" value={attendanceFilters.fromDate} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, fromDate: event.target.value }))} /></label>
-          <label>Au<input type="date" value={attendanceFilters.toDate} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, toDate: event.target.value }))} /></label>
-          <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetAttendanceFilters()}>Reinitialiser</button></div>
+          <label>{tr("Classe")}<select value={attendanceFilters.classId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">{tr("Toutes")}</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
+          <label>{tr("Eleve")}<select value={attendanceFilters.studentId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">{tr("Tous")}</option>{students.map((item) => <option key={item.id} value={item.id}>{item.matricule}</option>)}</select></label>
+          <label>{tr("Statut")}<select value={attendanceFilters.status} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">{tr("Tous")}</option><option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option><option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option><option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option><option value="EXCUSED">{labelFromMap(attendanceStatusLabels, "EXCUSED")}</option></select></label>
+          <label>{tr("Du")}<input type="date" value={attendanceFilters.fromDate} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, fromDate: event.target.value }))} /></label>
+          <label>{tr("Au")}<input type="date" value={attendanceFilters.toDate} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, toDate: event.target.value }))} /></label>
+          <div className="actions"><button type="submit">{tr("Filtrer")}</button><button type="button" className="button-ghost" onClick={() => void resetAttendanceFilters()}>{tr("Reinitialiser")}</button></div>
         </form>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
-              <tr><th>Date</th><th>Eleve</th><th>Classe</th><th>Statut</th><th>Justif.</th><th>Validation</th><th>Pieces</th><th>Motif</th><th>Action</th></tr>
+              <tr><th>{tr("Date")}</th><th>{tr("Eleve")}</th><th>{tr("Classe")}</th><th>{tr("Statut")}</th><th>{tr("Justif.")}</th><th>{tr("Validation")}</th><th>{tr("Pieces")}</th><th>{tr("Motif")}</th><th>{tr("Action")}</th></tr>
             </thead>
             <tbody>
               {attendanceRecords.length === 0 ? (
-                <tr><td colSpan={9} className="empty-row">Aucune ligne.</td></tr>
+                <tr><td colSpan={9} className="empty-row">{tr("Aucune ligne.")}</td></tr>
               ) : (
                 attendanceRecords.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.attendanceDate}</td>
-                    <td>{item.studentName || "-"}</td>
-                    <td>{item.classLabel || "-"}</td>
-                    <td>{labelFromMap(attendanceStatusLabels, item.status)}</td>
-                    <td>{labelFromMap(validationStatusLabels, item.justificationStatus)}</td>
-                    <td>
+                    <td data-label={tr("Date")}>{item.attendanceDate}</td>
+                    <td data-label={tr("Eleve")}>{item.studentName || "-"}</td>
+                    <td data-label={tr("Classe")}>{item.classLabel || "-"}</td>
+                    <td data-label={tr("Statut")}>{labelFromMap(attendanceStatusLabels, item.status)}</td>
+                    <td data-label={tr("Justif.")}>{labelFromMap(validationStatusLabels, item.justificationStatus)}</td>
+                    <td data-label={tr("Validation")}>
                       {item.validatedAt
                         ? `${new Date(item.validatedAt).toLocaleString(locale)}${item.validationComment ? ` | ${item.validationComment}` : ""}`
                         : item.validationComment || "-"}
                     </td>
-                    <td>{item.attachments?.length ?? 0}</td>
-                    <td>{item.reason || "-"}</td>
-                    <td>
+                    <td data-label={tr("Pieces")}>{item.attachments?.length ?? 0}</td>
+                    <td data-label={tr("Motif")}>{item.reason || "-"}</td>
+                    <td data-label={tr("Action")}>
                       {renderActionMenu(`attendance-${item.id}`, `Actions absence ${item.studentName || item.id}`, [
                         { label: "Supprimer", danger: true, onSelect: () => void deleteAttendance(item.id) }
                       ])}
@@ -897,16 +894,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       </section>
 
       <section data-step-id="validation" className="panel editor-panel workflow-section module-modern">
-        <h2>Justificatifs & validation</h2>
-        <p className="section-lead">Centralisez validation et pieces justificatives sans ouvrir plusieurs ecrans.</p>
+        <h2>{tr("Justificatifs & validation")}</h2>
+        <p className="section-lead">{tr("Centralisez validation et pieces justificatives sans ouvrir plusieurs ecrans.")}</p>
         {renderLoadWarning("attachments", "Justificatifs indisponibles")}
-        <h3>Validation</h3>
+        <h3>{tr("Validation")}</h3>
         <form className="form-grid module-form" onSubmit={(event) => void submitAttendanceValidation(event)}>
           <div className="split-grid">
             <label>
-              Pointage cible
-              <select value={selectedAttendanceId} onChange={(event) => setSelectedAttendanceId(event.target.value)}>
-                <option value="">Choisir...</option>
+              {tr("Pointage cible")}<select value={selectedAttendanceId} onChange={(event) => setSelectedAttendanceId(event.target.value)}>
+                <option value="">{tr("Choisir...")}</option>
                 {attendanceRecords.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.attendanceDate} - {item.studentName || item.studentId} ({item.status})
@@ -915,8 +911,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               </select>
             </label>
             <label>
-              Statut justification
-              <select
+              {tr("Statut justification")}<select
                 value={validationForm.status}
                 onChange={(event) =>
                   setValidationForm((prev) => ({
@@ -932,8 +927,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               </select>
             </label>
             <label>
-              Commentaire validation
-              <input
+              {tr("Commentaire validation")}<input
                 value={validationForm.comment}
                 onChange={(event) =>
                   setValidationForm((prev) => ({ ...prev, comment: event.target.value }))
@@ -943,15 +937,14 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
             </label>
           </div>
           <div className="actions">
-            <button type="submit" disabled={!selectedAttendanceId}>Enregistrer validation</button>
+            <button type="submit" disabled={!selectedAttendanceId}>{tr("Enregistrer validation")}</button>
           </div>
         </form>
 
-        <h3>Ajout de justificatif</h3>
+        <h3>{tr("Ajout de justificatif")}</h3>
         <form className="form-grid module-form" onSubmit={(event) => void submitAttendanceAttachment(event)}>
           <label>
-            Fichier justificatif
-            <input
+            {tr("Fichier justificatif")}<input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
               onChange={(event) => setAttachmentFile(event.target.files?.[0] || null)}
@@ -960,28 +953,28 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
             />
           </label>
           <div className="actions">
-            <button type="submit" disabled={!selectedAttendanceId}>Ajouter justificatif</button>
+            <button type="submit" disabled={!selectedAttendanceId}>{tr("Ajouter justificatif")}</button>
           </div>
         </form>
 
-        <h3>Liste des justificatifs</h3>
+        <h3>{tr("Liste des justificatifs")}</h3>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
-              <tr><th>Fichier</th><th>MIME</th><th>Ajoute le</th><th>Action</th></tr>
+              <tr><th>{tr("Fichier")}</th><th>{tr("MIME")}</th><th>{tr("Ajoute le")}</th><th>{tr("Action")}</th></tr>
             </thead>
             <tbody>
               {!selectedAttendanceId ? (
-                <tr><td colSpan={4} className="empty-row">Selectionner une absence.</td></tr>
+                <tr><td colSpan={4} className="empty-row">{tr("Selectionner une absence.")}</td></tr>
               ) : attendanceAttachments.length === 0 ? (
-                <tr><td colSpan={4} className="empty-row">Aucun justificatif.</td></tr>
+                <tr><td colSpan={4} className="empty-row">{tr("Aucun justificatif.")}</td></tr>
               ) : (
                 attendanceAttachments.map((item) => (
                   <tr key={item.id}>
-                    <td><button type="button" className="button-link" onClick={() => void downloadAttachment(item)}>{item.fileName}</button></td>
-                    <td>{item.mimeType || "-"}</td>
-                    <td>{new Date(item.createdAt).toLocaleString(locale)}</td>
-                    <td>
+                    <td data-label={tr("Fichier")}><button type="button" className="button-link" onClick={() => void downloadAttachment(item)}>{item.fileName}</button></td>
+                    <td data-label={tr("MIME")}>{item.mimeType || "-"}</td>
+                    <td data-label={tr("Ajoute le")}>{new Date(item.createdAt).toLocaleString(locale)}</td>
+                    <td data-label={tr("Action")}>
                       {renderActionMenu(`attachment-${item.id}`, `Actions justificatif ${item.fileName}`, [
                         { label: "Supprimer", danger: true, onSelect: () => void removeAttendanceAttachment(item.id) }
                       ])}
@@ -994,7 +987,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </div>
 
         {selectedAttendance ? (
-          <p className="subtle">Selection active: {selectedAttendance.studentName || selectedAttendance.studentId} - {selectedAttendance.attendanceDate}</p>
+          <p className="subtle">{tr("Selection active: ")}{selectedAttendance.studentName || selectedAttendance.studentId} - {selectedAttendance.attendanceDate}</p>
         ) : null}
       </section>
       </WorkflowGuide>
@@ -1002,56 +995,56 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
       {showTimetable ? (
       <WorkflowGuide
-        title="Emploi du temps"
+        title={tr("Emploi du temps")}
         steps={timetableSteps}
         activeStepId={timetableWorkflowStep}
         onStepChange={setTimetableWorkflowStep}
       >
       <section data-step-id="timetable" className="panel editor-panel workflow-section module-modern">
-        <h2>Emploi du temps</h2>
-        <p className="section-lead">Composez des creneaux lisibles puis controlez la semaine complete en un seul coup d'oeil.</p>
+        <h2>{tr("Emploi du temps")}</h2>
+        <p className="section-lead">{tr("Composez des creneaux lisibles puis controlez la semaine complete en un seul coup d'oeil.")}</p>
         {renderLoadWarning("timetable", "References emploi du temps indisponibles")}
         <form className="form-grid module-form" onSubmit={(event) => void submitTimetableSlot(event)}>
-          <label>Classe<select value={timetableForm.classId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, classId: event.target.value }))} required>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
-          <label>Matiere<select value={timetableForm.subjectId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, subjectId: event.target.value }))} required>{subjects.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
-          <label>Jour<select value={timetableForm.dayOfWeek} onChange={(event) => setTimetableForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
-          <label>Debut<input type="time" value={timetableForm.startTime} onChange={(event) => setTimetableForm((prev) => ({ ...prev, startTime: event.target.value }))} required /></label>
-          <label>Fin<input type="time" value={timetableForm.endTime} onChange={(event) => setTimetableForm((prev) => ({ ...prev, endTime: event.target.value }))} required /></label>
-          <label>Salle<select value={timetableForm.roomId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, roomId: event.target.value }))}><option value="">Non definie</option>{activeRooms.map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
-          <label>Enseignant<select value={timetableForm.teacherAssignmentId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, teacherAssignmentId: event.target.value }))}><option value="">Non defini</option>{compatibleTeacherAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.teacherName || "Enseignant"} - {assignment.subjectLabel || "Matiere"} - {assignment.classLabel || "Classe"}</option>)}</select></label>
-          <button type="submit">Ajouter</button>
+          <label>{tr("Classe")}<select value={timetableForm.classId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, classId: event.target.value }))} required>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
+          <label>{tr("Matiere")}<select value={timetableForm.subjectId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, subjectId: event.target.value }))} required>{subjects.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
+          <label>{tr("Jour")}<select value={timetableForm.dayOfWeek} onChange={(event) => setTimetableForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
+          <label>{tr("Debut")}<input type="time" value={timetableForm.startTime} onChange={(event) => setTimetableForm((prev) => ({ ...prev, startTime: event.target.value }))} required /></label>
+          <label>{tr("Fin")}<input type="time" value={timetableForm.endTime} onChange={(event) => setTimetableForm((prev) => ({ ...prev, endTime: event.target.value }))} required /></label>
+          <label>{tr("Salle")}<select value={timetableForm.roomId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, roomId: event.target.value }))}><option value="">{tr("Non definie")}</option>{activeRooms.map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
+          <label>{tr("Enseignant")}<select value={timetableForm.teacherAssignmentId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, teacherAssignmentId: event.target.value }))}><option value="">{tr("Non defini")}</option>{compatibleTeacherAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.teacherName || tr("Enseignant")} - {assignment.subjectLabel || tr("Matiere")} - {assignment.classLabel || tr("Classe")}</option>)}</select></label>
+          <button type="submit">{tr("Ajouter")}</button>
         </form>
       </section>
 
       <section data-step-id="grid" className="panel table-panel workflow-section module-modern">
         <div className="table-header">
-          <h2>Grille d'emploi du temps</h2>
-          <span className="subtle">Recherche par classe et par jour.</span>
+          <h2>{tr("Grille d'emploi du temps")}</h2>
+          <span className="subtle">{tr("Recherche par classe et par jour.")}</span>
         </div>
         {renderLoadWarning("timetable", "Grille emploi du temps indisponible")}
         <form className="filter-grid module-filter" onSubmit={(event) => void applyTimetableFilters(event)}>
-          <label>Classe<select value={timetableFilters.classId} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">Toutes</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
-          <label>Jour<select value={timetableFilters.dayOfWeek} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, dayOfWeek: event.target.value }))}><option value="">Tous</option>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
-          <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetTimetableFilters()}>Reinitialiser</button></div>
+          <label>{tr("Classe")}<select value={timetableFilters.classId} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">{tr("Toutes")}</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
+          <label>{tr("Jour")}<select value={timetableFilters.dayOfWeek} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, dayOfWeek: event.target.value }))}><option value="">{tr("Tous")}</option>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
+          <div className="actions"><button type="submit">{tr("Filtrer")}</button><button type="button" className="button-ghost" onClick={() => void resetTimetableFilters()}>{tr("Reinitialiser")}</button></div>
         </form>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
-              <tr><th>Jour</th><th>Heure</th><th>Classe</th><th>Matiere</th><th>Salle</th><th>Enseignant</th><th>Action</th></tr>
+              <tr><th>{tr("Jour")}</th><th>{tr("Heure")}</th><th>{tr("Classe")}</th><th>{tr("Matiere")}</th><th>{tr("Salle")}</th><th>{tr("Enseignant")}</th><th>{tr("Action")}</th></tr>
             </thead>
             <tbody>
               {timetableSlots.length === 0 ? (
-                <tr><td colSpan={7} className="empty-row">Aucun cours.</td></tr>
+                <tr><td colSpan={7} className="empty-row">{tr("Aucun cours.")}</td></tr>
               ) : (
                 timetableSlots.map((item) => (
                   <tr key={item.id}>
-                    <td>{dayLabels.get(item.dayOfWeek) || item.dayOfWeek}</td>
-                    <td>{item.startTime} - {item.endTime}</td>
-                    <td>{item.classLabel || "-"}</td>
-                    <td>{item.subjectLabel || "-"}</td>
-                    <td>{item.room || "-"}</td>
-                    <td>{item.teacherName || "-"}</td>
-                    <td>
+                    <td data-label={tr("Jour")}>{dayLabels.get(item.dayOfWeek) || item.dayOfWeek}</td>
+                    <td data-label={tr("Heure")}>{item.startTime} - {item.endTime}</td>
+                    <td data-label={tr("Classe")}>{item.classLabel || "-"}</td>
+                    <td data-label={tr("Matiere")}>{item.subjectLabel || "-"}</td>
+                    <td data-label={tr("Salle")}>{item.room || "-"}</td>
+                    <td data-label={tr("Enseignant")}>{item.teacherName || "-"}</td>
+                    <td data-label={tr("Action")}>
                       {renderActionMenu(`timetable-${item.id}`, `Actions cours ${item.subjectLabel || item.id}`, [
                         { label: "Supprimer", danger: true, onSelect: () => void deleteTimetableSlot(item.id) }
                       ])}
@@ -1063,13 +1056,13 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           </table>
         </div>
 
-        <h3>Vue hebdo</h3>
+        <h3>{tr("Vue hebdo")}</h3>
         <div className="day-grid">
           {(timetableGrid?.days || []).map((day) => (
             <article key={day.dayOfWeek} className="day-card">
               <h4>{day.dayLabel}</h4>
               {day.slots.length === 0 ? (
-                <p className="subtle">Aucun cours</p>
+                <p className="subtle">{tr("Aucun cours")}</p>
               ) : (
                 <div className="mini-list">
                   {day.slots.map((slot) => (
@@ -1090,67 +1083,66 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
       {showNotifications ? (
       <WorkflowGuide
-        title="Notifications"
+        title={tr("Notifications")}
         steps={notificationSteps}
         activeStepId={notificationWorkflowStep}
         onStepChange={setNotificationWorkflowStep}
       >
       <section data-step-id="notifications" className="panel editor-panel workflow-section module-modern">
         <div className="headline-row">
-          <h2>Notifications</h2>
+          <h2>{tr("Notifications")}</h2>
           <div className="inline-actions">
             <button type="button" className="button-ghost" onClick={() => void dispatchPendingNotifications()}>
-              Envoyer les notifications en attente
-            </button>
+              {tr("Envoyer les notifications en attente")}</button>
           </div>
         </div>
-        <p className="section-lead">Programmez les messages importants avec un flux plus propre pour les equipes.</p>
+        <p className="section-lead">{tr("Programmez les messages importants avec un flux plus propre pour les equipes.")}</p>
         {renderLoadWarning("notifications", "Notifications indisponibles")}
         <form className="form-grid module-form" onSubmit={(event) => void submitNotification(event)}>
-          <label>Titre<input value={notificationForm.title} onChange={(event) => setNotificationForm((prev) => ({ ...prev, title: event.target.value }))} required /></label>
-          <label>Message<input value={notificationForm.message} onChange={(event) => setNotificationForm((prev) => ({ ...prev, message: event.target.value }))} required /></label>
-          <label>Audience<select value={notificationForm.audienceRole} onChange={(event) => setNotificationForm((prev) => ({ ...prev, audienceRole: event.target.value }))}><option value="">Aucun</option><option value="PARENT">{labelFromMap(notificationAudienceLabels, "PARENT")}</option><option value="ENSEIGNANT">{labelFromMap(notificationAudienceLabels, "ENSEIGNANT")}</option><option value="SCOLARITE">{labelFromMap(notificationAudienceLabels, "SCOLARITE")}</option><option value="COMPTABLE">{labelFromMap(notificationAudienceLabels, "COMPTABLE")}</option></select></label>
-          <label>Eleve<select value={notificationForm.studentId} onChange={(event) => setNotificationForm((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">Aucun</option>{students.map((item) => <option key={item.id} value={item.id}>{item.matricule} - {item.firstName} {item.lastName}</option>)}</select></label>
-          <label>Canal<select value={notificationForm.channel} onChange={(event) => setNotificationForm((prev) => ({ ...prev, channel: event.target.value }))}><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
-          <label>Cible explicite<input value={notificationForm.targetAddress} onChange={(event) => setNotificationForm((prev) => ({ ...prev, targetAddress: event.target.value }))} placeholder="Email ou telephone" /></label>
-          <label>Planifiee<input type="datetime-local" value={notificationForm.scheduledAt} onChange={(event) => setNotificationForm((prev) => ({ ...prev, scheduledAt: event.target.value }))} /></label>
-          <button type="submit">Programmer l'envoi</button>
+          <label>{tr("Titre")}<input value={notificationForm.title} onChange={(event) => setNotificationForm((prev) => ({ ...prev, title: event.target.value }))} required /></label>
+          <label>{tr("Message")}<input value={notificationForm.message} onChange={(event) => setNotificationForm((prev) => ({ ...prev, message: event.target.value }))} required /></label>
+          <label>{tr("Audience")}<select value={notificationForm.audienceRole} onChange={(event) => setNotificationForm((prev) => ({ ...prev, audienceRole: event.target.value }))}><option value="">{tr("Aucun")}</option><option value="PARENT">{labelFromMap(notificationAudienceLabels, "PARENT")}</option><option value="ENSEIGNANT">{labelFromMap(notificationAudienceLabels, "ENSEIGNANT")}</option><option value="SCOLARITE">{labelFromMap(notificationAudienceLabels, "SCOLARITE")}</option><option value="COMPTABLE">{labelFromMap(notificationAudienceLabels, "COMPTABLE")}</option></select></label>
+          <label>{tr("Eleve")}<select value={notificationForm.studentId} onChange={(event) => setNotificationForm((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">{tr("Aucun")}</option>{students.map((item) => <option key={item.id} value={item.id}>{item.matricule} - {item.firstName} {item.lastName}</option>)}</select></label>
+          <label>{tr("Canal")}<select value={notificationForm.channel} onChange={(event) => setNotificationForm((prev) => ({ ...prev, channel: event.target.value }))}><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
+          <label>{tr("Cible explicite")}<input value={notificationForm.targetAddress} onChange={(event) => setNotificationForm((prev) => ({ ...prev, targetAddress: event.target.value }))} placeholder={tr("Email ou telephone")} /></label>
+          <label>{tr("Planifiee")}<input type="datetime-local" value={notificationForm.scheduledAt} onChange={(event) => setNotificationForm((prev) => ({ ...prev, scheduledAt: event.target.value }))} /></label>
+          <button type="submit">{tr("Programmer l'envoi")}</button>
         </form>
       </section>
 
       <section data-step-id="history" className="panel table-panel workflow-section module-modern">
         <div className="table-header">
-          <h2>Historique notifications</h2>
-          <span className="subtle">Suivi des envois, statuts et relances.</span>
+          <h2>{tr("Historique notifications")}</h2>
+          <span className="subtle">{tr("Suivi des envois, statuts et relances.")}</span>
         </div>
         {renderLoadWarning("notifications", "Historique notifications indisponible")}
         <form className="filter-grid module-filter" onSubmit={(event) => void applyNotificationFilters(event)}>
-          <label>Statut<select value={notificationFilters.status} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Tous</option>{Object.entries(notificationStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label>Canal<select value={notificationFilters.channel} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, channel: event.target.value }))}><option value="">Tous</option><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
-          <label>Distribution<select value={notificationFilters.deliveryStatus} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, deliveryStatus: event.target.value }))}><option value="">Toutes</option>{Object.entries(notificationDeliveryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <div className="actions"><button type="submit">Filtrer</button><button type="button" className="button-ghost" onClick={() => void resetNotificationFilters()}>Reinitialiser</button></div>
+          <label>{tr("Statut")}<select value={notificationFilters.status} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">{tr("Tous")}</option>{Object.entries(notificationStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>{tr("Canal")}<select value={notificationFilters.channel} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, channel: event.target.value }))}><option value="">{tr("Tous")}</option><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
+          <label>{tr("Distribution")}<select value={notificationFilters.deliveryStatus} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, deliveryStatus: event.target.value }))}><option value="">{tr("Toutes")}</option>{Object.entries(notificationDeliveryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <div className="actions"><button type="submit">{tr("Filtrer")}</button><button type="button" className="button-ghost" onClick={() => void resetNotificationFilters()}>{tr("Reinitialiser")}</button></div>
         </form>
         <div className="table-wrap">
           <table data-responsive-table="true">
             <thead>
-              <tr><th>Titre</th><th>Canal</th><th>Statut</th><th>Distribution</th><th>Cible</th><th>Fournisseur</th><th>Tentatives</th><th>Planifiee</th><th>Envoyee</th><th>Action</th></tr>
+              <tr><th>{tr("Titre")}</th><th>{tr("Canal")}</th><th>{tr("Statut")}</th><th>{tr("Distribution")}</th><th>{tr("Cible")}</th><th>{tr("Fournisseur")}</th><th>{tr("Tentatives")}</th><th>{tr("Planifiee")}</th><th>{tr("Envoyee")}</th><th>{tr("Action")}</th></tr>
             </thead>
             <tbody>
               {notifications.length === 0 ? (
-                <tr><td colSpan={10} className="empty-row">Aucune notification.</td></tr>
+                <tr><td colSpan={10} className="empty-row">{tr("Aucune notification.")}</td></tr>
               ) : (
                 notifications.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.title}</td>
-                    <td>{labelFromMap(notificationChannelLabels, item.channel)}</td>
-                    <td>{labelFromMap(notificationStatusLabels, item.status)}</td>
-                    <td>{labelFromMap(notificationDeliveryLabels, item.deliveryStatus)}</td>
-                    <td>{item.targetAddress || item.studentName || labelFromMap(notificationAudienceLabels, item.audienceRole) || "-"}</td>
-                    <td>{item.provider || "-"}</td>
-                    <td>{item.attempts}</td>
-                    <td>{item.scheduledAt ? new Date(item.scheduledAt).toLocaleString(locale) : "-"}</td>
-                    <td>{item.sentAt ? new Date(item.sentAt).toLocaleString(locale) : item.nextAttemptAt ? `Nouvelle tentative ${new Date(item.nextAttemptAt).toLocaleString(locale)}` : "-"}</td>
-                    <td>
+                    <td data-label={tr("Titre")}>{item.title}</td>
+                    <td data-label={tr("Canal")}>{labelFromMap(notificationChannelLabels, item.channel)}</td>
+                    <td data-label={tr("Statut")}>{labelFromMap(notificationStatusLabels, item.status)}</td>
+                    <td data-label={tr("Distribution")}>{labelFromMap(notificationDeliveryLabels, item.deliveryStatus)}</td>
+                    <td data-label={tr("Cible")}>{item.targetAddress || item.studentName || labelFromMap(notificationAudienceLabels, item.audienceRole) || "-"}</td>
+                    <td data-label={tr("Fournisseur")}>{item.provider || "-"}</td>
+                    <td data-label={tr("Tentatives")}>{item.attempts}</td>
+                    <td data-label={tr("Planifiee")}>{item.scheduledAt ? new Date(item.scheduledAt).toLocaleString(locale) : "-"}</td>
+                    <td data-label={tr("Envoyee")}>{item.sentAt ? new Date(item.sentAt).toLocaleString(locale) : item.nextAttemptAt ? tr(`Nouvelle tentative ${new Date(item.nextAttemptAt).toLocaleString(locale)}`) : "-"}</td>
+                    <td data-label={tr("Action")}>
                       {["PENDING", "FAILED_RETRYABLE"].includes(item.status)
                         ? renderActionMenu(`notification-${item.id}`, `Actions notification ${item.title}`, [
                             { danger: true, label: "Annuler", onSelect: () => void cancelPendingNotification(item.id) }

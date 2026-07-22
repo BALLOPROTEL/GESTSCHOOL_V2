@@ -9,7 +9,6 @@
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest run",
-    "test:visual": "node scripts/visual-audit.mjs",
     "test:smoke": "node scripts/smoke-tests.mjs"
   },
   "dependencies": {

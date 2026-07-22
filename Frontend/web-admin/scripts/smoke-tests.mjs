@@ -51,6 +51,22 @@ for (const file of requiredFiles) {
 }
 
 const featureFiles = walkFiles(path.join(srcRoot, "features")).filter((file) => /\.(ts|tsx)$/.test(file));
+const productionSources = walkFiles(srcRoot).filter(
+  (file) => /\.(ts|tsx)$/.test(file) && !/\.(test|spec)\.(ts|tsx)$/.test(file)
+);
+const mutationObserverSources = productionSources.filter((file) =>
+  /\b(?:new\s+)?MutationObserver\s*\(/u.test(readFileSync(file, "utf8"))
+);
+assert(
+  mutationObserverSources.length === 0,
+  `Aucun MutationObserver applicatif ne doit etre reintroduit: ${mutationObserverSources
+    .map((file) => path.relative(projectRoot, file))
+    .join(", ")}`
+);
+assert(
+  !existsSync(path.join(projectRoot, "src/app/shell/legacy-dom-enhancements-boundary.tsx")),
+  "La boundary DOM legacy supprimee au LOT 8D ne doit pas revenir."
+);
 const appNavigationLeaks = featureFiles.filter((file) =>
   readFileSync(file, "utf8").includes("app/navigation/screen-registry")
 );
@@ -103,6 +119,37 @@ for (const file of expectedStyleLayers) {
   assert(statSync(fullPath).size > 0, `Couche CSS vide: ${file}`);
 }
 
+const cssFiles = walkFiles(srcRoot).filter((file) => file.endsWith(".css"));
+const cssBytes = cssFiles.reduce((total, file) => total + statSync(file).size, 0);
+const importantCount = cssFiles.reduce(
+  (total, file) => total + (readFileSync(file, "utf8").match(/!important/gu)?.length || 0),
+  0
+);
+assert(cssBytes <= 575_000, `Le CSS source depasse le budget LOT 8D: ${cssBytes} octets.`);
+assert(importantCount <= 1_200, `Le nombre de !important depasse le budget LOT 8D: ${importantCount}.`);
+
+const removedVisualScripts = [
+  "scripts/auth-iam-visual-audit.mjs",
+  "scripts/auth-visual-audit.mjs",
+  "scripts/dashboard-visual-audit.mjs",
+  "scripts/enrollments-visual-audit.mjs",
+  "scripts/finance-visual-audit.mjs",
+  "scripts/iam-visual-audit.mjs",
+  "scripts/parents-visual-audit.mjs",
+  "scripts/rooms-visual-audit.mjs",
+  "scripts/students-visual-audit.mjs",
+  "scripts/teachers-visual-audit.mjs",
+  "scripts/visual-audit.mjs"
+];
+for (const file of removedVisualScripts) {
+  assert(!existsSync(path.join(projectRoot, file)), `Script visuel legacy revenu: ${file}`);
+}
+assert(
+  !existsSync(path.resolve(projectRoot, "../../scripts/visual-audit-notes-bulletins.mjs")) &&
+    !existsSync(path.resolve(projectRoot, "../../scripts/visual-audit-profile.mjs")),
+  "Les scripts visuels legacy racine ne doivent pas revenir."
+);
+
 if (failures.length > 0) {
   console.error("Smoke frontend KO:");
   for (const failure of failures) {
@@ -111,4 +158,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("Smoke frontend OK: shell, lazy loading, isolation features et couches CSS verifies.");
+console.log(
+  `Smoke frontend OK: structure, dette CSS (${cssBytes} octets, ${importantCount} !important), observers et scripts visuels verifies.`
+);
