@@ -175,6 +175,135 @@ Deux lancements Prisma dans le bac a sable ont retourne `Schema engine error`; l
 
 Verdict du LOT 1 : **GO pour lever le blocage du validateur sans casser les donnees connues, avec reserve obligatoire**. La migration definitive vers un UUID versionne reste **NO-GO** tant que la production releve du scenario D. Le LOT 2 ne doit pas commencer avant validation de ce compromis ou fourniture d'un acces production en lecture seule.
 
+## LOT 1B - Audit du snapshot et migration canonique du tenant
+
+- Date : 2026-07-26
+- Source : copie locale recente de production, exposee uniquement par `PROD_SNAPSHOT_DATABASE_URL`
+- Statut : audit et strategie testes ; aucune migration active ajoutee et aucune donnee de production modifiee
+
+### Garde-fous et scenario
+
+La connexion du snapshot a confirme `transaction_read_only=on`. Toutes les lectures ont utilise exclusivement `PROD_SNAPSHOT_DATABASE_URL`. Aucun acces direct a Supabase ou a la production, aucune ecriture sur le snapshot et aucune sortie nominative n'ont ete effectues.
+
+Les scenarios sont interpretes ainsi :
+
+- A : tenant historique absent des donnees reelles ;
+- B : tenant historique limite aux seeds ou tests ;
+- C : tenant historique utilise par une base existante, cible canonique absente et migration transactionnelle possible ;
+- D : donnees reelles non verifiables ;
+- E : coexistence historique/canonique, tenants inattendus, collisions ou anomalies d'integrite imposant une decision de donnees.
+
+Le snapshot releve du **scenario C**. Il contient uniquement le tenant historique `00000000-0000-0000-0000-000000000001`. L'UUID canonique cible `00000000-0000-4000-8000-000000000001` est absent. Aucun element du scenario E n'a ete detecte dans les colonnes tenant.
+
+### Inventaire factuel
+
+- PostgreSQL 17.10, environ 11,9 Mo.
+- 42 tables portent `tenant_id`, toutes de type PostgreSQL `uuid`.
+- 41 colonnes sont obligatoires ; seule `outbox_events.tenant_id` est nullable.
+- 758 lignes historiques, reparties dans 18 tables ; 24 tables tenant sont vides.
+- Une seule valeur distincte de `tenant_id` sur l'ensemble des 42 tables.
+- 0 ligne canonique cible et 0 `tenant_id` NULL.
+- Une valeur UUID syntaxiquement invalide est impossible dans une colonne PostgreSQL `uuid`. Les 758 valeurs ont cependant une version UUID non canonique, correspondant exactement a l'identifiant historique autorise temporairement.
+- 33 contraintes uniques tenant, 107 index tenant et 86 relations parent/enfant entre tables tenant.
+- 0 cle etrangere orpheline, 0 relation inter-tenant et 0 contrainte PostgreSQL non validee.
+- `parent_student_links` et `parents` sont vides dans ce snapshot. Leur integrite technique est correcte, mais le domaine parent/eleve n'est pas representatif fonctionnellement.
+- Aucune table proprietaire `tenants` ou `establishments` et aucune FK centrale sur `tenant_id`.
+- 43 politiques RLS publiques utilisent la meme restriction de roles serveur ; aucune ne contient l'identifiant historique.
+
+Repartition des 758 lignes historiques :
+
+| Table | Lignes |
+| --- | ---: |
+| `academic_periods` | 1 |
+| `classes` | 1 |
+| `cycles` | 1 |
+| `grades` | 1 |
+| `iam_audit_logs` | 267 |
+| `levels` | 1 |
+| `outbox_events` | 267 |
+| `refresh_tokens` | 187 |
+| `report_cards` | 1 |
+| `room_types` | 3 |
+| `school_years` | 1 |
+| `students` | 2 |
+| `subjects` | 1 |
+| `teacher_assignments` | 1 |
+| `teacher_skills` | 1 |
+| `teachers` | 2 |
+| `user_security_tokens` | 13 |
+| `users` | 7 |
+
+### References historiques hors `tenant_id`
+
+Une recherche agregee sur les catalogues, colonnes texte et JSON a trouve :
+
+- 12 payloads historiques dans `iam_audit_logs` ;
+- 267 payloads dans `outbox_events`, tous au statut `PROCESSED` ;
+- 2 anciennes valeurs `users.avatar_url`.
+
+Aucune politique RLS, vue, fonction, trigger ou valeur par defaut ne contient l'identifiant historique. Les payloads d'audit doivent rester immuables. Les payloads outbox traites doivent etre conserves ou archives selon la politique de retention, sans remplacement JSON aveugle. Les deux URL d'avatar relevent du plan de migration stockage LOT 4-PROD.
+
+### Test sur copie jetable
+
+Un dump limite par RLS a ete restaure dans un PostgreSQL Docker en `tmpfs`. Les agregats de la copie correspondaient exactement au snapshot. Les quatre migrations du depot absentes du snapshot ont ensuite ete appliquees uniquement a la copie :
+
+- `20260714130000_secure_storage_metadata` ;
+- `20260716113000_notification_delivery_reliability` ;
+- `20260716160000_nullable_unique_concurrency_hardening` ;
+- `20260716170000_payment_provider_token_scope`.
+
+La copie comportait alors 34 migrations appliquees et 0 migration echouee.
+
+La migration candidate testee :
+
+1. prend un advisory lock transactionnel ;
+2. impose un `lock_timeout` et un `statement_timeout` ;
+3. exige l'inventaire exact des 42 tables ;
+4. compte ancien et nouveau tenants avant toute ecriture ;
+5. refuse l'absence de source ou toute presence de la cible ;
+6. met a jour les 42 colonnes dans une transaction ;
+7. verifie les comptes et l'integrite avant commit.
+
+Resultats :
+
+- migration avant mise a niveau du schema : 758/758 lignes, 42 tables, succes ;
+- rollback immediat : 758/758 lignes, succes ;
+- collision simulee d'une ligne canonique : refus avant toute mise a jour, avec transaction annulee ;
+- migration apres mise a niveau aux 34 migrations : 758/758 lignes, succes ;
+- apres migration : 0 historique, 758 canoniques, 0 NULL, 18 tables peuplees, 0 anomalie relationnelle ;
+- rollback immediat sur le schema courant : 758/758 lignes et retour exact aux agregats initiaux.
+
+Le dump, les scripts temporaires et la base jetable ne constituent pas des artefacts a committer.
+
+### Strategie de migration et rollback
+
+La migration de production doit rester un changement de maintenance coordonne :
+
+1. arreter les ecritures API et worker ;
+2. creer et verifier une sauvegarde PostgreSQL immutable ;
+3. relancer le preflight lecture seule sur la base courante ;
+4. verifier que la cible reste absente et que les 42 tables sont identiques ;
+5. verifier que le role de migration direct peut executer les mises a jour malgre RLS ;
+6. appliquer une nouvelle migration Prisma transactionnelle via le job controle ;
+7. deployer dans la meme fenetre la configuration et le code avec l'UUID canonique ;
+8. retirer `ALLOW_LEGACY_DEFAULT_TENANT_ID` et l'exception du validateur ;
+9. verifier 0 ligne historique, les relations, l'authentification, les sessions, le worker et les routes tenant ;
+10. rouvrir les ecritures uniquement apres les smoke tests.
+
+Rollback :
+
+- avant reprise du trafic : migration inverse transactionnelle, uniquement si aucune nouvelle ligne canonique n'a ete creee ;
+- apres reprise du trafic : ne pas faire de remplacement inverse global, car les lignes migrees et les nouvelles lignes ne sont plus distinguables ; restaurer la sauvegarde pre-migration et redeployer ensemble l'ancienne configuration et l'ancien code.
+
+### Limites, risques et verdict
+
+- Le snapshot est recent mais ne prouve pas qu'aucune ecriture n'a eu lieu en production depuis sa creation. Le preflight doit etre repete juste avant migration.
+- Les domaines parents, inscriptions, finance, notifications et plusieurs tables scolaires sont vides ; les contraintes ont ete testees, mais les volumes ne sont pas representatifs.
+- Les references historiques dans audit, outbox et avatar ne doivent pas etre modifiees par la migration tenant.
+- Le snapshot etait initialement a 30 migrations. La compatibilite avec les 34 migrations du depot a ete testee sur la copie.
+
+Verdict LOT 1B : **GO pour preparer la migration canonique versionnee et son commit ; NO-GO pour l'appliquer en production tant que la fenetre de maintenance, la sauvegarde verifiee, le preflight final, le role de migration et le traitement des avatars historiques ne sont pas valides**.
+
 ## LOT 2 - Dependances de production
 
 - Date : 2026-07-15
