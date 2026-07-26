@@ -2007,3 +2007,44 @@ ete simule.
 
 Message de commit propose :
 `chore(infra): harden CI deployment and operations`.
+# LOT 4-PROD - historical Supabase storage migration preparation
+
+Status: code and simulated validation prepared; production writes not
+authorized. Deployment remains NO-GO.
+
+- The read-only snapshot audit used only `PROD_SNAPSHOT_DATABASE_URL`.
+- Snapshot schema is older than secure-storage metadata: zero storage metadata
+  columns are present.
+- Aggregate inventory: 2 avatar references, 0 teacher documents and 0
+  attendance attachments.
+- Both avatar references are distinct public Supabase object URLs in
+  `gestschool-avatars`, use the historical tenant prefix and belong to the
+  expected database tenant.
+- No parent-resource, uploader or cross-tenant inconsistency was found.
+- Physical object existence and bucket-only orphans were not checked because no
+  service-role access was available. No real Supabase request was made.
+- Added a dry-run-first migration engine with deterministic canonical keys,
+  SHA-256/size verification, approved-manifest gating, journal replay,
+  conditional metadata writes and compensation after database failure.
+- Apply is blocked until LOT 1C has migrated the active PostgreSQL row to the
+  canonical tenant, preventing a legacy-tenant row from referencing a
+  canonical storage key that the runtime would reject.
+- Added an operational runbook at
+  `docs/runbooks/storage-historical-migration.md`.
+- The tool never deletes legacy sources and never rewrites audit/outbox payloads
+  or historical URL columns.
+- Final read-only dry-run: 2 records, 2 `source-read-disabled`, 0 missing,
+  0 orphan and 0 error. The aggregate report checksum remained stable across
+  repeated runs.
+- Simulated migration tests: 14 migration-engine tests and 8 existing storage
+  policy tests passed. They cover dry-run, replay, missing source, existing
+  object, upload failure, database failure, signed-URL failure, compensation,
+  failed compensation, tenant isolation, stale journal handling and secret-free
+  journaling.
+- Full API unit suite: 21 suites and 112 tests passed.
+- Prisma validate/generate, API typecheck, lint, build, migration-script
+  typecheck/lint and `git diff --check` passed.
+- Production remains NO-GO until private bucket flags and object existence have
+  been verified with backend-only service-role access, the full dry-run and
+  object reconciliation pass on staging, and backup/restore evidence is
+  approved.

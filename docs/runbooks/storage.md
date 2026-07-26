@@ -53,6 +53,9 @@ This plan covers legacy avatars, teacher documents and attendance attachments.
 It is a future operational procedure: no production migration is performed as
 part of LOT 4.
 
+The executable procedure, safety gates and commands are maintained in
+`docs/runbooks/storage-historical-migration.md`.
+
 ### 1. Read-only inventory
 
 Run the inventory against a restored production copy first. Export only record
