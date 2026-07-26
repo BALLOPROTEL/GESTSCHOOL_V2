@@ -1,0 +1,62 @@
+groups:
+  - name: gestschool
+    rules:
+      - alert: GestSchoolApiDown
+        expr: up{job="gestschool-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: GestSchool API metrics endpoint is unreachable
+
+      - alert: GestSchoolDependencyDown
+        expr: gestschool_database_up == 0 or gestschool_redis_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: A required GestSchool dependency is unavailable
+
+      - alert: GestSchoolHttp5xxRateHigh
+        expr: |
+          sum(rate(gestschool_http_requests_total{status_code=~"5.."}[5m]))
+            /
+          clamp_min(sum(rate(gestschool_http_requests_total[5m])), 0.001)
+            > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than 5 percent of API requests return 5xx
+
+      - alert: GestSchoolOutboxBacklog
+        expr: gestschool_outbox_events_due_total > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: GestSchool outbox due backlog exceeds 100 events
+
+      - alert: GestSchoolNotificationOutboxLag
+        expr: gestschool_notification_requests_outbox_lag_seconds_max > 900
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Oldest due notification request is more than 15 minutes late
+
+      - alert: GestSchoolDeadLetterPresent
+        expr: gestschool_outbox_events_total{status="DEAD_LETTER"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: GestSchool contains dead-letter outbox events
+
+      - alert: GestSchoolStorageErrors
+        expr: increase(gestschool_operations_total{operation=~"storage_.*",result="error"}[15m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Repeated Supabase Storage operations are failing

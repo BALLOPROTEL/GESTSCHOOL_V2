@@ -14,8 +14,8 @@ const createController = (values: Record<string, string | undefined>): Monitorin
   new MonitoringController(
     {} as never,
     configService(values),
-    { isConnected: () => false } as never,
-    { snapshot: () => ({ duration: [], total: [] }) } as never
+    { isConnected: () => false, getOperationalMetrics: () => Promise.resolve({}) } as never,
+    { snapshot: () => ({ duration: [], total: [], operations: [] }) } as never
   );
 
 describe("public endpoint security policy", () => {
@@ -57,5 +57,14 @@ describe("public endpoint security policy", () => {
     expect(serialized).not.toContain("supabase-service-role-secret");
     expect(serialized).toContain('"SUPABASE_SERVICE_ROLE_KEY":true');
     expect(serialized).toContain('"PAYDUNYA_PRIVATE_KEY":true');
+  });
+
+  it("accepts the monitoring token through a standard bearer header", () => {
+    const controller = createController({
+      MONITORING_METRICS_TOKEN: strongToken,
+      NODE_ENV: "production"
+    });
+
+    expect(() => controller.providerChecks(undefined, `Bearer ${strongToken}`)).not.toThrow();
   });
 });

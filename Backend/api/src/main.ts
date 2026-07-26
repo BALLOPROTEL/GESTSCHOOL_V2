@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from "@nestjs/common";
+import { ConsoleLogger, Logger, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
@@ -7,8 +7,14 @@ import { AppModule } from "./app.module";
 import { configureHttpPlatform } from "./security/http-platform.config";
 
 async function bootstrap(): Promise<void> {
+  const production = String(process.env.NODE_ENV || "development").trim().toLowerCase() === "production";
   const app = await NestFactory.create(AppModule, {
-    bufferLogs: true
+    bufferLogs: true,
+    logger: new ConsoleLogger({
+      colors: !production,
+      json: production,
+      prefix: "gestschool-api"
+    })
   });
   app.flushLogs();
   app.enableShutdownHooks();

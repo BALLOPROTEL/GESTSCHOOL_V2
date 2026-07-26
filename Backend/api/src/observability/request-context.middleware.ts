@@ -19,7 +19,10 @@ export class RequestContextMiddleware implements NestMiddleware {
     next: () => void
   ): void {
     const headerValue = request.header("x-request-id")?.trim();
-    const requestId = headerValue || randomUUID();
+    const requestId =
+      headerValue && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/.test(headerValue)
+        ? headerValue
+        : randomUUID();
 
     request.requestId = requestId;
     response.setHeader("x-request-id", requestId);

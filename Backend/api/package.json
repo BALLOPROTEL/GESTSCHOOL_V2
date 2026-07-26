@@ -10,6 +10,8 @@
     "start:prod": "node ./scripts/validate-production-env.cjs && node dist/main",
     "start:worker:dev": "node --watch --watch-path src -r ts-node/register/transpile-only -r tsconfig-paths/register src/worker.ts",
     "start:worker": "node dist/worker",
+    "start:worker:prod": "node ./scripts/validate-production-env.cjs && node dist/worker",
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\"",
     "test:unit": "jest --config ./test/jest-unit.json --runInBand",
     "test:e2e": "node ./scripts/run-e2e-db-sequence.cjs test",

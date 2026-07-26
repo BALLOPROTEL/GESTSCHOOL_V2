@@ -1,0 +1,110 @@
+name: Controlled production migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full commit SHA approved for migration and deployment
+        required: true
+        type: string
+      backup_reference:
+        description: Verified immutable backup or snapshot reference
+        required: true
+        type: string
+      confirmation:
+        description: Type MIGRATE-PRODUCTION to continue
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gestschool-production-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Validate and migrate production
+    if: inputs.confirmation == 'MIGRATE-PRODUCTION'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production-database
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      APPROVED_SHA: ${{ inputs.commit_sha }}
+      BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+    steps:
+      - name: Reject incomplete operational approval
+        run: |
+          [[ "$APPROVED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "commit_sha must be a full Git SHA." >&2
+            exit 1
+          }
+          [[ -n "$BACKUP_REFERENCE" ]] || {
+            echo "A verified backup reference is required." >&2
+            exit 1
+          }
+          [[ -n "$DATABASE_URL" && -n "$DIRECT_URL" ]] || {
+            echo "Protected environment database secrets are missing." >&2
+            exit 1
+          }
+          echo "Approved commit: $APPROVED_SHA"
+          echo "Backup reference supplied and intentionally not printed."
+
+      - name: Checkout approved commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 0
+
+      - name: Verify approved commit belongs to origin/main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$APPROVED_SHA" origin/main || {
+            echo "Approved commit is not reachable from origin/main." >&2
+            exit 1
+          }
+          [[ "$(git rev-parse HEAD)" == "$APPROVED_SHA" ]]
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.2
+        with:
+          version: 10.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+        with:
+          node-version: 22.22.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @gestschool/api prisma:generate
+
+      - name: Run pre-migration data audit
+        run: >-
+          pnpm --filter @gestschool/api audit:precutover --
+          --out=/tmp/gestschool-pre-migration-audit.json
+
+      - name: Show current migration status
+        run: pnpm --filter @gestschool/api db:status
+
+      - name: Apply approved migrations once
+        run: pnpm render:migrate:api
+
+      - name: Verify post-migration status
+        run: pnpm --filter @gestschool/api db:status
+
+      - name: Preserve migration audit evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: production-migration-audit-${{ inputs.commit_sha }}
+          path: /tmp/gestschool-pre-migration-audit.json
+          if-no-files-found: error
+          retention-days: 30

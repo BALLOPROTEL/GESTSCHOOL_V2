@@ -9,6 +9,7 @@ const strongSecret = "a-strong-production-secret-with-32-characters";
 
 const validEnv = (): NodeJS.ProcessEnv => ({
   NODE_ENV: "production",
+  GESTSCHOOL_PROCESS_ROLE: "api",
   DATABASE_URL: "postgresql://gestschool:password@db.example.com:5432/gestschool",
   DIRECT_URL: "postgresql://gestschool:password@db-direct.example.com:5432/gestschool",
   CORS_ORIGINS: "https://gestschool.vercel.app",
@@ -28,13 +29,18 @@ const validEnv = (): NodeJS.ProcessEnv => ({
   SUPABASE_STORAGE_BUCKET_AVATARS: "gestschool-avatars",
   SUPABASE_STORAGE_AVATARS_PUBLIC: "false",
   SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS: "300",
+  MONITORING_METRICS_TOKEN: `${strongSecret}-metrics`,
+  SWAGGER_ENABLED: "false",
   NOTIFICATIONS_WORKER_ENABLED: "false",
   OUTBOX_IN_PROCESS_ENABLED: "false"
 });
 
 const validNotificationEnv = (): NodeJS.ProcessEnv => ({
   ...validEnv(),
-  OUTBOX_IN_PROCESS_ENABLED: "true",
+  GESTSCHOOL_PROCESS_ROLE: "worker",
+  WORKER_HEALTH_PORT: "3001",
+  NOTIFICATIONS_WORKER_ENABLED: "true",
+  OUTBOX_IN_PROCESS_ENABLED: "false",
   NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
   NOTIFICATIONS_SMS_PROVIDER: "BREVO",
   BREVO_API_KEY: `${strongSecret}-brevo`,
@@ -248,6 +254,75 @@ describe("production environment validator", () => {
       errors: [],
       warnings: []
     });
+  });
+
+  it("enforces one explicit production process role", () => {
+    const missingRole = validEnv();
+    delete missingRole.GESTSCHOOL_PROCESS_ROLE;
+
+    expect(validateProductionEnv(missingRole).errors).toContain(
+      "GESTSCHOOL_PROCESS_ROLE is required in production."
+    );
+    expect(
+      validateProductionEnv({
+        ...validEnv(),
+        GESTSCHOOL_PROCESS_ROLE: "scheduler"
+      }).errors
+    ).toContain("GESTSCHOOL_PROCESS_ROLE must be api or worker.");
+  });
+
+  it("rejects background processing inside the production API", () => {
+    const result = validateProductionEnv({
+      ...validNotificationEnv(),
+      GESTSCHOOL_PROCESS_ROLE: "api",
+      NOTIFICATIONS_WORKER_ENABLED: "false",
+      OUTBOX_IN_PROCESS_ENABLED: "true"
+    });
+
+    expect(result.errors).toContain(
+      "OUTBOX_IN_PROCESS_ENABLED must be false for the production API; deploy a dedicated worker."
+    );
+  });
+
+  it("requires one dedicated worker strategy and its health port", () => {
+    const result = validateProductionEnv({
+      ...validNotificationEnv(),
+      NOTIFICATIONS_WORKER_ENABLED: "false",
+      WORKER_HEALTH_PORT: ""
+    });
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "NOTIFICATIONS_WORKER_ENABLED must be true for the worker process.",
+        "WORKER_HEALTH_PORT is required in production."
+      ])
+    );
+  });
+
+  it("rejects simultaneous in-process and dedicated workers", () => {
+    const result = validateProductionEnv({
+      ...validNotificationEnv(),
+      OUTBOX_IN_PROCESS_ENABLED: "true"
+    });
+
+    expect(result.errors).toContain(
+      "NOTIFICATIONS_WORKER_ENABLED and OUTBOX_IN_PROCESS_ENABLED must not both be enabled."
+    );
+  });
+
+  it("requires protected monitoring and disables Swagger for the production API", () => {
+    const env = validEnv();
+    delete env.MONITORING_METRICS_TOKEN;
+    env.SWAGGER_ENABLED = "true";
+
+    const result = validateProductionEnv(env);
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "MONITORING_METRICS_TOKEN is required in production.",
+        "SWAGGER_ENABLED must be false for the production API."
+      ])
+    );
   });
 
   it("requires the timeout for the provider that is actually enabled", () => {

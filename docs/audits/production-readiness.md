@@ -1546,3 +1546,244 @@ dependance ou design demande.
 
 Message de commit propose :
 `refactor(web-admin): complete declarative UI and retire legacy visual debt`.
+
+## LOT 9 - Infrastructure, CI/CD et exploitation
+
+Date de validation locale : 23 juillet 2026.
+
+### Diagnostic initial
+
+| Composant | Etat avant le lot | Risque confirme | Correction |
+| --- | --- | --- | --- |
+| GitHub Actions | un job principal, actions par tags, aucun Redis | controles incomplets et actions mutables | quatre gates separes, SHA immuables, Redis, timeouts et concurrence |
+| Audit securite | audit pnpm production seulement | secrets, SAST, images et SBOM non controles | pnpm 11, Trivy, Semgrep et Syft |
+| Render | migration pendant le build et auto-deploy actif | migration concurrente, promotion non controlee | build, migration et demarrage separes ; auto-deploy desactive |
+| API et worker | aucun worker de production deploye | backlog outbox non consomme | images et processus dedies avec roles mutuellement exclusifs |
+| Docker | aucun Dockerfile de production | runtime non reproductible et non scanne | trois cibles multi-stage, Node 22.22.0 par digest, non-root |
+| Health | API uniquement | worker non observable | liveness/readiness API et worker |
+| Metriques | endpoint protege mais scrape sans jeton | Prometheus recevait HTTP 403 | bearer token monte comme secret et alertes explicites |
+| Logs | logger texte par defaut | correlation difficile et fuite potentielle | logs JSON, request ID borne, routes normalisees, donnees sensibles exclues |
+| Sauvegarde | script PowerShell sans preuve de restauration | backup inutilisable ou non chiffre | scripts POSIX, checksum, chiffrement production et drill jetable |
+| Deploiement | demarrage lie au build/migration | rollback et promotion ambigus | workflow de migration protege et runbooks |
+
+Le depot ne contientait pas de Dockerfile. Le service Render gratuit etait
+configure en auto-deploy, sans worker dedie. Le build Render executait
+`prisma migrate deploy`, ce qui couplait compilation et mutation de schema.
+La CI ne lancait ni Redis, ni typecheck explicite, ni secret scan, SAST, SBOM,
+scan d'image ou exercice de restauration.
+
+### Architecture appliquee
+
+- `Backend/api/Dockerfile` produit `api`, `worker` et `migration`.
+- L'image Node `22.22.0-bookworm-slim` et l'image
+  `docker/dockerfile:1.7` du frontend BuildKit sont fixees par digest.
+- Les runtimes retirent npm/corepack, inutiles en production.
+- Les correctifs Debian disponibles sont installes avant le scan.
+- L'API refuse tout traitement outbox/notification en production.
+- Le worker exige `NOTIFICATIONS_WORKER_ENABLED=true` et expose ses propres
+  endpoints de liveness/readiness.
+- Les deux processus exigent PostgreSQL et Redis pour etre ready.
+- Le job de migration est un processus unique distinct du build et du runtime.
+- Les exemples Kubernetes utilisent un digest nul fail-closed a remplacer par
+  le digest produit par la release.
+- Le fichier Render principal conserve uniquement l'API gratuite existante ;
+  le worker payant est fourni comme exemple et n'est pas cree.
+
+La sequence de promotion documentee est :
+
+1. CI et scans verts ;
+2. sauvegarde chiffree et restauration jetable prouvee ;
+3. preflight sur une copie representative ;
+4. migration unique par environnement GitHub protege ;
+5. deploiement API par digest ;
+6. smoke/readiness API ;
+7. deploiement worker par digest ;
+8. controle backlog, erreurs et metriques ;
+9. promotion frontend ;
+10. rollback applicatif ou restauration controlee si necessaire.
+
+### CI et supply chain
+
+Le workflow principal contient les gates suivants :
+
+- qualite : installation pnpm `10.24.0` figee, Prisma, typecheck, lint, builds,
+  unitaires, PostgreSQL 16.14, Redis 7.4.7, migrations, E2E, frontend et smoke ;
+- visuel : tests/lint du collecteur et audit mocke strict ;
+- securite : audits pnpm `11.13.0`, Trivy filesystem, Semgrep local et SBOM
+  source ;
+- conteneurs : builds par SHA, validation runtime, restauration PostgreSQL,
+  scans des trois images et SBOM de l'image API ;
+- gate final : les quatre resultats doivent etre `success`.
+
+Les actions GitHub sont fixees par SHA. Le gate d'audit verifie que pnpm
+commence par `11.`. Semgrep, Syft et la version du scanner Trivy sont fixes. Les
+SBOM, rapports Trivy/Semgrep et preuves de conteneurs sont conserves 30 jours,
+y compris lorsque le scan echoue. Le controle des espaces compare le commit a
+la base de la pull request ou au commit precedent, au lieu d'executer un diff
+vide sur un checkout propre. Les anciennes executions de la meme branche sont
+annulees.
+
+Le workflow `production-migration.yml` est uniquement manuel. Il exige :
+
+- un SHA exact ;
+- un environnement GitHub protege ;
+- une reference de sauvegarde ;
+- une confirmation explicite ;
+- le preflight Prisma et le statut final ;
+- la conservation du journal de migration.
+
+Il ne deploie aucune application.
+
+### Observabilite
+
+Les signaux ajoutes ou renforces couvrent :
+
+- requetes API par methode, route normalisee et statut ;
+- latence API et taux de 4xx/5xx ;
+- etat PostgreSQL et Redis ;
+- connexions Redis et statistiques memoire sures ;
+- backlog et age de l'outbox ;
+- notifications pending, retry et dead-letter ;
+- erreurs d'operations Supabase Storage ;
+- liveness/readiness API et worker.
+
+Le request ID fourni par le client est accepte uniquement avec un alphabet
+borne et une longueur maximale de 80 caracteres ; sinon un UUID serveur est
+genere. Les logs ne contiennent pas JWT, refresh token, secret, destinataire
+complet, contenu de notification ou document utilisateur.
+
+Des alertes initiales sont definies pour l'indisponibilite API/DB/Redis, les
+5xx, la latence, le backlog/lag outbox, les dead-letter et les erreurs storage.
+Leur collecte reelle reste a brancher sur une solution approuvee.
+
+### Sauvegarde et restauration
+
+`backup-postgres.sh` :
+
+- produit un dump PostgreSQL custom compresse ;
+- verifie le catalogue ;
+- calcule un SHA-256 et un manifeste ;
+- exige `age` en production ;
+- ecrit atomiquement ;
+- applique une retention configurable.
+
+`restore-postgres.sh` :
+
+- verifie le checksum ;
+- exige le nom exact de la base cible ;
+- refuse les bases systeme ou non jetables ;
+- dechiffre avec `age` si necessaire ;
+- restaure avec nettoyage controle ;
+- controle le statut des migrations lorsque Node est disponible.
+
+L'exercice jetable a restaure les 34 migrations et une ligne sonde. Le garde de
+production a refuse une sauvegarde non chiffree. Aucun backup de production n'a
+ete lance.
+
+Pour Supabase Storage, le plan documente impose l'inventaire des objets, la
+comparaison aux metadonnees PostgreSQL, la detection des objets absents ou
+orphelins et une politique de copie/replication a choisir selon le plan
+Supabase. Aucune copie reelle n'a ete effectuee.
+
+### Validations executees
+
+| Controle | Resultat reel |
+| --- | --- |
+| Installation pnpm 10.24.0 figee | OK |
+| Prisma validate/generate | OK, Prisma 6.19.3 |
+| Typecheck monorepo | OK |
+| Lint API/frontend | OK |
+| Build API/frontend | OK |
+| Build frontend sans URL API explicite | refus attendu, garde runtime actif |
+| Build frontend avec URL HTTPS explicite | OK |
+| Unitaires API | OK, 19 suites et 98 tests |
+| Tests frontend | OK, 24 fichiers et 109 tests |
+| E2E PostgreSQL/Redis | OK, 9 suites et 61 tests |
+| Migration neuve | OK, 34/34 |
+| Smoke frontend | OK |
+| Audit visuel mocke CI | OK, 67/67 et zero constat |
+| Audit visuel complet du LOT 8D | reference precedente OK, 133/133 |
+| Tests du collecteur visuel | OK, 6/6 |
+| Audit production pnpm 11 | OK, aucune vulnerabilite connue |
+| Audit complet pnpm 11 niveau high | OK, zero critique/haute ; une faible esbuild |
+| Semgrep local | OK, 5 regles, 314 fichiers TypeScript, zero constat |
+| Trivy filesystem | OK, 593 cibles, zero critique/haute/secret/misconfiguration |
+| Trivy images initial | ECHEC utile : 5 critiques et 32 hautes par image |
+| Trivy images apres correction | OK, zero critique/haute sur les trois images |
+| Validation conteneurs finaux | OK, migrations, non-root, probes, pannes DB/Redis, SIGTERM |
+| SBOM source | OK, 1 284 paquets |
+| SBOM image API | OK, 315 paquets |
+| Drill backup/restore | OK, 34 migrations et sonde restaurees |
+| YAML et scripts shell/Node | OK |
+| Docker Compose | OK lors de la validation initiale du lot |
+| `git diff --check` | OK |
+
+Le premier scan d'image a prouve une faiblesse de la base Node : npm global
+embarquait des versions vulnerables de `tar`, `glob`, `minimatch` et associes,
+et Debian exposait des correctifs `libcap2`/`libgnutls30`. npm/corepack ont ete
+retires des runtimes et les mises a jour Debian appliquees. Le second scan
+hors reseau a retourne zero critique et zero haute pour API, worker et
+migration.
+
+L'audit complet pnpm conserve une seule alerte faible :
+`esbuild < 0.28.1`, exploitable sur le serveur de developpement Windows. La CI
+est Linux et les images de production n'embarquent pas Vite/esbuild. Cette
+dette doit etre reevaluee au LOT 10.
+
+### Controles impossibles dans cette passe
+
+- Le nouvel audit visuel complet n'a pas pu etre relance : l'environnement
+  d'execution a refuse l'ouverture du port Vite apres epuisement du quota
+  d'approbation. L'audit CI 67/67 a bien ete execute dans ce lot ; aucun fichier
+  UI source n'a ete modifie.
+- Le second `docker compose config` a ete refuse par la meme limite
+  d'approbation. Une validation Compose avait deja reussi avant ce blocage.
+- Le dry-run Kubernetes client a demande la decouverte d'un cluster inexistant
+  sur `localhost:8080`. Les documents YAML sont syntaxiquement valides, mais
+  aucun cluster reel n'a ete contacte.
+- `gh auth status` indique un jeton invalide. Les protections de branche,
+  environnements GitHub et reviewers requis ne peuvent donc pas etre verifies.
+- Les variables et protections Render/Vercel, les buckets Supabase, les
+  sauvegardes gerees et les alertes externes ne sont pas inspectables depuis le
+  depot local.
+- `actionlint`, `shellcheck` et `hadolint` ne sont pas installes localement.
+  Les scripts ont passe `bash -n`, les YAML ont ete parses et les images ont ete
+  construites/scannees.
+
+### Decisions, couts et actions utilisateur
+
+Le deploiement reste bloque jusqu'aux decisions et preuves suivantes :
+
+1. choisir un plan Render API sans mise en veille ;
+2. approuver un background worker Render Starter ou une alternative ;
+3. proteger `main` et rendre `Required CI gate` obligatoire ;
+4. proteger l'environnement GitHub `production-migration` avec reviewers ;
+5. configurer les secrets API, worker et migration separement ;
+6. configurer Vercel Preview/Production avec `VITE_API_BASE_URL` et les quatre
+   feature flags explicitement ;
+7. verifier Redis dans la meme region, `noeviction`, URL privee et capacite ;
+8. verifier les buckets Supabase prives et la sauvegarde/replication des objets ;
+9. choisir une destination hors site chiffree et une cle `age` pour les dumps ;
+10. prouver une restauration depuis une copie representative ;
+11. choisir un collecteur de metriques et un canal d'alerte ;
+12. publier les images par SHA, enregistrer leurs digests et deployer uniquement
+    ces digests ;
+13. conserver Brevo/SMS desactives jusqu'au LOT 5B.
+
+Le plan Render gratuit actuel ne fournit ni background worker gratuit ni
+pre-deploy job. Il est adapte a une demonstration, pas a l'exploitation
+production cible.
+
+### Verdict
+
+- **LOT 9 code et validations locales : GO pour revue.**
+- **Commit : GO apres revue du diff, sans push automatique.**
+- **Deploiement production : NO-GO.**
+
+Le NO-GO production est lie aux ressources et preuves externes : worker dedie,
+protections GitHub, secrets, sauvegarde chiffree hors site, restauration
+representative, buckets prives et monitoring reel. Aucun de ces controles n'a
+ete simule.
+
+Message de commit propose :
+`chore(infra): harden CI deployment and operations`.

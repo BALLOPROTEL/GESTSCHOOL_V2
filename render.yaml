@@ -3,8 +3,8 @@ services:
     name: gestschool-api
     runtime: node
     plan: free
-    autoDeploy: true
-    healthCheckPath: /api/v1/health/live
+    autoDeploy: false
+    healthCheckPath: /api/v1/health/ready
     buildCommand: >
       corepack enable &&
       corepack prepare pnpm@10.24.0 --activate &&
@@ -15,8 +15,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: GESTSCHOOL_PROCESS_ROLE
+        value: api
       - key: HOST
         value: 0.0.0.0
+      - key: API_PORT
+        value: "10000"
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL

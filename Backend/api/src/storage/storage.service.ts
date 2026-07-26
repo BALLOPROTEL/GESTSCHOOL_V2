@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleInit, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
+import { RequestMetricsService } from "../observability/request-metrics.service";
 import { type ValidatedUpload } from "./file-validation.service";
 import { LocalStorageProvider } from "./local-storage.provider";
 import { SupabaseStorageProvider } from "./supabase-storage.provider";
@@ -20,7 +21,8 @@ export class StorageService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly localStorageProvider: LocalStorageProvider,
-    private readonly supabaseStorageProvider: SupabaseStorageProvider
+    private readonly supabaseStorageProvider: SupabaseStorageProvider,
+    @Optional() private readonly requestMetrics?: RequestMetricsService
   ) {}
 
   onModuleInit(): void {
@@ -35,21 +37,27 @@ export class StorageService implements OnModuleInit {
   }): Promise<StoredFileView> {
     const driver = this.resolveDriver();
     const key = this.buildKey(input.tenantId, input.scope, input.file.extension);
-    const result = await this.provider(driver).store({
-      bucketKind: input.bucketKind,
-      key,
-      mimeType: input.file.mimeType,
-      buffer: input.file.buffer
-    });
-    return {
-      driver,
-      tenantId: input.tenantId,
-      originalName: input.file.originalName,
-      mimeType: input.file.mimeType,
-      size: input.file.size,
-      key,
-      bucket: result.bucket
-    };
+    try {
+      const result = await this.provider(driver).store({
+        bucketKind: input.bucketKind,
+        key,
+        mimeType: input.file.mimeType,
+        buffer: input.file.buffer
+      });
+      this.recordStorageOperation("store", "success");
+      return {
+        driver,
+        tenantId: input.tenantId,
+        originalName: input.file.originalName,
+        mimeType: input.file.mimeType,
+        size: input.file.size,
+        key,
+        bucket: result.bucket
+      };
+    } catch (error) {
+      this.recordStorageOperation("store", "error");
+      throw error;
+    }
   }
 
   async createTemporaryAccessUrl(
@@ -57,24 +65,45 @@ export class StorageService implements OnModuleInit {
     mimeType: string
   ): Promise<string> {
     this.assertReference(reference);
-    if (reference.driver === "SUPABASE") {
-      return this.supabaseStorageProvider.createSignedUrl(
-        reference,
-        this.signedUrlTtlSeconds()
-      );
+    try {
+      if (reference.driver === "SUPABASE") {
+        const url = await this.supabaseStorageProvider.createSignedUrl(
+          reference,
+          this.signedUrlTtlSeconds()
+        );
+        this.recordStorageOperation("signed_url", "success");
+        return url;
+      }
+      const file = await this.localStorageProvider.read(reference);
+      this.recordStorageOperation("signed_url", "success");
+      return `data:${mimeType};base64,${file.buffer.toString("base64")}`;
+    } catch (error) {
+      this.recordStorageOperation("signed_url", "error");
+      throw error;
     }
-    const file = await this.localStorageProvider.read(reference);
-    return `data:${mimeType};base64,${file.buffer.toString("base64")}`;
   }
 
   async readFile(reference: StoredObjectReference): Promise<DownloadedStoredFile> {
     this.assertReference(reference);
-    return this.provider(reference.driver).read(reference);
+    try {
+      const file = await this.provider(reference.driver).read(reference);
+      this.recordStorageOperation("read", "success");
+      return file;
+    } catch (error) {
+      this.recordStorageOperation("read", "error");
+      throw error;
+    }
   }
 
   async deleteFile(reference: StoredObjectReference): Promise<void> {
     this.assertReference(reference);
-    await this.provider(reference.driver).delete(reference);
+    try {
+      await this.provider(reference.driver).delete(reference);
+      this.recordStorageOperation("delete", "success");
+    } catch (error) {
+      this.recordStorageOperation("delete", "error");
+      throw error;
+    }
   }
 
   private buildKey(tenantId: string, scope: readonly string[], extension: string): string {
@@ -125,5 +154,9 @@ export class StorageService implements OnModuleInit {
     return Number.isInteger(configured) && configured >= 60 && configured <= 900
       ? configured
       : 300;
+  }
+
+  private recordStorageOperation(operation: string, result: string): void {
+    this.requestMetrics?.recordOperation(`storage_${operation}`, result);
   }
 }

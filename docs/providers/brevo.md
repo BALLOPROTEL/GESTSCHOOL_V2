@@ -8,7 +8,7 @@ Official references:
 
 ## Runtime Ownership
 
-Render API in Render free mode:
+Dedicated production worker (never the API process):
 - `NOTIFICATIONS_EMAIL_PROVIDER=brevo`
 - `NOTIFICATIONS_SMS_PROVIDER=brevo`
 - `BREVO_API_KEY`
@@ -20,6 +20,8 @@ Render API in Render free mode:
 - `NOTIFICATION_TEST_EMAIL`
 - `NOTIFICATION_TEST_PHONE`
 - `BREVO_TIMEOUT_MS=8000`
+- `NOTIFICATIONS_WORKER_ENABLED=true`
+- `OUTBOX_IN_PROCESS_ENABLED=false`
 
 Never configure `BREVO_API_KEY` in Vercel.
 
@@ -65,8 +67,9 @@ The provider is transport-level. Business templates remain controlled by notific
 - API keys are read server-side only.
 - Provider errors are sanitized and do not log API keys.
 - SMS sender is normalized to Brevo-safe alphanumeric text and capped to 15 characters.
-- In Render free mode, retry is managed by the API in-process outbox runner when `OUTBOX_IN_PROCESS_ENABLED=true`.
-- With a future worker service, disable API in-process mode and enable the worker instead.
+- Retry is managed only by the dedicated worker in production.
+- Render Free has no background worker and is not considered a production
+  notification architecture.
 
 ## Rollback
 

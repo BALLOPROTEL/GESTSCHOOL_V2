@@ -1,0 +1,34 @@
+# Deliberately not included from the root render.yaml.
+# Render background workers have no free plan. Create this paid service only after
+# approving the operational cost and copying the API secrets/environment group.
+services:
+  - type: worker
+    name: gestschool-worker
+    runtime: node
+    plan: starter
+    autoDeploy: false
+    buildCommand: >
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm render:build:api
+    startCommand: pnpm render:start:worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GESTSCHOOL_PROCESS_ROLE
+        value: worker
+      - key: WORKER_HEALTH_HOST
+        value: 0.0.0.0
+      - key: WORKER_HEALTH_PORT
+        value: "10001"
+      - key: NOTIFICATIONS_WORKER_ENABLED
+        value: "true"
+      - key: OUTBOX_IN_PROCESS_ENABLED
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false

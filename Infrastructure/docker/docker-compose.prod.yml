@@ -1,55 +1,98 @@
+name: gestschool
+
+x-runtime-security: &runtime-security
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=128m
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
 services:
   api:
-    image: ghcr.io/gestschool/api:latest
+    <<: *runtime-security
+    image: ${GESTSCHOOL_API_IMAGE:?Set GESTSCHOOL_API_IMAGE to an immutable digest}
     restart: unless-stopped
     env_file:
       - ../../.env
     environment:
       NODE_ENV: production
-      API_PORT: 3000
-      DATABASE_URL: postgresql://gestschool:${POSTGRES_PASSWORD}@postgres:5432/gestschool
-      REDIS_URL: redis://redis:6379
+      GESTSCHOOL_PROCESS_ROLE: api
+      API_PORT: "3000"
       NOTIFICATIONS_WORKER_ENABLED: "false"
+      OUTBOX_IN_PROCESS_ENABLED: "false"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
-    deploy:
-      replicas: 2
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-      update_config:
-        parallelism: 1
-        order: start-first
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 4
 
   worker:
-    image: ghcr.io/gestschool/api:latest
+    <<: *runtime-security
+    image: ${GESTSCHOOL_WORKER_IMAGE:?Set GESTSCHOOL_WORKER_IMAGE to an immutable digest}
     restart: unless-stopped
-    command: ["node", "dist/worker.js"]
     env_file:
       - ../../.env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://gestschool:${POSTGRES_PASSWORD}@postgres:5432/gestschool
-      REDIS_URL: redis://redis:6379
+      GESTSCHOOL_PROCESS_ROLE: worker
+      WORKER_HEALTH_HOST: 0.0.0.0
+      WORKER_HEALTH_PORT: "3001"
       NOTIFICATIONS_WORKER_ENABLED: "true"
+      OUTBOX_IN_PROCESS_ENABLED: "false"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 4
+
+  migration:
+    <<: *runtime-security
+    image: ${GESTSCHOOL_MIGRATION_IMAGE:?Set GESTSCHOOL_MIGRATION_IMAGE to an immutable digest}
+    profiles: ["operations"]
+    restart: "no"
+    env_file:
+      - ../../.env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   postgres:
-    image: postgres:16
+    image: postgres:16.14-bookworm
     restart: unless-stopped
     environment:
       POSTGRES_USER: gestschool
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       POSTGRES_DB: gestschool
     volumes:
       - pg_data:/var/lib/postgresql/data
@@ -58,23 +101,44 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    security_opt:
+      - no-new-privileges:true
 
   redis:
-    image: redis:7
+    image: redis:7.4.7-bookworm
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
 
   prometheus:
     image: prom/prometheus:v2.54.1
     restart: unless-stopped
+    read_only: true
+    user: "65534:65534"
     volumes:
       - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    secrets:
+      - metrics_token
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+secrets:
+  metrics_token:
+    file: ${PROMETHEUS_METRICS_TOKEN_FILE:?Set PROMETHEUS_METRICS_TOKEN_FILE}
 
 volumes:
   pg_data:

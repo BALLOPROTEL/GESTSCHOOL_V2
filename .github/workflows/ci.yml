@@ -5,12 +5,29 @@ on:
     branches: ["**"]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22.22.0
+  PNPM_VERSION: 10.24.0
+  AUDIT_PNPM_VERSION: 11.13.0
+  SEMGREP_IMAGE: semgrep/semgrep:1.151.0@sha256:d3d1be3a3770514d16a6a57b9761575d7536d70f45a5220274f4ec7d55c442b9
+  SYFT_IMAGE: anchore/syft:v1.49.0@sha256:13b53ebabe3d215268c90cf8fb9b875f0183908245f376fd4b3a2cb69d21d484
+  TRIVY_VERSION: v0.70.0
+
 jobs:
-  api:
-    runs-on: ubuntu-latest
+  quality:
+    name: Quality, migrations and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16.14-bookworm
         env:
           POSTGRES_USER: gestschool
           POSTGRES_PASSWORD: gestschool
@@ -19,60 +36,77 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U gestschool -d gestschool_test"
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
-
+          --health-retries 10
+      redis:
+        image: redis:7.4.7-bookworm
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
       DIRECT_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
       TEST_DATABASE_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
       TEST_DIRECT_URL: postgresql://gestschool:gestschool@localhost:5432/gestschool_test
+      REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-secret
       JWT_EXPIRES_IN: 1h
       REFRESH_TOKEN_TTL_DAYS: 30
       DEFAULT_TENANT_ID: 00000000-0000-0000-0000-000000000001
       NOTIFICATIONS_WORKER_ENABLED: "false"
+      OUTBOX_IN_PROCESS_ENABLED: "false"
       NOTIFY_EMAIL_PROVIDER: MOCK
       NOTIFY_SMS_PROVIDER: MOCK
       NOTIFICATION_WEBHOOK_SECRET: ci-webhook-secret
       ANALYTICS_CACHE_TTL_SECONDS: 1
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.2
         with:
-          version: 10.24.0
+          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install dependencies
+      - name: Install dependencies from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Audit production dependencies with pnpm 11 (critical and high)
+      - name: Reject whitespace errors
         env:
-          AUDIT_PNPM_VERSION: 11.13.0
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          AUDIT_VERSION="$(corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore --version)"
-          if [[ "${AUDIT_VERSION}" != 11.* ]]; then
-            echo "Expected pnpm 11.x for the dependency audit, got ${AUDIT_VERSION}." >&2
-            exit 1
+          if [[ -n "$BASE_SHA" ]] &&
+             [[ ! "$BASE_SHA" =~ ^0+$ ]] &&
+             git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git diff --check "${BASE_SHA}...HEAD"
+          else
+            git show --check --format= HEAD
           fi
-          echo "Dependency audit running with pnpm ${AUDIT_VERSION}."
-          corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore audit --prod --audit-level high
 
-      - name: Generate Prisma client
-        run: pnpm --filter @gestschool/api prisma:generate
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @gestschool/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @gestschool/api prisma:generate
 
-      - name: Lint API
-        run: pnpm --filter @gestschool/api lint
+      - name: Typecheck workspaces
+        run: pnpm typecheck
+
+      - name: Lint workspaces
+        run: pnpm lint
 
       - name: Build API
         run: pnpm --filter @gestschool/api build
@@ -80,22 +114,11 @@ jobs:
       - name: Run API unit tests
         run: pnpm --filter @gestschool/api test:unit
 
-      - name: Ensure test database exists
-        env:
-          PGPASSWORD: gestschool
-        run: |
-          if ! psql -h localhost -U gestschool -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'gestschool_test'" | grep -q 1; then
-            psql -h localhost -U gestschool -d postgres -c "CREATE DATABASE gestschool_test"
-          fi
-
-      - name: Run API e2e tests (PostgreSQL)
+      - name: Run migrations and API E2E tests on PostgreSQL 16
         run: pnpm --filter @gestschool/api test:e2e:db:fresh
 
-      - name: Show test database migration status
+      - name: Verify migration status
         run: pnpm --filter @gestschool/api db:status:test
-
-      - name: Lint Web Admin
-        run: pnpm --filter @gestschool/web-admin lint
 
       - name: Run Web Admin tests
         run: pnpm --filter @gestschool/web-admin test
@@ -103,15 +126,55 @@ jobs:
       - name: Run Web Admin smoke checks
         run: pnpm --filter @gestschool/web-admin test:smoke
 
-      - name: Build Web Admin
+      - name: Build Web Admin with explicit API URL
         run: pnpm --filter @gestschool/web-admin build
         env:
           VITE_API_BASE_URL: https://api.ci.invalid/api/v1
 
+      - name: Preserve test evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: quality-failure-evidence
+          path: |
+            Backend/api/coverage
+            Frontend/web-admin/coverage
+          if-no-files-found: ignore
+          retention-days: 14
+
+  visual-audit:
+    name: Strict mocked visual audit
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Test and lint visual audit collector
+        run: |
+          pnpm visual:audit:test
+          pnpm visual:audit:lint
+
       - name: Install Playwright Chromium
         run: pnpm --filter @gestschool/web-admin exec playwright install --with-deps chromium
 
-      - name: Run reduced Web Admin visual audit
+      - name: Run strict mocked CI audit
         run: |
           pnpm --filter @gestschool/web-admin exec vite --host 127.0.0.1 --port 5180 > /tmp/gestschool-vite-audit.log 2>&1 &
           VITE_PID=$!
@@ -123,13 +186,245 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:5180 >/dev/null
-          VISUAL_AUDIT_SCOPE=ci VISUAL_AUDIT_URL=http://127.0.0.1:5180 VISUAL_AUDIT_OUTPUT=/tmp/gestschool-ci-visual-audit pnpm visual:audit:mocked
+          VISUAL_AUDIT_SCOPE=ci \
+          VISUAL_AUDIT_URL=http://127.0.0.1:5180 \
+          VISUAL_AUDIT_OUTPUT=/tmp/gestschool-ci-visual-audit \
+          pnpm visual:audit:mocked
 
-      - name: Preserve Web Admin visual audit evidence
+      - name: Preserve visual evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: gestschool-web-admin-visual-audit
-          path: /tmp/gestschool-ci-visual-audit
+          path: |
+            /tmp/gestschool-ci-visual-audit
+            /tmp/gestschool-vite-audit.log
           if-no-files-found: error
           retention-days: 14
+
+  security:
+    name: Dependency, secret and static analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production dependencies with pnpm 11
+        run: |
+          AUDIT_VERSION="$(corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore --version)"
+          echo "Production dependency audit uses pnpm ${AUDIT_VERSION}."
+          [[ "${AUDIT_VERSION}" == 11.* ]] || {
+            echo "Expected pnpm 11.x for the dependency audit." >&2
+            exit 1
+          }
+          corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore \
+            audit --prod --audit-level high
+
+      - name: Audit all dependencies with pnpm 11
+        run: |
+          AUDIT_VERSION="$(corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore --version)"
+          echo "Development dependency audit uses pnpm ${AUDIT_VERSION}."
+          [[ "${AUDIT_VERSION}" == 11.* ]] || {
+            echo "Expected pnpm 11.x for the dependency audit." >&2
+            exit 1
+          }
+          corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore \
+            audit --audit-level high
+
+      - name: Scan dependencies, secrets and configuration
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          output: /tmp/gestschool-trivy-source.txt
+
+      - name: Run local Semgrep SAST policy
+        if: always()
+        run: >-
+          docker run --rm
+          -v "${{ github.workspace }}:/src:ro"
+          -v /tmp:/output
+          "${SEMGREP_IMAGE}"
+          semgrep scan
+          --config /src/.semgrep.yml
+          --error
+          --metrics=off
+          --json-output=/output/gestschool-semgrep.json
+          /src/Backend/api/src
+          /src/Frontend/web-admin/src
+
+      - name: Generate source SBOM
+        if: always()
+        run: >-
+          docker run --rm
+          -e SYFT_CHECK_FOR_APP_UPDATE=false
+          -v "${{ github.workspace }}:/src:ro"
+          -v /tmp:/output
+          "${SYFT_IMAGE}"
+          dir:/src
+          -o spdx-json=/output/gestschool-source.spdx.json
+
+      - name: Preserve security evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gestschool-security-evidence
+          path: |
+            /tmp/gestschool-trivy-source.txt
+            /tmp/gestschool-semgrep.json
+            /tmp/gestschool-source.spdx.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  containers:
+    name: Reproducible API and worker images
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Build API, worker and migration images
+        id: build-images
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: |
+          docker build \
+            --target api \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --build-arg BUILD_DATE="1970-01-01T00:00:00Z" \
+            -t "gestschool-api:${GITHUB_SHA}" \
+            -f Backend/api/Dockerfile .
+          docker build \
+            --target worker \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --build-arg BUILD_DATE="1970-01-01T00:00:00Z" \
+            -t "gestschool-worker:${GITHUB_SHA}" \
+            -f Backend/api/Dockerfile .
+          docker build \
+            --target migration \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --build-arg BUILD_DATE="1970-01-01T00:00:00Z" \
+            -t "gestschool-migration:${GITHUB_SHA}" \
+            -f Backend/api/Dockerfile .
+
+      - name: Validate container runtime and failure modes
+        env:
+          API_IMAGE: gestschool-api:${{ github.sha }}
+          WORKER_IMAGE: gestschool-worker:${{ github.sha }}
+          MIGRATION_IMAGE: gestschool-migration:${{ github.sha }}
+          CONTAINER_EVIDENCE_DIR: /tmp/gestschool-container-evidence
+        run: bash scripts/ci/validate-containers.sh
+
+      - name: Validate PostgreSQL backup and restore
+        env:
+          MIGRATION_IMAGE: gestschool-migration:${{ github.sha }}
+          BACKUP_RESTORE_EVIDENCE_DIR: /tmp/gestschool-container-evidence/backup-restore
+        run: bash scripts/ci/validate-backup-restore.sh
+
+      - name: Scan API image
+        if: ${{ always() && steps.build-images.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: gestschool-api:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          format: json
+          output: /tmp/gestschool-trivy-api.json
+
+      - name: Scan worker image
+        if: ${{ always() && steps.build-images.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: gestschool-worker:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          format: json
+          output: /tmp/gestschool-trivy-worker.json
+
+      - name: Scan migration image
+        if: ${{ always() && steps.build-images.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: gestschool-migration:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          format: json
+          output: /tmp/gestschool-trivy-migration.json
+
+      - name: Generate API image SBOM
+        if: ${{ always() && steps.build-images.outcome == 'success' }}
+        run: >-
+          docker run --rm
+          -e SYFT_CHECK_FOR_APP_UPDATE=false
+          -v /var/run/docker.sock:/var/run/docker.sock
+          -v /tmp:/output
+          "${SYFT_IMAGE}"
+          docker:gestschool-api:${GITHUB_SHA}
+          -o spdx-json=/output/gestschool-api.spdx.json
+
+      - name: Preserve container evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gestschool-container-evidence
+          path: |
+            /tmp/gestschool-container-evidence
+            /tmp/gestschool-trivy-api.json
+            /tmp/gestschool-trivy-worker.json
+            /tmp/gestschool-trivy-migration.json
+            /tmp/gestschool-api.spdx.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  ci-gate:
+    name: Required CI gate
+    if: always()
+    needs: [quality, visual-audit, security, containers]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every CI gate
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          VISUAL_RESULT: ${{ needs.visual-audit.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          CONTAINERS_RESULT: ${{ needs.containers.result }}
+        run: |
+          printf 'quality=%s\nvisual=%s\nsecurity=%s\ncontainers=%s\n' \
+            "$QUALITY_RESULT" "$VISUAL_RESULT" "$SECURITY_RESULT" "$CONTAINERS_RESULT"
+          [[ "$QUALITY_RESULT" == success ]]
+          [[ "$VISUAL_RESULT" == success ]]
+          [[ "$SECURITY_RESULT" == success ]]
+          [[ "$CONTAINERS_RESULT" == success ]]

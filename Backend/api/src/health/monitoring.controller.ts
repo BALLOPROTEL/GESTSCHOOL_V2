@@ -25,8 +25,11 @@ export class MonitoringController {
   @Header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
   @RateLimit({ bucket: "monitoring-metrics", max: 60, windowMs: 60_000 })
   @ApiOperation({ summary: "Prometheus-like metrics endpoint" })
-  async metrics(@Headers("x-metrics-token") tokenHeader?: string): Promise<string> {
-    this.assertMetricsToken(tokenHeader);
+  async metrics(
+    @Headers("x-metrics-token") tokenHeader?: string,
+    @Headers("authorization") authorization?: string
+  ): Promise<string> {
+    this.assertMetricsToken(tokenHeader, authorization);
 
     const lines: string[] = [];
     lines.push(`# generated_at ${new Date().toISOString()}`);
@@ -34,7 +37,12 @@ export class MonitoringController {
     lines.push("gestschool_process_heap_used_bytes " + process.memoryUsage().heapUsed);
     lines.push("gestschool_process_rss_bytes " + process.memoryUsage().rss);
     lines.push(`gestschool_redis_up ${this.redisService.isConnected() ? 1 : 0}`);
+    const redisMetrics = await this.redisService.getOperationalMetrics();
+    for (const [name, value] of Object.entries(redisMetrics)) {
+      lines.push(`gestschool_redis_${name} ${value}`);
+    }
 
+    const databaseStartedAt = process.hrtime.bigint();
     try {
       const now = new Date();
       const [
@@ -47,7 +55,8 @@ export class MonitoringController {
         notificationCallbackCount,
         notificationCallbackByStatus,
         notificationRequestOutboxByStatus,
-        oldestNotificationRequest
+        oldestNotificationRequest,
+        postgresStats
       ] = await Promise.all([
         this.prisma.notification.groupBy({
           by: ["status"],
@@ -121,8 +130,32 @@ export class MonitoringController {
           select: {
             createdAt: true
           }
-        })
+        }),
+        this.prisma.$queryRaw<
+          Array<{
+            numbackends: number;
+            xactCommit: bigint;
+            xactRollback: bigint;
+            deadlocks: bigint;
+          }>
+        >`SELECT numbackends,
+                 xact_commit AS "xactCommit",
+                 xact_rollback AS "xactRollback",
+                 deadlocks
+          FROM pg_stat_database
+          WHERE datname = current_database()`
       ]);
+      const databaseDurationMs =
+        Number(process.hrtime.bigint() - databaseStartedAt) / 1_000_000;
+      lines.push("gestschool_database_up 1");
+      lines.push(`gestschool_database_metrics_duration_ms ${databaseDurationMs.toFixed(2)}`);
+      const database = postgresStats[0];
+      if (database) {
+        lines.push(`gestschool_database_connections ${Number(database.numbackends)}`);
+        lines.push(`gestschool_database_transactions_committed_total ${Number(database.xactCommit)}`);
+        lines.push(`gestschool_database_transactions_rolled_back_total ${Number(database.xactRollback)}`);
+        lines.push(`gestschool_database_deadlocks_total ${Number(database.deadlocks)}`);
+      }
 
       for (const row of byStatus) {
         lines.push(
@@ -205,8 +238,16 @@ export class MonitoringController {
           )}",route="${this.escapeLabel(row.route)}",status_code="${row.statusCode}"} ${row.maxMs}`
         );
       }
+      for (const row of requestMetrics.operations) {
+        lines.push(
+          `gestschool_operations_total{operation="${this.escapeLabel(
+            row.operation
+          )}",result="${this.escapeLabel(row.result)}"} ${row.count}`
+        );
+      }
       lines.push("gestschool_metrics_collection_error 0");
     } catch {
+      lines.push("gestschool_database_up 0");
       lines.push("gestschool_metrics_collection_error 1");
     }
 
@@ -217,8 +258,11 @@ export class MonitoringController {
   @Get("providers")
   @RateLimit({ bucket: "monitoring-provider-checks", max: 30, windowMs: 60_000 })
   @ApiOperation({ summary: "Provider configuration checks without exposing secrets" })
-  providerChecks(@Headers("x-metrics-token") tokenHeader?: string): Record<string, unknown> {
-    this.assertMetricsToken(tokenHeader);
+  providerChecks(
+    @Headers("x-metrics-token") tokenHeader?: string,
+    @Headers("authorization") authorization?: string
+  ): Record<string, unknown> {
+    this.assertMetricsToken(tokenHeader, authorization);
 
     const storageProvider = this.providerValue("STORAGE_PROVIDER", "FILE_STORAGE_DRIVER", "LOCAL");
     const emailProvider = this.providerValue(
@@ -237,7 +281,7 @@ export class MonitoringController {
 
     return {
       generatedAt: new Date().toISOString(),
-      renderFreeMode: {
+      backgroundProcessing: {
         inProcessOutboxEnabled: this.booleanConfig("OUTBOX_IN_PROCESS_ENABLED", false),
         notificationWorkerEnabled: this.booleanConfig("NOTIFICATIONS_WORKER_ENABLED", false),
         batchSize: this.numberConfig("OUTBOX_BATCH_SIZE", 10)
@@ -297,7 +341,7 @@ export class MonitoringController {
     };
   }
 
-  private assertMetricsToken(tokenHeader?: string): void {
+  private assertMetricsToken(tokenHeader?: string, authorization?: string): void {
     const expectedToken = this.configService.get<string>("MONITORING_METRICS_TOKEN", "").trim();
     const nodeEnv = this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase();
     if (!expectedToken) {
@@ -309,7 +353,8 @@ export class MonitoringController {
     if (nodeEnv === "production" && isUnsafeSharedSecret(expectedToken)) {
       throw new ForbiddenException("Metrics endpoint is disabled.");
     }
-    if (!secureCompare(tokenHeader, expectedToken)) {
+    const bearerToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+    if (!secureCompare(tokenHeader || bearerToken, expectedToken)) {
       throw new ForbiddenException("Invalid metrics token.");
     }
   }

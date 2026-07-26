@@ -1,0 +1,43 @@
+rules:
+  - id: gestschool-no-eval
+    message: Dynamic code evaluation is forbidden in application source.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: "eval(...)"
+      - pattern: "new Function(...)"
+
+  - id: gestschool-no-child-process-shell
+    message: Do not run child processes with shell=true in application source.
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: "child_process.$FUNC(..., { ..., shell: true, ... })"
+          - pattern: "$CP.$FUNC(..., { ..., shell: true, ... })"
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: ^(exec|execFile|spawn|spawnSync|execFileSync)$
+
+  - id: gestschool-no-unparameterized-prisma-raw
+    message: Use Prisma tagged templates instead of unsafe raw SQL methods.
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: "$PRISMA.$queryRawUnsafe(...)"
+      - pattern: "$PRISMA.$executeRawUnsafe(...)"
+
+  - id: gestschool-no-insecure-jwt-decode
+    message: Do not use jwt.decode for authentication or authorization.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern: "$JWT.decode(...)"
+
+  - id: gestschool-no-browser-dangerous-html
+    message: Browser HTML injection requires a dedicated security review.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: "$NODE.innerHTML = $VALUE"
+      - pattern: "$NODE.outerHTML = $VALUE"
+      - pattern: "document.write(...)"

@@ -1,166 +1,116 @@
-# Deployment Render Free + Vercel
+# Deploiement controle GitHub, Render et Vercel
 
-Contexte actuel:
-- une seule API Render en plan gratuit
-- pas de worker Render separe
-- pas de staging Render dedie
-- frontend Vercel
-- Supabase Storage, Brevo et PayDunya sont configures par variables Render
+Ce document decrit la cible d'exploitation. Il ne declenche aucun deploiement.
+Render Free reste utile pour une demonstration, mais n'est pas une cible de
+production fiable : mise en veille, absence de worker gratuit et absence de job
+pre-deploy controle. Le passage en production exige une decision de cout pour
+l'API et le worker.
 
-## Render API
+## Architecture cible
 
-`render.yaml` decrit uniquement le service web `gestschool-api`.
+- Vercel sert uniquement le frontend compile.
+- Un service Render web execute uniquement l'API.
+- Un service Render background worker execute l'outbox et les notifications.
+- PostgreSQL est la source de verite.
+- Redis est obligatoire pour le rate limiting et la coordination runtime.
+- Supabase Storage conserve les documents et avatars dans deux buckets prives.
+- Brevo et les SMS restent desactives tant que la recette fournisseur n'est pas
+  explicitement validee.
 
-Le service utilise:
-- `plan: free`
-- `healthCheckPath: /api/v1/health/live`
-- `startCommand: pnpm render:start:api`
-- `buildCommand: pnpm render:build:api`, qui lance `prisma generate`, `prisma migrate deploy`, puis le build API
+La configuration de processus est exclusive :
 
-Le worker separe n'est pas requis dans ce contexte. L'API peut traiter l'outbox en mode in-process leger:
-- `NOTIFICATIONS_WORKER_ENABLED=false`
-- `OUTBOX_IN_PROCESS_ENABLED=true`
-- `OUTBOX_POLL_INTERVAL_MS=30000`
-- `OUTBOX_BATCH_SIZE=10`
+| Processus | `GESTSCHOOL_PROCESS_ROLE` | `NOTIFICATIONS_WORKER_ENABLED` | `OUTBOX_IN_PROCESS_ENABLED` |
+| --- | --- | --- | --- |
+| API | `api` | `false` | `false` |
+| Worker | `worker` | `true` | `false` |
 
-Ce mode est acceptable pour Render free et petite charge. Il n'est pas recommande pour une charge elevee. Le passage futur vers un worker separe consiste a:
-1. creer un worker Render
-2. mettre `OUTBOX_IN_PROCESS_ENABLED=false` sur l'API
-3. mettre `NOTIFICATIONS_WORKER_ENABLED=true` sur le worker
-4. partager les memes variables DB/providers avec le worker
+Le validateur refuse toute autre combinaison en production. Le fichier
+`Infrastructure/render/worker.example.yaml` est volontairement separe du
+`render.yaml` racine, car sa creation engage un service Render payant.
 
-## Variables Render API
+## Separation build, migration et demarrage
 
-Backend/runtime:
-- `NODE_ENV=production`
-- `HOST=0.0.0.0`
-- `TRUST_PROXY_HOPS=1`
-- `RATE_LIMIT_DISABLED=false`
-- `REDIS_URL` fourni par le service Key Value Render de la meme region
-- `DATABASE_URL`
-- `DIRECT_URL`
-- `CORS_ORIGINS=https://gestschool.vercel.app`
-- `JWT_SECRET`
-- `PASSWORD_RESET_SECRET`
-- `PASSWORD_RESET_EXPIRES_IN=30m`
-- `ACCOUNT_ACTIVATION_EXPIRES_IN=48h`
-- `AUTH_PUBLIC_BASE_URL=https://gestschool.vercel.app`
-- `AUTH_PUBLIC_BASE_URL` must be a public HTTPS frontend URL in production. The API rejects local URLs such as `localhost` for activation and password reset emails.
-- `EMAIL_BRAND_LOGO_URL` optional. Leave empty to use `${AUTH_PUBLIC_BASE_URL}/logo.png` in activation and reset-password emails.
-- `MONITORING_METRICS_TOKEN`
-
-### Proxy et rate limiting Render
-
-L'API ne lit jamais directement `X-Forwarded-For`. Express resout `request.ip`
-apres application de `TRUST_PROXY_HOPS`. Le service web Render public est place
-derriere un proxy de confiance, donc la valeur attendue est strictement `1`.
-Ne pas augmenter cette valeur sans cartographier une nouvelle chaine de proxies :
-un nombre de sauts trop grand permettrait a un client de fournir une adresse
-transmise qui serait consideree comme fiable.
-
-Redis est obligatoire en production. L'API refuse de demarrer sans `REDIS_URL`
-et refuse les requetes limitees avec HTTP 503 si Redis devient indisponible ; le
-fallback memoire est reserve au developpement et aux tests. La sonde
-`/api/v1/health/live` reste independante de Redis, tandis que
-`/api/v1/health/ready` verifie PostgreSQL et Redis. La politique Render du service
-Key Value doit rester `noeviction` afin de ne pas supprimer silencieusement les
-compteurs de limitation sous pression memoire.
-
-Postgres / Supabase:
-- `DATABASE_URL` is the runtime connection used by Prisma Client.
-- `DIRECT_URL` is the direct migration connection used by Prisma migrate.
-- If Supabase is used with the transaction pooler, `DATABASE_URL` must use the tenant-qualified pooler username:
-
-```env
-DATABASE_URL=postgresql://postgres.<project-ref>:<password>@<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
-```
-
-- `DIRECT_URL` must not use the transaction pooler. Use the direct database host or the Supabase session pooler:
-
-```env
-DIRECT_URL=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
-```
-
-If Render logs contain `tenant/user postgres.<project-ref> not found`, the API is not a CORS problem: the `DATABASE_URL` tenant-qualified username, project ref, host, database name or password is wrong in Render.
-
-Supabase Storage:
-- `STORAGE_PROVIDER=supabase`
-- `FILE_STORAGE_DRIVER=SUPABASE`
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_STORAGE_BUCKET_DOCUMENTS=gestschool-documents`
-- `SUPABASE_STORAGE_BUCKET_AVATARS=gestschool-avatars`
-- `SUPABASE_STORAGE_AVATARS_PUBLIC=false`
-- `SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS=300`
-- `SUPABASE_STORAGE_TIMEOUT_MS=10000`
-
-Brevo:
-- `NOTIFICATIONS_EMAIL_PROVIDER=brevo`
-- `NOTIFICATIONS_SMS_PROVIDER=brevo`
-- `BREVO_API_KEY`
-- `BREVO_SENDER_EMAIL=no-reply@al-manarat-islamiyat.com`
-- `BREVO_SENDER_NAME=Al Manarat Islamiyat`
-- `BREVO_SMS_SENDER=Al Manarat Islamiyat`
-- `BREVO_SMS_DRY_RUN=true`
-- `ALLOW_REAL_SMS=false`
-
-PayDunya sandbox:
-- `PAYMENT_PROVIDER=paydunya`
-- `PAYDUNYA_MODE=sandbox`
-- `PAYDUNYA_MASTER_KEY`
-- `PAYDUNYA_PUBLIC_KEY`
-- `PAYDUNYA_PRIVATE_KEY`
-- `PAYDUNYA_TOKEN`
-- `PAYDUNYA_CALLBACK_URL=https://gestschool-ylik.onrender.com/api/v1/payments/paydunya/callback`
-- `PAYDUNYA_RETURN_URL=https://gestschool.vercel.app`
-- `PAYDUNYA_CANCEL_URL=https://gestschool.vercel.app`
-
-Never put provider secrets in Vercel.
-
-## Vercel Frontend
-
-Required variable:
-- `VITE_API_BASE_URL=https://gestschool-ylik.onrender.com/api/v1`
-
-No Supabase service role key, Brevo key or PayDunya key belongs in Vercel.
-
-## Secure Provider Config Check
-
-After deploy, call:
+Les commandes sont distinctes :
 
 ```bash
-curl -H "x-metrics-token: $MONITORING_METRICS_TOKEN" \
-  https://gestschool-ylik.onrender.com/api/v1/monitoring/providers
+pnpm render:build:api
+pnpm render:migrate:api
+pnpm render:start:api
+pnpm render:start:worker
 ```
 
-The endpoint only returns booleans and enabled/disabled status. It must not return secret values.
+Le build ne migre plus la base. La migration s'execute une fois dans le workflow
+manuel `.github/workflows/production-migration.yml`, apres validation humaine de
+l'environnement GitHub `production-database`, d'un SHA complet et d'une
+reference de sauvegarde verifiee.
 
-## Post-Deployment Checklist
+Sequence obligatoire :
 
-API:
-- Render build logs show `prisma migrate deploy` applied or confirmed all migrations
-- Activation and reset-password emails contain `https://gestschool.vercel.app/...`, never `localhost`
-- `GET https://gestschool-ylik.onrender.com/api/v1/health/live`
-- `GET https://gestschool-ylik.onrender.com/api/v1/health/ready`
-- provider check endpoint returns expected booleans
-- login admin works from Vercel
-- no CORS error from `https://gestschool.vercel.app`
+1. figer le SHA et les images/digests ;
+2. sauvegarder PostgreSQL et restaurer la sauvegarde sur une base jetable ;
+3. inventorier Supabase Storage ;
+4. lancer les audits pre-migration sur la copie ;
+5. approuver l'environnement GitHub protege ;
+6. appliquer la migration une seule fois ;
+7. deployer l'API avec le meme SHA ;
+8. valider liveness, readiness et smoke ;
+9. deployer le worker avec le meme SHA ;
+10. valider backlog, retries et dead-letter ;
+11. deployer le frontend avec `VITE_API_BASE_URL` explicite ;
+12. conserver l'ancienne release tant que la fenetre de rollback est ouverte.
 
-Frontend:
-- Vercel loads
-- login calls Render URL, not `/api/v1` on Vercel
-- dashboard loads
-- modules eleves, inscriptions, finance, notes, portails open
+## Render
 
-Providers:
-- Supabase upload descriptor returns `driver=SUPABASE`
-- Brevo email test is sent only if `NOTIFICATION_TEST_EMAIL` is explicitly set
-- SMS remains dry-run while `ALLOW_REAL_SMS=false`
-- PayDunya initiate returns sandbox checkout URL
-- PayDunya callback creates one payment and duplicate callback remains idempotent
+`render.yaml` conserve `autoDeploy: false`. L'API utilise :
 
-## Known Limits
+- `healthCheckPath: /api/v1/health/ready` ;
+- `TRUST_PROXY_HOPS=1` pour le proxy Render documente ;
+- Redis `noeviction` dans la meme region ;
+- `SWAGGER_ENABLED=false` ;
+- Supabase Storage prive ;
+- aucun traitement d'outbox dans le processus API.
 
-Render free can sleep, so first request can be slow.
-In-process outbox runs only while the API process is awake.
-For high volume notifications, move to a separate worker.
+Le worker utilise `/health/live` et `/health/ready`. Il partage PostgreSQL,
+Redis et les secrets providers avec l'API, mais ne recoit pas les variables
+frontend. Il doit etre cree uniquement apres validation du cout Render.
+
+## Vercel
+
+Configurer separement Preview et Production :
+
+```env
+VITE_API_BASE_URL=https://<api-attendue>/api/v1
+VITE_FEATURE_MESSAGES=false
+VITE_FEATURE_MOSQUEE=false
+VITE_FEATURE_STUDENT_PORTAL=false
+VITE_FEATURE_USER_BILLING=false
+```
+
+Une preview ne doit jamais reutiliser silencieusement l'API de production. Aucun
+secret backend (`SUPABASE_SERVICE_ROLE_KEY`, JWT, Brevo, PayDunya, monitoring)
+ne doit exister dans Vercel.
+
+## Controles post-deploiement
+
+```bash
+curl -fsS https://<api>/api/v1/health/live
+curl -fsS https://<api>/api/v1/health/ready
+curl -fsS -H "Authorization: Bearer $MONITORING_METRICS_TOKEN" \
+  https://<api>/api/v1/monitoring/providers
+```
+
+Verifier ensuite login, revocation de session, dashboard, eleves, inscriptions,
+finance, notes, upload/lecture/suppression Supabase, absence d'erreur console et
+absence de requete frontend vers une origine inattendue.
+
+## Rollback
+
+- Application : redeployer les digests API/worker precedents, compatibles avec
+  le schema additif.
+- Base : ne jamais annuler manuellement une migration. Restaurer la sauvegarde
+  dans une base separee, la valider, puis repointer pendant une fenetre approuvee.
+- Frontend : promouvoir le dernier deploiement Vercel sain.
+- Worker : l'arreter avant toute restauration pour eviter une ecriture concurrente.
+
+Voir `docs/runbooks/deployment-rollback.md` et
+`docs/runbooks/backup-restore.md`.

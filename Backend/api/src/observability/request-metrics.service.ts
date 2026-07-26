@@ -15,6 +15,11 @@ type RequestMetricSnapshot = {
     totalMs: number;
     maxMs: number;
   }>;
+  operations: Array<{
+    operation: string;
+    result: string;
+    count: number;
+  }>;
 };
 
 type Aggregate = {
@@ -26,6 +31,7 @@ type Aggregate = {
 @Injectable()
 export class RequestMetricsService {
   private readonly aggregates = new Map<string, Aggregate>();
+  private readonly operations = new Map<string, number>();
 
   recordRequest(input: {
     method: string;
@@ -40,6 +46,18 @@ export class RequestMetricsService {
     current.totalMs += input.durationMs;
     current.maxMs = Math.max(current.maxMs, input.durationMs);
     this.aggregates.set(key, current);
+  }
+
+  recordOperation(operation: string, result: string): void {
+    const key = `${this.safeLabel(operation)}|${this.safeLabel(result)}`;
+    this.operations.set(key, (this.operations.get(key) || 0) + 1);
+  }
+
+  normalizeRoute(route: string): string {
+    const path = (route || "unknown").split("?")[0].slice(0, 180);
+    return path
+      .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ":id")
+      .replace(/\/\d+(?=\/|$)/g, "/:id");
   }
 
   snapshot(): RequestMetricSnapshot {
@@ -66,10 +84,20 @@ export class RequestMetricsService {
       });
     }
 
-    return { total, duration };
+    const operations = [...this.operations.entries()].map(([key, count]) => {
+      const [operation, result] = key.split("|");
+      return { operation, result, count };
+    });
+
+    return { total, duration, operations };
   }
 
   private keyOf(method: string, route: string, statusCode: number): string {
-    return [method.toUpperCase(), route || "unknown", statusCode].join("|");
+    return [method.toUpperCase(), this.normalizeRoute(route), statusCode].join("|");
+  }
+
+  private safeLabel(value: string): string {
+    const normalized = value.trim().toLowerCase();
+    return /^[a-z0-9_.-]{1,64}$/.test(normalized) ? normalized : "invalid";
   }
 }

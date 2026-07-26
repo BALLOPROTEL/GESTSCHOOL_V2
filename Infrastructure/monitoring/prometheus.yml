@@ -2,8 +2,14 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - /etc/prometheus/alerts.yml
+
 scrape_configs:
   - job_name: gestschool-api
     metrics_path: /api/v1/monitoring/metrics
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/metrics_token
     static_configs:
       - targets: ["api:3000"]

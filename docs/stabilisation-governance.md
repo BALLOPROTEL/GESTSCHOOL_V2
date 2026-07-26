@@ -12,7 +12,7 @@ In scope:
 - Brevo provider is available for transactional email and SMS dry-run
 - PayDunya is available in sandbox only
 - runbooks document activation and rollback
-- Render free runs a single API service with optional in-process outbox processing
+- the production target separates the API from a dedicated outbox worker
 
 Out of scope:
 - student portal implementation
@@ -46,14 +46,11 @@ Notifications:
 - Mock stays default for dev/test.
 - Brevo email can be enabled in staging.
 - Brevo SMS stays dry-run unless explicitly approved.
-- On Render free, `OUTBOX_IN_PROCESS_ENABLED=true` is the supported small-load mode.
-- A separate worker is a future scaling path, not a current requirement.
-
-Render free:
-- API must boot with `NOTIFICATIONS_WORKER_ENABLED=false`.
-- `OUTBOX_IN_PROCESS_ENABLED=true` processes audit, notification request and notification dispatch work in bounded batches.
-- Recommended values: `OUTBOX_POLL_INTERVAL_MS=30000`, `OUTBOX_BATCH_SIZE=10`.
-- This mode is not a replacement for a dedicated worker under higher load.
+- Production API must use `OUTBOX_IN_PROCESS_ENABLED=false`.
+- Production worker must use `NOTIFICATIONS_WORKER_ENABLED=true`.
+- The production validator rejects simultaneous or misplaced background modes.
+- Render Free remains a demonstration constraint, not a production architecture.
+- Creating the dedicated Render worker requires an explicit cost decision.
 
 ## Future Student Portal Prerequisites
 

@@ -109,6 +109,38 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async getOperationalMetrics(): Promise<Record<string, number>> {
+    const client = this.getAvailableClient();
+    if (!client) {
+      return {};
+    }
+
+    try {
+      const info = await client.info();
+      const allowed = new Set([
+        "connected_clients",
+        "evicted_keys",
+        "keyspace_hits",
+        "keyspace_misses",
+        "rejected_connections",
+        "used_memory"
+      ]);
+      const metrics: Record<string, number> = {};
+      for (const line of info.split(/\r?\n/)) {
+        const separator = line.indexOf(":");
+        if (separator <= 0) continue;
+        const key = line.slice(0, separator);
+        if (!allowed.has(key)) continue;
+        const value = Number(line.slice(separator + 1));
+        if (Number.isFinite(value)) metrics[key] = value;
+      }
+      return metrics;
+    } catch {
+      this.status = "degraded";
+      return {};
+    }
+  }
+
   async incrementWithExpiry(key: string, windowMs: number): Promise<number | null> {
     const client = this.getAvailableClient();
     if (!client) {

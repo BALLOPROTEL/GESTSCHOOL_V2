@@ -104,6 +104,10 @@ function validateProductionEnv(env) {
   const databaseUrl = parsePostgresUrl("DATABASE_URL");
   const directUrl = parsePostgresUrl("DIRECT_URL");
   const corsOriginsRaw = requireEnv("CORS_ORIGINS");
+  const processRole = requireEnv("GESTSCHOOL_PROCESS_ROLE").toLowerCase();
+  if (processRole && !["api", "worker"].includes(processRole)) {
+    errors.push("GESTSCHOOL_PROCESS_ROLE must be api or worker.");
+  }
   requireSecret("JWT_SECRET");
   requireSecret("PASSWORD_RESET_SECRET");
   const jwtIssuer = requireEnv("JWT_ISSUER");
@@ -165,6 +169,35 @@ function validateProductionEnv(env) {
 
   const notificationsEnabled =
     booleanValue("NOTIFICATIONS_WORKER_ENABLED") || booleanValue("OUTBOX_IN_PROCESS_ENABLED");
+  const workerEnabled = booleanValue("NOTIFICATIONS_WORKER_ENABLED");
+  const inProcessEnabled = booleanValue("OUTBOX_IN_PROCESS_ENABLED");
+  if (workerEnabled && inProcessEnabled) {
+    errors.push(
+      "NOTIFICATIONS_WORKER_ENABLED and OUTBOX_IN_PROCESS_ENABLED must not both be enabled."
+    );
+  }
+  if (processRole === "api" && workerEnabled) {
+    errors.push("NOTIFICATIONS_WORKER_ENABLED must be false for the API process.");
+  }
+  if (processRole === "api" && inProcessEnabled) {
+    errors.push(
+      "OUTBOX_IN_PROCESS_ENABLED must be false for the production API; deploy a dedicated worker."
+    );
+  }
+  if (processRole === "worker") {
+    if (!workerEnabled) {
+      errors.push("NOTIFICATIONS_WORKER_ENABLED must be true for the worker process.");
+    }
+    if (inProcessEnabled) {
+      errors.push("OUTBOX_IN_PROCESS_ENABLED must be false for the worker process.");
+    }
+    requireInteger("WORKER_HEALTH_PORT", 1, 65535);
+  }
+
+  if (processRole === "api") {
+    requireSecret("MONITORING_METRICS_TOKEN");
+  }
+
   if (notificationsEnabled) {
     const emailProvider = String(
       env.NOTIFICATIONS_EMAIL_PROVIDER || env.NOTIFY_EMAIL_PROVIDER || ""
@@ -342,6 +375,10 @@ function validateProductionEnv(env) {
     } catch {
       errors.push(`CORS_ORIGINS entry ${origin} is not a valid origin.`);
     }
+  }
+
+  if (processRole === "api" && booleanValue("SWAGGER_ENABLED")) {
+    errors.push("SWAGGER_ENABLED must be false for the production API.");
   }
 
   return { errors, warnings };
