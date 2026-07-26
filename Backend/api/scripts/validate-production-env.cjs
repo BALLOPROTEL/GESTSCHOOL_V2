@@ -1,7 +1,6 @@
 const PLACEHOLDER_PATTERN = /^(change-me|changeme|replace-me|example|placeholder|secret|password)/i;
 const VERSIONED_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const LEGACY_DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
 function validateProductionEnv(env) {
   const nodeEnv = String(env.NODE_ENV || "development").trim().toLowerCase();
@@ -298,21 +297,7 @@ function validateProductionEnv(env) {
 
   const defaultTenantId = requireEnv("DEFAULT_TENANT_ID");
   if (defaultTenantId && !VERSIONED_UUID_PATTERN.test(defaultTenantId)) {
-    if (defaultTenantId === LEGACY_DEFAULT_TENANT_ID) {
-      if (String(env.ALLOW_LEGACY_DEFAULT_TENANT_ID || "").trim().toLowerCase() !== "true") {
-        errors.push(
-          "DEFAULT_TENANT_ID uses the historical non-versioned tenant UUID. " +
-            "Set ALLOW_LEGACY_DEFAULT_TENANT_ID=true only for the temporary compatibility period."
-        );
-      } else {
-        warnings.push(
-          "DEFAULT_TENANT_ID uses the historical non-versioned tenant UUID. " +
-            "This compatibility exception is temporary and applies only to the known legacy identifier."
-        );
-      }
-    } else {
-      errors.push("DEFAULT_TENANT_ID must be a valid versioned UUID.");
-    }
+    errors.push("DEFAULT_TENANT_ID must be a valid versioned UUID.");
   }
 
   if (databaseUrl) {

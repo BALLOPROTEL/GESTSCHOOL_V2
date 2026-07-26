@@ -64,28 +64,13 @@ describe("production environment validator", () => {
     expect(validateProductionEnv(validEnv())).toEqual({ errors: [], warnings: [] });
   });
 
-  it("temporarily accepts only the known historical tenant id with an explicit warning", () => {
-    const result = validateProductionEnv({
-      ...validEnv(),
-      DEFAULT_TENANT_ID: "00000000-0000-0000-0000-000000000001",
-      ALLOW_LEGACY_DEFAULT_TENANT_ID: "true"
-    });
-
-    expect(result.errors).toEqual([]);
-    expect(result.warnings).toEqual([
-      expect.stringContaining("historical non-versioned tenant UUID")
-    ]);
-  });
-
-  it("rejects the historical tenant id unless compatibility is explicitly enabled", () => {
+  it("rejects the historical tenant", () => {
     const result = validateProductionEnv({
       ...validEnv(),
       DEFAULT_TENANT_ID: "00000000-0000-0000-0000-000000000001"
     });
 
-    expect(result.errors).toEqual([
-      expect.stringContaining("ALLOW_LEGACY_DEFAULT_TENANT_ID=true")
-    ]);
+    expect(result.errors).toContain("DEFAULT_TENANT_ID must be a valid versioned UUID.");
     expect(result.warnings).toEqual([]);
   });
 

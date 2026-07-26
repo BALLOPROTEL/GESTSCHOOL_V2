@@ -1,4 +1,4 @@
-export const DEFAULT_TENANT = "00000000-0000-0000-0000-000000000001";
+export const DEFAULT_TENANT = "00000000-0000-4000-8000-000000000001";
 export const DEFAULT_CURRENCY = "CFA";
 export const SCHOOL_NAME = "Al Manarat Islamiyat";
 export const THEME_STORAGE_KEY = "gestschool.web-admin.theme";

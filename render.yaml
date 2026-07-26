@@ -54,9 +54,7 @@ services:
       - key: REFRESH_TOKEN_TTL_DAYS
         value: "30"
       - key: DEFAULT_TENANT_ID
-        value: 00000000-0000-0000-0000-000000000001
-      - key: ALLOW_LEGACY_DEFAULT_TENANT_ID
-        value: "true"
+        value: 00000000-0000-4000-8000-000000000001
       - key: DEV_BOOTSTRAP_USERS_ON_START
         value: "false"
       - key: DEV_BOOTSTRAP_PORTAL_USERS

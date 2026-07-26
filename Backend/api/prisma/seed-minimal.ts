@@ -6,7 +6,7 @@ import { getDefaultDevUsers } from "../src/database/dev-default-users";
 const prisma = new PrismaClient();
 
 const tenantId =
-  process.env.DEFAULT_TENANT_ID || "00000000-0000-0000-0000-000000000001";
+  process.env.DEFAULT_TENANT_ID || "00000000-0000-4000-8000-000000000001";
 
 const schoolYearCode = process.env.SEED_SCHOOL_YEAR_CODE || "2025-2026";
 const schoolYearLabel = process.env.SEED_SCHOOL_YEAR_LABEL || "Annee 2025-2026";

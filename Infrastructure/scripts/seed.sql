@@ -2,7 +2,7 @@
 -- Note: tenant fixe de dev pour démarrage local
 
 WITH t AS (
-  SELECT '00000000-0000-0000-0000-000000000001'::UUID AS tenant_id
+  SELECT '00000000-0000-4000-8000-000000000001'::UUID AS tenant_id
 ), sy AS (
   INSERT INTO school_years (tenant_id, code, start_date, end_date, is_active)
   SELECT tenant_id, '2025-2026', DATE '2025-09-01', DATE '2026-07-31', TRUE
@@ -18,7 +18,7 @@ UNION ALL SELECT tenant_id, 'SUPERIEUR', 'Superieur', 4 FROM sy
 ON CONFLICT (tenant_id, code) DO NOTHING;
 
 WITH t AS (
-  SELECT '00000000-0000-0000-0000-000000000001'::UUID AS tenant_id
+  SELECT '00000000-0000-4000-8000-000000000001'::UUID AS tenant_id
 ), c AS (
   SELECT id, code, tenant_id FROM cycles WHERE tenant_id = (SELECT tenant_id FROM t)
 )
@@ -50,7 +50,7 @@ ON c.code = v.cycle_code
 ON CONFLICT (tenant_id, code) DO NOTHING;
 
 WITH t AS (
-  SELECT '00000000-0000-0000-0000-000000000001'::UUID AS tenant_id
+  SELECT '00000000-0000-4000-8000-000000000001'::UUID AS tenant_id
 ), sy AS (
   SELECT id, tenant_id FROM school_years WHERE tenant_id = (SELECT tenant_id FROM t) AND code = '2025-2026'
 )
@@ -61,7 +61,7 @@ UNION ALL SELECT tenant_id, id, 'T3', 'Trimestre 3', DATE '2026-04-01', DATE '20
 ON CONFLICT (tenant_id, school_year_id, code) DO NOTHING;
 
 WITH t AS (
-  SELECT '00000000-0000-0000-0000-000000000001'::UUID AS tenant_id
+  SELECT '00000000-0000-4000-8000-000000000001'::UUID AS tenant_id
 )
 INSERT INTO subjects (tenant_id, code, label, is_arabic)
 SELECT tenant_id, 'MATH', 'Mathematiques', FALSE FROM t

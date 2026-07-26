@@ -7,10 +7,10 @@ import type { Session } from "../types/app";
 const createSession = (accessToken: string, refreshToken = accessToken): Session => ({
   accessToken,
   refreshToken,
-  tenantId: "00000000-0000-0000-0000-000000000001",
+  tenantId: "00000000-0000-4000-8000-000000000001",
   user: {
     role: "ADMIN",
-    tenantId: "00000000-0000-0000-0000-000000000001",
+    tenantId: "00000000-0000-4000-8000-000000000001",
     username: "admin@example.local"
   }
 });
@@ -45,7 +45,7 @@ describe("session-storage", () => {
         id: "user-1",
         username: "admin@example.local",
         role: "ADMIN",
-        tenantId: "00000000-0000-0000-0000-000000000001",
+        tenantId: "00000000-0000-4000-8000-000000000001",
         email: "admin@example.local",
         phone: "+22370000000",
         displayName: "Admin GestSchool",

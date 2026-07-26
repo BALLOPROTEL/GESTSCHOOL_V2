@@ -18,7 +18,6 @@ stocke dans Git.
 | `JWT_SECRET` | oui | oui | non | oui | aucun | oui, >= 32 caracteres |
 | `PASSWORD_RESET_SECRET` | oui | non | non | oui | aucun | oui |
 | `DEFAULT_TENANT_ID` | oui | oui | non | non | aucun | oui |
-| `ALLOW_LEGACY_DEFAULT_TENANT_ID` | oui | oui | non | non | `false` | temporaire seulement |
 | `SWAGGER_ENABLED` | oui | non | non | non | `false` | doit rester `false` |
 | `MONITORING_METRICS_TOKEN` | oui | scrape | non | oui | aucun | oui |
 | `WORKER_HEALTH_HOST` | non | oui | non | non | `0.0.0.0` | oui |

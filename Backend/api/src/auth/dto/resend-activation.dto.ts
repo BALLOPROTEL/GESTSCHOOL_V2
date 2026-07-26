@@ -10,7 +10,7 @@ export class ResendActivationDto {
   username!: string;
 
   @ApiPropertyOptional({
-    example: "00000000-0000-0000-0000-000000000001"
+    example: "00000000-0000-4000-8000-000000000001"
   })
   @IsOptional()
   @IsAllowedTenantId()

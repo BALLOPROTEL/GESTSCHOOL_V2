@@ -11,7 +11,7 @@ import { PrismaService } from "../../src/database/prisma.service";
 import { configureHttpPlatform } from "../../src/security/http-platform.config";
 import { UserRole } from "../../src/security/roles.enum";
 
-export const TENANT_ID = "00000000-0000-0000-0000-000000000001";
+export const TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
 export type E2eAppContext = {
   app: INestApplication;
@@ -56,7 +56,6 @@ export function configureE2eEnvironment(): void {
   process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1h";
   process.env.REFRESH_TOKEN_TTL_DAYS = process.env.REFRESH_TOKEN_TTL_DAYS || "30";
   process.env.DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || TENANT_ID;
-  process.env.ALLOW_LEGACY_DEFAULT_TENANT_ID = "true";
   process.env.TRUST_PROXY_HOPS = "0";
   process.env.REDIS_URL = "";
   process.env.NOTIFICATIONS_WORKER_ENABLED = "false";

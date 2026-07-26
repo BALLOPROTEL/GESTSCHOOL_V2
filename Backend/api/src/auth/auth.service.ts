@@ -848,7 +848,7 @@ export class AuthService {
   private getDefaultTenantId(): string {
     return this.configService.get<string>(
       "DEFAULT_TENANT_ID",
-      "00000000-0000-0000-0000-000000000001"
+      "00000000-0000-4000-8000-000000000001"
     );
   }
 

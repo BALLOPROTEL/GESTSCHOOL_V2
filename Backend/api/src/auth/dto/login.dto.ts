@@ -14,7 +14,7 @@ export class LoginDto {
   password!: string;
 
   @ApiPropertyOptional({
-    example: "00000000-0000-0000-0000-000000000001",
+    example: "00000000-0000-4000-8000-000000000001",
     description: "Optional tenant UUID. Defaults to DEFAULT_TENANT_ID."
   })
   @IsOptional()

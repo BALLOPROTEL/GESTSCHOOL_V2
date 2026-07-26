@@ -3,7 +3,7 @@
 /** @typedef {import('../lib/audit-guard.mjs').MockRoute} MockRoute */
 
 export const MOCK_FIXTURE_VERSION = "gestschool-visual-v1";
-export const MOCK_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+export const MOCK_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
 const previewSession = {
   accessToken: "__preview__",

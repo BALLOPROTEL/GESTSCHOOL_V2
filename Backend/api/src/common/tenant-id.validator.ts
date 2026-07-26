@@ -4,28 +4,17 @@ import {
   type ValidationOptions
 } from "class-validator";
 
-export const LEGACY_DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+export const CANONICAL_DEFAULT_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
 const VERSIONED_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export function isAllowedTenantId(
-  value: unknown,
-  env: NodeJS.ProcessEnv = process.env
-): boolean {
+export function isAllowedTenantId(value: unknown): boolean {
   if (typeof value !== "string") {
     return false;
   }
 
-  const tenantId = value.trim();
-  if (VERSIONED_UUID_PATTERN.test(tenantId)) {
-    return true;
-  }
-
-  return (
-    tenantId === LEGACY_DEFAULT_TENANT_ID &&
-    String(env.ALLOW_LEGACY_DEFAULT_TENANT_ID || "").trim().toLowerCase() === "true"
-  );
+  return VERSIONED_UUID_PATTERN.test(value.trim());
 }
 
 export function IsAllowedTenantId(validationOptions?: ValidationOptions): PropertyDecorator {

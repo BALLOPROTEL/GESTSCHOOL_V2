@@ -304,6 +304,97 @@ Rollback :
 
 Verdict LOT 1B : **GO pour preparer la migration canonique versionnee et son commit ; NO-GO pour l'appliquer en production tant que la fenetre de maintenance, la sauvegarde verifiee, le preflight final, le role de migration et le traitement des avatars historiques ne sont pas valides**.
 
+## LOT 1C - Migration canonique du tenant historique
+
+- Date : 2026-07-26
+- Ancien tenant : `00000000-0000-0000-0000-000000000001`
+- Tenant canonique : `00000000-0000-4000-8000-000000000001`
+- Statut : migration et configuration preparees ; aucune ecriture sur le snapshot source ou la production
+
+### Correction
+
+La migration transactionnelle
+`20260726120000_canonical_default_tenant_id` inventorie explicitement les
+42 tables tenant. Avant toute mise a jour, elle controle l'inventaire, le type
+UUID, les contraintes non validees, les valeurs NULL ou inattendues, la
+coexistence ancien/nouveau tenant et toutes les relations entre tables
+tenant. Elle ne met a jour que les colonnes `tenant_id`, compte les lignes
+effectivement modifiees, repete les controles apres ecriture et reconnait une
+base vide ou deja migree.
+
+La configuration active, les seeds, fixtures, tests et valeurs par defaut
+utilisent maintenant l'UUID canonique. Le drapeau
+`ALLOW_LEGACY_DEFAULT_TENANT_ID` et sa branche de validation ont ete retires.
+L'ancien UUID est refuse par les validateurs. Ses seules references restantes
+sont historiques ou indispensables a la migration et aux tests de refus.
+
+### Validation sur copie jetable du snapshot
+
+Le snapshot source est reste strictement en lecture seule. Une copie en
+`tmpfs` a ete creee depuis `PROD_SNAPSHOT_DATABASE_URL`, puis detruite apres
+les tests.
+
+Resultats de la sequence :
+
+- etat initial de la copie : 30 migrations, 42 tables, 758 lignes historiques
+  dans 18 tables ;
+- migrations 31 a 34 : appliquees dans l'ordre, 0 echec ;
+- migration LOT 1C : appliquee comme migration 35, 758/758 lignes migrees ;
+- etat final : 42 tables, 758 lignes canoniques, 0 ancien tenant, 0 NULL,
+  0 tenant inattendu et 0 anomalie relationnelle ;
+- rejeu du SQL sur la base deja migree : succes controle avec
+  `LOT1C_ALREADY_MIGRATED` ;
+- collision cible simulee : blocage avant ecriture avec
+  `LOT1C_CANONICAL_TENANT_COLLISION` ;
+- tenant inattendu simule : blocage avant ecriture avec
+  `LOT1C_UNEXPECTED_TENANT_IDS` ;
+- tenant NULL simule : blocage avant ecriture avec
+  `LOT1C_NULL_TENANT_IDS` ;
+- rollback avant trafic : 758/758 lignes restaurees, puis migration canonique
+  reappliquee avec succes.
+
+Les agregats historiques sont restes identiques avant et apres :
+
+- 12 payloads `iam_audit_logs` contenant la reference historique ;
+- 267 payloads `outbox_events` au statut `PROCESSED` ;
+- 2 anciennes valeurs `users.avatar_url`.
+
+Le controle final du snapshot source a confirme son integrite : 30 migrations,
+758 lignes historiques, 0 ligne canonique, 0 NULL et 0 tenant inattendu.
+
+### Validations applicatives
+
+| Controle | Resultat |
+| --- | --- |
+| Prisma validate et generate | OK |
+| Lint et build API | OK |
+| Tests unitaires API | 20 suites, 99 tests reussis |
+| Migration PostgreSQL 16 vierge | 35/35 migrations, 0 echec |
+| E2E PostgreSQL complet | 9 suites, 61 tests reussis |
+| Lint frontend | OK |
+| Tests frontend | 24 fichiers, 109 tests reussis |
+| Build et smoke frontend | OK |
+| `git diff --check` | a relancer au controle final |
+
+### Production et rollback
+
+La procedure complete est documentee dans
+`docs/operations/canonical-tenant-migration.md`. La production exige une
+maintenance coordonnee : arret API/worker, sauvegarde verifiee, preflight
+lecture seule sur la base courante, migrations 31 a 34 puis LOT 1C, mise a
+jour simultanee de `DEFAULT_TENANT_ID`, deploiement API puis worker,
+revocation des anciennes sessions, smoke tests et reprise des ecritures.
+
+Avant la reprise du trafic, le rollback inverse est possible sous preflight
+strict. Apres reprise des ecritures, la restauration de la sauvegarde et le
+redeploiement coordonne de l'ancienne version sont obligatoires. La reprise
+des ecritures est le point de non-retour du rollback inverse simple.
+
+Verdict LOT 1C : **GO pour commit ; NO-GO pour migration ou deploiement en
+production tant que la sauvegarde, le preflight final, le role de migration,
+la maintenance API/worker, la revocation des sessions et les smoke tests ne
+sont pas prepares et approuves**.
+
 ## LOT 2 - Dependances de production
 
 - Date : 2026-07-15

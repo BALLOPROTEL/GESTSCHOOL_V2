@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+const DEFAULT_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 const STRONG_PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{12,128}$/;
 
