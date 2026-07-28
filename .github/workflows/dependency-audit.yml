@@ -1,0 +1,45 @@
+name: Scheduled dependency audit
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-dependency-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Production and temporary-exception audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      AUDIT_PNPM_VERSION: 11.13.0
+      DEPENDENCY_AUDIT_REPORT_DIR: /tmp/gestschool-dependency-audit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+        with:
+          node-version: 22.22.0
+
+      - name: Test dependency audit policy
+        run: node --test scripts/security/dependency-audit-policy.test.mjs
+
+      - name: Run strict production and controlled full audits
+        run: bash scripts/ci/run-dependency-audit.sh
+
+      - name: Preserve audit reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: scheduled-dependency-audit
+          path: /tmp/gestschool-dependency-audit
+          if-no-files-found: error
+          retention-days: 30

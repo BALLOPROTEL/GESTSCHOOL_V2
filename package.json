@@ -13,6 +13,8 @@
     "visual:audit:integrated": "VISUAL_AUDIT_MODE=integrated node scripts/visual-audit-core-workflows.mjs",
     "visual:audit:test": "node scripts/visual-audit/lib/audit-guard.test.mjs",
     "visual:audit:lint": "node --check scripts/visual-audit-core-workflows.mjs && node --check scripts/visual-audit/lib/audit-guard.mjs && node --check scripts/visual-audit/fixtures/mock-api-v1.mjs",
+    "security:audit": "bash scripts/ci/run-dependency-audit.sh",
+    "security:audit:test": "node scripts/security/dependency-audit-policy.test.mjs",
     "render:build:api": "pnpm --filter @gestschool/api prisma:generate && pnpm --filter @gestschool/api build",
     "render:migrate:api": "pnpm --filter @gestschool/api db:migrate:deploy",
     "render:start:api": "pnpm --filter @gestschool/api start:prod",

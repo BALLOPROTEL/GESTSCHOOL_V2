@@ -227,27 +227,11 @@ jobs:
       - name: Install dependencies from lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Audit production dependencies with pnpm 11
-        run: |
-          AUDIT_VERSION="$(corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore --version)"
-          echo "Production dependency audit uses pnpm ${AUDIT_VERSION}."
-          [[ "${AUDIT_VERSION}" == 11.* ]] || {
-            echo "Expected pnpm 11.x for the dependency audit." >&2
-            exit 1
-          }
-          corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore \
-            audit --prod --audit-level high
+      - name: Test dependency audit policy
+        run: pnpm security:audit:test
 
-      - name: Audit all dependencies with pnpm 11
-        run: |
-          AUDIT_VERSION="$(corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore --version)"
-          echo "Development dependency audit uses pnpm ${AUDIT_VERSION}."
-          [[ "${AUDIT_VERSION}" == 11.* ]] || {
-            echo "Expected pnpm 11.x for the dependency audit." >&2
-            exit 1
-          }
-          corepack pnpm@${AUDIT_PNPM_VERSION} --pm-on-fail=ignore \
-            audit --audit-level high
+      - name: Audit production and all dependencies with pnpm 11
+        run: pnpm security:audit
 
       - name: Scan dependencies, secrets and configuration
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0

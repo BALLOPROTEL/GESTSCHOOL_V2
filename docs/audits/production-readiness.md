@@ -2169,3 +2169,55 @@ Verdicts:
 
 Message de commit propose :
 `feat(api): integrate Brevo contracts and dedicated notification worker`.
+
+## LOT 2E - Compatible advisory fixes and expiring development exception
+
+Date: 2026-07-28
+
+The compatible dependency branches are pinned to patched releases without a
+major toolchain migration:
+
+- `postcss` vulnerable releases below `8.5.18` resolve to `8.5.18`;
+- the modern `brace-expansion` 5.x branch below `5.0.8` resolves to `5.0.8`;
+- `brace-expansion@1.1.16` remains only below `minimatch@3`, where forcing the
+  incompatible 5.x API is forbidden.
+
+The remaining high advisory `GHSA-mh99-v99m-4gvg` is controlled by
+`scripts/security/dependency-audit-policy.mjs`. The exception is exact,
+development-only, restricted to the inventoried ESLint, Jest and Nest CLI
+chains, owned by the GestSchool maintainers and expires after 2026-08-11 UTC.
+It cannot renew automatically. Production advisories, another package/version
+or chain, another high/critical advisory, an invalid report and expiration all
+fail the gate.
+
+All ESLint/Jest/Nest glob patterns used by repository scripts and CI are static
+and repository-owned. No HTTP input, user content or GitHub Actions input is
+passed as a glob pattern. The low `esbuild@0.27.3` development-server debt
+remains reported separately and receives no exception.
+
+The same pnpm 11 Bulk Advisory runner is executed by every CI build and by the
+weekly scheduled dependency-audit workflow. It verifies the pnpm major version,
+keeps production strict, evaluates the full report through the temporary policy
+and proves that the audit did not modify the lockfile.
+
+Validation evidence:
+
+- frozen installation with pnpm `10.24.0`: passed;
+- Prisma Client generation: passed;
+- API typecheck, lint and build: passed;
+- API unit tests: 23 suites and 145 tests passed;
+- PostgreSQL 16 E2E: 35 migrations applied, 9 suites and 63 tests passed;
+- frontend typecheck, lint and build: passed;
+- frontend tests: 24 files and 109 tests passed;
+- frontend smoke checks: passed;
+- audit policy tests: 7 tests passed, including production exposure, unknown
+  chain, any remaining PostCSS advisory, malformed report, unrelated high
+  advisory and expiration failures;
+- pnpm `11.13.0` production audit: zero advisories;
+- pnpm `11.13.0` full raw audit: only the approved high advisory on
+  `brace-expansion@1.1.16` and the reported low advisory on `esbuild@0.27.3`;
+- simulated evaluation on 2026-08-12: rejected as expired;
+- lockfile hash before and after both audits: unchanged.
+
+LOT 2E changes dependency tooling and CI policy only. It contains no business,
+API contract or runtime production dependency change.
