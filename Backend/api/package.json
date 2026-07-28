@@ -32,6 +32,7 @@
     "migrate:timetable:apply": "node ./scripts/run-ts-script-with-env.cjs scripts/timetable-reference-backfill.ts --apply",
     "storage:migrate:dry-run": "node ./scripts/run-ts-script-with-env.cjs scripts/migrate-legacy-storage.ts",
     "storage:migrate:apply": "node ./scripts/run-ts-script-with-env.cjs scripts/migrate-legacy-storage.ts --apply",
+    "notifications:verify:brevo-sender": "node ./scripts/run-ts-script-with-env.cjs scripts/verify-brevo-sender.ts",
     "seed:users": "pnpm run db:seed:users",
     "prisma:generate": "pnpm run db:generate",
     "prisma:migrate:dev": "node ./scripts/prisma-command.cjs migrate dev",

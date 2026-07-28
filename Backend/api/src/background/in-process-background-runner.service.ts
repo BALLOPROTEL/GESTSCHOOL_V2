@@ -1,12 +1,13 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
+import { sanitizeProviderError } from "../notifications/notification-delivery.types";
 import { BackgroundTasksService } from "./background-tasks.service";
 
 @Injectable()
 export class InProcessBackgroundRunnerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(InProcessBackgroundRunnerService.name);
-  private isRunning = false;
+  private activeTick: Promise<void> | null = null;
   private timer: NodeJS.Timeout | null = null;
 
   constructor(
@@ -15,7 +16,20 @@ export class InProcessBackgroundRunnerService implements OnModuleInit, OnModuleD
   ) {}
 
   onModuleInit(): void {
-    if (!this.booleanConfig("OUTBOX_IN_PROCESS_ENABLED", false)) {
+    const inProcessEnabled = this.booleanConfig("OUTBOX_IN_PROCESS_ENABLED", false);
+    const workerEnabled = this.booleanConfig("NOTIFICATIONS_WORKER_ENABLED", false);
+    if (inProcessEnabled && workerEnabled) {
+      throw new Error(
+        "OUTBOX_IN_PROCESS_ENABLED and NOTIFICATIONS_WORKER_ENABLED cannot both be enabled."
+      );
+    }
+    const production =
+      this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase() ===
+      "production";
+    if (production && inProcessEnabled) {
+      throw new Error("In-process outbox processing is disabled in production.");
+    }
+    if (!inProcessEnabled) {
       this.logger.log("In-process outbox runner disabled.");
       return;
     }
@@ -30,30 +44,38 @@ export class InProcessBackgroundRunnerService implements OnModuleInit, OnModuleD
     });
 
     this.timer = setInterval(() => {
-      void this.runTick(batchSize);
+      void this.scheduleTick(batchSize);
     }, intervalMs);
     this.timer.unref?.();
 
-    void this.runTick(batchSize);
+    void this.scheduleTick(batchSize);
     this.logger.log(
       `In-process outbox runner started for Render free mode (${intervalMs}ms, batch ${batchSize}).`
     );
   }
 
-  onModuleDestroy(): void {
-    if (!this.timer) {
-      return;
+  async onModuleDestroy(): Promise<void> {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
     }
-    clearInterval(this.timer);
-    this.timer = null;
+    if (this.activeTick) {
+      await this.activeTick;
+    }
+  }
+
+  private scheduleTick(batchSize: number): Promise<void> {
+    if (this.activeTick) return this.activeTick;
+    const scheduledTick = this.runTick(batchSize).finally(() => {
+      if (this.activeTick === scheduledTick) {
+        this.activeTick = null;
+      }
+    });
+    this.activeTick = scheduledTick;
+    return this.activeTick;
   }
 
   private async runTick(batchSize: number): Promise<void> {
-    if (this.isRunning) {
-      return;
-    }
-
-    this.isRunning = true;
     try {
       const result = await this.backgroundTasks.runOnce({ batchSize });
       const totalProcessed =
@@ -67,10 +89,7 @@ export class InProcessBackgroundRunnerService implements OnModuleInit, OnModuleD
         );
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unexpected in-process outbox error";
-      this.logger.error(message);
-    } finally {
-      this.isRunning = false;
+      this.logger.error(sanitizeProviderError(error));
     }
   }
 

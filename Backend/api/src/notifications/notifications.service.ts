@@ -36,6 +36,7 @@ import {
   DEFAULT_NOTIFICATION_TEMPLATE_VERSION
 } from "./notification-idempotency";
 import { NotificationRetryPolicyService } from "./notification-retry-policy.service";
+import type { VerifiedBrevoWebhook } from "./brevo-webhook.service";
 import type { VerifiedNotificationWebhook } from "./notification-webhook-verifier.service";
 
 type NotificationView = {
@@ -434,6 +435,43 @@ export class NotificationsService {
     });
 
     return this.notificationView(updated);
+  }
+
+  async recordBrevoDeliveryEvent(
+    verified: VerifiedBrevoWebhook
+  ): Promise<NotificationView> {
+    const matches = await this.prisma.notification.findMany({
+      where: {
+        provider: verified.provider,
+        providerMessageId: verified.providerMessageId
+      },
+      select: {
+        id: true,
+        tenantId: true
+      },
+      take: 2
+    });
+    if (matches.length === 0) {
+      throw new NotFoundException("Notification not found for provider event.");
+    }
+    if (matches.length !== 1) {
+      throw new ConflictException("Provider event cannot be matched unambiguously.");
+    }
+
+    return this.recordDeliveryEvent(
+      {
+        tenantId: matches[0].tenantId,
+        provider: verified.provider,
+        providerMessageId: verified.providerMessageId,
+        status: verified.status,
+        occurredAt: verified.occurredAt.toISOString(),
+        errorMessage: verified.errorMessage
+      },
+      {
+        eventId: verified.eventId,
+        signatureTimestamp: verified.signatureTimestamp
+      }
+    );
   }
 
   async updateNotificationStatus(

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 
 import { AuditModule } from "../audit/audit.module";
 import { OutboxModule } from "../outbox/outbox.module";
+import { BrevoWebhookService } from "./brevo-webhook.service";
 import { NotificationRetryPolicyService } from "./notification-retry-policy.service";
 import { NotificationWebhookVerifierService } from "./notification-webhook-verifier.service";
 import { NotificationGatewayService } from "./notification-gateway.service";
@@ -12,6 +13,7 @@ import { NotificationsService } from "./notifications.service";
 @Module({
   imports: [AuditModule, OutboxModule],
   providers: [
+    BrevoWebhookService,
     NotificationGatewayService,
     NotificationRetryPolicyService,
     NotificationRequestBusService,
@@ -20,6 +22,7 @@ import { NotificationsService } from "./notifications.service";
     NotificationsService
   ],
   exports: [
+    BrevoWebhookService,
     NotificationGatewayService,
     NotificationRetryPolicyService,
     NotificationRequestBusService,

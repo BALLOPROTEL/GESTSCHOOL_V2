@@ -301,6 +301,12 @@ export class MonitoringController {
         }
       },
       notifications: {
+        brevoWebhook: {
+          enabled: this.booleanConfig("BREVO_WEBHOOK_ENABLED", false),
+          required: {
+            BREVO_WEBHOOK_AUTH_TOKEN: this.hasConfig("BREVO_WEBHOOK_AUTH_TOKEN")
+          }
+        },
         email: {
           provider: emailProvider,
           enabled: emailProvider === "BREVO",

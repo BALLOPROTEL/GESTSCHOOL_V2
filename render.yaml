@@ -105,6 +105,12 @@ services:
         value: "8000"
       - key: ALLOW_REAL_SMS
         value: "false"
+      - key: BREVO_WEBHOOK_ENABLED
+        value: "false"
+      - key: BREVO_WEBHOOK_AUTH_TOKEN
+        sync: false
+      - key: BREVO_WEBHOOK_MAX_AGE_SECONDS
+        value: "90000"
       - key: NOTIFICATION_TEST_EMAIL
         sync: false
       - key: NOTIFICATION_TEST_PHONE

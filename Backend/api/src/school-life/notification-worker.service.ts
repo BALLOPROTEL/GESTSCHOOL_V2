@@ -2,12 +2,13 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/commo
 import { ConfigService } from "@nestjs/config";
 
 import { BackgroundTasksService } from "../background/background-tasks.service";
+import { sanitizeProviderError } from "../notifications/notification-delivery.types";
 
 @Injectable()
 export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NotificationWorkerService.name);
+  private activeTick: Promise<void> | null = null;
   private timer: NodeJS.Timeout | null = null;
-  private isRunning = false;
 
   constructor(
     private readonly backgroundTasks: BackgroundTasksService,
@@ -16,8 +17,12 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
 
   onModuleInit(): void {
     const enabled = this.parseBoolean(
-      this.configService.get<string>("NOTIFICATIONS_WORKER_ENABLED", "true")
+      this.configService.get<string>("NOTIFICATIONS_WORKER_ENABLED", "false")
     );
+    const inProcessEnabled = this.parseBoolean(
+      this.configService.get<string>("OUTBOX_IN_PROCESS_ENABLED", "false")
+    );
+    this.assertRuntimeMode(enabled, inProcessEnabled);
 
     if (!enabled) {
       this.logger.log("Background notification worker disabled.");
@@ -30,28 +35,36 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
     const intervalMs = Number.isFinite(intervalRaw) && intervalRaw >= 1000 ? intervalRaw : 15000;
 
     this.timer = setInterval(() => {
-      void this.runTick();
+      void this.scheduleTick();
     }, intervalMs);
     this.timer.unref?.();
 
-    void this.runTick();
+    void this.scheduleTick();
     this.logger.log(`Background notification worker started (${intervalMs}ms).`);
   }
 
-  onModuleDestroy(): void {
-    if (!this.timer) {
-      return;
+  async onModuleDestroy(): Promise<void> {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
     }
-    clearInterval(this.timer);
-    this.timer = null;
+    if (this.activeTick) {
+      await this.activeTick;
+    }
+  }
+
+  private scheduleTick(): Promise<void> {
+    if (this.activeTick) return this.activeTick;
+    const scheduledTick = this.runTick().finally(() => {
+      if (this.activeTick === scheduledTick) {
+        this.activeTick = null;
+      }
+    });
+    this.activeTick = scheduledTick;
+    return this.activeTick;
   }
 
   private async runTick(): Promise<void> {
-    if (this.isRunning) {
-      return;
-    }
-
-    this.isRunning = true;
     try {
       const result = await this.backgroundTasks.runOnce();
       if (result.audit.processedCount > 0 || result.audit.failedCount > 0) {
@@ -75,15 +88,38 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
         );
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unexpected worker error";
-      this.logger.error(message);
-    } finally {
-      this.isRunning = false;
+      this.logger.error(sanitizeProviderError(error));
+    }
+  }
+
+  private assertRuntimeMode(workerEnabled: boolean, inProcessEnabled: boolean): void {
+    if (workerEnabled && inProcessEnabled) {
+      throw new Error(
+        "NOTIFICATIONS_WORKER_ENABLED and OUTBOX_IN_PROCESS_ENABLED cannot both be enabled."
+      );
+    }
+    const production = this.configService
+      .get<string>("NODE_ENV", "development")
+      .trim()
+      .toLowerCase() === "production";
+    if (!production) return;
+
+    const processRole = this.configService
+      .get<string>("GESTSCHOOL_PROCESS_ROLE", "")
+      .trim()
+      .toLowerCase();
+    if (processRole === "worker" && (!workerEnabled || inProcessEnabled)) {
+      throw new Error(
+        "The production worker requires NOTIFICATIONS_WORKER_ENABLED=true and OUTBOX_IN_PROCESS_ENABLED=false."
+      );
+    }
+    if (processRole === "api" && (workerEnabled || inProcessEnabled)) {
+      throw new Error("Background notification processing must be disabled in the production API.");
     }
   }
 
   private parseBoolean(value: string): boolean {
     const normalized = value.trim().toLowerCase();
-    return !(normalized === "0" || normalized === "false" || normalized === "no");
+    return normalized === "1" || normalized === "true" || normalized === "yes";
   }
 }

@@ -42,7 +42,7 @@ const validNotificationEnv = (): NodeJS.ProcessEnv => ({
   NOTIFICATIONS_WORKER_ENABLED: "true",
   OUTBOX_IN_PROCESS_ENABLED: "false",
   NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
-  NOTIFICATIONS_SMS_PROVIDER: "BREVO",
+  NOTIFICATIONS_SMS_PROVIDER: "MOCK",
   BREVO_API_KEY: `${strongSecret}-brevo`,
   BREVO_SENDER_EMAIL: "no-reply@example.com",
   BREVO_SMS_DRY_RUN: "true",
@@ -234,6 +234,33 @@ describe("production environment validator", () => {
     );
   });
 
+  it("validates Brevo credentials for synchronous API authentication emails", () => {
+    const invalid = validateProductionEnv({
+      ...validEnv(),
+      NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
+      NOTIFICATIONS_SMS_PROVIDER: "MOCK"
+    });
+
+    expect(invalid.errors).toEqual(
+      expect.arrayContaining([
+        "BREVO_API_KEY is required in production.",
+        "BREVO_SENDER_EMAIL is required in production.",
+        "BREVO_TIMEOUT_MS is required in production."
+      ])
+    );
+
+    expect(
+      validateProductionEnv({
+        ...validEnv(),
+        NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
+        NOTIFICATIONS_SMS_PROVIDER: "MOCK",
+        BREVO_API_KEY: `${strongSecret}-brevo`,
+        BREVO_SENDER_EMAIL: "no-reply@example.com",
+        BREVO_TIMEOUT_MS: "8000"
+      })
+    ).toEqual({ errors: [], warnings: [] });
+  });
+
   it("accepts a complete durable notification configuration", () => {
     expect(validateProductionEnv(validNotificationEnv())).toEqual({
       errors: [],
@@ -308,6 +335,56 @@ describe("production environment validator", () => {
         "SWAGGER_ENABLED must be false for the production API."
       ])
     );
+  });
+
+  it("requires a strong bearer credential and bounded age for enabled Brevo webhooks", () => {
+    const missing = validateProductionEnv({
+      ...validEnv(),
+      BREVO_WEBHOOK_ENABLED: "true",
+      BREVO_WEBHOOK_AUTH_TOKEN: "",
+      BREVO_WEBHOOK_MAX_AGE_SECONDS: ""
+    });
+    expect(missing.errors).toEqual(
+      expect.arrayContaining([
+        "BREVO_WEBHOOK_AUTH_TOKEN is required in production.",
+        "BREVO_WEBHOOK_MAX_AGE_SECONDS is required in production."
+      ])
+    );
+
+    expect(
+      validateProductionEnv({
+        ...validEnv(),
+        BREVO_WEBHOOK_ENABLED: "true",
+        BREVO_WEBHOOK_AUTH_TOKEN: `${strongSecret}-brevo-webhook`,
+        BREVO_WEBHOOK_MAX_AGE_SECONDS: "90000"
+      })
+    ).toEqual({ errors: [], warnings: [] });
+  });
+
+  it("accepts an email-only Brevo worker while SMS remains safely mocked", () => {
+    expect(validateProductionEnv(validNotificationEnv())).toEqual({
+      errors: [],
+      warnings: []
+    });
+  });
+
+  it("requires both explicit flags before enabling real Brevo SMS", () => {
+    const dryRunDisabled = {
+      ...validNotificationEnv(),
+      NOTIFICATIONS_SMS_PROVIDER: "BREVO",
+      BREVO_SMS_DRY_RUN: "false",
+      BREVO_SMS_SENDER: "AlManarat"
+    };
+    expect(validateProductionEnv(dryRunDisabled).errors).toContain(
+      "ALLOW_REAL_SMS must be true when BREVO_SMS_DRY_RUN is false."
+    );
+
+    expect(
+      validateProductionEnv({
+        ...dryRunDisabled,
+        ALLOW_REAL_SMS: "true"
+      })
+    ).toEqual({ errors: [], warnings: [] });
   });
 
   it("requires the timeout for the provider that is actually enabled", () => {

@@ -170,6 +170,46 @@ function validateProductionEnv(env) {
     booleanValue("NOTIFICATIONS_WORKER_ENABLED") || booleanValue("OUTBOX_IN_PROCESS_ENABLED");
   const workerEnabled = booleanValue("NOTIFICATIONS_WORKER_ENABLED");
   const inProcessEnabled = booleanValue("OUTBOX_IN_PROCESS_ENABLED");
+  const emailProvider = String(
+    env.NOTIFICATIONS_EMAIL_PROVIDER || env.NOTIFY_EMAIL_PROVIDER || "MOCK"
+  )
+    .trim()
+    .toUpperCase();
+  const smsProvider = String(
+    env.NOTIFICATIONS_SMS_PROVIDER || env.NOTIFY_SMS_PROVIDER || "MOCK"
+  )
+    .trim()
+    .toUpperCase();
+  const supportedProviders = ["MOCK", "BREVO", "WEBHOOK"];
+  if (!supportedProviders.includes(emailProvider)) {
+    errors.push("NOTIFICATIONS_EMAIL_PROVIDER must be MOCK, BREVO or WEBHOOK.");
+  }
+  if (!supportedProviders.includes(smsProvider)) {
+    errors.push("NOTIFICATIONS_SMS_PROVIDER must be MOCK, BREVO or WEBHOOK.");
+  }
+
+  if (emailProvider === "BREVO" || smsProvider === "BREVO") {
+    requireCredential("BREVO_API_KEY", 16);
+    requireInteger("BREVO_TIMEOUT_MS", 1000, 120000);
+  }
+  if (emailProvider === "BREVO") {
+    requireEnv("BREVO_SENDER_EMAIL");
+  }
+  if (smsProvider === "BREVO" && !booleanValue("BREVO_SMS_DRY_RUN", true)) {
+    requireEnv("BREVO_SMS_SENDER");
+    if (!booleanValue("ALLOW_REAL_SMS")) {
+      errors.push("ALLOW_REAL_SMS must be true when BREVO_SMS_DRY_RUN is false.");
+    }
+  }
+  if (emailProvider === "WEBHOOK") {
+    parseServiceUrl("NOTIFY_EMAIL_WEBHOOK_URL", ["https:"]);
+    requireSecret("NOTIFY_EMAIL_WEBHOOK_SIGNING_SECRET");
+  }
+  if (smsProvider === "WEBHOOK") {
+    parseServiceUrl("NOTIFY_SMS_WEBHOOK_URL", ["https:"]);
+    requireSecret("NOTIFY_SMS_WEBHOOK_SIGNING_SECRET");
+  }
+
   if (workerEnabled && inProcessEnabled) {
     errors.push(
       "NOTIFICATIONS_WORKER_ENABLED and OUTBOX_IN_PROCESS_ENABLED must not both be enabled."
@@ -195,46 +235,22 @@ function validateProductionEnv(env) {
 
   if (processRole === "api") {
     requireSecret("MONITORING_METRICS_TOKEN");
+    if (booleanValue("BREVO_WEBHOOK_ENABLED")) {
+      requireSecret("BREVO_WEBHOOK_AUTH_TOKEN");
+      requireInteger("BREVO_WEBHOOK_MAX_AGE_SECONDS", 86400, 90000);
+    }
   }
 
   if (notificationsEnabled) {
-    const emailProvider = String(
-      env.NOTIFICATIONS_EMAIL_PROVIDER || env.NOTIFY_EMAIL_PROVIDER || ""
-    )
-      .trim()
-      .toUpperCase();
-    const smsProvider = String(
-      env.NOTIFICATIONS_SMS_PROVIDER || env.NOTIFY_SMS_PROVIDER || ""
-    )
-      .trim()
-      .toUpperCase();
     const allowedProviders = ["BREVO", "WEBHOOK"];
 
-    if (!allowedProviders.includes(emailProvider)) {
-      errors.push("NOTIFICATIONS_EMAIL_PROVIDER must be BREVO or WEBHOOK when notifications are enabled.");
-    }
-    if (!allowedProviders.includes(smsProvider)) {
-      errors.push("NOTIFICATIONS_SMS_PROVIDER must be BREVO or WEBHOOK when notifications are enabled.");
-    }
-    if (emailProvider === "BREVO" || smsProvider === "BREVO") {
-      requireCredential("BREVO_API_KEY", 16);
-    }
-    if (emailProvider === "BREVO") {
-      requireEnv("BREVO_SENDER_EMAIL");
-    }
-    if (smsProvider === "BREVO" && !booleanValue("BREVO_SMS_DRY_RUN", true)) {
-      requireEnv("BREVO_SMS_SENDER");
-      if (!booleanValue("ALLOW_REAL_SMS")) {
-        errors.push("ALLOW_REAL_SMS must be true when BREVO_SMS_DRY_RUN is false.");
-      }
-    }
-    if (emailProvider === "WEBHOOK") {
-      parseServiceUrl("NOTIFY_EMAIL_WEBHOOK_URL", ["https:"]);
-      requireSecret("NOTIFY_EMAIL_WEBHOOK_SIGNING_SECRET");
-    }
-    if (smsProvider === "WEBHOOK") {
-      parseServiceUrl("NOTIFY_SMS_WEBHOOK_URL", ["https:"]);
-      requireSecret("NOTIFY_SMS_WEBHOOK_SIGNING_SECRET");
+    if (
+      !allowedProviders.includes(emailProvider) &&
+      !allowedProviders.includes(smsProvider)
+    ) {
+      errors.push(
+        "At least one notification provider must be BREVO or WEBHOOK when notifications are enabled."
+      );
     }
 
     requireSecret("NOTIFICATION_WEBHOOK_SIGNING_SECRET");
@@ -267,7 +283,7 @@ function validateProductionEnv(env) {
     );
     const providerTimeouts = [];
     if (emailProvider === "BREVO" || smsProvider === "BREVO") {
-      providerTimeouts.push(requireInteger("BREVO_TIMEOUT_MS", 1000, 120000));
+      providerTimeouts.push(Number(env.BREVO_TIMEOUT_MS));
     }
     if (emailProvider === "WEBHOOK" || smsProvider === "WEBHOOK") {
       providerTimeouts.push(requireInteger("NOTIFY_WEBHOOK_TIMEOUT_MS", 1000, 120000));

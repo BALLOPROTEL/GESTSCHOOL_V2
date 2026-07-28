@@ -29,3 +29,40 @@ effacer les tentatives.
 La garantie reste **au moins une fois avec deduplication locale**, completee par
 l'idempotence fournisseur lorsqu'elle existe. Ce runbook ne promet pas exactly
 once.
+
+## Brevo indisponible ou callbacks absents
+
+**Symptomes** : HTTP 408/429/5xx, timeout, notifications retryables, message
+accepte sans callback ou callback refuse.
+**Diagnostic** : verifier les metriques et les identifiants techniques
+fournisseur, l'etat du sender via la commande de verification et la
+configuration Bearer du webhook. Ne jamais afficher destinataire, contenu ou
+cle API.
+**Commandes sures** : utiliser
+`pnpm --filter @gestschool/api notifications:verify:brevo-sender` uniquement
+avec l'environnement serveur ; cette commande ne transmet aucun message.
+**Escalade** : timeout au resultat inconnu, hausse des 429, callbacks absents ou
+SMS potentiellement accepte sans reponse.
+**Rollback** : remettre le provider concerne sur `MOCK`, conserver le worker
+separe et ne pas rejouer aveuglement les SMS a resultat inconnu.
+**Retour normal** : sender actif, callback authentifie/deduplique, backlog
+decroissant et aucune nouvelle dead-letter.
+
+Brevo n'offre pas de signature HMAC native documentee pour ces callbacks.
+GestSchool utilise le Bearer configure sur le webhook, une date bornee et la
+deduplication transactionnelle. L'idempotence Brevo documentee est limitee aux
+emails et a une fenetre courte ; aucun exactly-once n'est revendique.
+
+Premiere recette staging, email uniquement :
+
+```text
+NOTIFICATIONS_EMAIL_PROVIDER=BREVO
+NOTIFICATIONS_SMS_PROVIDER=MOCK
+BREVO_SMS_DRY_RUN=true
+ALLOW_REAL_SMS=false
+BREVO_WEBHOOK_MAX_AGE_SECONDS=90000
+```
+
+Le jeton Bearer du webhook est distinct de `BREVO_API_KEY`. Brevo retente les
+webhooks sortants pendant 24 heures ; la fenetre de 25 heures ajoute seulement
+une heure de marge tout en conservant anti-rejeu et deduplication.

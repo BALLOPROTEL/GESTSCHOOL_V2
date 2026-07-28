@@ -31,7 +31,9 @@ import { RateLimit } from "../security/rate-limit.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
 import { NotificationWebhookVerifierService } from "../notifications/notification-webhook-verifier.service";
+import { BrevoWebhookService } from "../notifications/brevo-webhook.service";
 import {
+  BrevoNotificationDeliveryEventDto,
   BulkAttendanceDto,
   CreateAttendanceDto,
   NotificationDeliveryEventDto,
@@ -58,7 +60,8 @@ export class SchoolLifeController {
   constructor(
     private readonly schoolLifeService: SchoolLifeService,
     private readonly configService: ConfigService,
-    private readonly notificationWebhookVerifier: NotificationWebhookVerifierService
+    private readonly notificationWebhookVerifier: NotificationWebhookVerifierService,
+    private readonly brevoWebhookService: BrevoWebhookService
   ) {}
 
   @Get("attendance/summary")
@@ -386,6 +389,22 @@ export class SchoolLifeController {
       timestamp
     });
     return this.schoolLifeService.recordDeliveryEvent(body, verified);
+  }
+
+  @Public()
+  @Post("notifications/brevo/delivery-events")
+  @RateLimit({ bucket: "notifications-brevo-delivery-events", max: 120, windowMs: 60_000 })
+  @ApiOperation({ summary: "Brevo callback: update email or SMS deliverability status" })
+  async recordBrevoNotificationDeliveryEvent(
+    @Body() body: BrevoNotificationDeliveryEventDto,
+    @Headers("authorization") authorization?: string
+  ) {
+    const verified = this.brevoWebhookService.verify({
+      authorization,
+      payload: body
+    });
+    await this.schoolLifeService.recordBrevoDeliveryEvent(verified);
+    return { received: true };
   }
 
   @Post("notifications/dispatch-pending")

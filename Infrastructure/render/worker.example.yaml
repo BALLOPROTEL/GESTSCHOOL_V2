@@ -32,3 +32,19 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
+      - key: NOTIFICATIONS_EMAIL_PROVIDER
+        value: brevo
+      - key: NOTIFICATIONS_SMS_PROVIDER
+        value: mock
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: Al Manarat Islamiyat
+      - key: BREVO_SMS_DRY_RUN
+        value: "true"
+      - key: ALLOW_REAL_SMS
+        value: "false"
+      - key: BREVO_TIMEOUT_MS
+        value: "8000"

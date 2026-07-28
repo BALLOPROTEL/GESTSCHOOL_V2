@@ -51,6 +51,8 @@ export function sanitizeProviderError(error: unknown): string {
   const raw = error instanceof Error ? error.message : "Notification provider request failed.";
   return raw
     .replace(/(api[-_ ]?key|authorization|bearer|token|secret|password)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
+    .replace(/(?:\+?\d[\d\s().-]{5,}\d)/g, "[redacted-phone]")
     .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted]")
     .slice(0, 500);
 }

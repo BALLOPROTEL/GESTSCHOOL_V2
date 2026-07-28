@@ -15,6 +15,7 @@ import {
   UpdateTimetableSlotDto
 } from "./dto/school-life.dto";
 import type { VerifiedNotificationWebhook } from "../notifications/notification-webhook-verifier.service";
+import type { VerifiedBrevoWebhook } from "../notifications/brevo-webhook.service";
 import { SchoolLifeAttendanceService } from "./school-life-attendance.service";
 import { SchoolLifeNotificationOrchestratorService } from "./school-life-notification-orchestrator.service";
 import { SchoolLifeTimetableService } from "./school-life-timetable.service";
@@ -217,6 +218,10 @@ export class SchoolLifeService {
     verified: VerifiedNotificationWebhook
   ): Promise<NotificationView> {
     return this.notificationsService.recordDeliveryEvent(payload, verified);
+  }
+
+  recordBrevoDeliveryEvent(payload: VerifiedBrevoWebhook) {
+    return this.notificationsService.recordBrevoDeliveryEvent(payload);
   }
 
   ensureAttendanceAlertNotification(tenantId: string, attendanceId: string): Promise<void> {

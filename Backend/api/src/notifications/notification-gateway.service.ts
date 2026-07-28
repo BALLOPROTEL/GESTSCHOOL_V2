@@ -4,6 +4,10 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 import { ProviderDispatchError } from "./notification-delivery.types";
+import {
+  normalizeBrevoProviderMessageId,
+  type BrevoChannel
+} from "./brevo-contract";
 
 export type NotificationChannel = "IN_APP" | "EMAIL" | "SMS";
 export type DeliveryStatus =
@@ -33,6 +37,12 @@ export type DispatchNotificationResult = {
   providerMessageId: string;
   deliveryStatus: "SENT" | "DELIVERED";
   providerIdempotencyKeySent: boolean;
+};
+
+export type BrevoSenderVerification = {
+  active: true;
+  configured: true;
+  provider: "BREVO_EMAIL";
 };
 
 @Injectable()
@@ -98,11 +108,12 @@ export class NotificationGatewayService {
   private async dispatchWithBrevoEmail(
     payload: DispatchNotificationInput
   ): Promise<DispatchNotificationResult> {
+    const providerIdempotencyKey = this.brevoEmailIdempotencyKey(payload.notificationId);
     const response = await this.fetchProviderJson(
       this.configService.get<string>("BREVO_EMAIL_ENDPOINT", "https://api.brevo.com/v3/smtp/email"),
       {
         method: "POST",
-        headers: this.brevoHeaders(payload.idempotencyKey),
+        headers: this.brevoHeaders(),
         body: JSON.stringify({
           sender: {
             email: this.requiredConfig("BREVO_SENDER_EMAIL"),
@@ -112,14 +123,16 @@ export class NotificationGatewayService {
           subject: payload.title,
           textContent: payload.message,
           htmlContent: payload.htmlMessage || this.toBasicHtml(payload.message),
+          headers: {
+            "Idempotency-Key": providerIdempotencyKey
+          },
           tags: ["gestschool"]
         })
       },
       "BREVO_EMAIL"
     );
 
-    const providerMessageId =
-      this.stringValue(response.messageId) || this.stringValue(response.id);
+    const providerMessageId = this.brevoResponseMessageId("EMAIL", response);
     if (!providerMessageId) {
       throw new ProviderDispatchError(
         "Provider response did not include a message identifier.",
@@ -144,7 +157,7 @@ export class NotificationGatewayService {
         provider: "BREVO_SMS_DRY_RUN",
         providerMessageId: `brevo-sms-dry-run-${this.shortDigest(payload.idempotencyKey)}`,
         deliveryStatus: "SENT",
-        providerIdempotencyKeySent: true
+        providerIdempotencyKeySent: false
       };
     }
 
@@ -155,7 +168,7 @@ export class NotificationGatewayService {
       ),
       {
         method: "POST",
-        headers: this.brevoHeaders(payload.idempotencyKey),
+        headers: this.brevoHeaders(),
         body: JSON.stringify({
           sender: this.smsSender(),
           recipient: payload.targetAddress,
@@ -167,10 +180,7 @@ export class NotificationGatewayService {
       "BREVO_SMS"
     );
 
-    const providerMessageId =
-      this.stringValue(response.messageId) ||
-      this.stringValue(response.reference) ||
-      this.stringValue(response.id);
+    const providerMessageId = this.brevoResponseMessageId("SMS", response);
     if (!providerMessageId) {
       throw new ProviderDispatchError(
         "Provider response did not include a message identifier.",
@@ -183,7 +193,48 @@ export class NotificationGatewayService {
       provider: "BREVO_SMS",
       providerMessageId,
       deliveryStatus: "SENT",
-      providerIdempotencyKeySent: true
+      providerIdempotencyKeySent: false
+    };
+  }
+
+  async verifyBrevoEmailSender(): Promise<BrevoSenderVerification> {
+    const expectedEmail = this.requiredConfig("BREVO_SENDER_EMAIL").toLowerCase();
+    const response = await this.fetchProviderJson(
+      this.configService.get<string>(
+        "BREVO_SENDERS_ENDPOINT",
+        "https://api.brevo.com/v3/senders"
+      ),
+      {
+        method: "GET",
+        headers: this.brevoHeaders()
+      },
+      "BREVO_SENDERS"
+    );
+    const senders = Array.isArray(response.senders) ? response.senders : [];
+    const matchingSender = senders.find((sender) => {
+      if (!sender || typeof sender !== "object" || Array.isArray(sender)) return false;
+      const row = sender as Record<string, unknown>;
+      return this.stringValue(row.email).toLowerCase() === expectedEmail;
+    });
+    if (!matchingSender || typeof matchingSender !== "object" || Array.isArray(matchingSender)) {
+      throw new ProviderDispatchError(
+        "Configured Brevo sender was not found.",
+        "PERMANENT",
+        { provider: "BREVO_EMAIL" }
+      );
+    }
+    const sender = matchingSender as Record<string, unknown>;
+    if (sender.active !== true) {
+      throw new ProviderDispatchError(
+        "Configured Brevo sender is not active.",
+        "PERMANENT",
+        { provider: "BREVO_EMAIL" }
+      );
+    }
+    return {
+      active: true,
+      configured: true,
+      provider: "BREVO_EMAIL"
     };
   }
 
@@ -256,12 +307,11 @@ export class NotificationGatewayService {
     };
   }
 
-  private brevoHeaders(idempotencyKey: string): Record<string, string> {
+  private brevoHeaders(): Record<string, string> {
     return {
       accept: "application/json",
       "api-key": this.requiredConfig("BREVO_API_KEY"),
-      "content-type": "application/json",
-      "Idempotency-Key": idempotencyKey
+      "content-type": "application/json"
     };
   }
 
@@ -281,8 +331,8 @@ export class NotificationGatewayService {
       const raw = await response.text();
       const parsed = this.parseJsonObject(raw);
       if (!response.ok) {
-        const retryAfterMs = this.retryAfterMs(response.headers.get("retry-after"));
-        const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+        const retryAfterMs = this.providerRetryAfterMs(response);
+        const retryable = [408, 429, 500, 502, 503, 504].includes(response.status);
         throw new ProviderDispatchError(
           `${provider} request failed with HTTP ${response.status}.`,
           retryable ? "RETRYABLE" : "PERMANENT",
@@ -316,16 +366,29 @@ export class NotificationGatewayService {
     return Math.min(Math.max(0, date - Date.now()), 24 * 60 * 60 * 1000);
   }
 
+  private providerRetryAfterMs(response: Response): number | undefined {
+    return (
+      this.retryAfterMs(response.headers.get("retry-after")) ??
+      this.retryAfterMs(response.headers.get("x-sib-ratelimit-reset"))
+    );
+  }
+
   private requiredConfig(key: string): string {
     const value = this.configService.get<string>(key, "").trim();
     if (!value) {
-      throw new ProviderDispatchError(`${key} is required for the notification provider.`, "PERMANENT");
+      throw new ProviderDispatchError(
+        `${key} is required for the notification provider.`,
+        "PERMANENT"
+      );
     }
     return value;
   }
 
   private smsDryRunEnabled(): boolean {
-    const allowRealSms = this.configService.get<string>("ALLOW_REAL_SMS", "false").trim().toLowerCase();
+    const allowRealSms = this.configService
+      .get<string>("ALLOW_REAL_SMS", "false")
+      .trim()
+      .toLowerCase();
     if (allowRealSms !== "true") return true;
     const raw = this.configService
       .get<string>(
@@ -339,7 +402,11 @@ export class NotificationGatewayService {
 
   private smsSender(): string {
     const raw = this.configService.get<string>("BREVO_SMS_SENDER", "GestSchool").trim();
-    return raw.replace(/[^a-zA-Z0-9 ]+/g, "").slice(0, 15) || "GestSchool";
+    const normalized = raw.replace(/[^a-zA-Z0-9]+/g, "");
+    if (/^\d{12,15}$/.test(normalized)) {
+      return normalized;
+    }
+    return normalized.slice(0, 11) || "GestSchool";
   }
 
   private parseJsonObject(raw: string): Record<string, unknown> {
@@ -356,6 +423,34 @@ export class NotificationGatewayService {
 
   private stringValue(value: unknown): string {
     return typeof value === "string" ? value.trim() : "";
+  }
+
+  private brevoResponseMessageId(
+    channel: BrevoChannel,
+    response: Record<string, unknown>
+  ): string {
+    const direct = normalizeBrevoProviderMessageId(channel, response.messageId);
+    if (direct) return direct;
+    if (channel === "EMAIL" && Array.isArray(response.messageIds)) {
+      return normalizeBrevoProviderMessageId(channel, response.messageIds[0]);
+    }
+    return "";
+  }
+
+  private brevoEmailIdempotencyKey(notificationId: string): string {
+    const normalized = notificationId.trim().toLowerCase();
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+        normalized
+      )
+    ) {
+      throw new ProviderDispatchError(
+        "Notification identifier cannot be used for Brevo idempotency.",
+        "PERMANENT",
+        { provider: "BREVO_EMAIL" }
+      );
+    }
+    return normalized;
   }
 
   private shortDigest(value: string): string {

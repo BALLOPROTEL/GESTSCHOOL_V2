@@ -7,7 +7,7 @@ import type { NotificationDeliveryEventDto } from "../school-life/dto/school-lif
 
 export type VerifiedNotificationWebhook = {
   eventId: string;
-  signatureTimestamp: Date;
+  signatureTimestamp?: Date;
 };
 
 export function canonicalNotificationWebhookPayload(

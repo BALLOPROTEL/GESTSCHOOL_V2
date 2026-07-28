@@ -302,6 +302,131 @@ export class NotificationDeliveryEventDto {
   occurredAt?: string;
 }
 
+export class BrevoNotificationDeliveryEventDto {
+  @ApiPropertyOptional({ example: 26224 })
+  @IsOptional()
+  @Type(() => String)
+  @IsString()
+  @MaxLength(80)
+  id?: string;
+
+  @ApiPropertyOptional({ example: "delivered" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  event?: string;
+
+  @ApiPropertyOptional({ example: "201798300811.5787683@relay.domain.com" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  "message-id"?: string;
+
+  @ApiPropertyOptional({ example: 1511882900100020 })
+  @IsOptional()
+  @Type(() => String)
+  @IsString()
+  @MaxLength(160)
+  messageId?: string;
+
+  @ApiPropertyOptional({ example: "delivered" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  msg_status?: string;
+
+  @ApiPropertyOptional({ example: "OK" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  status?: string;
+
+  @ApiPropertyOptional({ example: "delivered" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @ApiPropertyOptional({ example: 1728459617 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  ts_event?: number;
+
+  @ApiPropertyOptional({ example: 1728459617000 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  ts_epoch?: number;
+
+  // Official Brevo callback fields accepted by the strict global whitelist.
+  // Recipient/content fields are intentionally ignored by the mapper and never persisted.
+  @IsOptional()
+  email?: unknown;
+
+  @IsOptional()
+  to?: unknown;
+
+  @IsOptional()
+  date?: unknown;
+
+  @IsOptional()
+  ts?: unknown;
+
+  @IsOptional()
+  subject?: unknown;
+
+  @IsOptional()
+  tag?: unknown;
+
+  @IsOptional()
+  tags?: unknown;
+
+  @IsOptional()
+  reference?: unknown;
+
+  @IsOptional()
+  type?: unknown;
+
+  @IsOptional()
+  error_code?: unknown;
+
+  @IsOptional()
+  reply?: unknown;
+
+  @IsOptional()
+  bounce_type?: unknown;
+
+  @IsOptional()
+  sending_ip?: unknown;
+
+  @IsOptional()
+  template_id?: unknown;
+
+  @IsOptional()
+  mirror_link?: unknown;
+
+  @IsOptional()
+  contact_id?: unknown;
+
+  @IsOptional()
+  "X-Mailin-custom"?: unknown;
+
+  @IsOptional()
+  user_agent?: unknown;
+
+  @IsOptional()
+  device_used?: unknown;
+
+  @IsOptional()
+  link?: unknown;
+
+  @IsOptional()
+  reason?: unknown;
+}
+
 export class ReplayNotificationDto {
   @ApiProperty({ example: "Relance validée après correction de l'adresse fournisseur." })
   @IsString()

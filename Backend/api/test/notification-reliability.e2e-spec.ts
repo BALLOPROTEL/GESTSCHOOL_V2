@@ -1,11 +1,14 @@
 import { createHmac, randomUUID } from "node:crypto";
 
+import { type INestApplicationContext } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { NestFactory } from "@nestjs/core";
 import { Prisma } from "@prisma/client";
 import * as request from "supertest";
 
 import { AuditService } from "../src/audit/audit.service";
 import { NotificationGatewayService } from "../src/notifications/notification-gateway.service";
+import { NotificationRequestBusService } from "../src/notifications/notification-request-bus.service";
 import {
   NOTIFICATION_REQUESTED_VERSION,
   type NotificationRequestedEventMetadata,
@@ -18,6 +21,7 @@ import {
 } from "../src/notifications/notification-webhook-verifier.service";
 import { OutboxService } from "../src/outbox/outbox.service";
 import type { NotificationDeliveryEventDto } from "../src/school-life/dto/school-life.dto";
+import { WorkerModule } from "../src/worker.module";
 import {
   cleanDatabase,
   closeE2eApp,
@@ -34,6 +38,10 @@ process.env.NOTIFY_MAX_ATTEMPTS = "2";
 process.env.NOTIFY_RETRY_BASE_SECONDS = "1";
 process.env.NOTIFY_RETRY_MAX_SECONDS = "2";
 process.env.NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS = "60";
+process.env.BREVO_WEBHOOK_ENABLED = "true";
+process.env.BREVO_WEBHOOK_AUTH_TOKEN =
+  "brevo-webhook-token-for-e2e-tests-with-32-characters";
+process.env.BREVO_WEBHOOK_MAX_AGE_SECONDS = "90000";
 jest.setTimeout(120_000);
 
 describe("Notification and outbox reliability (e2e)", () => {
@@ -62,6 +70,9 @@ describe("Notification and outbox reliability (e2e)", () => {
     delete process.env.NOTIFY_RETRY_BASE_SECONDS;
     delete process.env.NOTIFY_RETRY_MAX_SECONDS;
     delete process.env.NOTIFICATIONS_DISPATCH_CLAIM_TTL_SECONDS;
+    delete process.env.BREVO_WEBHOOK_ENABLED;
+    delete process.env.BREVO_WEBHOOK_AUTH_TOKEN;
+    delete process.env.BREVO_WEBHOOK_MAX_AGE_SECONDS;
     await closeE2eApp(context);
   });
 
@@ -345,6 +356,163 @@ describe("Notification and outbox reliability (e2e)", () => {
     }).expect(403);
   });
 
+  it("authenticates, deduplicates and orders official Brevo callbacks", async () => {
+    const providerMessageId = `brevo-${randomUUID()}@relay.example.test`;
+    const notification = await createDatabaseNotification({
+      channel: "EMAIL",
+      status: "SENT",
+      deliveryStatus: "SENT",
+      provider: "BREVO_EMAIL",
+      providerMessageId,
+      sentAt: new Date(),
+      targetAddress: "redacted-recipient@example.test"
+    });
+    const timestamp = Math.floor(Date.now() / 1000);
+    const callback = {
+      id: 26224,
+      event: "delivered",
+      email: "must-not-be-persisted@example.test",
+      "message-id": `<${providerMessageId}>`,
+      ts_event: timestamp,
+      "X-Mailin-custom": "opaque-provider-value",
+      user_agent: "provider-agent",
+      device_used: "DESKTOP"
+    };
+
+    const [first, duplicate] = await Promise.all([
+      sendBrevoWebhook(callback),
+      sendBrevoWebhook({ ...callback, ts_event: timestamp - 1 })
+    ]);
+    expect(first.status).toBe(201);
+    expect(duplicate.status).toBe(201);
+    expect(first.body).toEqual({ received: true });
+    expect(duplicate.body).toEqual({ received: true });
+    expect(
+      await context.prisma.notificationProviderCallback.count({
+        where: { notificationId: notification.id }
+      })
+    ).toBe(1);
+    expect(
+      await context.prisma.notification.findUniqueOrThrow({
+        where: { id: notification.id }
+      })
+    ).toMatchObject({
+      status: "DELIVERED",
+      deliveryStatus: "DELIVERED"
+    });
+
+    await sendBrevoWebhook({
+      ...callback,
+      event: "hard_bounce",
+      ts_event: timestamp - 60
+    }).expect(201);
+    expect(
+      await context.prisma.notification.findUniqueOrThrow({
+        where: { id: notification.id }
+      })
+    ).toMatchObject({
+      status: "DELIVERED",
+      deliveryStatus: "DELIVERED"
+    });
+
+    await sendBrevoWebhook(callback, "invalid-token").expect(403);
+    expect(
+      await context.prisma.notificationProviderCallback.count({
+        where: { notificationId: notification.id }
+      })
+    ).toBe(2);
+  });
+
+  it("runs the dedicated worker from business outbox event to mock provider delivery", async () => {
+    const previous = {
+      processRole: process.env.GESTSCHOOL_PROCESS_ROLE,
+      workerEnabled: process.env.NOTIFICATIONS_WORKER_ENABLED,
+      inProcessEnabled: process.env.OUTBOX_IN_PROCESS_ENABLED,
+      emailProvider: process.env.NOTIFICATIONS_EMAIL_PROVIDER,
+      smsProvider: process.env.NOTIFICATIONS_SMS_PROVIDER,
+      intervalMs: process.env.NOTIFICATIONS_WORKER_INTERVAL_MS
+    };
+    const requestBus = context.app.get(NotificationRequestBusService);
+    const referenceId = randomUUID();
+    const event = await requestBus.publish({
+      tenantId: TENANT_ID,
+      kind: "PAYMENT_RECEIVED",
+      channel: "EMAIL",
+      recipient: {
+        audienceRole: "PARENT",
+        targetAddress: "worker-proof@example.test"
+      },
+      content: {
+        templateKey: "payment-received",
+        templateVersion: "v1",
+        title: "Payment received",
+        message: "Payment recorded by the integration test."
+      },
+      source: {
+        action: "payment.recorded",
+        domain: "finance",
+        referenceId,
+        referenceType: "invoice"
+      },
+      producer: "notification-worker-e2e"
+    });
+    expect(event).not.toBeNull();
+
+    process.env.GESTSCHOOL_PROCESS_ROLE = "worker";
+    process.env.NOTIFICATIONS_WORKER_ENABLED = "true";
+    process.env.OUTBOX_IN_PROCESS_ENABLED = "false";
+    process.env.NOTIFICATIONS_EMAIL_PROVIDER = "MOCK";
+    process.env.NOTIFICATIONS_SMS_PROVIDER = "MOCK";
+    process.env.NOTIFICATIONS_WORKER_INTERVAL_MS = "60000";
+
+    let workerContext: INestApplicationContext | null = null;
+    try {
+      workerContext = await NestFactory.createApplicationContext(WorkerModule, {
+        logger: false
+      });
+      await waitFor(async () => {
+        const stored = await context.prisma.notification.findFirst({
+          where: {
+            tenantId: TENANT_ID,
+            sourceDomain: "finance",
+            sourceAction: "payment.recorded",
+            sourceReferenceId: referenceId
+          }
+        });
+        return stored?.status === "DELIVERED";
+      });
+    } finally {
+      if (workerContext) {
+        await workerContext.close();
+      }
+      restoreProcessEnv("GESTSCHOOL_PROCESS_ROLE", previous.processRole);
+      restoreProcessEnv("NOTIFICATIONS_WORKER_ENABLED", previous.workerEnabled);
+      restoreProcessEnv("OUTBOX_IN_PROCESS_ENABLED", previous.inProcessEnabled);
+      restoreProcessEnv("NOTIFICATIONS_EMAIL_PROVIDER", previous.emailProvider);
+      restoreProcessEnv("NOTIFICATIONS_SMS_PROVIDER", previous.smsProvider);
+      restoreProcessEnv("NOTIFICATIONS_WORKER_INTERVAL_MS", previous.intervalMs);
+    }
+
+    expect(
+      await context.prisma.outboxEvent.findUniqueOrThrow({
+        where: { id: event!.id }
+      })
+    ).toMatchObject({ status: "PROCESSED" });
+    expect(
+      await context.prisma.notification.findFirstOrThrow({
+        where: {
+          tenantId: TENANT_ID,
+          sourceReferenceId: referenceId
+        }
+      })
+    ).toMatchObject({
+      status: "DELIVERED",
+      deliveryStatus: "DELIVERED",
+      provider: "MOCK_EMAIL",
+      attempts: 1
+    });
+  });
+
   function createNotificationWorker(appContext: E2eAppContext): NotificationsService {
     return new NotificationsService(
       appContext.app.get(AuditService),
@@ -458,6 +626,16 @@ describe("Notification and outbox reliability (e2e)", () => {
       .send(payload);
   }
 
+  function sendBrevoWebhook(
+    payload: Record<string, unknown>,
+    token = process.env.BREVO_WEBHOOK_AUTH_TOKEN || ""
+  ) {
+    return request(context.app.getHttpServer())
+      .post("/api/v1/notifications/brevo/delivery-events")
+      .set("authorization", `Bearer ${token}`)
+      .send(payload);
+  }
+
   function notificationWebhookSecret(): string {
     return context.app
       .get(ConfigService)
@@ -467,5 +645,25 @@ describe("Notification and outbox reliability (e2e)", () => {
 
   function minutesAgo(value: number): Date {
     return new Date(Date.now() - value * 60_000);
+  }
+
+  async function waitFor(
+    predicate: () => Promise<boolean>,
+    timeoutMs = 5_000
+  ): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await predicate()) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error("Dedicated notification worker did not process the event in time.");
+  }
+
+  function restoreProcessEnv(name: string, value: string | undefined): void {
+    if (value === undefined) {
+      delete process.env[name];
+      return;
+    }
+    process.env[name] = value;
   }
 });

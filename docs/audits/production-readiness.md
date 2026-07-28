@@ -871,11 +871,12 @@ dans l'outbox exigerait de definir le chiffrement, la duree de conservation et l
 gestion de secrets a usage unique dans les payloads durables. Cette decision est
 hors LOT 5.
 
-Le header `Idempotency-Key` est transmis a Brevo, mais sa garantie effective doit
-etre confirmee dans le contrat fournisseur. Le callback entrant implemente un
-contrat HMAC generique GestSchool ; l'adaptateur de signature et d'evenements propre
-a un fournisseur reel doit etre valide avant activation. En production, activer un
-provider uniquement apres avoir configure ses secrets et son webhook signe.
+Le LOT 5B a ensuite confirme que Brevo attend la cle d'idempotence email dans
+`headers["Idempotency-Key"]` du corps de requete, et non comme header HTTP de
+l'appel API. La protection documentee est courte et ne concerne pas le SMS.
+Le callback HMAC generique GestSchool reste disponible pour les providers
+internes ; Brevo utilise une route dediee authentifiee par Bearer, conformement
+au mecanisme officiel disponible.
 
 La configuration Render versionnee reste volontairement inactive :
 `NOTIFICATIONS_WORKER_ENABLED=false`, `OUTBOX_IN_PROCESS_ENABLED=false`, providers
@@ -2048,3 +2049,123 @@ authorized. Deployment remains NO-GO.
   been verified with backend-only service-role access, the full dry-run and
   object reconciliation pass on staging, and backup/restore evidence is
   approved.
+
+## LOT 5B - Brevo contract and dedicated notification worker
+
+Status: implementation and simulated validation complete. No real email, SMS
+or Brevo callback was sent. Provider activation and creation of a paid Render
+worker remain NO-GO.
+
+### Initial gaps
+
+- The outgoing Brevo email request sent the idempotency key as an HTTP header,
+  while Brevo expects it in the transactional email payload under
+  `headers["Idempotency-Key"]`.
+- Email message identifiers were stored with their SMTP angle brackets and SMS
+  message identifiers were assumed to be strings, while the documented Brevo
+  SMS response uses a numeric identifier.
+- The generic signed-provider callback could not safely stand in for the real
+  Brevo contract. Brevo documents Basic or Bearer authentication configured on
+  the webhook, not a native transactional-webhook HMAC signature.
+- The application did not map the documented email and SMS delivery events,
+  including `invalid_email`, `unsubscribed`, `bl` and `rej`.
+- Worker mode defaults and shutdown did not provide a strict production
+  separation or wait for the active processing tick to finish.
+
+### Provider and worker controls
+
+- Email payloads now use the documented Brevo contract and a versioned UUID
+  notification identifier as the provider idempotency key. The provider
+  protection is short-lived and email-only.
+- SMS has no documented Brevo idempotency contract. Real SMS remains blocked
+  unless both `ALLOW_REAL_SMS=true` and `BREVO_SMS_DRY_RUN=false`.
+- `providerMessageId` is normalized for email and accepts the numeric SMS
+  identifier. Retryable provider statuses are limited to 408, 429, 500, 502,
+  503 and 504; `Retry-After`, then `x-sib-ratelimit-reset`, controls provider
+  delay when present.
+- Brevo callbacks require an explicitly enabled endpoint and a strong Bearer
+  credential. They are deduplicated by a deterministic fingerprint and applied
+  through the existing transactional delivery-event store. Events with a
+  provider timestamp are age-checked; documented SMS callbacks that omit a
+  timestamp use authenticated receipt time.
+- Brevo documents outbound webhook retries for up to 24 hours. The production
+  callback window is limited to 90000 seconds (25 hours), including a one-hour
+  transport/clock margin. The callback Bearer secret remains distinct from the
+  Brevo API key.
+- Callback recipient and content fields are accepted only to match the provider
+  schema and are discarded before persistence and responses.
+- In production, the API must keep both processing flags disabled. The
+  dedicated worker must run with `NOTIFICATIONS_WORKER_ENABLED=true` and
+  `OUTBOX_IN_PROCESS_ENABLED=false`. Both active modes are rejected, and a
+  process declared as a worker is rejected when its worker flag is disabled.
+- Worker and in-process shutdown now wait for the active processing tick.
+  Provider errors are sanitized before logging.
+- An integration test starts the real `WorkerModule` with
+  `GESTSCHOOL_PROCESS_ROLE=worker`, `NOTIFICATIONS_WORKER_ENABLED=true` and
+  `OUTBOX_IN_PROCESS_ENABLED=false`. A `payment.recorded` notification request
+  published to the outbox reaches `PROCESSED`, materializes one notification
+  and finishes `DELIVERED` through `MOCK_EMAIL`.
+- Sender verification uses `GET /v3/senders`; it does not dispatch a message
+  and reports only configured/active booleans.
+
+### Delivery guarantee
+
+The real guarantee remains **at least once**, with local business
+deduplication, transactional provider-event deduplication and Brevo email
+idempotency only during the provider's documented short window. SMS has no
+documented provider idempotency. No durable or end-to-end exactly-once
+guarantee is claimed.
+
+### Validation evidence
+
+| Control | Result |
+|---|---|
+| Targeted Brevo/provider/worker/environment unit tests | PASS: 4 suites, 61 tests |
+| Full API unit suite | PASS: 23 suites, 145 tests |
+| Provider E2E | PASS: 1 suite, 11 tests |
+| Full PostgreSQL 16 E2E, including dedicated worker proof | PASS: 9 suites, 63 tests |
+| Database migrations | PASS: all 35 repository migrations present |
+| Prisma validate and generation | PASS |
+| API typecheck | PASS |
+| API lint and build | PASS |
+| Sender-verification script typecheck and lint | PASS |
+| Secret/log redaction scan | PASS |
+| `git diff --check` | PASS |
+
+The PostgreSQL container used for the LOT 5B E2E run was disposable and was
+stopped after validation. The logged Supabase 503 was the expected simulated
+storage-compensation scenario.
+
+The audit was repeated in a read-only Docker mount with pnpm 11.13.0. The
+production audit returned `No known vulnerabilities found` and did not modify
+the lockfile. The complete development audit reports one high development-only
+finding on `brace-expansion 1.1.16` (`GHSA-mh99-v99m-4gvg`) and one low finding
+on `esbuild 0.27.3`. The old brace-expansion branch is required through
+`minimatch 3` by the development toolchain, while the only official patched
+release is 5.0.8. No incompatible override, audit exception or forced major
+upgrade is applied in this lot. Remediation belongs to LOT 2D.
+
+### Remaining activation gates
+
+1. Verify the sender/domain through Brevo without sending, using
+   `pnpm --filter @gestschool/api notifications:verify:brevo-sender`.
+2. Configure the Bearer callback credential in both Brevo and the API, then
+   verify callback authentication in staging.
+3. Approve and provision a dedicated Render background worker; no paid service
+   is created by this lot.
+4. Run one controlled staging email recipe after explicit authorization.
+5. Keep SMS in dry-run until sender rules, destination countries, consent,
+   credits and cost limits are approved; a real test then requires the two
+   explicit SMS switches.
+
+Verdicts:
+
+- **LOT 5B code: GO for its isolated commit.**
+- **Push, release CI and LOT 10A: NO-GO until LOT 2D removes the remaining high
+  development-tooling finding.**
+- **Brevo email activation: NO-GO pending sender, webhook and staging proof.**
+- **Brevo SMS activation: NO-GO pending commercial/legal approval and explicit
+  double opt-in.**
+
+Message de commit propose :
+`feat(api): integrate Brevo contracts and dedicated notification worker`.

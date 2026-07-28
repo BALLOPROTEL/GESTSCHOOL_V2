@@ -25,12 +25,19 @@ stocke dans Git.
 | `NOTIFICATIONS_WORKER_ENABLED` | `false` | `true` | non | non | `false` | oui |
 | `OUTBOX_IN_PROCESS_ENABLED` | `false` | `false` | non | non | `false` | doit rester `false` |
 | `OUTBOX_*` | non | oui | non | non | valeurs documentees | oui |
-| `NOTIFICATIONS_*_PROVIDER` | non | oui | non | non | aucun | oui si worker actif |
+| `NOTIFICATIONS_EMAIL_PROVIDER` | oui pour auth synchrone | oui | non | non | `MOCK` | explicite ; `BREVO` seulement apres recette |
+| `NOTIFICATIONS_SMS_PROVIDER` | `MOCK` | oui | non | non | `MOCK` | worker uniquement |
 | `NOTIFICATION_WEBHOOK_SIGNING_SECRET` | non | oui | non | oui | aucun | oui si worker actif |
-| `BREVO_API_KEY` | non | worker | non | oui | aucun | seulement apres activation |
-| `BREVO_SENDER_EMAIL` | non | worker | non | non | aucun | si email Brevo |
-| `BREVO_SMS_DRY_RUN` | non | worker | non | non | `true` | doit rester `true` avant 5B |
-| `ALLOW_REAL_SMS` | non | worker | non | non | `false` | doit rester `false` avant 5B |
+| `BREVO_API_KEY` | si email auth Brevo | si provider Brevo | jamais | oui | aucun | seulement apres activation |
+| `BREVO_SENDER_EMAIL` | si email auth Brevo | si email Brevo | non | non | aucun | adresse verifiee |
+| `BREVO_SENDER_NAME` | si email auth Brevo | si email Brevo | non | non | `GestSchool` | recommande |
+| `BREVO_TIMEOUT_MS` | si Brevo | si Brevo | non | non | `8000` | 1000 a 120000 |
+| `BREVO_SMS_SENDER` | non | si SMS reel | non | non | `GestSchool` | avant SMS reel |
+| `BREVO_SMS_DRY_RUN` | non | oui | non | non | `true` | conserver `true` avant recette SMS |
+| `ALLOW_REAL_SMS` | non | oui | non | non | `false` | conserver `false` avant recette SMS |
+| `BREVO_WEBHOOK_ENABLED` | oui | non | non | non | `false` | `true` apres configuration Brevo |
+| `BREVO_WEBHOOK_AUTH_TOKEN` | oui si webhook | non | jamais | oui | aucun | secret Bearer fort |
+| `BREVO_WEBHOOK_MAX_AGE_SECONDS` | oui si webhook | non | non | non | `90000` | 24 h de retries Brevo + 1 h de marge ; plage production 86400 a 90000 |
 | `FILE_STORAGE_DRIVER` | oui | non | non | non | aucun | `SUPABASE` |
 | `STORAGE_PROVIDER` | oui | non | non | non | derive du driver | `supabase` |
 | `SUPABASE_URL` | oui | non | non | non | aucun | oui |

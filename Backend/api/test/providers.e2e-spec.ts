@@ -412,7 +412,7 @@ describe("Provider integrations (e2e)", () => {
     const gateway = context.app.get(NotificationGatewayService);
 
     const emailDispatch = await gateway.dispatch({
-      notificationId: "notif-email-001",
+      notificationId: "11111111-1111-4111-8111-111111111111",
       tenantId: TENANT_ID,
       channel: "EMAIL",
       title: "Compte cree",
@@ -423,11 +423,11 @@ describe("Provider integrations (e2e)", () => {
     });
 
     expect(emailDispatch.provider).toBe("BREVO_EMAIL");
-    expect(emailDispatch.providerMessageId).toBe("<brevo-message-id>");
+    expect(emailDispatch.providerMessageId).toBe("brevo-message-id");
 
     const callsBeforeSms = fetchSpy.mock.calls.length;
     const smsDispatch = await gateway.dispatch({
-      notificationId: "notif-sms-001",
+      notificationId: "22222222-2222-4222-8222-222222222222",
       tenantId: TENANT_ID,
       channel: "SMS",
       title: "Paiement recu",
