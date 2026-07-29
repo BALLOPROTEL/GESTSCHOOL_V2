@@ -15,6 +15,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: GESTSCHOOL_RUNTIME_ENV
+        value: production
       - key: GESTSCHOOL_PROCESS_ROLE
         value: api
       - key: HOST
@@ -62,6 +64,12 @@ services:
       - key: TIMETABLE_REQUIRE_CANONICAL_REFS
         value: "true"
       - key: NOTIFICATIONS_WORKER_ENABLED
+        value: "false"
+      - key: NOTIFICATIONS_EMAIL_ENABLED
+        value: "false"
+      - key: NOTIFICATIONS_SMS_ENABLED
+        value: "false"
+      - key: ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC
         value: "false"
       - key: OUTBOX_IN_PROCESS_ENABLED
         value: "false"

@@ -67,6 +67,13 @@ export class NotificationGatewayService {
     }
 
     const channel = payload.channel.toUpperCase() as "EMAIL" | "SMS";
+    if (!this.channelEnabled(channel)) {
+      throw new ProviderDispatchError(
+        `${channel} notification channel is disabled.`,
+        "PERMANENT",
+        { provider: "DISABLED" }
+      );
+    }
     const providerMode = this.resolveProviderMode(channel);
 
     if (providerMode === "MOCK") {
@@ -103,6 +110,12 @@ export class NotificationGatewayService {
       .get<string>(primaryKey, this.configService.get<string>(legacyKey, "MOCK"))
       .trim()
       .toUpperCase();
+  }
+
+  private channelEnabled(channel: "EMAIL" | "SMS"): boolean {
+    const key =
+      channel === "EMAIL" ? "NOTIFICATIONS_EMAIL_ENABLED" : "NOTIFICATIONS_SMS_ENABLED";
+    return this.configService.get<string>(key, "true").trim().toLowerCase() === "true";
   }
 
   private async dispatchWithBrevoEmail(

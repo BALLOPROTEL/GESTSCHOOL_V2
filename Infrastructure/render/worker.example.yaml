@@ -16,6 +16,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: GESTSCHOOL_RUNTIME_ENV
+        value: staging
       - key: GESTSCHOOL_PROCESS_ROLE
         value: worker
       - key: WORKER_HEALTH_HOST
@@ -24,6 +26,12 @@ services:
         value: "10001"
       - key: NOTIFICATIONS_WORKER_ENABLED
         value: "true"
+      - key: NOTIFICATIONS_EMAIL_ENABLED
+        value: "true"
+      - key: NOTIFICATIONS_SMS_ENABLED
+        value: "false"
+      - key: ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC
+        value: "false"
       - key: OUTBOX_IN_PROCESS_ENABLED
         value: "false"
       - key: DATABASE_URL

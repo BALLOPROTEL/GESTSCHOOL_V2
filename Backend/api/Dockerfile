@@ -29,6 +29,14 @@ RUN pnpm --filter @gestschool/api prisma:generate \
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
   pnpm --filter @gestschool/api deploy --prod /opt/gestschool-api \
   && pnpm --filter @gestschool/db-migration deploy --prod /opt/gestschool-migration \
+  && migration_schema_engine="$(find /workspace/node_modules/.pnpm/@prisma+engines@6.19.3 -type f -name 'schema-engine-debian-openssl-3.0.x' -print -quit)" \
+  && migration_query_engine="$(find /workspace/node_modules/.pnpm/@prisma+engines@6.19.3 -type f -name 'libquery_engine-debian-openssl-3.0.x.so.node' -print -quit)" \
+  && test -n "$migration_schema_engine" \
+  && test -n "$migration_query_engine" \
+  && mkdir -p /opt/gestschool-prisma-engines \
+  && cp "$migration_schema_engine" /opt/gestschool-prisma-engines/schema-engine \
+  && cp "$migration_query_engine" /opt/gestschool-prisma-engines/libquery_engine.so.node \
+  && chmod 0555 /opt/gestschool-prisma-engines/schema-engine /opt/gestschool-prisma-engines/libquery_engine.so.node \
   && source_client="$(find /workspace/node_modules/.pnpm -path '*/node_modules/.prisma/client' -type d -print -quit)" \
   && target_client_package="$(find /opt/gestschool-api/node_modules/.pnpm -path '*/node_modules/@prisma/client' -type d -print -quit)" \
   && test -n "$source_client" \
@@ -47,6 +55,8 @@ LABEL org.opencontainers.image.title="GestSchool database migration" \
   org.opencontainers.image.source="https://github.com/BALLOPROTEL/GESTSCHOOL_V2"
 ENV NODE_ENV=production
 ENV HOME=/tmp
+ENV PRISMA_SCHEMA_ENGINE_BINARY=/app/prisma-engines/schema-engine
+ENV PRISMA_QUERY_ENGINE_LIBRARY=/app/prisma-engines/libquery_engine.so.node
 WORKDIR /app
 RUN apt-get update \
   && apt-get upgrade -y \
@@ -55,6 +65,7 @@ RUN apt-get update \
   && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
 COPY --from=build --chown=node:node /opt/gestschool-migration/node_modules ./node_modules
 COPY --from=build --chown=node:node /opt/gestschool-migration/package.json ./package.json
+COPY --from=build --chown=node:node /opt/gestschool-prisma-engines ./prisma-engines
 COPY --from=build --chown=node:node /workspace/Backend/api/prisma ./prisma
 COPY --from=build --chown=node:node /workspace/Backend/api/scripts/load-env.cjs ./scripts/load-env.cjs
 COPY --from=build --chown=node:node /workspace/Backend/api/scripts/prisma-command.cjs ./scripts/prisma-command.cjs

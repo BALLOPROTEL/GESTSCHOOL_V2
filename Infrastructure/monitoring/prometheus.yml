@@ -13,3 +13,11 @@ scrape_configs:
       credentials_file: /run/secrets/metrics_token
     static_configs:
       - targets: ["api:3000"]
+
+  - job_name: gestschool-worker
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/metrics_token
+    static_configs:
+      - targets: ["worker:3001"]

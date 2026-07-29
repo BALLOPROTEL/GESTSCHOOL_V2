@@ -4,12 +4,34 @@ const VERSIONED_UUID_PATTERN =
 
 function validateProductionEnv(env) {
   const nodeEnv = String(env.NODE_ENV || "development").trim().toLowerCase();
-  if (nodeEnv !== "production") {
-    return { errors: [], warnings: [] };
-  }
-
   const errors = [];
   const warnings = [];
+  const configuredRuntimeEnvironment = String(
+    env.GESTSCHOOL_RUNTIME_ENV || ""
+  ).trim().toLowerCase();
+  const runtimeEnvironment =
+    configuredRuntimeEnvironment ||
+    (nodeEnv === "test" ? "test" : nodeEnv === "development" ? "local" : "");
+  const supportedRuntimeEnvironments = [
+    "local",
+    "test",
+    "rc",
+    "staging",
+    "production"
+  ];
+
+  if (
+    configuredRuntimeEnvironment &&
+    !supportedRuntimeEnvironments.includes(configuredRuntimeEnvironment)
+  ) {
+    errors.push(
+      "GESTSCHOOL_RUNTIME_ENV must be local, test, rc, staging or production."
+    );
+  }
+
+  if (nodeEnv !== "production") {
+    return { errors, warnings };
+  }
 
   function requireEnv(name) {
     const value = String(env[name] || "").trim();
@@ -29,6 +51,15 @@ function validateProductionEnv(env) {
   function booleanValue(name, fallback = false) {
     const raw = String(env[name] ?? fallback).trim().toLowerCase();
     return raw === "true" || raw === "1" || raw === "yes";
+  }
+
+  function requireBoolean(name) {
+    const raw = requireEnv(name).toLowerCase();
+    if (raw !== "true" && raw !== "false") {
+      errors.push(`${name} must be exactly true or false.`);
+      return false;
+    }
+    return raw === "true";
   }
 
   function requireCredential(name, minimumLength = 16) {
@@ -103,6 +134,13 @@ function validateProductionEnv(env) {
   const databaseUrl = parsePostgresUrl("DATABASE_URL");
   const directUrl = parsePostgresUrl("DIRECT_URL");
   const corsOriginsRaw = requireEnv("CORS_ORIGINS");
+  if (!configuredRuntimeEnvironment) {
+    errors.push("GESTSCHOOL_RUNTIME_ENV is required when NODE_ENV=production.");
+  } else if (!["rc", "staging", "production"].includes(runtimeEnvironment)) {
+    errors.push(
+      "GESTSCHOOL_RUNTIME_ENV must be rc, staging or production when NODE_ENV=production."
+    );
+  }
   const processRole = requireEnv("GESTSCHOOL_PROCESS_ROLE").toLowerCase();
   if (processRole && !["api", "worker"].includes(processRole)) {
     errors.push("GESTSCHOOL_PROCESS_ROLE must be api or worker.");
@@ -170,6 +208,12 @@ function validateProductionEnv(env) {
     booleanValue("NOTIFICATIONS_WORKER_ENABLED") || booleanValue("OUTBOX_IN_PROCESS_ENABLED");
   const workerEnabled = booleanValue("NOTIFICATIONS_WORKER_ENABLED");
   const inProcessEnabled = booleanValue("OUTBOX_IN_PROCESS_ENABLED");
+  const emailChannelEnabled = requireBoolean("NOTIFICATIONS_EMAIL_ENABLED");
+  const smsChannelEnabled = requireBoolean("NOTIFICATIONS_SMS_ENABLED");
+  const allowRcMockProviders =
+    String(env.ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC || "")
+      .trim()
+      .toLowerCase() === "true";
   const emailProvider = String(
     env.NOTIFICATIONS_EMAIL_PROVIDER || env.NOTIFY_EMAIL_PROVIDER || "MOCK"
   )
@@ -188,24 +232,58 @@ function validateProductionEnv(env) {
     errors.push("NOTIFICATIONS_SMS_PROVIDER must be MOCK, BREVO or WEBHOOK.");
   }
 
-  if (emailProvider === "BREVO" || smsProvider === "BREVO") {
+  if (allowRcMockProviders && runtimeEnvironment !== "rc") {
+    errors.push(
+      "ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC may only be true when GESTSCHOOL_RUNTIME_ENV=rc."
+    );
+  }
+  const enabledMockChannels = [
+    emailChannelEnabled && emailProvider === "MOCK" ? "email" : null,
+    smsChannelEnabled && smsProvider === "MOCK" ? "sms" : null
+  ].filter(Boolean);
+  if (enabledMockChannels.length > 0) {
+    if (runtimeEnvironment === "rc") {
+      if (!allowRcMockProviders) {
+        errors.push(
+          "RC mock notification providers require ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC=true."
+        );
+      } else {
+        warnings.push(
+          `RC-only MOCK provider enabled for: ${enabledMockChannels.join(", ")}.`
+        );
+      }
+    } else {
+      errors.push(
+        `Enabled notification channels must not use MOCK in ${runtimeEnvironment || "production"}: ${enabledMockChannels.join(", ")}.`
+      );
+    }
+  }
+
+  if (
+    (emailChannelEnabled && emailProvider === "BREVO") ||
+    (smsChannelEnabled && smsProvider === "BREVO")
+  ) {
     requireCredential("BREVO_API_KEY", 16);
     requireInteger("BREVO_TIMEOUT_MS", 1000, 120000);
   }
-  if (emailProvider === "BREVO") {
+  if (emailChannelEnabled && emailProvider === "BREVO") {
     requireEnv("BREVO_SENDER_EMAIL");
   }
-  if (smsProvider === "BREVO" && !booleanValue("BREVO_SMS_DRY_RUN", true)) {
+  if (
+    smsChannelEnabled &&
+    smsProvider === "BREVO" &&
+    !booleanValue("BREVO_SMS_DRY_RUN", true)
+  ) {
     requireEnv("BREVO_SMS_SENDER");
     if (!booleanValue("ALLOW_REAL_SMS")) {
       errors.push("ALLOW_REAL_SMS must be true when BREVO_SMS_DRY_RUN is false.");
     }
   }
-  if (emailProvider === "WEBHOOK") {
+  if (emailChannelEnabled && emailProvider === "WEBHOOK") {
     parseServiceUrl("NOTIFY_EMAIL_WEBHOOK_URL", ["https:"]);
     requireSecret("NOTIFY_EMAIL_WEBHOOK_SIGNING_SECRET");
   }
-  if (smsProvider === "WEBHOOK") {
+  if (smsChannelEnabled && smsProvider === "WEBHOOK") {
     parseServiceUrl("NOTIFY_SMS_WEBHOOK_URL", ["https:"]);
     requireSecret("NOTIFY_SMS_WEBHOOK_SIGNING_SECRET");
   }
@@ -233,8 +311,8 @@ function validateProductionEnv(env) {
     requireInteger("WORKER_HEALTH_PORT", 1, 65535);
   }
 
+  requireSecret("MONITORING_METRICS_TOKEN");
   if (processRole === "api") {
-    requireSecret("MONITORING_METRICS_TOKEN");
     if (booleanValue("BREVO_WEBHOOK_ENABLED")) {
       requireSecret("BREVO_WEBHOOK_AUTH_TOKEN");
       requireInteger("BREVO_WEBHOOK_MAX_AGE_SECONDS", 86400, 90000);
@@ -242,17 +320,6 @@ function validateProductionEnv(env) {
   }
 
   if (notificationsEnabled) {
-    const allowedProviders = ["BREVO", "WEBHOOK"];
-
-    if (
-      !allowedProviders.includes(emailProvider) &&
-      !allowedProviders.includes(smsProvider)
-    ) {
-      errors.push(
-        "At least one notification provider must be BREVO or WEBHOOK when notifications are enabled."
-      );
-    }
-
     requireSecret("NOTIFICATION_WEBHOOK_SIGNING_SECRET");
     requireInteger("NOTIFICATION_WEBHOOK_REPLAY_WINDOW_SECONDS", 60, 3600);
     requireInteger("OUTBOX_CLAIM_TTL_SECONDS", 30, 3600);
@@ -282,10 +349,16 @@ function validateProductionEnv(env) {
       3600
     );
     const providerTimeouts = [];
-    if (emailProvider === "BREVO" || smsProvider === "BREVO") {
+    if (
+      (emailChannelEnabled && emailProvider === "BREVO") ||
+      (smsChannelEnabled && smsProvider === "BREVO")
+    ) {
       providerTimeouts.push(Number(env.BREVO_TIMEOUT_MS));
     }
-    if (emailProvider === "WEBHOOK" || smsProvider === "WEBHOOK") {
+    if (
+      (emailChannelEnabled && emailProvider === "WEBHOOK") ||
+      (smsChannelEnabled && smsProvider === "WEBHOOK")
+    ) {
       providerTimeouts.push(requireInteger("NOTIFY_WEBHOOK_TIMEOUT_MS", 1000, 120000));
     }
     requireInteger("NOTIFY_MAX_ATTEMPTS", 1, 20);
@@ -390,20 +463,37 @@ function run() {
   loadGestSchoolEnv(__dirname + "/..");
 
   const { errors, warnings } = validateProductionEnv(process.env);
+  const writeLog = (level, event, message) => {
+    const stream = level === "error" || level === "warn" ? process.stderr : process.stdout;
+    stream.write(
+      `${JSON.stringify({
+        level,
+        event,
+        component: "production-env-validator",
+        message
+      })}\n`
+    );
+  };
 
   for (const warning of warnings) {
-    console.warn(`[production-env] ${warning}`);
+    writeLog("warn", "production_configuration_warning", warning);
   }
 
   if (errors.length > 0) {
-    console.error("[production-env] Invalid production configuration:");
-    for (const error of errors) console.error(`- ${error}`);
+    writeLog("error", "production_configuration_invalid", "Invalid production configuration");
+    for (const error of errors) {
+      writeLog("error", "production_configuration_error", error);
+    }
     process.exitCode = 1;
     return;
   }
 
   if (String(process.env.NODE_ENV || "development").trim().toLowerCase() === "production") {
-    console.log("[production-env] Production runtime configuration looks valid.");
+    writeLog(
+      "info",
+      "production_configuration_valid",
+      "Production runtime configuration looks valid."
+    );
   }
 }
 

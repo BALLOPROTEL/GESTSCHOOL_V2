@@ -32,9 +32,17 @@ spec:
             - secretRef:
                 name: gestschool-api-secrets
           env:
+            - name: GESTSCHOOL_RUNTIME_ENV
+              value: production
             - name: GESTSCHOOL_PROCESS_ROLE
               value: api
             - name: NOTIFICATIONS_WORKER_ENABLED
+              value: "false"
+            - name: NOTIFICATIONS_EMAIL_ENABLED
+              value: "false"
+            - name: NOTIFICATIONS_SMS_ENABLED
+              value: "false"
+            - name: ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC
               value: "false"
             - name: OUTBOX_IN_PROCESS_ENABLED
               value: "false"

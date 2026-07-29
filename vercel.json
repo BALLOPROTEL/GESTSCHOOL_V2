@@ -4,6 +4,33 @@
   "installCommand": "corepack enable && corepack prepare pnpm@10.24.0 --activate && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @gestschool/web-admin run build",
   "outputDirectory": "Frontend/web-admin/dist",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

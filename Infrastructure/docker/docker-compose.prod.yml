@@ -19,9 +19,13 @@ services:
       - ../../.env
     environment:
       NODE_ENV: production
+      GESTSCHOOL_RUNTIME_ENV: production
       GESTSCHOOL_PROCESS_ROLE: api
       API_PORT: "3000"
       NOTIFICATIONS_WORKER_ENABLED: "false"
+      NOTIFICATIONS_EMAIL_ENABLED: "${NOTIFICATIONS_EMAIL_ENABLED:-false}"
+      NOTIFICATIONS_SMS_ENABLED: "${NOTIFICATIONS_SMS_ENABLED:-false}"
+      ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC: "false"
       OUTBOX_IN_PROCESS_ENABLED: "false"
     ports:
       - "127.0.0.1:3000:3000"
@@ -51,10 +55,14 @@ services:
       - ../../.env
     environment:
       NODE_ENV: production
+      GESTSCHOOL_RUNTIME_ENV: production
       GESTSCHOOL_PROCESS_ROLE: worker
       WORKER_HEALTH_HOST: 0.0.0.0
       WORKER_HEALTH_PORT: "3001"
       NOTIFICATIONS_WORKER_ENABLED: "true"
+      NOTIFICATIONS_EMAIL_ENABLED: "${NOTIFICATIONS_EMAIL_ENABLED:-false}"
+      NOTIFICATIONS_SMS_ENABLED: "${NOTIFICATIONS_SMS_ENABLED:-false}"
+      ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC: "false"
       OUTBOX_IN_PROCESS_ENABLED: "false"
     depends_on:
       postgres:
@@ -132,6 +140,8 @@ services:
       - "127.0.0.1:9090:9090"
     depends_on:
       api:
+        condition: service_healthy
+      worker:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true

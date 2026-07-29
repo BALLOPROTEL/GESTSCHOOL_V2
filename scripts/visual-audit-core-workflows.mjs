@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { mockApiV1Routes, MOCK_FIXTURE_VERSION } from "./visual-audit/fixtures/mock-api-v1.mjs";
 import { createAuditGuard } from "./visual-audit/lib/audit-guard.mjs";
+import { resolveChromiumLaunchOptions } from "./visual-audit/lib/local-tls.mjs";
 
 const require = createRequire(new URL("../Frontend/web-admin/package.json", import.meta.url));
 const { chromium } = require("playwright");
@@ -555,7 +556,17 @@ async function runIntegratedSuite(browser) {
 
 async function main() {
   await mkdir(outputDir, { recursive: true });
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch(
+    resolveChromiumLaunchOptions({
+      mode,
+      baseUrl,
+      runtimeEnvironment: String(process.env.VISUAL_AUDIT_RUNTIME_ENV || "")
+        .trim()
+        .toLowerCase(),
+      spkiSha256: process.env.VISUAL_AUDIT_LOCAL_TLS_SPKI_SHA256,
+      hostResolverRules: process.env.VISUAL_AUDIT_HOST_RESOLVER_RULES
+    })
+  );
   try {
     if (mode === "integrated") {
       await runIntegratedSuite(browser);

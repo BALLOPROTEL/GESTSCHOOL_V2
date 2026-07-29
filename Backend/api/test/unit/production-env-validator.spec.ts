@@ -9,6 +9,7 @@ const strongSecret = "a-strong-production-secret-with-32-characters";
 
 const validEnv = (): NodeJS.ProcessEnv => ({
   NODE_ENV: "production",
+  GESTSCHOOL_RUNTIME_ENV: "production",
   GESTSCHOOL_PROCESS_ROLE: "api",
   DATABASE_URL: "postgresql://gestschool:password@db.example.com:5432/gestschool",
   DIRECT_URL: "postgresql://gestschool:password@db-direct.example.com:5432/gestschool",
@@ -31,6 +32,8 @@ const validEnv = (): NodeJS.ProcessEnv => ({
   SUPABASE_STORAGE_SIGNED_URL_TTL_SECONDS: "300",
   MONITORING_METRICS_TOKEN: `${strongSecret}-metrics`,
   SWAGGER_ENABLED: "false",
+  NOTIFICATIONS_EMAIL_ENABLED: "false",
+  NOTIFICATIONS_SMS_ENABLED: "false",
   NOTIFICATIONS_WORKER_ENABLED: "false",
   OUTBOX_IN_PROCESS_ENABLED: "false"
 });
@@ -41,6 +44,8 @@ const validNotificationEnv = (): NodeJS.ProcessEnv => ({
   WORKER_HEALTH_PORT: "3001",
   NOTIFICATIONS_WORKER_ENABLED: "true",
   OUTBOX_IN_PROCESS_ENABLED: "false",
+  NOTIFICATIONS_EMAIL_ENABLED: "true",
+  NOTIFICATIONS_SMS_ENABLED: "false",
   NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
   NOTIFICATIONS_SMS_PROVIDER: "MOCK",
   BREVO_API_KEY: `${strongSecret}-brevo`,
@@ -99,6 +104,31 @@ describe("production environment validator", () => {
       errors: [],
       warnings: []
     });
+  });
+
+  it("requires an explicit supported runtime environment for production images", () => {
+    const missing = validEnv();
+    delete missing.GESTSCHOOL_RUNTIME_ENV;
+    expect(validateProductionEnv(missing).errors).toContain(
+      "GESTSCHOOL_RUNTIME_ENV is required when NODE_ENV=production."
+    );
+
+    expect(
+      validateProductionEnv({
+        ...validEnv(),
+        GESTSCHOOL_RUNTIME_ENV: "local"
+      }).errors
+    ).toContain(
+      "GESTSCHOOL_RUNTIME_ENV must be rc, staging or production when NODE_ENV=production."
+    );
+    expect(
+      validateProductionEnv({
+        NODE_ENV: "test",
+        GESTSCHOOL_RUNTIME_ENV: "unexpected"
+      }).errors
+    ).toContain(
+      "GESTSCHOOL_RUNTIME_ENV must be local, test, rc, staging or production."
+    );
   });
 
   it("rejects weak secrets, wildcard CORS and malformed tenant ids", () => {
@@ -221,6 +251,8 @@ describe("production environment validator", () => {
     const result = validateProductionEnv({
       ...validEnv(),
       OUTBOX_IN_PROCESS_ENABLED: "true",
+      NOTIFICATIONS_EMAIL_ENABLED: "true",
+      NOTIFICATIONS_SMS_ENABLED: "true",
       NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
       NOTIFICATIONS_SMS_PROVIDER: "BREVO",
       BREVO_SMS_DRY_RUN: "true"
@@ -237,6 +269,7 @@ describe("production environment validator", () => {
   it("validates Brevo credentials for synchronous API authentication emails", () => {
     const invalid = validateProductionEnv({
       ...validEnv(),
+      NOTIFICATIONS_EMAIL_ENABLED: "true",
       NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
       NOTIFICATIONS_SMS_PROVIDER: "MOCK"
     });
@@ -252,6 +285,7 @@ describe("production environment validator", () => {
     expect(
       validateProductionEnv({
         ...validEnv(),
+        NOTIFICATIONS_EMAIL_ENABLED: "true",
         NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
         NOTIFICATIONS_SMS_PROVIDER: "MOCK",
         BREVO_API_KEY: `${strongSecret}-brevo`,
@@ -368,9 +402,73 @@ describe("production environment validator", () => {
     });
   });
 
+  it("accepts MOCK channels in an RC only with the dedicated explicit authorization", () => {
+    const rc: NodeJS.ProcessEnv = {
+      ...validNotificationEnv(),
+      GESTSCHOOL_RUNTIME_ENV: "rc",
+      NOTIFICATIONS_EMAIL_ENABLED: "true",
+      NOTIFICATIONS_SMS_ENABLED: "true",
+      NOTIFICATIONS_EMAIL_PROVIDER: "MOCK",
+      NOTIFICATIONS_SMS_PROVIDER: "MOCK"
+    };
+    delete rc.BREVO_API_KEY;
+    delete rc.BREVO_SENDER_EMAIL;
+    delete rc.BREVO_TIMEOUT_MS;
+
+    expect(validateProductionEnv(rc).errors).toContain(
+      "RC mock notification providers require ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC=true."
+    );
+
+    const accepted = validateProductionEnv({
+      ...rc,
+      ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC: "true"
+    });
+    expect(accepted.errors).toEqual([]);
+    expect(accepted.warnings).toContain(
+      "RC-only MOCK provider enabled for: email, sms."
+    );
+  });
+
+  it("never permits the RC MOCK authorization in staging or production", () => {
+    const production = validateProductionEnv({
+      ...validNotificationEnv(),
+      ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC: "true"
+    });
+    expect(production.errors).toContain(
+      "ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC may only be true when GESTSCHOOL_RUNTIME_ENV=rc."
+    );
+
+    const staging = validateProductionEnv({
+      ...validNotificationEnv(),
+      GESTSCHOOL_RUNTIME_ENV: "staging",
+      NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
+      NOTIFICATIONS_SMS_PROVIDER: "MOCK",
+      NOTIFICATIONS_SMS_ENABLED: "true"
+    });
+    expect(staging.errors).toContain(
+      "Enabled notification channels must not use MOCK in staging: sms."
+    );
+  });
+
+  it("accepts staging email-only only when the mocked SMS channel is disabled", () => {
+    expect(
+      validateProductionEnv({
+        ...validNotificationEnv(),
+        GESTSCHOOL_RUNTIME_ENV: "staging",
+        NOTIFICATIONS_EMAIL_ENABLED: "true",
+        NOTIFICATIONS_SMS_ENABLED: "false",
+        NOTIFICATIONS_EMAIL_PROVIDER: "BREVO",
+        NOTIFICATIONS_SMS_PROVIDER: "MOCK",
+        BREVO_SMS_DRY_RUN: "true",
+        ALLOW_REAL_SMS: "false"
+      })
+    ).toEqual({ errors: [], warnings: [] });
+  });
+
   it("requires both explicit flags before enabling real Brevo SMS", () => {
     const dryRunDisabled = {
       ...validNotificationEnv(),
+      NOTIFICATIONS_SMS_ENABLED: "true",
       NOTIFICATIONS_SMS_PROVIDER: "BREVO",
       BREVO_SMS_DRY_RUN: "false",
       BREVO_SMS_SENDER: "AlManarat"

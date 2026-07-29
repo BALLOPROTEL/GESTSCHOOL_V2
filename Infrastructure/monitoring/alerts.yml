@@ -17,6 +17,32 @@ groups:
         annotations:
           summary: A required GestSchool dependency is unavailable
 
+      - alert: GestSchoolWorkerDown
+        expr: up{job="gestschool-worker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: GestSchool notification worker metrics endpoint is unreachable
+
+      - alert: GestSchoolWorkerBlocked
+        expr: |
+          gestschool_worker_outbox_due_total > 0
+            and gestschool_worker_outbox_lag_seconds_max > 900
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: GestSchool worker is not draining due outbox events
+
+      - alert: GestSchoolNotificationDispatchFailing
+        expr: gestschool_worker_notifications_failed_due_total > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: GestSchool notifications are waiting after retryable delivery failures
+
       - alert: GestSchoolHttp5xxRateHigh
         expr: |
           sum(rate(gestschool_http_requests_total{status_code=~"5.."}[5m]))

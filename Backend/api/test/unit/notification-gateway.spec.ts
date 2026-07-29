@@ -129,6 +129,20 @@ describe("NotificationGatewayService", () => {
       .toMatchObject<Partial<ProviderDispatchError>>({ kind: "UNKNOWN_OUTCOME" });
   });
 
+  it("rejects a disabled external channel before selecting or calling a provider", async () => {
+    const fetchSpy = jest.spyOn(global, "fetch");
+
+    await expect(
+      new NotificationGatewayService(
+        configService({ NOTIFICATIONS_EMAIL_ENABLED: "false" })
+      ).dispatch(payload)
+    ).rejects.toMatchObject<Partial<ProviderDispatchError>>({
+      kind: "PERMANENT",
+      options: expect.objectContaining({ provider: "DISABLED" })
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("accepts the numeric message id returned by Brevo SMS without claiming idempotency", async () => {
     const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue(
       jsonResponse({ messageId: 1511882900176220 }, 201)

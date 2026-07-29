@@ -1,0 +1,75 @@
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="gestschool-api",instance="api:3000"}'
+        values: "1 0 0 0 1 1"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: GestSchoolApiDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: gestschool-api
+              instance: api:3000
+            exp_annotations:
+              summary: GestSchool API metrics endpoint is unreachable
+      - eval_time: 5m
+        alertname: GestSchoolApiDown
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'up{job="gestschool-worker",instance="worker:3001"}'
+        values: "1 0 0 0 1 1"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: GestSchoolWorkerDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: gestschool-worker
+              instance: worker:3001
+            exp_annotations:
+              summary: GestSchool notification worker metrics endpoint is unreachable
+      - eval_time: 5m
+        alertname: GestSchoolWorkerDown
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: "gestschool_worker_outbox_due_total"
+        values: "1x12 0x2"
+      - series: "gestschool_worker_outbox_lag_seconds_max"
+        values: "1200x12 0x2"
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: GestSchoolWorkerBlocked
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: GestSchool worker is not draining due outbox events
+      - eval_time: 13m
+        alertname: GestSchoolWorkerBlocked
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: "gestschool_worker_notifications_failed_due_total"
+        values: "1x7 0x2"
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: GestSchoolNotificationDispatchFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: GestSchool notifications are waiting after retryable delivery failures
+      - eval_time: 8m
+        alertname: GestSchoolNotificationDispatchFailing
+        exp_alerts: []

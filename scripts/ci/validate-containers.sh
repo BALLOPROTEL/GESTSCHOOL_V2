@@ -4,19 +4,21 @@ set -Eeuo pipefail
 API_IMAGE="${API_IMAGE:?Set API_IMAGE}"
 WORKER_IMAGE="${WORKER_IMAGE:?Set WORKER_IMAGE}"
 MIGRATION_IMAGE="${MIGRATION_IMAGE:?Set MIGRATION_IMAGE}"
-EVIDENCE_DIR="${CONTAINER_EVIDENCE_DIR:-/tmp/gestschool-container-evidence}"
 RUN_ID="gestschool-ci-${RANDOM}-$$"
+EVIDENCE_ROOT="${CONTAINER_EVIDENCE_DIR:-/tmp/gestschool-container-evidence}"
+EVIDENCE_DIR="${EVIDENCE_ROOT}/${RUN_ID}"
 NETWORK="${RUN_ID}-network"
 POSTGRES="${RUN_ID}-postgres"
 REDIS="${RUN_ID}-redis"
 API="${RUN_ID}-api"
 WORKER="${RUN_ID}-worker"
 INVALID="${RUN_ID}-invalid"
+PROMETHEUS="${RUN_ID}-prometheus"
 
 mkdir -p "$EVIDENCE_DIR"
 
 cleanup() {
-  for container in "$INVALID" "$WORKER" "$API" "$REDIS" "$POSTGRES"; do
+  for container in "$INVALID" "$PROMETHEUS" "$WORKER" "$API" "$REDIS" "$POSTGRES"; do
     docker rm -f "$container" >/dev/null 2>&1 || true
   done
   docker network rm "$NETWORK" >/dev/null 2>&1 || true
@@ -45,24 +47,45 @@ wait_for_container_health() {
   return 1
 }
 
-wait_for_http() {
-  local url="$1"
-  local expected="$2"
-  local attempts="${3:-60}"
+wait_for_container_http() {
+  local container="$1"
+  local url="$2"
+  local expected="$3"
+  local attempts="${4:-60}"
   for ((attempt = 1; attempt <= attempts; attempt += 1)); do
     local status
-    status="$(curl -sS -o /dev/null -w '%{http_code}' "$url" || true)"
+    status="$(
+      docker exec "$container" node -e \
+        "fetch(process.argv[1]).then((response) => process.stdout.write(String(response.status))).catch(() => process.stdout.write('000'))" \
+        "$url" 2>/dev/null || true
+    )"
     if [[ "$status" == "$expected" ]]; then
       return 0
     fi
     sleep 1
   done
-  echo "Timed out waiting for HTTP $expected from $url." >&2
+  echo "Timed out waiting for HTTP $expected from $url in $container." >&2
   return 1
 }
 
-container_port() {
-  docker port "$1" "$2/tcp" | awk -F: 'NR == 1 { print $NF }'
+container_fetch() {
+  local container="$1"
+  local url="$2"
+  local authorization="${3:-}"
+  docker exec "$container" node -e '
+    const [url, authorization] = process.argv.slice(1);
+    const headers = authorization ? { Authorization: authorization } : undefined;
+    fetch(url, { headers }).then(async (response) => {
+      const body = await response.text();
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      process.stdout.write(body);
+    }).catch((error) => {
+      console.error(error.message);
+      process.exit(1);
+    });
+  ' "$url" "$authorization"
 }
 
 assert_non_root_image() {
@@ -76,7 +99,7 @@ assert_non_root_image() {
   printf '%s user=%s\n' "$image" "$configured_user" >>"$EVIDENCE_DIR/runtime-users.txt"
 }
 
-docker network create "$NETWORK" >/dev/null
+docker network create --internal "$NETWORK" >/dev/null
 docker run -d \
   --name "$POSTGRES" \
   --network "$NETWORK" \
@@ -108,6 +131,13 @@ docker run --rm \
   -e DATABASE_URL="$DATABASE_URL" \
   -e DIRECT_URL="$DATABASE_URL" \
   "$MIGRATION_IMAGE" | tee "$EVIDENCE_DIR/migration.log"
+docker run --rm \
+  --network "$NETWORK" \
+  -e DATABASE_URL="$DATABASE_URL" \
+  -e DIRECT_URL="$DATABASE_URL" \
+  "$MIGRATION_IMAGE" \
+  node scripts/prisma-command.cjs migrate status | tee "$EVIDENCE_DIR/migration-status.log"
+grep -q "Database schema is up to date" "$EVIDENCE_DIR/migration-status.log"
 
 assert_non_root_image "$API_IMAGE"
 assert_non_root_image "$WORKER_IMAGE"
@@ -115,6 +145,7 @@ assert_non_root_image "$MIGRATION_IMAGE"
 
 COMMON_ENV=(
   -e NODE_ENV=production
+  -e GESTSCHOOL_RUNTIME_ENV=rc
   -e DATABASE_URL="$DATABASE_URL"
   -e DIRECT_URL="$DATABASE_URL"
   -e REDIS_URL="$REDIS_URL"
@@ -140,7 +171,7 @@ COMMON_ENV=(
 docker run -d \
   --name "$API" \
   --network "$NETWORK" \
-  -p 127.0.0.1::3000 \
+  --network-alias api \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,size=128m \
   --cap-drop ALL \
@@ -150,13 +181,18 @@ docker run -d \
   -e API_PORT=3000 \
   -e MONITORING_METRICS_TOKEN=ci-monitoring-token-with-more-than-32-characters \
   -e NOTIFICATIONS_WORKER_ENABLED=false \
+  -e NOTIFICATIONS_EMAIL_ENABLED=true \
+  -e NOTIFICATIONS_SMS_ENABLED=true \
+  -e ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC=true \
+  -e NOTIFICATIONS_EMAIL_PROVIDER=MOCK \
+  -e NOTIFICATIONS_SMS_PROVIDER=MOCK \
   -e OUTBOX_IN_PROCESS_ENABLED=false \
   "$API_IMAGE" >/dev/null
 
 docker run -d \
   --name "$WORKER" \
   --network "$NETWORK" \
-  -p 127.0.0.1::3001 \
+  --network-alias worker \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,size=128m \
   --cap-drop ALL \
@@ -165,14 +201,15 @@ docker run -d \
   -e GESTSCHOOL_PROCESS_ROLE=worker \
   -e WORKER_HEALTH_HOST=0.0.0.0 \
   -e WORKER_HEALTH_PORT=3001 \
+  -e MONITORING_METRICS_TOKEN=ci-monitoring-token-with-more-than-32-characters \
   -e NOTIFICATIONS_WORKER_ENABLED=true \
   -e OUTBOX_IN_PROCESS_ENABLED=false \
-  -e NOTIFICATIONS_EMAIL_PROVIDER=BREVO \
-  -e NOTIFICATIONS_SMS_PROVIDER=BREVO \
-  -e BREVO_API_KEY=ci-brevo-key-with-more-than-16-characters \
-  -e BREVO_SENDER_EMAIL=no-reply@ci.invalid \
+  -e NOTIFICATIONS_EMAIL_ENABLED=true \
+  -e NOTIFICATIONS_SMS_ENABLED=true \
+  -e ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC=true \
+  -e NOTIFICATIONS_EMAIL_PROVIDER=MOCK \
+  -e NOTIFICATIONS_SMS_PROVIDER=MOCK \
   -e BREVO_SMS_DRY_RUN=true \
-  -e BREVO_TIMEOUT_MS=8000 \
   -e NOTIFICATION_WEBHOOK_SIGNING_SECRET=ci-webhook-signing-secret-with-more-than-32-characters \
   -e NOTIFICATION_WEBHOOK_REPLAY_WINDOW_SECONDS=300 \
   -e OUTBOX_CLAIM_TTL_SECONDS=120 \
@@ -187,35 +224,87 @@ docker run -d \
 
 wait_for_container_health "$API"
 wait_for_container_health "$WORKER"
-API_PORT="$(container_port "$API" 3000)"
-WORKER_PORT="$(container_port "$WORKER" 3001)"
-API_READY="http://127.0.0.1:${API_PORT}/api/v1/health/ready"
-WORKER_READY="http://127.0.0.1:${WORKER_PORT}/health/ready"
-wait_for_http "$API_READY" 200
-wait_for_http "$WORKER_READY" 200
+API_READY="http://127.0.0.1:3000/api/v1/health/ready"
+WORKER_READY="http://127.0.0.1:3001/health/ready"
+wait_for_container_http "$API" "$API_READY" 200
+wait_for_container_http "$WORKER" "$WORKER_READY" 200
 
-curl -fsS "$API_READY" >"$EVIDENCE_DIR/api-ready.json"
-curl -fsS "$WORKER_READY" >"$EVIDENCE_DIR/worker-ready.json"
-curl -fsS \
-  -H 'Authorization: Bearer ci-monitoring-token-with-more-than-32-characters' \
-  "http://127.0.0.1:${API_PORT}/api/v1/monitoring/metrics" \
+container_fetch "$API" "$API_READY" >"$EVIDENCE_DIR/api-ready.json"
+container_fetch "$WORKER" "$WORKER_READY" >"$EVIDENCE_DIR/worker-ready.json"
+container_fetch \
+  "$API" \
+  "http://127.0.0.1:3000/api/v1/monitoring/metrics" \
+  'Bearer ci-monitoring-token-with-more-than-32-characters' \
   >"$EVIDENCE_DIR/metrics.prom"
+container_fetch \
+  "$WORKER" \
+  "http://127.0.0.1:3001/metrics" \
+  'Bearer ci-monitoring-token-with-more-than-32-characters' \
+  >"$EVIDENCE_DIR/worker-metrics.prom"
+grep -q "gestschool_worker_outbox_due_total" "$EVIDENCE_DIR/worker-metrics.prom"
+
+printf '%s' 'ci-monitoring-token-with-more-than-32-characters' \
+  >"$EVIDENCE_DIR/metrics-token"
+chmod 0444 "$EVIDENCE_DIR/metrics-token"
+docker run --rm \
+  --entrypoint /bin/promtool \
+  -v "$PWD/Infrastructure/monitoring:/etc/prometheus:ro" \
+  -v "$EVIDENCE_DIR/metrics-token:/run/secrets/metrics_token:ro" \
+  prom/prometheus:v2.54.1 \
+  check config /etc/prometheus/prometheus.yml \
+  | tee "$EVIDENCE_DIR/prometheus-config-check.log"
+docker run --rm \
+  --entrypoint /bin/promtool \
+  -v "$PWD/Infrastructure/monitoring:/etc/prometheus:ro" \
+  prom/prometheus:v2.54.1 \
+  test rules /etc/prometheus/alerts.test.yml \
+  | tee "$EVIDENCE_DIR/prometheus-alert-tests.log"
+
+docker run -d \
+  --name "$PROMETHEUS" \
+  --network "$NETWORK" \
+  --read-only \
+  --tmpfs /prometheus:rw,noexec,nosuid,size=128m,uid=65534,gid=65534,mode=0700 \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  -v "$PWD/Infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+  -v "$PWD/Infrastructure/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro" \
+  -v "$EVIDENCE_DIR/metrics-token:/run/secrets/metrics_token:ro" \
+  prom/prometheus:v2.54.1 >/dev/null
+wait_for_container_http "$API" "http://${PROMETHEUS}:9090/-/ready" 200 30
+sleep 20
+container_fetch \
+  "$API" \
+  "http://${PROMETHEUS}:9090/api/v1/query?query=up" \
+  >"$EVIDENCE_DIR/prometheus-up.json"
+node - "$EVIDENCE_DIR/prometheus-up.json" <<'NODE'
+const fs = require("node:fs");
+const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const health = new Map(
+  report.data.result.map((row) => [row.metric.job, Number(row.value[1])])
+);
+for (const job of ["gestschool-api", "gestschool-worker"]) {
+  if (health.get(job) !== 1) {
+    throw new Error(`Prometheus target ${job} is not up.`);
+  }
+}
+NODE
 
 docker stop "$REDIS" >/dev/null
-wait_for_http "$API_READY" 503 20
-wait_for_http "$WORKER_READY" 503 20
+wait_for_container_http "$API" "$API_READY" 503 20
+wait_for_container_http "$WORKER" "$WORKER_READY" 503 20
 docker start "$REDIS" >/dev/null
 wait_for_container_health "$REDIS"
-wait_for_http "$API_READY" 200 30
-wait_for_http "$WORKER_READY" 200 30
+wait_for_container_http "$API" "$API_READY" 200 30
+wait_for_container_http "$WORKER" "$WORKER_READY" 200 30
 
 docker stop "$POSTGRES" >/dev/null
-wait_for_http "$API_READY" 503 20
-wait_for_http "$WORKER_READY" 503 20
+wait_for_container_http "$API" "$API_READY" 503 20
+wait_for_container_http "$WORKER" "$WORKER_READY" 503 20
 docker start "$POSTGRES" >/dev/null
 wait_for_container_health "$POSTGRES"
-wait_for_http "$API_READY" 200 30
-wait_for_http "$WORKER_READY" 200 30
+wait_for_container_http "$API" "$API_READY" 200 30
+wait_for_container_http "$WORKER" "$WORKER_READY" 200 30
 
 set +e
 docker run --name "$INVALID" --network "$NETWORK" -e NODE_ENV=production "$API_IMAGE" \
