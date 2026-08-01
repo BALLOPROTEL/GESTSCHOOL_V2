@@ -64,6 +64,8 @@ jobs:
       NOTIFY_SMS_PROVIDER: MOCK
       NOTIFICATION_WEBHOOK_SECRET: ci-webhook-secret
       ANALYTICS_CACHE_TTL_SECONDS: 1
+      VITE_API_BASE_URL: https://api.ci.invalid/api/v1
+      VITE_STORAGE_ASSET_ORIGIN: https://storage-ci.gestschool.invalid
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
@@ -128,8 +130,6 @@ jobs:
 
       - name: Build Web Admin with explicit API URL
         run: pnpm --filter @gestschool/web-admin build
-        env:
-          VITE_API_BASE_URL: https://api.ci.invalid/api/v1
 
       - name: Preserve test evidence on failure
         if: failure()
@@ -147,6 +147,9 @@ jobs:
     needs: quality
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      VITE_API_BASE_URL: https://api.ci.invalid/api/v1
+      VITE_STORAGE_ASSET_ORIGIN: https://storage-ci.gestschool.invalid
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
