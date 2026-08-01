@@ -138,7 +138,43 @@ describe("notification worker runtime modes", () => {
     );
 
     expect(() => service.onModuleInit()).toThrow(
-      "In-process outbox processing is disabled in production."
+      "In-process outbox processing in production is limited to the explicitly confirmed empty single-instance sandbox."
     );
+  });
+
+  it("allows the in-process runner for the explicit empty single-instance sandbox", async () => {
+    const runOnce = jest.fn().mockResolvedValue(emptyRun);
+    const values = {
+      NODE_ENV: "production",
+      GESTSCHOOL_RUNTIME_ENV: "production",
+      GESTSCHOOL_PROCESS_ROLE: "api",
+      NOTIFICATIONS_WORKER_ENABLED: "false",
+      OUTBOX_IN_PROCESS_ENABLED: "true",
+      NOTIFICATIONS_EMAIL_ENABLED: "false",
+      NOTIFICATIONS_SMS_ENABLED: "false",
+      NOTIFICATIONS_EMAIL_PROVIDER: "MOCK",
+      NOTIFICATIONS_SMS_PROVIDER: "MOCK",
+      BREVO_WEBHOOK_ENABLED: "false",
+      ALLOW_REAL_SMS: "false",
+      PAYMENT_PROVIDER: "mock",
+      ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX: "true",
+      WEB_CONCURRENCY: "1",
+      OUTBOX_POLL_INTERVAL_MS: "60000"
+    };
+    const service = new InProcessBackgroundRunnerService(
+      { runOnce } as unknown as BackgroundTasksService,
+      configService(values)
+    );
+    const workerGuard = new NotificationWorkerService(
+      { runOnce } as unknown as BackgroundTasksService,
+      configService(values)
+    );
+
+    expect(() => service.onModuleInit()).not.toThrow();
+    expect(() => workerGuard.onModuleInit()).not.toThrow();
+    await new Promise((resolve) => setImmediate(resolve));
+    await service.onModuleDestroy();
+    await workerGuard.onModuleDestroy();
+    expect(runOnce).toHaveBeenCalledTimes(1);
   });
 });

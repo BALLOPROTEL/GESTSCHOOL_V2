@@ -3,7 +3,7 @@ services:
     name: gestschool-api
     runtime: node
     plan: free
-    autoDeploy: false
+    autoDeployTrigger: off
     healthCheckPath: /api/v1/health/ready
     buildCommand: >
       corepack enable &&
@@ -19,6 +19,8 @@ services:
         value: production
       - key: GESTSCHOOL_PROCESS_ROLE
         value: api
+      - key: WEB_CONCURRENCY
+        value: "1"
       - key: HOST
         value: 0.0.0.0
       - key: API_PORT
@@ -72,7 +74,9 @@ services:
       - key: ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC
         value: "false"
       - key: OUTBOX_IN_PROCESS_ENABLED
-        value: "false"
+        value: "true"
+      - key: ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX
+        value: "true"
       - key: OUTBOX_POLL_INTERVAL_MS
         value: "30000"
       - key: OUTBOX_BATCH_SIZE
@@ -150,7 +154,7 @@ services:
       - key: SUPABASE_STORAGE_TIMEOUT_MS
         value: "10000"
       - key: PAYMENT_PROVIDER
-        value: paydunya
+        value: mock
       - key: PAYDUNYA_MODE
         value: sandbox
       - key: PAYDUNYA_MASTER_KEY

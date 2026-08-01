@@ -37,6 +37,20 @@ cible de deploiement.
   limiting.
 - Aucun provider payant n'est appele par la CI.
 
+## Bac a sable de production mono-instance
+
+L'environnement actuel, declare par l'operateur comme ne contenant aucune
+donnee reelle mais non verifie techniquement dans ce lot, peut temporairement
+utiliser l'API comme consommateur d'outbox afin d'eviter la creation immediate
+d'un worker payant. Cette exception est fail-closed : elle
+exige le drapeau dedie, une seule concurrence web, aucun worker, aucun canal de
+notification actif, des providers MOCK, le webhook Brevo coupe et le paiement
+MOCK.
+
+Elle ne modifie pas l'architecture cible ci-dessus. Avant l'ouverture client,
+le drapeau est retire, `OUTBOX_IN_PROCESS_ENABLED` repasse a `false` et le
+worker dedie est deploye ou une autre architecture est approuvee.
+
 ## Decisions externes encore requises
 
 1. plan Render API sans mise en veille ;

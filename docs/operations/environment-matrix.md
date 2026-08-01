@@ -23,7 +23,9 @@ stocke dans Git.
 | `WORKER_HEALTH_HOST` | non | oui | non | non | `0.0.0.0` | oui |
 | `WORKER_HEALTH_PORT` | non | oui | non | non | `3001` | oui |
 | `NOTIFICATIONS_WORKER_ENABLED` | `false` | `true` | non | non | `false` | oui |
-| `OUTBOX_IN_PROCESS_ENABLED` | `false` | `false` | non | non | `false` | doit rester `false` |
+| `OUTBOX_IN_PROCESS_ENABLED` | `false` cible ; `true` bac a sable vide | `false` | non | non | `false` | worker dedie cible ; exception temporaire strictement gardee |
+| `ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX` | bac a sable seulement | non | non | non | `false` | `true` uniquement avec une API mono-instance sans canal/provider reel |
+| `WEB_CONCURRENCY` | oui | non | non | non | plateforme | `1` obligatoire pour l'exception bac a sable |
 | `OUTBOX_*` | non | oui | non | non | valeurs documentees | oui |
 | `NOTIFICATIONS_EMAIL_PROVIDER` | oui pour auth synchrone | oui | non | non | `MOCK` | explicite ; `BREVO` seulement apres recette |
 | `NOTIFICATIONS_SMS_PROVIDER` | `MOCK` | oui | non | non | `MOCK` | worker uniquement |
@@ -56,3 +58,21 @@ stocke dans Git.
 Les secrets API/worker sont separes des variables Vercel. La cle service-role
 Supabase, les secrets JWT, Brevo, PayDunya et monitoring ne doivent jamais
 apparaitre dans un bundle frontend.
+
+## Exception temporaire : environnement actuel vide
+
+L'environnement non utilise peut traiter l'outbox dans l'unique processus API
+sans worker payant uniquement lorsque toutes les conditions suivantes sont
+vraies :
+
+- `GESTSCHOOL_RUNTIME_ENV=production` et `GESTSCHOOL_PROCESS_ROLE=api` ;
+- `OUTBOX_IN_PROCESS_ENABLED=true` et
+  `ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX=true` ;
+- `WEB_CONCURRENCY=1` et `NOTIFICATIONS_WORKER_ENABLED=false` ;
+- les canaux email/SMS sont desactives et leurs providers restent `MOCK` ;
+- webhook Brevo et SMS reel sont desactives ;
+- `PAYMENT_PROVIDER=mock`.
+
+Le validateur et les services runtime refusent toute combinaison plus large.
+Cette exception doit etre retiree avant la creation du premier compte reel,
+l'activation d'un provider externe ou le passage a plusieurs instances.

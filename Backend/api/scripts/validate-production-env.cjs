@@ -297,9 +297,28 @@ function validateProductionEnv(env) {
     errors.push("NOTIFICATIONS_WORKER_ENABLED must be false for the API process.");
   }
   if (processRole === "api" && inProcessEnabled) {
-    errors.push(
-      "OUTBOX_IN_PROCESS_ENABLED must be false for the production API; deploy a dedicated worker."
-    );
+    const controlledEmptySandbox =
+      runtimeEnvironment === "production" &&
+      booleanValue("ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX") &&
+      String(env.WEB_CONCURRENCY || "").trim() === "1" &&
+      !workerEnabled &&
+      !emailChannelEnabled &&
+      !smsChannelEnabled &&
+      emailProvider === "MOCK" &&
+      smsProvider === "MOCK" &&
+      !booleanValue("BREVO_WEBHOOK_ENABLED") &&
+      !booleanValue("ALLOW_REAL_SMS") &&
+      String(env.PAYMENT_PROVIDER || "mock").trim().toLowerCase() === "mock";
+
+    if (!controlledEmptySandbox) {
+      errors.push(
+        "OUTBOX_IN_PROCESS_ENABLED in production requires the explicitly confirmed empty single-instance sandbox policy."
+      );
+    } else {
+      warnings.push(
+        "Temporary empty-sandbox exception: the production API processes the outbox in one instance."
+      );
+    }
   }
   if (processRole === "worker") {
     if (!workerEnabled) {

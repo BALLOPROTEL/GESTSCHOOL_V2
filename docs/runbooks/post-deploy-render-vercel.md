@@ -15,8 +15,10 @@ curl -fsS -H "Authorization: Bearer $MONITORING_METRICS_TOKEN" \
 - Redis est `up`, jamais `disabled` en production ;
 - le stockage annonce Supabase sans exposer de secret ;
 - les buckets sont prives et les URLs signees courtes ;
-- `OUTBOX_IN_PROCESS_ENABLED=false` et
-  `NOTIFICATIONS_WORKER_ENABLED=false` sur l'API.
+- en architecture cible : `OUTBOX_IN_PROCESS_ENABLED=false` et
+  `NOTIFICATIONS_WORKER_ENABLED=false` sur l'API ;
+- dans le seul bac a sable vide approuve : outbox en processus, concurrence web
+  egale a un, aucun worker, canal externe, webhook Brevo ou paiement provider.
 
 ## Worker
 

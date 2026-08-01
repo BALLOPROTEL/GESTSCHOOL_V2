@@ -24,9 +24,36 @@ La configuration de processus est exclusive :
 | API | `api` | `false` | `false` |
 | Worker | `worker` | `true` | `false` |
 
-Le validateur refuse toute autre combinaison en production. Le fichier
+Le validateur refuse toute autre combinaison en production, sauf l'exception
+explicite et temporaire du bac a sable vide decrite ci-dessous. Le fichier
 `Infrastructure/render/worker.example.yaml` est volontairement separe du
 `render.yaml` racine, car sa creation engage un service Render payant.
+
+### Exception bac a sable actuel
+
+Tant que l'environnement ne contient aucune donnee ou compte reel et reste sur
+une seule instance API, il peut utiliser :
+
+```env
+GESTSCHOOL_RUNTIME_ENV=production
+GESTSCHOOL_PROCESS_ROLE=api
+WEB_CONCURRENCY=1
+OUTBOX_IN_PROCESS_ENABLED=true
+ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX=true
+NOTIFICATIONS_WORKER_ENABLED=false
+NOTIFICATIONS_EMAIL_ENABLED=false
+NOTIFICATIONS_SMS_ENABLED=false
+NOTIFICATIONS_EMAIL_PROVIDER=MOCK
+NOTIFICATIONS_SMS_PROVIDER=MOCK
+BREVO_WEBHOOK_ENABLED=false
+BREVO_SMS_DRY_RUN=true
+ALLOW_REAL_SMS=false
+PAYMENT_PROVIDER=mock
+```
+
+Le demarrage echoue si un canal/provider reel est active, si la concurrence
+depasse un processus ou si le role change. Retirer cette exception avant la
+premiere donnee reelle et revenir a la matrice API/worker cible.
 
 ## Separation build, migration et demarrage
 
@@ -61,20 +88,30 @@ Sequence obligatoire :
 
 ## Render
 
-`render.yaml` conserve `autoDeploy: false`. L'API utilise :
+`render.yaml` conserve `autoDeployTrigger: off`. Le champ historique
+`autoDeploy` est deprecie par Render. Le tableau de bord Render reste la source
+de verite pour un service deja cree : verifier **Settings > Auto-Deploy > Off**
+avant tout push. L'API utilise :
 
 - `healthCheckPath: /api/v1/health/ready` ;
 - `TRUST_PROXY_HOPS=1` pour le proxy Render documente ;
 - Redis `noeviction` dans la meme region ;
 - `SWAGGER_ENABLED=false` ;
 - Supabase Storage prive ;
-- aucun traitement d'outbox dans le processus API.
+- aucun traitement d'outbox dans le processus API cible ; seule l'exception
+  mono-instance du bac a sable vide peut l'autoriser temporairement.
 
 Le worker utilise `/health/live` et `/health/ready`. Il partage PostgreSQL,
 Redis et les secrets providers avec l'API, mais ne recoit pas les variables
 frontend. Il doit etre cree uniquement apres validation du cout Render.
 
 ## Vercel
+
+L'integration Git actuelle cree un deploiement Production a chaque push de
+`main`. Avant de pousser une branche contenant la release, deconnecter
+temporairement le depot dans **Project > Settings > Git > Connected Git
+Repository**. Un `Ignored Build Step` peut eviter un build, mais ne remplace pas
+la deconnexion lorsqu'aucun deploiement ne doit etre cree.
 
 Configurer separement Preview et Production :
 

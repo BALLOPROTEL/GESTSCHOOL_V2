@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/commo
 import { ConfigService } from "@nestjs/config";
 
 import { BackgroundTasksService } from "../background/background-tasks.service";
+import { allowsProductionSandboxInProcessOutbox } from "../background/production-sandbox-runtime.policy";
 import { sanitizeProviderError } from "../notifications/notification-delivery.types";
 
 @Injectable()
@@ -113,8 +114,17 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
         "The production worker requires NOTIFICATIONS_WORKER_ENABLED=true and OUTBOX_IN_PROCESS_ENABLED=false."
       );
     }
-    if (processRole === "api" && (workerEnabled || inProcessEnabled)) {
+    if (processRole === "api" && workerEnabled) {
       throw new Error("Background notification processing must be disabled in the production API.");
+    }
+    if (
+      processRole === "api" &&
+      inProcessEnabled &&
+      !allowsProductionSandboxInProcessOutbox(this.configService)
+    ) {
+      throw new Error(
+        "In-process outbox processing in production is limited to the explicitly confirmed empty single-instance sandbox."
+      );
     }
   }
 

@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 
 import { sanitizeProviderError } from "../notifications/notification-delivery.types";
 import { BackgroundTasksService } from "./background-tasks.service";
+import { allowsProductionSandboxInProcessOutbox } from "./production-sandbox-runtime.policy";
 
 @Injectable()
 export class InProcessBackgroundRunnerService implements OnModuleInit, OnModuleDestroy {
@@ -26,8 +27,14 @@ export class InProcessBackgroundRunnerService implements OnModuleInit, OnModuleD
     const production =
       this.configService.get<string>("NODE_ENV", "development").trim().toLowerCase() ===
       "production";
-    if (production && inProcessEnabled) {
-      throw new Error("In-process outbox processing is disabled in production.");
+    if (
+      production &&
+      inProcessEnabled &&
+      !allowsProductionSandboxInProcessOutbox(this.configService)
+    ) {
+      throw new Error(
+        "In-process outbox processing in production is limited to the explicitly confirmed empty single-instance sandbox."
+      );
     }
     if (!inProcessEnabled) {
       this.logger.log("In-process outbox runner disabled.");
@@ -49,8 +56,8 @@ export class InProcessBackgroundRunnerService implements OnModuleInit, OnModuleD
     this.timer.unref?.();
 
     void this.scheduleTick(batchSize);
-    this.logger.log(
-      `In-process outbox runner started for Render free mode (${intervalMs}ms, batch ${batchSize}).`
+    this.logger.warn(
+      `In-process outbox runner started in controlled single-instance mode (${intervalMs}ms, batch ${batchSize}).`
     );
   }
 

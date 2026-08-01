@@ -326,7 +326,62 @@ describe("production environment validator", () => {
     });
 
     expect(result.errors).toContain(
-      "OUTBOX_IN_PROCESS_ENABLED must be false for the production API; deploy a dedicated worker."
+      "OUTBOX_IN_PROCESS_ENABLED in production requires the explicitly confirmed empty single-instance sandbox policy."
+    );
+  });
+
+  it("accepts in-process outbox only for the explicit empty single-instance sandbox", () => {
+    const result = validateProductionEnv({
+      ...validNotificationEnv(),
+      GESTSCHOOL_PROCESS_ROLE: "api",
+      NOTIFICATIONS_WORKER_ENABLED: "false",
+      OUTBOX_IN_PROCESS_ENABLED: "true",
+      NOTIFICATIONS_EMAIL_ENABLED: "false",
+      NOTIFICATIONS_SMS_ENABLED: "false",
+      NOTIFICATIONS_EMAIL_PROVIDER: "MOCK",
+      NOTIFICATIONS_SMS_PROVIDER: "MOCK",
+      BREVO_WEBHOOK_ENABLED: "false",
+      ALLOW_REAL_SMS: "false",
+      PAYMENT_PROVIDER: "mock",
+      ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX: "true",
+      WEB_CONCURRENCY: "1"
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toContain(
+      "Temporary empty-sandbox exception: the production API processes the outbox in one instance."
+    );
+  });
+
+  it.each([
+    ["WEB_CONCURRENCY", "2"],
+    ["NOTIFICATIONS_EMAIL_ENABLED", "true"],
+    ["NOTIFICATIONS_SMS_ENABLED", "true"],
+    ["NOTIFICATIONS_EMAIL_PROVIDER", "BREVO"],
+    ["NOTIFICATIONS_SMS_PROVIDER", "BREVO"],
+    ["BREVO_WEBHOOK_ENABLED", "true"],
+    ["ALLOW_REAL_SMS", "true"],
+    ["PAYMENT_PROVIDER", "paydunya"]
+  ])("rejects the empty-sandbox exception when %s=%s", (key, value) => {
+    const result = validateProductionEnv({
+      ...validNotificationEnv(),
+      GESTSCHOOL_PROCESS_ROLE: "api",
+      NOTIFICATIONS_WORKER_ENABLED: "false",
+      OUTBOX_IN_PROCESS_ENABLED: "true",
+      NOTIFICATIONS_EMAIL_ENABLED: "false",
+      NOTIFICATIONS_SMS_ENABLED: "false",
+      NOTIFICATIONS_EMAIL_PROVIDER: "MOCK",
+      NOTIFICATIONS_SMS_PROVIDER: "MOCK",
+      BREVO_WEBHOOK_ENABLED: "false",
+      ALLOW_REAL_SMS: "false",
+      PAYMENT_PROVIDER: "mock",
+      ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX: "true",
+      WEB_CONCURRENCY: "1",
+      [key]: value
+    });
+
+    expect(result.errors).toContain(
+      "OUTBOX_IN_PROCESS_ENABLED in production requires the explicitly confirmed empty single-instance sandbox policy."
     );
   });
 
