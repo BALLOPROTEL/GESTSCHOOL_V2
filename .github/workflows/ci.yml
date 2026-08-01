@@ -388,6 +388,7 @@ jobs:
           name: gestschool-container-evidence
           path: |
             /tmp/gestschool-container-evidence
+            !/tmp/gestschool-container-evidence/backup-restore/backup/**
             /tmp/gestschool-trivy-api.json
             /tmp/gestschool-trivy-worker.json
             /tmp/gestschool-trivy-migration.json
