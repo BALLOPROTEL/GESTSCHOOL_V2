@@ -179,7 +179,7 @@ jobs:
 
       - name: Run strict mocked CI audit
         run: |
-          pnpm --filter @gestschool/web-admin exec vite --host 127.0.0.1 --port 5180 > /tmp/gestschool-vite-audit.log 2>&1 &
+          pnpm --filter @gestschool/web-admin exec vite --mode test --host 127.0.0.1 --port 5180 > /tmp/gestschool-vite-audit.log 2>&1 &
           VITE_PID=$!
           trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
           for attempt in {1..30}; do
