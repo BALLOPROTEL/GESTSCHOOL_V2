@@ -7,13 +7,18 @@ import type {
   SchoolYearStatus,
   SubjectNature
 } from "../../../shared/types/app";
+import type { UiMessageToken } from "../../../shared/i18n";
 
 export const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).length > 0;
 
-export const fieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
+export const fieldError = (
+  errors: FieldErrors,
+  key: string,
+  translate: (message: string | UiMessageToken) => string
+): JSX.Element | null =>
   errors[key] ? (
     <span className="field-error" role="alert">
-      {errors[key]}
+      {translate(errors[key])}
     </span>
   ) : null;
 

@@ -16,7 +16,9 @@ import type {
   WorkflowStepDef
 } from "../shared/types/app";
 import { WorkflowGuide } from "../shared/components/workflow-guide";
+import { UI_MESSAGES } from "../shared/i18n";
 import { RoomsListSection } from "./rooms/components/rooms-list-section";
+import { toUiErrorMessage } from "../shared/services/api-errors";
 import {
   createRoomAssignment,
   createRoomAvailability,
@@ -119,7 +121,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
       setAvailabilities(data.availabilities);
       setOccupancy(data.occupancy);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de charger le module salles.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     } finally {
       setLoading(false);
     }
@@ -130,7 +132,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
     try {
       setRooms(await fetchRooms(api, filters));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de filtrer les salles.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     }
   };
 
@@ -140,7 +142,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
     try {
       setDetail(await fetchRoomDetail(api, roomId));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de charger le détail de la salle.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     }
   };
 
@@ -167,7 +169,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   const submitRoom = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : salle non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       setEditingRoomId(null);
       setRoomForm(defaultRoomForm());
       setActiveStep("list");
@@ -192,13 +194,13 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
         notes: emptyToUndefined(roomForm.notes)
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'enregistrer la salle.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
     setSelectedRoomId(saved.id);
     setEditingRoomId(null);
     setRoomForm(defaultRoomForm());
-    onNotice("Salle enregistrée.");
+    onNotice(UI_MESSAGES.saved);
     await loadModule();
     setActiveStep("detail");
   };
@@ -206,7 +208,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   const submitAssignment = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : affectation de salle non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
@@ -226,10 +228,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
         comment: emptyToUndefined(assignmentForm.comment)
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de créer l'affectation de salle.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice("Affectation de salle créée.");
+    onNotice(UI_MESSAGES.created);
     setAssignmentForm((prev) => ({ ...defaultAssignmentForm(), roomId: prev.roomId, schoolYearId: prev.schoolYearId }));
     await loadModule();
   };
@@ -237,7 +239,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   const submitAvailability = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : indisponibilité de salle non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
@@ -252,10 +254,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
         comment: emptyToUndefined(availabilityForm.comment)
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'ajouter l'indisponibilité de salle.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice("Indisponibilité de salle enregistrée.");
+    onNotice(UI_MESSAGES.saved);
     setAvailabilityForm((prev) => ({ ...defaultAvailabilityForm(), roomId: prev.roomId, schoolYearId: prev.schoolYearId }));
     await loadModule();
   };
@@ -263,7 +265,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   const submitRoomType = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : type de salle non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
@@ -274,10 +276,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
         status: roomTypeForm.status
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'ajouter le type de salle.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice("Type de salle ajouté.");
+    onNotice(UI_MESSAGES.created);
     setRoomTypeForm(defaultRoomTypeForm());
     await loadModule();
   };
@@ -305,13 +307,13 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
 
   const archiveResource = async (path: string, successMessage: string): Promise<void> => {
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : suppression salle non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
       await deleteRoomResource(api, path);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de supprimer la ressource salle.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
       return;
     }
     onNotice(successMessage);
@@ -334,7 +336,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
           loading={loading}
           onAddRoom={() => setActiveStep("form")}
           onArchiveRoom={(roomId) => {
-            if (window.confirm("Supprimer cette salle ?")) void archiveResource(`/rooms/${roomId}`, "Salle supprimée.");
+            if (window.confirm(tr(UI_MESSAGES.roomDeleteConfirm))) void archiveResource(`/rooms/${roomId}`, UI_MESSAGES.deleted);
           }}
           onEditRoom={editRoom}
           onFilter={() => void loadRooms()}
@@ -416,7 +418,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Classe")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Statut")}</th><th>{tr("Action")}</th></tr></thead>
               <tbody>{selectedAssignments.length === 0 ? <tr><td colSpan={9} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedAssignments.map((item) => (
-                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Type")}>{tr(assignmentTypeLabel(item.assignmentType))}</td><td data-label={tr("Classe")}>{item.classLabel || item.levelLabel || item.cycleLabel || "-"}</td><td data-label={tr("Matière")}>{item.subjectLabel || "-"}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(item.status))}</span></td><td data-label={tr("Action")}><button type="button" className="button-ghost" onClick={() => void archiveResource(`/rooms/assignments/${item.id}`, "Affectation salle archivée.")}>{tr("Archiver")}</button></td></tr>
+                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Type")}>{tr(assignmentTypeLabel(item.assignmentType))}</td><td data-label={tr("Classe")}>{item.classLabel || item.levelLabel || item.cycleLabel || "-"}</td><td data-label={tr("Matière")}>{item.subjectLabel || "-"}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(item.status))}</span></td><td data-label={tr("Action")}><button type="button" className="button-ghost" onClick={() => void archiveResource(`/rooms/assignments/${item.id}`, UI_MESSAGES.archived)}>{tr("Archiver")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -440,7 +442,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Jour")}</th><th>{tr("Début")}</th><th>{tr("Fin")}</th><th>{tr("Type")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Action")}</th></tr></thead>
               <tbody>{selectedAvailabilities.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune indisponibilité enregistrée.")}</td></tr> : selectedAvailabilities.map((item) => (
-                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Jour")}>{tr(dayLabel(item.dayOfWeek))}</td><td data-label={tr("Début")}>{item.startTime || "-"}</td><td data-label={tr("Fin")}>{item.endTime || "-"}</td><td data-label={tr("Type")}>{tr(availabilityTypeLabel(item.availabilityType))}</td><td data-label={tr("Année")}>{item.schoolYearCode || "-"}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Action")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/rooms/availabilities/${item.id}`, "Indisponibilité supprimée.")}>{tr("Supprimer")}</button></td></tr>
+                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Jour")}>{tr(dayLabel(item.dayOfWeek))}</td><td data-label={tr("Début")}>{item.startTime || "-"}</td><td data-label={tr("Fin")}>{item.endTime || "-"}</td><td data-label={tr("Type")}>{tr(availabilityTypeLabel(item.availabilityType))}</td><td data-label={tr("Année")}>{item.schoolYearCode || "-"}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Action")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/rooms/availabilities/${item.id}`, UI_MESSAGES.deleted)}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>

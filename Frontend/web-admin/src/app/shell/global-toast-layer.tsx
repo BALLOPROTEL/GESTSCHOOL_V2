@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 
-import { translateUiString, type UiLanguage } from "../../shared/i18n";
+import { translateUiString, UI_MESSAGES, type UiLanguage } from "../../shared/i18n";
 
 type GlobalToastLayerProps = {
   error: string | null;
@@ -39,30 +39,30 @@ export function GlobalToastLayer(props: GlobalToastLayerProps): JSX.Element | nu
       {error ? (
         <div className="toast-pop toast-pop-error" data-testid="global-toast-error" role="alert">
           <div>
-            <strong>{translateUiString(language, "Attention")}</strong>
+            <strong>{translateUiString(language, UI_MESSAGES.toastAttention)}</strong>
             <p>{translateUiString(language, error)}</p>
           </div>
           <button
             type="button"
-            aria-label={translateUiString(language, "Fermer la notification d'erreur")}
+            aria-label={translateUiString(language, UI_MESSAGES.toastCloseError)}
             onClick={onDismissError}
           >
-            {translateUiString(language, "Fermer")}
+            {translateUiString(language, UI_MESSAGES.toastClose)}
           </button>
         </div>
       ) : null}
       {notice ? (
         <div className="toast-pop toast-pop-success" data-testid="global-toast-notice" role="status">
           <div>
-            <strong>{translateUiString(language, "Information")}</strong>
+            <strong>{translateUiString(language, UI_MESSAGES.toastInformation)}</strong>
             <p>{translateUiString(language, notice)}</p>
           </div>
           <button
             type="button"
-            aria-label={translateUiString(language, "Fermer la notification")}
+            aria-label={translateUiString(language, UI_MESSAGES.toastCloseNotification)}
             onClick={onDismissNotice}
           >
-            {translateUiString(language, "Fermer")}
+            {translateUiString(language, UI_MESSAGES.toastClose)}
           </button>
         </div>
       ) : null}

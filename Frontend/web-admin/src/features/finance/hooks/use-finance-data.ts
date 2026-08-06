@@ -1,5 +1,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
+import { translateUiString, UI_MESSAGES } from "../../../shared/i18n";
+import { useI18n } from "../../../shared/i18n-context";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type { FieldErrors, Level, SchoolYear, Student } from "../../../shared/types/app";
 import {
   createFeePlan,
@@ -89,6 +92,7 @@ export const useFinanceData = ({
   onError,
   onNotice
 }: UseFinanceDataOptions) => {
+  const { language } = useI18n();
   const [financeData, setFinanceData] = useState<FinanceData>(initialData);
   const [feePlanForm, setFeePlanForm] = useState<FeePlanForm>(() => buildFeePlanForm(defaultCurrency));
   const [invoiceForm, setInvoiceForm] = useState<InvoiceForm>(() => buildInvoiceForm());
@@ -148,7 +152,7 @@ export const useFinanceData = ({
     try {
       setFinanceDataAndNotify(await fetchFinanceData(api));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de chargement de la comptabilité.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     }
   }, [api, initialData, onError, remoteEnabled, setFinanceDataAndNotify]);
 
@@ -165,17 +169,17 @@ export const useFinanceData = ({
     onError(null);
 
     const errors: FieldErrors = {};
-    if (!feePlanForm.schoolYearId) errors.schoolYearId = "Année scolaire requise.";
-    if (!feePlanForm.levelId) errors.levelId = "Niveau requis.";
-    if (!feePlanForm.label.trim()) errors.label = "Libellé requis.";
-    if (!feePlanForm.currency.trim()) errors.currency = "Devise requise.";
+    if (!feePlanForm.schoolYearId) errors.schoolYearId = UI_MESSAGES.validationError;
+    if (!feePlanForm.levelId) errors.levelId = UI_MESSAGES.validationError;
+    if (!feePlanForm.label.trim()) errors.label = UI_MESSAGES.validationError;
+    if (!feePlanForm.currency.trim()) errors.currency = UI_MESSAGES.validationError;
     if (feePlanForm.currency.trim() && feePlanForm.currency.trim().length !== 3) {
-      errors.currency = "Code devise sur 3 lettres (ex. CFA, affiché F CFA).";
+      errors.currency = UI_MESSAGES.validationError;
     }
 
     const totalAmount = Number(feePlanForm.totalAmount);
     if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
-      errors.totalAmount = "Le montant total doit être supérieur à 0.";
+      errors.totalAmount = UI_MESSAGES.validationError;
     }
     setFeePlanErrors(errors);
     if (hasFieldErrors(errors)) {
@@ -183,7 +187,7 @@ export const useFinanceData = ({
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : plan de frais non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -196,11 +200,11 @@ export const useFinanceData = ({
         currency: feePlanForm.currency.trim().toUpperCase()
       });
       setFeePlanErrors({});
-      setNoticeAndStep("Plan de frais créé.", "feePlans");
+      setNoticeAndStep(UI_MESSAGES.created, "feePlans");
       setFeePlanForm((previous) => ({ ...previous, label: "", totalAmount: "" }));
       await loadFinance();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de création du plan de frais.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
@@ -209,15 +213,15 @@ export const useFinanceData = ({
     onError(null);
 
     const errors: FieldErrors = {};
-    if (!invoiceForm.studentId) errors.studentId = "Élève requis.";
-    if (!invoiceForm.schoolYearId) errors.schoolYearId = "Année scolaire requise.";
+    if (!invoiceForm.studentId) errors.studentId = UI_MESSAGES.validationError;
+    if (!invoiceForm.schoolYearId) errors.schoolYearId = UI_MESSAGES.validationError;
     if (!invoiceForm.feePlanId && !invoiceForm.amountDue.trim()) {
-      errors.amountDue = "Saisir un montant ou choisir un plan de frais.";
+      errors.amountDue = UI_MESSAGES.validationError;
     }
     if (!invoiceForm.dueDate) {
-      errors.dueDate = "Date d’échéance requise.";
+      errors.dueDate = UI_MESSAGES.validationError;
     } else if (!isoDatePattern.test(invoiceForm.dueDate)) {
-      errors.dueDate = "Saisir la date au format aaaa-mm-jj.";
+      errors.dueDate = UI_MESSAGES.validationError;
     }
 
     const payload: Record<string, unknown> = {
@@ -233,7 +237,7 @@ export const useFinanceData = ({
     if (invoiceForm.amountDue.trim()) {
       const amountDue = Number(invoiceForm.amountDue);
       if (!Number.isFinite(amountDue) || amountDue <= 0) {
-        errors.amountDue = "Le montant dû doit être supérieur à 0.";
+        errors.amountDue = UI_MESSAGES.validationError;
       } else {
         payload.amountDue = amountDue;
       }
@@ -244,34 +248,34 @@ export const useFinanceData = ({
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : facture non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
     try {
       await createInvoice(api, payload);
       setInvoiceErrors({});
-      setNoticeAndStep("Facture créée.", "invoices");
+      setNoticeAndStep(UI_MESSAGES.created, "invoices");
       setInvoiceForm((previous) => ({ ...previous, feePlanId: "", amountDue: "", dueDate: "" }));
       await loadFinance();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de création de facture.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
   const voidInvoice = async (id: string): Promise<void> => {
-    if (!window.confirm("Annuler cette facture ? Cette action conserve la trace financière.")) return;
+    if (!window.confirm(translateUiString(language, UI_MESSAGES.invoiceCancelConfirm))) return;
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : annulation non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
     try {
       await updateInvoiceStatus(api, id, "VOID");
-      onNotice("Facture annulée.");
+      onNotice(UI_MESSAGES.invoiceCancelled);
       await loadFinance();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d’annulation de facture.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
@@ -280,21 +284,21 @@ export const useFinanceData = ({
     onError(null);
 
     const errors: FieldErrors = {};
-    if (!paymentForm.invoiceId) errors.invoiceId = "Facture requise.";
-    if (!paymentForm.paymentMethod) errors.paymentMethod = "Mode de paiement requis.";
+    if (!paymentForm.invoiceId) errors.invoiceId = UI_MESSAGES.validationError;
+    if (!paymentForm.paymentMethod) errors.paymentMethod = UI_MESSAGES.validationError;
     if (!paymentForm.paidAt) {
-      errors.paidAt = "Date de paiement requise.";
+      errors.paidAt = UI_MESSAGES.validationError;
     } else if (!isoDatePattern.test(paymentForm.paidAt)) {
-      errors.paidAt = "Saisir la date au format aaaa-mm-jj.";
+      errors.paidAt = UI_MESSAGES.validationError;
     }
 
     const paidAmount = Number(paymentForm.paidAmount);
     if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
-      errors.paidAmount = "Le montant versé doit être supérieur à 0.";
+      errors.paidAmount = UI_MESSAGES.validationError;
     }
     const selectedInvoice = financeData.invoices.find((item) => item.id === paymentForm.invoiceId);
     if (selectedInvoice && paidAmount > selectedInvoice.remainingAmount) {
-      errors.paidAmount = "Le montant versé ne peut pas dépasser le reste à payer.";
+      errors.paidAmount = UI_MESSAGES.validationError;
     }
     setPaymentErrors(errors);
     if (hasFieldErrors(errors)) {
@@ -302,7 +306,7 @@ export const useFinanceData = ({
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : paiement non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -315,17 +319,17 @@ export const useFinanceData = ({
         referenceExternal: paymentForm.referenceExternal || undefined
       });
       setPaymentErrors({});
-      setNoticeAndStep("Paiement enregistré.", "payments");
+      setNoticeAndStep(UI_MESSAGES.paymentSaved, "payments");
       setPaymentForm((previous) => ({ ...previous, paidAmount: "", referenceExternal: "" }));
       await loadFinance();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d’enregistrement du paiement.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
   const openReceipt = async (paymentId: string): Promise<void> => {
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : reçu PDF indisponible.");
+      onNotice(UI_MESSAGES.receiptUnavailable);
       return;
     }
 
@@ -334,31 +338,31 @@ export const useFinanceData = ({
       setReceiptPdfUrl(pdfDataUrl);
       window.open(pdfDataUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d’ouverture du reçu.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.downloadError));
     }
   };
 
   const initiateOnlinePayment = async (invoiceId: string): Promise<void> => {
     onError(null);
     if (!invoiceId) {
-      setPaymentErrors({ invoiceId: "Facture requise." });
+      setPaymentErrors({ invoiceId: UI_MESSAGES.validationError });
       focusFirstInlineErrorField("payments");
       return;
     }
     if (!remoteEnabled) {
-      onNotice("PayDunya sandbox nécessite une API connectée.");
+      onNotice(UI_MESSAGES.onlinePaymentNeedsApi);
       return;
     }
 
     try {
       const attempt = await initiatePaydunyaPayment(api, invoiceId);
-      setNoticeAndStep("Paiement en ligne PayDunya initié. Statut : en attente.", "payments");
+      setNoticeAndStep(UI_MESSAGES.onlinePaymentPending, "payments");
       if (attempt.checkoutUrl) {
         window.open(attempt.checkoutUrl, "_blank", "noopener,noreferrer");
       }
       await loadFinance();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d’initialisation du paiement PayDunya.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 

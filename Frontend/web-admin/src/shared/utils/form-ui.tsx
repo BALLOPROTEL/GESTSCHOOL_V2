@@ -4,8 +4,12 @@ import type { FieldErrors } from "../types/app";
 
 export const hasFieldErrors = (errors: FieldErrors): boolean => Object.keys(errors).length > 0;
 
-export const fieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
-  errors[key] ? <span className="field-error">{errors[key]}</span> : null;
+export const fieldError = (
+  errors: FieldErrors,
+  key: string,
+  translate: (source: string) => string
+): JSX.Element | null =>
+  errors[key] ? <span className="field-error">{translate(errors[key])}</span> : null;
 
 export const focusFirstInlineErrorField = (stepId?: string): void => {
   window.setTimeout(() => {

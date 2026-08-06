@@ -1,17 +1,8 @@
+import { parseApiError } from "../../../shared/services/api-errors";
 import type { Student } from "../../../shared/types/app";
 import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm, type StudentsApiClient } from "../types/students";
 
-export const parseStudentsError = async (response: Response): Promise<string> => {
-  try {
-    const payload = (await response.json()) as { message?: string | string[]; error?: string };
-    if (Array.isArray(payload.message)) return payload.message.join(", ");
-    if (typeof payload.message === "string") return payload.message;
-    if (typeof payload.error === "string") return payload.error;
-  } catch {
-    // Keep a stable fallback for non-JSON API errors.
-  }
-  return `Erreur HTTP ${response.status}`;
-};
+export const parseStudentsError = parseApiError;
 
 export const fetchStudents = async (api: StudentsApiClient): Promise<Student[]> => {
   const response = await api("/students");

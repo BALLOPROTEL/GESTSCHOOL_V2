@@ -3,6 +3,7 @@ import type {
   UserSessionItem,
   UserSelfProfile
 } from "../../shared/types/app";
+import { parseApiError } from "../../shared/services/api-errors";
 
 export type ProfileApiClient = (
   path: string,
@@ -29,28 +30,7 @@ export type ChangePasswordPayload = {
   confirmPassword: string;
 };
 
-const isMissingProfileRouteMessage = (message: string): boolean =>
-  /^Cannot (GET|POST|PATCH|DELETE) \/api\/v1\/users\/me/u.test(message);
-
-const PROFILE_DEPLOYMENT_ERROR =
-  "Le service profil n’est pas encore disponible sur l’API déployée. Vérifiez la configuration API puis réessayez.";
-
-export const parseProfileError = async (response: Response): Promise<string> => {
-  try {
-    const payload = (await response.json()) as { message?: string | string[]; error?: string };
-    if (Array.isArray(payload.message)) return payload.message.join(", ");
-    if (typeof payload.message === "string") {
-      if (response.status === 404 && isMissingProfileRouteMessage(payload.message)) {
-        return PROFILE_DEPLOYMENT_ERROR;
-      }
-      return payload.message;
-    }
-    if (typeof payload.error === "string") return payload.error;
-  } catch {
-    // Keep a stable fallback for non-JSON API errors.
-  }
-  return `Erreur HTTP ${response.status}`;
-};
+export const parseProfileError = parseApiError;
 
 export const fetchMyProfile = async (api: ProfileApiClient): Promise<UserSelfProfile> => {
   const response = await api("/users/me", undefined, true, { background: true });
@@ -103,7 +83,7 @@ export const removeMyAvatar = async (api: ProfileApiClient): Promise<UserSelfPro
 export const changeMyPassword = async (
   api: ProfileApiClient,
   payload: ChangePasswordPayload
-): Promise<string> => {
+): Promise<void> => {
   const response = await api("/users/me/change-password", {
     method: "POST",
     body: JSON.stringify(payload)
@@ -111,8 +91,6 @@ export const changeMyPassword = async (
   if (!response.ok) {
     throw new Error(await parseProfileError(response));
   }
-  const body = (await response.json()) as { message?: string };
-  return body.message || "Mot de passe modifié avec succès.";
 };
 
 export const fetchMyActivity = async (api: ProfileApiClient): Promise<UserActivityItem[]> => {

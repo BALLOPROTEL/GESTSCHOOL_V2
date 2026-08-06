@@ -7,6 +7,7 @@ import {
   WEEKDAY_LABELS
 } from "../../shared/constants/domain";
 import type { AcademicTrack, FieldErrors, Period, Subject } from "../../shared/types/app";
+import type { UiMessageToken } from "../../shared/i18n";
 import { usePortalTeacherData } from "./hooks/use-portal-teacher-data";
 import type { PortalApiClient, TeacherPortalData } from "./types/portal-teacher";
 import { useI18n } from "../../shared/i18n-context";
@@ -24,10 +25,14 @@ type PortalTeacherScreenProps = {
   onNotice: (message: string | null) => void;
 };
 
-const renderFieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
+const renderTranslatedFieldError = (
+  errors: FieldErrors,
+  key: string,
+  translate: (message: string | UiMessageToken) => string
+): JSX.Element | null =>
   errors[key] ? (
     <span className="field-error" role="alert">
-      {errors[key]}
+      {translate(errors[key])}
     </span>
   ) : null;
 
@@ -56,6 +61,8 @@ export function PortalTeacherScreen({
   onNotice
 }: PortalTeacherScreenProps): JSX.Element {
   const { t: tr } = useI18n();
+  const renderFieldError = (fieldErrors: FieldErrors, key: string) =>
+    renderTranslatedFieldError(fieldErrors, key, tr);
   const {
     attendanceForm,
     attendanceStudents,

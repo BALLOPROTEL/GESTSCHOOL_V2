@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { UI_MESSAGES } from "../../../shared/i18n";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type { FieldErrors } from "../../../shared/types/app";
 import {
   createReferenceItem,
@@ -16,11 +18,6 @@ import type {
   SchoolYearForm,
   SubjectForm
 } from "../types/reference";
-
-type ReferenceErrorTarget = {
-  scope: "schoolYear" | "cycle" | "level" | "class" | "subject" | "period";
-  field: string;
-};
 
 type UseReferenceScreenStateOptions = {
   api: ReferenceApiClient;
@@ -119,74 +116,6 @@ const buildPeriodForm = (): PeriodForm => ({
   comment: ""
 });
 
-const getReferenceFieldErrorTarget = (path: string, message: string): ReferenceErrorTarget | null => {
-  const normalized = message.trim().toLowerCase();
-
-  if (path === "/school-years" && normalized.includes("already exists")) {
-    return {
-      scope: "schoolYear",
-      field: normalized.includes("label") ? "label" : normalized.includes("active") ? "status" : "code"
-    };
-  }
-  if (path === "/school-years" && normalized.includes("previous school year")) {
-    return { scope: "schoolYear", field: "previousYearId" };
-  }
-  if (path === "/cycles" && normalized.includes("already exists")) {
-    return { scope: "cycle", field: normalized.includes("label") ? "label" : "code" };
-  }
-  if (path === "/cycles" && normalized.includes("age")) {
-    return { scope: "cycle", field: normalized.includes("max") ? "theoreticalAgeMax" : "theoreticalAgeMin" };
-  }
-  if (path === "/levels" && normalized.includes("already exists")) {
-    return { scope: "level", field: normalized.includes("label") ? "label" : "code" };
-  }
-  if (path === "/classes" && normalized.includes("already exists")) {
-    return { scope: "class", field: normalized.includes("label") ? "label" : "code" };
-  }
-  if (path === "/classes" && normalized.includes("maximum capacity")) {
-    return { scope: "class", field: "capacity" };
-  }
-  if (path === "/classes" && normalized.includes("actual class capacity")) {
-    return { scope: "class", field: "actualCapacity" };
-  }
-  if (path === "/subjects" && normalized.includes("already exists")) {
-    return { scope: "subject", field: normalized.includes("label") ? "label" : "code" };
-  }
-  if (path === "/subjects" && normalized.includes("coefficient")) {
-    return { scope: "subject", field: "defaultCoefficient" };
-  }
-  if (path === "/subjects" && normalized.includes("weekly hours")) {
-    return { scope: "subject", field: "weeklyHours" };
-  }
-  if (path === "/subjects" && normalized.includes("level scope")) {
-    return { scope: "subject", field: "levelIds" };
-  }
-  if (path === "/academic-periods" && normalized.includes("already exists")) {
-    return { scope: "period", field: normalized.includes("label") ? "label" : "code" };
-  }
-  if (path === "/academic-periods" && normalized.includes("deadline")) {
-    return { scope: "period", field: "gradeEntryDeadline" };
-  }
-  if (path === "/academic-periods" && normalized.includes("lock date")) {
-    return { scope: "period", field: "lockDate" };
-  }
-  if (path === "/academic-periods" && normalized.includes("parent academic period")) {
-    return { scope: "period", field: "parentPeriodId" };
-  }
-  if (path === "/academic-periods" && normalized.includes("overlaps")) {
-    return { scope: "period", field: "startDate" };
-  }
-  if (normalized.includes("required")) {
-    return path === "/academic-periods"
-      ? { scope: "period", field: "label" }
-      : path === "/subjects"
-        ? { scope: "subject", field: "label" }
-        : null;
-  }
-
-  return null;
-};
-
 export const useReferenceScreenState = ({
   api,
   data,
@@ -272,7 +201,7 @@ export const useReferenceScreenState = ({
     const { data: nextData, errors } = await fetchReferenceData(api);
     onDataChange(nextData);
     if (errors.length > 0) {
-      onError(errors.join(" | "));
+      onError(errors[0] || UI_MESSAGES.loadError);
     }
   }, [api, onDataChange, onError]);
 
@@ -285,39 +214,24 @@ export const useReferenceScreenState = ({
     if (path === "/academic-periods") setPeriodErrors({});
   }, []);
 
-  const setReferenceFieldError = useCallback((target: ReferenceErrorTarget, message: string): void => {
-    const nextErrors = { [target.field]: message };
-    if (target.scope === "schoolYear") setSchoolYearErrors(nextErrors);
-    if (target.scope === "cycle") setCycleErrors(nextErrors);
-    if (target.scope === "level") setLevelErrors(nextErrors);
-    if (target.scope === "class") setClassErrors(nextErrors);
-    if (target.scope === "subject") setSubjectErrors(nextErrors);
-    if (target.scope === "period") setPeriodErrors(nextErrors);
-  }, []);
-
   const createRef = useCallback(
-    async (path: string, payload: unknown, message: string): Promise<boolean> => {
+    async (path: string, payload: unknown): Promise<boolean> => {
       clearReferenceFieldErrors(path);
       onError(null);
 
       if (!remoteEnabled) {
-        onNotice("Mode apercu local : referentiel non persiste.");
+        onNotice(UI_MESSAGES.previewNotPersisted);
         return false;
       }
 
       try {
         await createReferenceItem(api, path, payload);
       } catch (error) {
-        const messageText = error instanceof Error ? error.message : "Erreur de creation du referentiel.";
-        const target = getReferenceFieldErrorTarget(path, messageText);
-        if (target) {
-          setReferenceFieldError(target, messageText);
-        }
-        onError(messageText);
+        onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
         return false;
       }
 
-      onNotice(message);
+      onNotice(UI_MESSAGES.created);
       await refreshReferenceData();
       await onReloadEnrollments?.();
       return true;
@@ -330,26 +244,25 @@ export const useReferenceScreenState = ({
       onReloadEnrollments,
       refreshReferenceData,
       remoteEnabled,
-      setReferenceFieldError
     ]
   );
 
   const deleteRef = useCallback(
-    async (path: string, message: string): Promise<void> => {
+    async (path: string): Promise<void> => {
       onError(null);
 
       if (!remoteEnabled) {
-        onNotice("Mode apercu local : suppression non persistee.");
+        onNotice(UI_MESSAGES.previewNotPersisted);
         return;
       }
 
       try {
         await deleteReferenceItem(api, path);
-        onNotice(message);
+        onNotice(UI_MESSAGES.deleted);
         await refreshReferenceData();
         await onReloadEnrollments?.();
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur de suppression du referentiel.");
+        onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
       }
     },
     [api, onError, onNotice, onReloadEnrollments, refreshReferenceData, remoteEnabled]

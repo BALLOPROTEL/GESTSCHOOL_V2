@@ -42,10 +42,14 @@ const INVOICE_STATUS_LABELS: Record<string, string> = {
   VOID: "Annulée"
 };
 
-const renderFieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
+const renderFieldError = (
+  errors: FieldErrors,
+  key: string,
+  translate: (source: string) => string
+): JSX.Element | null =>
   errors[key] ? (
     <span className="field-error" role="alert">
-      {errors[key]}
+      {translate(errors[key])}
     </span>
   ) : null;
 
@@ -300,7 +304,7 @@ export function FinanceScreen({
                 </option>
               ))}
             </select>
-            {renderFieldError(feePlanErrors, "schoolYearId")}
+            {renderFieldError(feePlanErrors, "schoolYearId", tr)}
           </label>
           <label>
             {tr("Niveau *")}<select
@@ -315,7 +319,7 @@ export function FinanceScreen({
                 </option>
               ))}
             </select>
-            {renderFieldError(feePlanErrors, "levelId")}
+            {renderFieldError(feePlanErrors, "levelId", tr)}
           </label>
           <label>
             {tr("Libellé *")}<input
@@ -323,7 +327,7 @@ export function FinanceScreen({
               onChange={(event) => setFeePlanForm((previous) => ({ ...previous, label: event.target.value }))}
               required
             />
-            {renderFieldError(feePlanErrors, "label")}
+            {renderFieldError(feePlanErrors, "label", tr)}
           </label>
           <label>
             {tr("Montant total *")}<input
@@ -333,7 +337,7 @@ export function FinanceScreen({
               onChange={(event) => setFeePlanForm((previous) => ({ ...previous, totalAmount: event.target.value }))}
               required
             />
-            {renderFieldError(feePlanErrors, "totalAmount")}
+            {renderFieldError(feePlanErrors, "totalAmount", tr)}
           </label>
           <label>
             {tr("Devise *")}<input
@@ -343,7 +347,7 @@ export function FinanceScreen({
                 setFeePlanForm((previous) => ({ ...previous, currency: event.target.value.toUpperCase() }))
               }
             />
-            {renderFieldError(feePlanErrors, "currency")}
+            {renderFieldError(feePlanErrors, "currency", tr)}
           </label>
           <button type="submit">{tr("Créer le plan de frais")}</button>
         </form>
@@ -443,7 +447,7 @@ export function FinanceScreen({
                 </option>
               ))}
             </select>
-            {renderFieldError(invoiceErrors, "studentId")}
+            {renderFieldError(invoiceErrors, "studentId", tr)}
           </label>
           <label>
             {tr("Année scolaire *")}<select
@@ -458,7 +462,7 @@ export function FinanceScreen({
                 </option>
               ))}
             </select>
-            {renderFieldError(invoiceErrors, "schoolYearId")}
+            {renderFieldError(invoiceErrors, "schoolYearId", tr)}
           </label>
           <label>
             {tr("Plan de frais (optionnel)")}<select
@@ -472,7 +476,7 @@ export function FinanceScreen({
                 </option>
               ))}
             </select>
-            {renderFieldError(invoiceErrors, "feePlanId")}
+            {renderFieldError(invoiceErrors, "feePlanId", tr)}
           </label>
           <label>
             {tr("Montant dû si saisie manuelle")}<input
@@ -482,7 +486,7 @@ export function FinanceScreen({
               onChange={(event) => setInvoiceForm((previous) => ({ ...previous, amountDue: event.target.value }))}
               placeholder={tr("Requis si aucun plan de frais")}
             />
-            {renderFieldError(invoiceErrors, "amountDue")}
+            {renderFieldError(invoiceErrors, "amountDue", tr)}
           </label>
           <label>
             {tr("Date d’échéance *")}<input
@@ -493,7 +497,7 @@ export function FinanceScreen({
               onChange={(event) => setInvoiceForm((previous) => ({ ...previous, dueDate: event.target.value }))}
               required
             />
-            {renderFieldError(invoiceErrors, "dueDate")}
+            {renderFieldError(invoiceErrors, "dueDate", tr)}
           </label>
           <button type="submit">{tr("Créer la facture")}</button>
         </form>
@@ -621,7 +625,7 @@ export function FinanceScreen({
                 </option>
               ))}
             </select>
-            {renderFieldError(paymentErrors, "invoiceId")}
+            {renderFieldError(paymentErrors, "invoiceId", tr)}
           </label>
           <label>
             {tr("Montant versé *")}<input
@@ -632,7 +636,7 @@ export function FinanceScreen({
               onChange={(event) => setPaymentForm((previous) => ({ ...previous, paidAmount: event.target.value }))}
               required
             />
-            {renderFieldError(paymentErrors, "paidAmount")}
+            {renderFieldError(paymentErrors, "paidAmount", tr)}
           </label>
           <label>
             {tr("Mode de paiement *")}<select
@@ -648,7 +652,7 @@ export function FinanceScreen({
               <option value="MOBILE_MONEY">{tr(formatChannelLabel("MOBILE_MONEY"))}</option>
               <option value="BANK">{tr(formatChannelLabel("BANK"))}</option>
             </select>
-            {renderFieldError(paymentErrors, "paymentMethod")}
+            {renderFieldError(paymentErrors, "paymentMethod", tr)}
           </label>
           <label>
             {tr("Date de paiement *")}<input
@@ -659,7 +663,7 @@ export function FinanceScreen({
               onChange={(event) => setPaymentForm((previous) => ({ ...previous, paidAt: event.target.value }))}
               required
             />
-            {renderFieldError(paymentErrors, "paidAt")}
+            {renderFieldError(paymentErrors, "paidAt", tr)}
           </label>
           <label>
             {tr("Référence externe")}<input

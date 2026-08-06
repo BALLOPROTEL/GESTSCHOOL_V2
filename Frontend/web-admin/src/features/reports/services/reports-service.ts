@@ -1,3 +1,4 @@
+import { parseApiError } from "../../../shared/services/api-errors";
 import type {
   AnalyticsOverview,
   AuditLogExportResponse,
@@ -10,17 +11,7 @@ import type {
   ReportsApiClient
 } from "../types/reports";
 
-export const parseReportsError = async (response: Response): Promise<string> => {
-  try {
-    const payload = (await response.json()) as { message?: string | string[]; error?: string };
-    if (Array.isArray(payload.message)) return payload.message.join(", ");
-    if (typeof payload.message === "string") return payload.message;
-    if (typeof payload.error === "string") return payload.error;
-  } catch {
-    // Keep a predictable message for empty or non-JSON API errors.
-  }
-  return `Erreur HTTP ${response.status}`;
-};
+export const parseReportsError = parseApiError;
 
 export const fetchAnalyticsOverview = async (
   api: ReportsApiClient,

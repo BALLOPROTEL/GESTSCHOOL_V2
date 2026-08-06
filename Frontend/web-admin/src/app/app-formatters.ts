@@ -41,9 +41,4 @@ export const getInitials = (value?: string): string => {
   return (parts[0]?.slice(0, 2) || "U").toUpperCase();
 };
 
-export const parseError = (response: Response): Promise<string> =>
-  parseApiError(response, {
-    localApiHint: ["localhost", "127.0.0.1"].includes(window.location.hostname)
-      ? "Erreur API locale. Verifie que `pnpm dev:api` tourne puis redemarre `pnpm dev:web` pour recharger le proxy."
-      : undefined
-  });
+export const parseError = (response: Response): Promise<string> => parseApiError(response);

@@ -1,7 +1,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { translateUiString, type UiLanguage } from "./i18n";
+import {
+  translateUiMessage,
+  translateUiString,
+  UI_MESSAGES,
+  type UiLanguage
+} from "./i18n";
 import { I18nProvider, useI18n } from "./i18n-context";
 
 const DASHBOARD_SOURCE = "Tableau de bord";
@@ -132,6 +137,49 @@ describe("declarative i18n", () => {
     ]) {
       expect(translateUiString("en", source)).not.toBe(source);
       expect(translateUiString("ar", source)).not.toBe(source);
+    }
+  });
+
+  it.each([
+    ["fr", "Attention", "Fermer"],
+    ["en", "Warning", "Close"],
+    ["ar", "تنبيه", "إغلاق"]
+  ] as const)("traduit les alertes globales en %s", (language, attention, close) => {
+    expect(translateUiMessage(language, UI_MESSAGES.toastAttention)).toBe(attention);
+    expect(translateUiMessage(language, UI_MESSAGES.toastClose)).toBe(close);
+  });
+
+  it("traduit les conflits de suppression sans exposer le message backend", () => {
+    expect(translateUiMessage("fr", UI_MESSAGES.schoolYearInUse)).toBe(
+      "L'année scolaire ne peut pas être supprimée car elle est encore utilisée."
+    );
+    expect(translateUiMessage("en", UI_MESSAGES.classInUse)).toBe(
+      "The class cannot be deleted because it is still in use."
+    );
+    expect(translateUiMessage("ar", UI_MESSAGES.schoolYearInUse)).toBe(
+      "لا يمكن حذف السنة الدراسية لأنها لا تزال مستخدمة."
+    );
+  });
+
+  it("possède une traduction FR, EN et AR pour chaque message centralisé", () => {
+    for (const token of Object.values(UI_MESSAGES)) {
+      for (const language of ["fr", "en", "ar"] as const) {
+        const translated = translateUiMessage(language, token);
+        expect(translated.trim()).not.toBe("");
+        expect(translated).not.toBe(token);
+      }
+    }
+  });
+
+  it("interpole les messages dynamiques dans les trois langues", () => {
+    const params = { created: 3, updated: 2, errors: 1 };
+
+    for (const language of ["fr", "en", "ar"] as const) {
+      const translated = translateUiMessage(language, UI_MESSAGES.bulkAttendanceCompleted, params);
+      expect(translated).toContain("3");
+      expect(translated).toContain("2");
+      expect(translated).toContain("1");
+      expect(translated).not.toMatch(/\{(?:created|updated|errors)\}/u);
     }
   });
 });

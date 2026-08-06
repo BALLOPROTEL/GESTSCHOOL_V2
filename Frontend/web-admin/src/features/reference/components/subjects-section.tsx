@@ -1,13 +1,14 @@
 import type { JSX } from "react";
 
 import type { FieldErrors, SubjectNature } from "../../../shared/types/app";
+import { UI_MESSAGES } from "../../../shared/i18n";
 
 import {
   REFERENCE_STATUS_OPTIONS,
   SUBJECT_NATURE_OPTIONS
 } from "../../../shared/constants/domain";
 import {
-  fieldError,
+  fieldError as renderReferenceFieldError,
   focusFirstInlineErrorField,
   formatAcademicTrackLabel,
   formatReferenceStatusLabel,
@@ -23,6 +24,7 @@ import { useI18n } from "../../../shared/i18n-context";
 
 export function SubjectsSection(): JSX.Element {
   const { t: tr } = useI18n();
+  const fieldError = (errors: FieldErrors, key: string) => renderReferenceFieldError(errors, key, tr);
   const ctx = useReferenceScreenContext();
   const {
     createRef,
@@ -64,15 +66,15 @@ export function SubjectsSection(): JSX.Element {
                   const defaultCoefficient = parseOptionalNumber(subjectForm.defaultCoefficient);
                   const weeklyHours = parseOptionalNumber(subjectForm.weeklyHours);
 
-                  if (!subjectForm.label.trim()) errors.label = "Nom de la matiere requis.";
-                  if (!subjectForm.code.trim()) errors.code = "Code matiere requis.";
-                  if (!subjectForm.status) errors.status = "Statut requis.";
-                  if (!subjectForm.nature) errors.nature = "Nature de la matiere requise.";
+                  if (!subjectForm.label.trim()) errors.label = UI_MESSAGES.fieldRequired;
+                  if (!subjectForm.code.trim()) errors.code = UI_MESSAGES.fieldRequired;
+                  if (!subjectForm.status) errors.status = UI_MESSAGES.fieldRequired;
+                  if (!subjectForm.nature) errors.nature = UI_MESSAGES.fieldRequired;
                   if (subjectForm.defaultCoefficient.trim() && (defaultCoefficient === undefined || defaultCoefficient <= 0)) {
-                    errors.defaultCoefficient = "Le coefficient doit etre strictement superieur a zero.";
+                    errors.defaultCoefficient = UI_MESSAGES.fieldInvalid;
                   }
                   if (subjectForm.weeklyHours.trim() && (weeklyHours === undefined || weeklyHours <= 0)) {
-                    errors.weeklyHours = "Le volume horaire doit etre strictement superieur a zero.";
+                    errors.weeklyHours = UI_MESSAGES.fieldInvalid;
                   }
 
                   setSubjectErrors(errors);
@@ -98,8 +100,7 @@ export function SubjectsSection(): JSX.Element {
                       isOptional: subjectForm.isOptional,
                       levelIds: subjectForm.levelIds.length > 0 ? subjectForm.levelIds : undefined,
                       isArabic: subjectForm.nature === "ARABOPHONE"
-                    },
-                    "Matiere creee."
+                    }
                   ).then((ok) => {
                     if (ok) {
                       setSubjectErrors({});
@@ -270,7 +271,7 @@ export function SubjectsSection(): JSX.Element {
                         <td data-label={tr("Action")}>
                           <ReferenceActionMenu
                             label={`Options matiere ${item.label}`}
-                            onDelete={() => void deleteRef(`/subjects/${item.id}`, "Matiere supprimee.")}
+                            onDelete={() => void deleteRef(`/subjects/${item.id}`)}
                           />
                         </td>
                       </tr>

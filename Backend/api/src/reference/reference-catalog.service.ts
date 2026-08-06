@@ -186,7 +186,8 @@ export class ReferenceCatalogService {
     await this.requireSubject(tenantId, id);
     await this.deleteEntity(
       () => this.prisma.subject.delete({ where: { id } }),
-      "Subject cannot be deleted because it is still used."
+      "Subject cannot be deleted because it is still used.",
+      "REFERENCE_SUBJECT_IN_USE"
     );
   }
 
@@ -311,7 +312,8 @@ export class ReferenceCatalogService {
     await this.requireAcademicPeriod(tenantId, id);
     await this.deleteEntity(
       () => this.prisma.academicPeriod.delete({ where: { id } }),
-      "Academic period cannot be deleted because it is still used."
+      "Academic period cannot be deleted because it is still used.",
+      "REFERENCE_PERIOD_IN_USE"
     );
   }
 
@@ -495,7 +497,8 @@ export class ReferenceCatalogService {
 
   private async deleteEntity(
     callback: () => Promise<unknown>,
-    relationErrorMessage: string
+    relationErrorMessage: string,
+    relationErrorCode: string
   ): Promise<void> {
     try {
       await callback();
@@ -504,7 +507,7 @@ export class ReferenceCatalogService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2003"
       ) {
-        throw new ConflictException(relationErrorMessage);
+        throw new ConflictException({ code: relationErrorCode, message: relationErrorMessage });
       }
       throw error;
     }

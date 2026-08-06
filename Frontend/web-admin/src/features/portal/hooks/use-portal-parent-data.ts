@@ -1,5 +1,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
+import { UI_MESSAGES } from "../../../shared/i18n";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import { fetchParentPortalData } from "../services/portal-parent-service";
 import type { ParentPortalData, PortalApiClient } from "../types/portal-parent";
 
@@ -47,7 +49,7 @@ export const usePortalParentData = ({
       try {
         setDataAndNotify(await fetchParentPortalData(api, studentId));
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur de chargement du portail parent.");
+        onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       }
     },
     [api, initialData, onError, remoteEnabled, setDataAndNotify, studentFilter]
@@ -63,7 +65,7 @@ export const usePortalParentData = ({
       })
       .catch((error) => {
         if (isMounted) {
-          onError(error instanceof Error ? error.message : "Erreur de chargement du portail parent.");
+          onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
         }
       });
 

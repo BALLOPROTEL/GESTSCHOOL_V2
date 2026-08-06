@@ -475,12 +475,16 @@ async function runMockedAuthWorkflow(browser, kind, language, theme, viewportNam
       await page.getByRole("button", { name: /Mot de passe oublié/u }).click();
       await page.getByLabel(/^Identifiant$/u).fill("visual.admin");
       await page.getByRole("button", { name: /Envoyer les instructions/u }).click();
-      await page.getByText("Instructions de reinitialisation envoyees.").waitFor({ state: "visible" });
+      await page
+        .getByText("Si un compte correspond à ces informations, un email de réinitialisation a été envoyé.")
+        .waitFor({ state: "visible" });
     } else if (kind === "activation-resend") {
       await page.getByRole("button", { name: /Activer mon compte/u }).click();
       await page.getByLabel(/Email ou identifiant/u).fill("visual.admin");
       await page.getByRole("button", { name: /Renvoyer le lien d.activation/u }).click();
-      await page.getByText("Instructions d'activation envoyees.").waitFor({ state: "visible" });
+      await page
+        .getByText("Si un compte en attente correspond à ces informations, un email d'activation a été envoyé.")
+        .waitFor({ state: "visible" });
     } else if (kind === "activation-first-login") {
       const passwordInputs = page.locator('input[autocomplete="new-password"]');
       await passwordInputs.nth(0).fill("Visual-Activation-2026!");

@@ -1,12 +1,13 @@
 import type { JSX } from "react";
 
 import type { AcademicStage, FieldErrors } from "../../../shared/types/app";
+import { UI_MESSAGES } from "../../../shared/i18n";
 
 import {
   REFERENCE_STATUS_OPTIONS
 } from "../../../shared/constants/domain";
 import {
-  fieldError,
+  fieldError as renderReferenceFieldError,
   focusFirstInlineErrorField,
   formatAcademicStageLabel,
   formatReferenceStatusLabel,
@@ -22,6 +23,7 @@ import { useI18n } from "../../../shared/i18n-context";
 
 export function CyclesSection(): JSX.Element {
   const { t: tr } = useI18n();
+  const fieldError = (errors: FieldErrors, key: string) => renderReferenceFieldError(errors, key, tr);
   const ctx = useReferenceScreenContext();
   const {
     createRef,
@@ -61,25 +63,25 @@ export function CyclesSection(): JSX.Element {
                   const theoreticalAgeMin = parseOptionalNumber(cycleForm.theoreticalAgeMin);
                   const theoreticalAgeMax = parseOptionalNumber(cycleForm.theoreticalAgeMax);
 
-                  if (!cycleForm.schoolYearId) errors.schoolYearId = "Annee scolaire requise.";
-                  if (!cycleForm.label.trim()) errors.label = "Nom du cycle requis.";
-                  if (!cycleForm.code.trim()) errors.code = "Code cycle requis.";
-                  if (!cycleForm.academicStage) errors.academicStage = "Stade academique requis.";
+                  if (!cycleForm.schoolYearId) errors.schoolYearId = UI_MESSAGES.fieldRequired;
+                  if (!cycleForm.label.trim()) errors.label = UI_MESSAGES.fieldRequired;
+                  if (!cycleForm.code.trim()) errors.code = UI_MESSAGES.fieldRequired;
+                  if (!cycleForm.academicStage) errors.academicStage = UI_MESSAGES.fieldRequired;
                   if (!Number.isFinite(cycleForm.sortOrder) || cycleForm.sortOrder < 0) {
-                    errors.sortOrder = "Ordre academique invalide.";
+                    errors.sortOrder = UI_MESSAGES.fieldInvalid;
                   }
                   if (cycleForm.theoreticalAgeMin.trim() && theoreticalAgeMin === undefined) {
-                    errors.theoreticalAgeMin = "Age theorique min invalide.";
+                    errors.theoreticalAgeMin = UI_MESSAGES.fieldInvalid;
                   }
                   if (cycleForm.theoreticalAgeMax.trim() && theoreticalAgeMax === undefined) {
-                    errors.theoreticalAgeMax = "Age theorique max invalide.";
+                    errors.theoreticalAgeMax = UI_MESSAGES.fieldInvalid;
                   }
                   if (
                     theoreticalAgeMin !== undefined &&
                     theoreticalAgeMax !== undefined &&
                     theoreticalAgeMax < theoreticalAgeMin
                   ) {
-                    errors.theoreticalAgeMax = "L'age theorique max doit etre superieur ou egal au min.";
+                    errors.theoreticalAgeMax = UI_MESSAGES.fieldInvalid;
                   }
 
                   setCycleErrors(errors);
@@ -100,8 +102,7 @@ export function CyclesSection(): JSX.Element {
                       theoreticalAgeMin,
                       theoreticalAgeMax,
                       status: cycleForm.status
-                    },
-                    "Cycle cree."
+                    }
                   ).then((ok) => {
                     if (ok) {
                       setCycleErrors({});
@@ -220,7 +221,7 @@ export function CyclesSection(): JSX.Element {
                         <td data-label={tr("Action")}>
                           <ReferenceActionMenu
                             label={`Options cycle ${item.label}`}
-                            onDelete={() => void deleteRef(`/cycles/${item.id}`, "Cycle supprime.")}
+                            onDelete={() => void deleteRef(`/cycles/${item.id}`)}
                           />
                         </td>
                       </tr>

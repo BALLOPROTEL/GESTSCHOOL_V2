@@ -185,7 +185,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     required
                   />
                   <small>{tr("Matricule obligatoire pour enregistrer le dossier.")}</small>
-                  {fieldError(studentErrors, "matricule")}
+                  {fieldError(studentErrors, "matricule", tr)}
                 </label>
                 <label>
                   {tr("Prénom *")}<input
@@ -195,7 +195,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     }
                     required
                   />
-                  {fieldError(studentErrors, "firstName")}
+                  {fieldError(studentErrors, "firstName", tr)}
                 </label>
                 <label>
                   {tr("Nom *")}<input
@@ -205,7 +205,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     }
                     required
                   />
-                  {fieldError(studentErrors, "lastName")}
+                  {fieldError(studentErrors, "lastName", tr)}
                 </label>
                 <label>
                   {tr("Sexe *")}<select
@@ -221,7 +221,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     <option value="M">{tr("M")}</option>
                     <option value="F">{tr("F")}</option>
                   </select>
-                  {fieldError(studentErrors, "sex")}
+                  {fieldError(studentErrors, "sex", tr)}
                 </label>
                 <label>
                   {tr("Date de naissance *")}<input
@@ -232,7 +232,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     }
                     required
                   />
-                  {fieldError(studentErrors, "birthDate")}
+                  {fieldError(studentErrors, "birthDate", tr)}
                 </label>
                 <label>
                   {tr("Lieu de naissance")}<input
@@ -270,7 +270,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                       onStudentFormChange((prev) => ({ ...prev, email: event.target.value }))
                     }
                   />
-                  {fieldError(studentErrors, "email")}
+                  {fieldError(studentErrors, "email", tr)}
                 </label>
                 <label className="span-2">
                   {tr("Adresse")}<input
@@ -298,7 +298,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                       <option value={studentForm.establishmentId}>{SCHOOL_NAME}</option>
                     ) : null}
                   </select>
-                  {fieldError(studentErrors, "establishmentId")}
+                  {fieldError(studentErrors, "establishmentId", tr)}
                 </label>
                 <label>
                   {tr("Date d’admission")}<input
@@ -308,7 +308,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                       onStudentFormChange((prev) => ({ ...prev, admissionDate: event.target.value }))
                     }
                   />
-                  {fieldError(studentErrors, "admissionDate")}
+                  {fieldError(studentErrors, "admissionDate", tr)}
                 </label>
                 <label>
                   {tr("Statut *")}<select
@@ -325,7 +325,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                     <option value="SUSPENDED">{tr("Suspendu")}</option>
                     <option value="ARCHIVED">{tr("Archivé")}</option>
                   </select>
-                  {fieldError(studentErrors, "status")}
+                  {fieldError(studentErrors, "status", tr)}
                 </label>
                 <label>
                   {tr("Langue principale")}<input

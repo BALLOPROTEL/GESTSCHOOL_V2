@@ -1,3 +1,4 @@
+import { parseApiError } from "../../../shared/services/api-errors";
 import type {
   FeePlan,
   Invoice,
@@ -6,17 +7,7 @@ import type {
 } from "../../../shared/types/app";
 import type { FinanceApiClient, FinanceData, PaydunyaAttempt } from "../types/finance";
 
-export const parseFinanceError = async (response: Response): Promise<string> => {
-  try {
-    const payload = (await response.json()) as { message?: string | string[]; error?: string };
-    if (Array.isArray(payload.message)) return payload.message.join(", ");
-    if (typeof payload.message === "string") return payload.message;
-    if (typeof payload.error === "string") return payload.error;
-  } catch {
-    // Keep a stable fallback for non-JSON API errors.
-  }
-  return `Erreur HTTP ${response.status}`;
-};
+export const parseFinanceError = parseApiError;
 
 export const fetchFinanceData = async (api: FinanceApiClient): Promise<FinanceData> => {
   const responses = await Promise.all([

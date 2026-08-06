@@ -2,19 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent, MutableRefObject } from "react";
 
 import type {
-  AuthMessageResponse,
   FieldErrors,
-  ForgotPasswordResponse,
   RememberedLogin,
   Role,
   ScreenId,
   Session
 } from "../shared/types/app";
+import { UI_MESSAGES } from "../shared/i18n";
 import { focusFirstInlineErrorField, hasFieldErrors } from "../shared/utils/form-ui";
 import {
   DEFAULT_TENANT,
-  LOGIN_HINT_STORAGE_KEY,
-  STRONG_PASSWORD_HINT
+  LOGIN_HINT_STORAGE_KEY
 } from "./app-config";
 import { isStrongPassword, parseError } from "./app-formatters";
 import { ROLE_HOME_SCREEN } from "./navigation/screen-registry";
@@ -122,7 +120,7 @@ export function useAuthFlows({
       const ready = await ensureApiAvailable(forceProbe);
       if (!ready) {
         if (!suppressError) {
-          onError("API indisponible. Reconnexion...");
+          onError(UI_MESSAGES.apiUnavailable);
         }
         return null;
       }
@@ -134,7 +132,7 @@ export function useAuthFlows({
       } catch {
         markApiUnavailable();
         if (!suppressError) {
-          onError("API indisponible. Reconnexion...");
+          onError(UI_MESSAGES.apiUnavailable);
         }
         return null;
       }
@@ -149,7 +147,7 @@ export function useAuthFlows({
       onNotice(null);
 
       if (!forgotPasswordForm.username.trim()) {
-        onError("Renseignez votre identifiant pour recevoir le lien de réinitialisation.");
+        onError(UI_MESSAGES.forgotUsernameRequired);
         return;
       }
 
@@ -169,8 +167,7 @@ export function useAuthFlows({
           return;
         }
 
-        const payload = (await response.json()) as ForgotPasswordResponse;
-        onNotice(payload.message || "Si un compte correspond à ces informations, un email de réinitialisation a été envoyé.");
+        onNotice(UI_MESSAGES.resetRequested);
       } finally {
         setAuthAssistLoading(false);
       }
@@ -185,15 +182,15 @@ export function useAuthFlows({
       onNotice(null);
 
       if (!resetPasswordForm.token.trim()) {
-        onError("Lien de réinitialisation invalide ou expiré.");
+        onError(UI_MESSAGES.resetLinkInvalid);
         return;
       }
       if (!isStrongPassword(resetPasswordForm.newPassword)) {
-        onError(STRONG_PASSWORD_HINT);
+        onError(UI_MESSAGES.passwordPolicy);
         return;
       }
       if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
-        onError("La confirmation du mot de passe ne correspond pas.");
+        onError(UI_MESSAGES.passwordMismatch);
         return;
       }
 
@@ -213,8 +210,7 @@ export function useAuthFlows({
           return;
         }
 
-        const payload = (await response.json()) as AuthMessageResponse;
-        onNotice(payload.message || "Mot de passe réinitialisé.");
+        onNotice(UI_MESSAGES.passwordReset);
         setLoginForm((prev) => ({
           ...prev,
           username: forgotPasswordForm.username.trim() || prev.username,
@@ -247,7 +243,7 @@ export function useAuthFlows({
 
       const activationToken = firstConnectionForm.temporaryPassword.trim();
       if (!activationToken && !firstConnectionForm.username.trim()) {
-        onError("Identifiant requis pour renvoyer le lien d’activation.");
+        onError(UI_MESSAGES.activationUsernameRequired);
         return;
       }
       if (!activationToken) {
@@ -266,19 +262,18 @@ export function useAuthFlows({
             onError(await parseError(response));
             return;
           }
-          const payload = (await response.json()) as AuthMessageResponse;
-          onNotice(payload.message || "Si un compte en attente correspond à ces informations, un email d’activation a été envoyé.");
+          onNotice(UI_MESSAGES.activationRequested);
         } finally {
           setAuthAssistLoading(false);
         }
         return;
       }
       if (!isStrongPassword(firstConnectionForm.newPassword)) {
-        onError(STRONG_PASSWORD_HINT);
+        onError(UI_MESSAGES.passwordPolicy);
         return;
       }
       if (firstConnectionForm.newPassword !== firstConnectionForm.confirmPassword) {
-        onError("La confirmation du mot de passe ne correspond pas.");
+        onError(UI_MESSAGES.passwordMismatch);
         return;
       }
 
@@ -298,8 +293,7 @@ export function useAuthFlows({
           return;
         }
 
-        const payload = (await response.json()) as AuthMessageResponse;
-        onNotice(payload.message || "Compte activé. Vous pouvez maintenant vous connecter.");
+        onNotice(UI_MESSAGES.accountActivated);
         setLoginForm((prev) => ({
           ...prev,
           username: firstConnectionForm.username.trim(),
@@ -335,8 +329,8 @@ export function useAuthFlows({
       onError(null);
       onNotice(null);
       const errors: FieldErrors = {};
-      if (!loginForm.username.trim()) errors.username = "Nom utilisateur requis.";
-      if (!loginForm.password || loginForm.password.length < 8) errors.password = "Minimum 8 caracteres.";
+      if (!loginForm.username.trim()) errors.username = UI_MESSAGES.fieldRequired;
+      if (!loginForm.password || loginForm.password.length < 8) errors.password = UI_MESSAGES.passwordMinimum;
       setLoginErrors(errors);
       if (hasFieldErrors(errors)) {
         focusFirstInlineErrorField();
@@ -379,7 +373,7 @@ export function useAuthFlows({
         } else {
           localStorage.removeItem(LOGIN_HINT_STORAGE_KEY);
         }
-        onNotice("Connexion reussie.");
+        onNotice(UI_MESSAGES.loginSuccess);
         setTab(ROLE_HOME_SCREEN[role] || "dashboard");
       } finally {
         setLoadingAuth(false);
@@ -415,7 +409,7 @@ export function useAuthFlows({
     setAuthAssistMode("none");
     setResetPasswordForm({ token: "", newPassword: "", confirmPassword: "" });
     clearData();
-    onNotice("Deconnexion reussie.");
+    onNotice(UI_MESSAGES.logoutSuccess);
     onError(null);
   }, [clearData, clearSession, ensureApiAvailable, onError, onNotice, performPublicRequest, sessionRef]);
 

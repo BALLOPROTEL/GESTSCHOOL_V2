@@ -6,6 +6,8 @@ import {
   PERMISSION_RESOURCE_VALUES,
   ROLE_LABELS
 } from "../../../shared/constants/domain";
+import { UI_MESSAGES } from "../../../shared/i18n";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type {
   AccountType,
   FieldErrors,
@@ -178,7 +180,7 @@ export const useIamManagement = ({
     try {
       setUsersAndNotify(await fetchIamUsers(api));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de chargement des utilisateurs.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     }
   }, [api, initialUsers, onError, remoteEnabled, setUsersAndNotify]);
 
@@ -193,7 +195,7 @@ export const useIamManagement = ({
       setAccountTeachers(references.teachers);
       setAccountParents(references.parents);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de chargement des rattachements IAM.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     }
   }, [api, onError, remoteEnabled]);
 
@@ -206,7 +208,7 @@ export const useIamManagement = ({
       try {
         setRolePermissions(await fetchRolePermissions(api, role));
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur de chargement des droits.");
+        onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       }
     },
     [api, onError, remoteEnabled, rolePermissionTarget]
@@ -312,32 +314,32 @@ export const useIamManagement = ({
     event.preventDefault();
     onError(null);
     if (!remoteEnabled) {
-      onNotice(translate("Mode aperçu local : les comptes ne sont pas persistés."));
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
     const errors: FieldErrors = {};
-    if (!userForm.username.trim()) errors.username = "Identifiant obligatoire.";
+    if (!userForm.username.trim()) errors.username = UI_MESSAGES.validationError;
     if (!compatibleUserRoles.includes(userForm.roleId)) {
-      errors.roleId = "Rôle incompatible avec le type de personne.";
+      errors.roleId = UI_MESSAGES.validationError;
     }
     if (userForm.accountType === "STAFF" && !userForm.staffDisplayName.trim()) {
-      errors.staffDisplayName = "Nom complet requis.";
+      errors.staffDisplayName = UI_MESSAGES.validationError;
     }
     if (userForm.accountType === "TEACHER" && !userForm.teacherId) {
-      errors.teacherId = "Fiche enseignant requise.";
+      errors.teacherId = UI_MESSAGES.validationError;
     }
     if (userForm.accountType === "PARENT" && !userForm.parentId) {
-      errors.parentId = "Fiche parent requise.";
+      errors.parentId = UI_MESSAGES.validationError;
     }
     if (userForm.accountType === "STUDENT" && !userForm.studentId) {
-      errors.studentId = "Fiche élève requise.";
+      errors.studentId = UI_MESSAGES.validationError;
     }
     if (selectedBusinessAlreadyLinked) {
-      errors.businessProfile = "Cette fiche métier est déjà rattachée à un autre compte.";
+      errors.businessProfile = UI_MESSAGES.conflict;
     }
     if (selectedBusinessIsInactive) {
-      errors.businessProfile = "La fiche métier doit être active pour créer un compte actif.";
+      errors.businessProfile = UI_MESSAGES.validationError;
     }
     setUserErrors(errors);
     if (hasFieldErrors(errors)) {
@@ -371,20 +373,20 @@ export const useIamManagement = ({
       const savedUser = await upsertIamUser(api, editingUserId, payload);
       setUserErrors({});
       if (editingUserId) {
-        onNotice(translate("Utilisateur mis à jour."));
+        onNotice(UI_MESSAGES.updated);
       } else if (savedUser.activationEmailSent) {
-        onNotice(translate("Utilisateur créé. Un email d’activation a été envoyé."));
+        onNotice(UI_MESSAGES.userCreatedAndActivationSent);
       } else if (savedUser.activationEmailError) {
-        onNotice(translate("Utilisateur créé, mais l’email d’activation n’a pas pu être envoyé. Vous pouvez le renvoyer."));
+        onNotice(UI_MESSAGES.userCreatedActivationFailed);
       } else {
-        onNotice(translate("Utilisateur créé."));
+        onNotice(UI_MESSAGES.created);
       }
       setIamWorkflowStep("accounts");
       resetUserForm();
       await loadUsers();
       await loadIamAccountReferences();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'enregistrement utilisateur.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
@@ -428,9 +430,9 @@ export const useIamManagement = ({
   };
 
   const deleteUserAccount = async (id: string): Promise<void> => {
-    if (!window.confirm(translate("Supprimer ce compte utilisateur ? Cette action désactive le compte et le retire de la liste active."))) return;
+    if (!window.confirm(translate(UI_MESSAGES.userDeleteConfirm))) return;
     if (!remoteEnabled) {
-      onNotice(translate("Mode aperçu local : suppression non persistée."));
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
@@ -438,21 +440,21 @@ export const useIamManagement = ({
       if (editingUserId === id) {
         resetUserForm();
       }
-      onNotice(translate("Utilisateur supprimé."));
+      onNotice(UI_MESSAGES.deleted);
       await loadUsers();
       await loadIamAccountReferences();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de suppression utilisateur.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
     }
   };
 
   const toggleUserAccountStatus = async (item: UserAccount, isActive: boolean): Promise<void> => {
     const confirmation = isActive
-      ? "Réactiver ce compte utilisateur ?"
-      : "Désactiver ce compte utilisateur ?";
+      ? UI_MESSAGES.userActivateConfirm
+      : UI_MESSAGES.userDeactivateConfirm;
     if (!window.confirm(translate(confirmation))) return;
     if (!remoteEnabled) {
-      onNotice(translate(isActive ? "Mode aperçu local : réactivation non persistée." : "Mode aperçu local : désactivation non persistée."));
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -462,33 +464,33 @@ export const useIamManagement = ({
       if (editingUserId === updatedUser.id) {
         setUserForm((previous) => ({ ...previous, isActive: updatedUser.isActive }));
       }
-      onNotice(translate(isActive ? "Compte réactivé." : "Compte désactivé."));
+      onNotice(isActive ? UI_MESSAGES.accountReactivated : UI_MESSAGES.accountDeactivated);
       await loadUsers();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de mise à jour du statut utilisateur.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
   const resendUserActivation = async (item: UserAccount): Promise<void> => {
-    if (!window.confirm(translate("Renvoyer l’email d’activation à cet utilisateur ?"))) return;
+    if (!window.confirm(translate(UI_MESSAGES.activationResendConfirm))) return;
     if (!remoteEnabled) {
-      onNotice(translate("Mode aperçu local : activation non envoyée."));
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
     try {
-      const delivery = await sendIamUserActivation(api, item.id);
-      onNotice(translate(delivery.message || "Email d’activation envoyé."));
+      await sendIamUserActivation(api, item.id);
+      onNotice(UI_MESSAGES.activationSent);
       await loadUsers();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d’envoi de l’activation.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
   const saveCurrentRolePermissions = async (): Promise<void> => {
     onError(null);
     if (!remoteEnabled) {
-      onNotice(translate("Mode aperçu local : droits non persistés."));
+      onNotice(UI_MESSAGES.previewNotPersisted);
       setIamWorkflowStep("permissions");
       return;
     }
@@ -503,10 +505,10 @@ export const useIamManagement = ({
 
     try {
       setRolePermissions(await saveRolePermissions(api, rolePermissionTarget, permissions));
-      onNotice(translate(`Droits ${formatRoleLabel(rolePermissionTarget)} mis à jour.`));
+      onNotice(UI_MESSAGES.saved);
       setIamWorkflowStep("permissions");
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'enregistrement des droits.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 

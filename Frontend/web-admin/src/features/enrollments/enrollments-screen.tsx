@@ -63,8 +63,12 @@ const formatAcademicTrackLabel = (value?: string): string =>
 const formatPlacementTypeLabel = (isPrimary: boolean): string =>
   isPrimary ? "Placement principal" : "Placement secondaire";
 
-const fieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
-  errors[key] ? <span className="field-error">{errors[key]}</span> : null;
+const fieldError = (
+  errors: FieldErrors,
+  key: string,
+  translate: (source: string) => string
+): JSX.Element | null =>
+  errors[key] ? <span className="field-error">{translate(errors[key])}</span> : null;
 
 const renderRequiredLabel = (label: string): JSX.Element => (
   <span className="field-label-required">
@@ -273,7 +277,7 @@ export function EnrollmentsScreen({
                   </option>
                 ))}
               </select>
-              {fieldError(enrollmentErrors, "schoolYearId")}
+              {fieldError(enrollmentErrors, "schoolYearId", t)}
             </label>
             <label>
               {renderRequiredLabel("Classe")}
@@ -299,7 +303,7 @@ export function EnrollmentsScreen({
                   </option>
                 ))}
               </select>
-              {fieldError(enrollmentErrors, "classId")}
+              {fieldError(enrollmentErrors, "classId", t)}
             </label>
             <label>
               {renderRequiredLabel("Cursus")}
@@ -316,7 +320,7 @@ export function EnrollmentsScreen({
                   </option>
                 ))}
               </select>
-              {fieldError(enrollmentErrors, "track")}
+              {fieldError(enrollmentErrors, "track", t)}
             </label>
             <label>
               {renderRequiredLabel("Élève")}
@@ -334,7 +338,7 @@ export function EnrollmentsScreen({
                   </option>
                 ))}
               </select>
-              {fieldError(enrollmentErrors, "studentId")}
+              {fieldError(enrollmentErrors, "studentId", t)}
             </label>
             <label>
               {renderRequiredLabel("Date d'inscription")}
@@ -344,7 +348,7 @@ export function EnrollmentsScreen({
                 onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, enrollmentDate: event.target.value }))}
                 required
               />
-              {fieldError(enrollmentErrors, "enrollmentDate")}
+              {fieldError(enrollmentErrors, "enrollmentDate", t)}
             </label>
             <label>
               {renderRequiredLabel("Statut")}
@@ -359,7 +363,7 @@ export function EnrollmentsScreen({
                   </option>
                 ))}
               </select>
-              {fieldError(enrollmentErrors, "enrollmentStatus")}
+              {fieldError(enrollmentErrors, "enrollmentStatus", t)}
             </label>
             <div className="notice-card notice-info enrollments-v3-form-note">
               <strong>Placement académique</strong>

@@ -1,6 +1,8 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { WorkflowGuide } from "../../shared/components/workflow-guide";
+import { translateUiMessage, UI_MESSAGES } from "../../shared/i18n";
+import { toUiErrorMessage } from "../../shared/services/api-errors";
 import {
   createAttendance,
   createAttendanceAttachment,
@@ -58,11 +60,8 @@ type RowAction = {
   onSelect: () => void;
 };
 
-const loadWarningText = (error: unknown, fallback: string): string =>
-  error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
-
 export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
-  const { t: tr } = useI18n();
+  const { language, t: tr } = useI18n();
   const {
     api,
     students,
@@ -252,7 +251,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         setAttendanceRecords(await fetchAttendance(api, filters));
         clearLoadWarning("attendance");
       } catch (error) {
-        const message = loadWarningText(error, "Erreur lors du chargement des absences.");
+        const message = toUiErrorMessage(error, UI_MESSAGES.loadError);
         setAttendanceRecords([]);
         rememberLoadWarning("attendance", message);
         if (options.notify) onError(message);
@@ -272,7 +271,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         setAttendanceAttachments(await fetchAttendanceAttachments(api, attendanceId));
         clearLoadWarning("attachments");
       } catch (error) {
-        const message = loadWarningText(error, "Erreur lors du chargement des justificatifs.");
+        const message = toUiErrorMessage(error, UI_MESSAGES.loadError);
         setAttendanceAttachments([]);
         rememberLoadWarning("attachments", message);
         if (options.notify) onError(message);
@@ -297,7 +296,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         setTimetableSlots(await fetchTimetableSlots(api, filters));
         clearLoadWarning("timetable");
       } catch (error) {
-        const message = loadWarningText(error, "Erreur lors du chargement de l emploi du temps.");
+        const message = toUiErrorMessage(error, UI_MESSAGES.loadError);
         setTimetableSlots([]);
         rememberLoadWarning("timetable", message);
         if (options.notify) onError(message);
@@ -312,7 +311,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         setTimetableGrid(await fetchTimetableGrid(api, filters));
         clearLoadWarning("timetable");
       } catch (error) {
-        const message = loadWarningText(error, "Erreur lors du chargement de la grille d emploi du temps.");
+        const message = toUiErrorMessage(error, UI_MESSAGES.loadError);
         setTimetableGrid(null);
         rememberLoadWarning("timetable", message);
         if (options.notify) onError(message);
@@ -328,7 +327,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       setTeacherAssignments(references.teacherAssignments);
       clearLoadWarning("timetable");
     } catch (error) {
-      const message = loadWarningText(error, "Erreur lors du chargement des references emploi du temps.");
+      const message = toUiErrorMessage(error, UI_MESSAGES.loadError);
       setRooms([]);
       setTeacherAssignments([]);
       rememberLoadWarning("timetable", message);
@@ -342,7 +341,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         setNotifications(await fetchNotifications(api, filters));
         clearLoadWarning("notifications");
       } catch (error) {
-        const message = loadWarningText(error, "Erreur lors du chargement des notifications.");
+        const message = toUiErrorMessage(error, UI_MESSAGES.loadError);
         setNotifications([]);
         rememberLoadWarning("notifications", message);
         if (options.notify) onError(message);
@@ -378,7 +377,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
   const rejectReadOnly = (): boolean => {
     if (!readOnly) return false;
-    onError("Action non autorisee en mode lecture seule.");
+    onError(UI_MESSAGES.readOnly);
     return true;
   };
 
@@ -397,11 +396,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         reason: attendanceForm.reason || undefined
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la creation de l absence.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
 
-    onNotice("Absence enregistree.");
+    onNotice(UI_MESSAGES.absenceSaved);
     setAttendanceForm((prev) => ({ ...prev, reason: "" }));
     setSelectedAttendanceId(created.id);
     await loadAttendance(attendanceFilters, { notify: true });
@@ -410,15 +409,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
   const deleteAttendance = async (id: string): Promise<void> => {
     if (rejectReadOnly()) return;
-    if (!window.confirm("Supprimer cette ligne d'absence ?")) return;
+    if (!window.confirm(tr(UI_MESSAGES.absenceDeleteConfirm))) return;
     try {
       await deleteAttendanceById(api, id);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la suppression de l absence.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
       return;
     }
 
-    onNotice("Absence supprimee.");
+    onNotice(UI_MESSAGES.absenceDeleted);
     await loadAttendance(attendanceFilters, { notify: true });
     await loadNotifications(notificationFilters, { notify: true });
   };
@@ -442,23 +441,23 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     if (rejectReadOnly()) return;
 
     if (!selectedAttendanceId) {
-      onError("Selectionner une ligne d'absence pour ajouter un justificatif.");
+      onError(UI_MESSAGES.selectAbsence);
       return;
     }
 
     if (!attachmentFile) {
-      onError("Sélectionner un fichier justificatif.");
+      onError(UI_MESSAGES.selectFile);
       return;
     }
 
     try {
       await createAttendanceAttachment(api, selectedAttendanceId, attachmentFile);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de l ajout du justificatif.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.uploadError));
       return;
     }
 
-    onNotice("Justificatif ajoute.");
+    onNotice(UI_MESSAGES.attachmentSaved);
     setAttachmentFile(null);
     form.reset();
     await loadAttendance(attendanceFilters, { notify: true });
@@ -471,18 +470,18 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       return;
     }
 
-    if (!window.confirm("Supprimer ce justificatif ?")) {
+    if (!window.confirm(tr(UI_MESSAGES.attachmentDeleteConfirm))) {
       return;
     }
 
     try {
       await deleteAttendanceAttachment(api, selectedAttendanceId, attachmentId);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la suppression du justificatif.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
       return;
     }
 
-    onNotice("Justificatif supprime.");
+    onNotice(UI_MESSAGES.attachmentDeleted);
     await loadAttendance(attendanceFilters, { notify: true });
     await loadAttendanceAttachments(selectedAttendanceId, { notify: true });
   };
@@ -492,7 +491,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     try {
       await downloadAttendanceAttachment(api, selectedAttendanceId, attachment);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Téléchargement du justificatif impossible.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.downloadError));
     }
   };
 
@@ -502,7 +501,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     if (rejectReadOnly()) return;
 
     if (!selectedAttendanceId) {
-      onError("Selectionner une ligne d'absence a valider.");
+      onError(UI_MESSAGES.selectAbsence);
       return;
     }
 
@@ -513,14 +512,14 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         comment: validationForm.comment.trim() || undefined
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la validation du justificatif.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
     setValidationForm({
       status: updated.justificationStatus,
       comment: updated.validationComment || ""
     });
-    onNotice("Validation mise a jour.");
+    onNotice(UI_MESSAGES.validationUpdated);
     await loadAttendance(attendanceFilters, { notify: true });
     await loadAttendanceAttachments(selectedAttendanceId, { notify: true });
   };
@@ -531,7 +530,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     if (rejectReadOnly()) return;
 
     if (bulkAttendanceForm.studentIds.length === 0) {
-      onError("Selectionner au moins un eleve pour la saisie en masse.");
+      onError(UI_MESSAGES.selectStudent);
       return;
     }
 
@@ -547,15 +546,17 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         }))
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la saisie de masse.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice(
-      `Saisie de masse terminee: ${payload.createdCount} cree(s), ${payload.updatedCount} maj, ${payload.errorCount} erreur(s).`
-    );
+    onNotice(translateUiMessage(language, UI_MESSAGES.bulkAttendanceCompleted, {
+      created: payload.createdCount,
+      updated: payload.updatedCount,
+      errors: payload.errorCount
+    }));
 
     if (payload.errorCount > 0 && payload.errors[0]) {
-      onError(`Premier echec: ${payload.errors[0].studentId} - ${payload.errors[0].message}`);
+      onError(UI_MESSAGES.bulkAttendanceHasErrors);
     }
 
     setBulkAttendanceForm((prev) => ({ ...prev, studentIds: [], reason: "" }));
@@ -578,11 +579,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         teacherAssignmentId: timetableForm.teacherAssignmentId || undefined
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la creation du cours.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
 
-    onNotice("Cours ajoute a l'emploi du temps.");
+    onNotice(UI_MESSAGES.lessonSaved);
     setTimetableForm((prev) => ({ ...prev, roomId: "", teacherAssignmentId: "" }));
     await loadTimetableSlots(timetableFilters, { notify: true });
     await loadTimetableGrid(timetableFilters, { notify: true });
@@ -590,15 +591,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
   const deleteTimetableSlot = async (id: string): Promise<void> => {
     if (rejectReadOnly()) return;
-    if (!window.confirm("Supprimer ce cours ?")) return;
+    if (!window.confirm(tr(UI_MESSAGES.lessonDeleteConfirm))) return;
     try {
       await deleteTimetableSlotById(api, id);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la suppression du cours.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
       return;
     }
 
-    onNotice("Cours supprime.");
+    onNotice(UI_MESSAGES.lessonDeleted);
     await loadTimetableSlots(timetableFilters, { notify: true });
     await loadTimetableGrid(timetableFilters, { notify: true });
   };
@@ -634,11 +635,11 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           : undefined
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la creation de la notification.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
 
-    onNotice("Notification creee.");
+    onNotice(UI_MESSAGES.notificationCreated);
     setNotificationForm((prev) => ({
       ...prev,
       title: "",
@@ -655,10 +656,10 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     try {
       payload = await dispatchPendingSchoolLifeNotifications(api, 150);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de l envoi des notifications.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice(`${payload.dispatchedCount} notification(s) envoyee(s).`);
+    onNotice(translateUiMessage(language, UI_MESSAGES.notificationsDispatched, { count: payload.dispatchedCount }));
     await loadNotifications(notificationFilters, { notify: true });
   };
   const cancelPendingNotification = async (id: string): Promise<void> => {
@@ -666,25 +667,25 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     try {
       await cancelNotification(api, id);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la mise a jour de la notification.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
 
-    onNotice("Notification annulee.");
+    onNotice(UI_MESSAGES.notificationCancelled);
     await loadNotifications(notificationFilters, { notify: true });
   };
   const replayFailedNotification = async (id: string): Promise<void> => {
     if (rejectReadOnly()) return;
-    const reason = window.prompt("Motif de la relance (obligatoire)")?.trim();
+    const reason = window.prompt(tr(UI_MESSAGES.replayReasonPrompt))?.trim();
     if (!reason) return;
     try {
       await replayNotification(api, id, reason);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur lors de la relance de la notification.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
 
-    onNotice("Notification replacee dans la file d envoi.");
+    onNotice(UI_MESSAGES.notificationRetried);
     await loadNotifications(notificationFilters, { notify: true });
   };
 

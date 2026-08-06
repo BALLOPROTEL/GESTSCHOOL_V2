@@ -15,6 +15,588 @@ export const UI_LANGUAGE_META: Record<UiLanguage, UiLanguageMeta> = {
   ar: { label: "Arabe", locale: "ar", iconSrc: "/arabe.png", dir: "rtl" }
 };
 
+type UiMessageTranslations = Record<UiLanguage, string>;
+
+const UI_MESSAGE_CATALOG = {
+  "ui.toast.attention": { fr: "Attention", en: "Warning", ar: "تنبيه" },
+  "ui.toast.information": { fr: "Information", en: "Information", ar: "معلومة" },
+  "ui.toast.close": { fr: "Fermer", en: "Close", ar: "إغلاق" },
+  "ui.toast.closeError": {
+    fr: "Fermer la notification d'erreur",
+    en: "Close error notification",
+    ar: "إغلاق إشعار الخطأ"
+  },
+  "ui.toast.closeNotification": {
+    fr: "Fermer la notification",
+    en: "Close notification",
+    ar: "إغلاق الإشعار"
+  },
+  "ui.error.apiUnavailable": {
+    fr: "API indisponible. Reconnexion en cours...",
+    en: "The API is unavailable. Reconnecting...",
+    ar: "واجهة البرمجة غير متاحة. جارٍ إعادة الاتصال..."
+  },
+  "ui.error.badRequest": {
+    fr: "La demande est invalide. Vérifiez les informations saisies.",
+    en: "The request is invalid. Check the information entered.",
+    ar: "الطلب غير صالح. تحقق من المعلومات المدخلة."
+  },
+  "ui.error.authenticationRequired": {
+    fr: "Votre session a expiré. Reconnectez-vous.",
+    en: "Your session has expired. Sign in again.",
+    ar: "انتهت جلستك. يرجى تسجيل الدخول مجددًا."
+  },
+  "ui.error.invalidCredentials": {
+    fr: "Identifiant ou mot de passe incorrect.",
+    en: "Incorrect username or password.",
+    ar: "اسم المستخدم أو كلمة المرور غير صحيحة."
+  },
+  "ui.error.forbidden": {
+    fr: "Vous n'avez pas l'autorisation d'effectuer cette action.",
+    en: "You are not allowed to perform this action.",
+    ar: "ليست لديك صلاحية تنفيذ هذا الإجراء."
+  },
+  "ui.error.notFound": {
+    fr: "La ressource demandée est introuvable.",
+    en: "The requested resource could not be found.",
+    ar: "تعذر العثور على المورد المطلوب."
+  },
+  "ui.error.conflict": {
+    fr: "Cette action entre en conflit avec des données existantes.",
+    en: "This action conflicts with existing data.",
+    ar: "يتعارض هذا الإجراء مع بيانات موجودة."
+  },
+  "ui.error.rateLimited": {
+    fr: "Trop de tentatives. Réessayez dans quelques instants.",
+    en: "Too many attempts. Try again in a few moments.",
+    ar: "محاولات كثيرة جدًا. أعد المحاولة بعد قليل."
+  },
+  "ui.error.server": {
+    fr: "Le service rencontre un problème temporaire. Réessayez plus tard.",
+    en: "The service is temporarily unavailable. Try again later.",
+    ar: "تواجه الخدمة مشكلة مؤقتة. أعد المحاولة لاحقًا."
+  },
+  "ui.error.network": {
+    fr: "Connexion au service impossible. Vérifiez votre réseau.",
+    en: "Unable to connect to the service. Check your network.",
+    ar: "تعذر الاتصال بالخدمة. تحقق من اتصال الشبكة."
+  },
+  "ui.error.unexpected": {
+    fr: "Une erreur inattendue est survenue.",
+    en: "An unexpected error occurred.",
+    ar: "حدث خطأ غير متوقع."
+  },
+  "ui.error.validation": {
+    fr: "Certains champs sont invalides. Vérifiez le formulaire.",
+    en: "Some fields are invalid. Check the form.",
+    ar: "بعض الحقول غير صالحة. تحقق من النموذج."
+  },
+  "ui.error.load": {
+    fr: "Impossible de charger les données.",
+    en: "Unable to load the data.",
+    ar: "تعذر تحميل البيانات."
+  },
+  "ui.error.save": {
+    fr: "Impossible d'enregistrer les modifications.",
+    en: "Unable to save the changes.",
+    ar: "تعذر حفظ التغييرات."
+  },
+  "ui.error.delete": {
+    fr: "Impossible de supprimer cet élément.",
+    en: "Unable to delete this item.",
+    ar: "تعذر حذف هذا العنصر."
+  },
+  "ui.error.download": {
+    fr: "Téléchargement impossible.",
+    en: "Unable to download the file.",
+    ar: "تعذر تنزيل الملف."
+  },
+  "ui.error.upload": {
+    fr: "Envoi du fichier impossible.",
+    en: "Unable to upload the file.",
+    ar: "تعذر رفع الملف."
+  },
+  "ui.error.readOnly": {
+    fr: "Action non autorisée en mode lecture seule.",
+    en: "This action is not allowed in read-only mode.",
+    ar: "هذا الإجراء غير مسموح في وضع القراءة فقط."
+  },
+  "ui.validation.required": {
+    fr: "Ce champ est requis.",
+    en: "This field is required.",
+    ar: "هذا الحقل مطلوب."
+  },
+  "ui.validation.invalid": {
+    fr: "La valeur saisie est invalide.",
+    en: "The entered value is invalid.",
+    ar: "القيمة المدخلة غير صالحة."
+  },
+  "ui.validation.passwordMinimum": {
+    fr: "Le mot de passe doit contenir au moins 8 caractères.",
+    en: "The password must contain at least 8 characters.",
+    ar: "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل."
+  },
+  "ui.preview.disabled": {
+    fr: "Le mode aperçu local est désactivé en production.",
+    en: "Local preview mode is disabled in production.",
+    ar: "وضع المعاينة المحلية معطل في بيئة الإنتاج."
+  },
+  "ui.preview.notPersisted": {
+    fr: "Mode aperçu local : modification non enregistrée.",
+    en: "Local preview mode: change not saved.",
+    ar: "وضع المعاينة المحلية: لم يتم حفظ التغيير."
+  },
+  "ui.auth.forgotUsernameRequired": {
+    fr: "Renseignez votre identifiant pour recevoir le lien de réinitialisation.",
+    en: "Enter your username to receive the reset link.",
+    ar: "أدخل اسم المستخدم لتلقي رابط إعادة التعيين."
+  },
+  "ui.auth.resetRequested": {
+    fr: "Si un compte correspond à ces informations, un email de réinitialisation a été envoyé.",
+    en: "If an account matches this information, a password reset email has been sent.",
+    ar: "إذا وُجد حساب يطابق هذه المعلومات، فقد تم إرسال رسالة لإعادة تعيين كلمة المرور."
+  },
+  "ui.auth.resetLinkInvalid": {
+    fr: "Lien de réinitialisation invalide ou expiré.",
+    en: "The reset link is invalid or has expired.",
+    ar: "رابط إعادة التعيين غير صالح أو منتهي الصلاحية."
+  },
+  "ui.auth.passwordPolicy": {
+    fr: "Le mot de passe doit contenir au moins 12 caractères, avec une majuscule, une minuscule, un chiffre et un caractère spécial.",
+    en: "The password must contain at least 12 characters, including uppercase, lowercase, a number, and a special character.",
+    ar: "يجب أن تتكون كلمة المرور من 12 حرفًا على الأقل، وتتضمن حرفًا كبيرًا وآخر صغيرًا ورقمًا ورمزًا خاصًا."
+  },
+  "ui.auth.passwordMismatch": {
+    fr: "La confirmation du mot de passe ne correspond pas.",
+    en: "The password confirmation does not match.",
+    ar: "تأكيد كلمة المرور غير مطابق."
+  },
+  "ui.auth.passwordReset": {
+    fr: "Mot de passe réinitialisé.",
+    en: "Password reset successfully.",
+    ar: "تمت إعادة تعيين كلمة المرور."
+  },
+  "ui.auth.activationUsernameRequired": {
+    fr: "Identifiant requis pour renvoyer le lien d'activation.",
+    en: "A username is required to resend the activation link.",
+    ar: "اسم المستخدم مطلوب لإعادة إرسال رابط التفعيل."
+  },
+  "ui.auth.activationRequested": {
+    fr: "Si un compte en attente correspond à ces informations, un email d'activation a été envoyé.",
+    en: "If a pending account matches this information, an activation email has been sent.",
+    ar: "إذا وُجد حساب معلق يطابق هذه المعلومات، فقد تم إرسال رسالة التفعيل."
+  },
+  "ui.auth.accountActivated": {
+    fr: "Compte activé. Vous pouvez maintenant vous connecter.",
+    en: "Account activated. You can now sign in.",
+    ar: "تم تفعيل الحساب. يمكنك الآن تسجيل الدخول."
+  },
+  "ui.auth.loginSuccess": {
+    fr: "Connexion réussie.",
+    en: "Signed in successfully.",
+    ar: "تم تسجيل الدخول بنجاح."
+  },
+  "ui.auth.logoutSuccess": {
+    fr: "Déconnexion réussie.",
+    en: "Signed out successfully.",
+    ar: "تم تسجيل الخروج بنجاح."
+  },
+  "ui.confirm.delete": {
+    fr: "Supprimer cet élément ?",
+    en: "Delete this item?",
+    ar: "هل تريد حذف هذا العنصر؟"
+  },
+  "ui.confirm.archive": {
+    fr: "Archiver cet élément ?",
+    en: "Archive this item?",
+    ar: "هل تريد أرشفة هذا العنصر؟"
+  },
+  "ui.confirm.cancel": {
+    fr: "Confirmer l'annulation ?",
+    en: "Confirm cancellation?",
+    ar: "هل تريد تأكيد الإلغاء؟"
+  },
+  "ui.confirm.continueWarning": {
+    fr: "Des informations sont manquantes. Continuer malgré cet avertissement ?",
+    en: "Some information is missing. Continue despite this warning?",
+    ar: "بعض المعلومات مفقودة. هل تريد المتابعة رغم هذا التحذير؟"
+  },
+  "ui.success.saved": { fr: "Modifications enregistrées.", en: "Changes saved.", ar: "تم حفظ التغييرات." },
+  "ui.success.created": { fr: "Élément créé.", en: "Item created.", ar: "تم إنشاء العنصر." },
+  "ui.success.updated": { fr: "Élément mis à jour.", en: "Item updated.", ar: "تم تحديث العنصر." },
+  "ui.success.deleted": { fr: "Élément supprimé.", en: "Item deleted.", ar: "تم حذف العنصر." },
+  "ui.success.archived": { fr: "Élément archivé.", en: "Item archived.", ar: "تمت أرشفة العنصر." },
+  "ui.success.uploaded": { fr: "Fichier ajouté.", en: "File uploaded.", ar: "تمت إضافة الملف." },
+  "ui.success.downloadReady": { fr: "Fichier prêt au téléchargement.", en: "File ready to download.", ar: "الملف جاهز للتنزيل." },
+  "ui.success.exportReady": { fr: "Export généré.", en: "Export generated.", ar: "تم إنشاء ملف التصدير." },
+  "ui.enrollment.classWithoutLevel": {
+    fr: "La classe sélectionnée n'a pas de niveau associé.",
+    en: "The selected class has no associated level.",
+    ar: "لا يوجد مستوى مرتبط بالصف المحدد."
+  },
+  "ui.enrollment.deleteConfirm": {
+    fr: "Supprimer cette inscription ?",
+    en: "Delete this enrollment?",
+    ar: "هل تريد حذف هذا التسجيل؟"
+  },
+  "ui.finance.invoiceCancelConfirm": {
+    fr: "Annuler cette facture ? Cette action conserve la trace financière.",
+    en: "Cancel this invoice? Its financial record will be retained.",
+    ar: "هل تريد إلغاء هذه الفاتورة؟ سيُحتفظ بسجلها المالي."
+  },
+  "ui.finance.invoiceCancelled": { fr: "Facture annulée.", en: "Invoice cancelled.", ar: "تم إلغاء الفاتورة." },
+  "ui.finance.paymentSaved": { fr: "Paiement enregistré.", en: "Payment recorded.", ar: "تم تسجيل الدفع." },
+  "ui.finance.receiptUnavailable": {
+    fr: "Le reçu PDF est indisponible en mode aperçu local.",
+    en: "The PDF receipt is unavailable in local preview mode.",
+    ar: "إيصال PDF غير متاح في وضع المعاينة المحلية."
+  },
+  "ui.finance.onlinePaymentNeedsApi": {
+    fr: "Le paiement en ligne nécessite une API connectée.",
+    en: "Online payment requires a connected API.",
+    ar: "يتطلب الدفع عبر الإنترنت اتصالًا بواجهة البرمجة."
+  },
+  "ui.finance.onlinePaymentPending": {
+    fr: "Paiement en ligne initié. Statut : en attente.",
+    en: "Online payment initiated. Status: pending.",
+    ar: "بدأ الدفع عبر الإنترنت. الحالة: قيد الانتظار."
+  },
+  "ui.grades.deleteConfirm": {
+    fr: "Supprimer cette note ? Les moyennes et bulletins associés seront mis à jour.",
+    en: "Delete this grade? Related averages and report cards will be updated.",
+    ar: "هل تريد حذف هذه الدرجة؟ سيتم تحديث المعدلات وكشوف الدرجات المرتبطة."
+  },
+  "ui.grades.contextRequired": {
+    fr: "Sélectionnez une année scolaire, une classe et une période.",
+    en: "Select a school year, class, and period.",
+    ar: "حدد السنة الدراسية والصف والفترة."
+  },
+  "ui.grades.contextMismatch": {
+    fr: "La classe et la période doivent appartenir à l'année scolaire sélectionnée.",
+    en: "The class and period must belong to the selected school year.",
+    ar: "يجب أن ينتمي الصف والفترة إلى السنة الدراسية المحددة."
+  },
+  "ui.grades.noGrades": {
+    fr: "Aucune note disponible pour calculer les moyennes.",
+    en: "No grades are available to calculate averages.",
+    ar: "لا توجد درجات متاحة لحساب المعدلات."
+  },
+  "ui.grades.averagesCalculated": {
+    fr: "Moyennes et rangs calculés.",
+    en: "Averages and rankings calculated.",
+    ar: "تم حساب المعدلات والترتيب."
+  },
+  "ui.grades.reportGenerated": { fr: "Bulletin généré.", en: "Report card generated.", ar: "تم إنشاء كشف الدرجات." },
+  "ui.iam.deleteConfirm": {
+    fr: "Supprimer ce compte utilisateur ? Le compte sera désactivé et retiré de la liste active.",
+    en: "Delete this user account? It will be disabled and removed from the active list.",
+    ar: "هل تريد حذف حساب المستخدم؟ سيتم تعطيله وإزالته من القائمة النشطة."
+  },
+  "ui.iam.activationResendConfirm": {
+    fr: "Renvoyer l'email d'activation à cet utilisateur ?",
+    en: "Resend the activation email to this user?",
+    ar: "هل تريد إعادة إرسال رسالة التفعيل إلى هذا المستخدم؟"
+  },
+  "ui.iam.activationSent": {
+    fr: "Email d'activation envoyé.",
+    en: "Activation email sent.",
+    ar: "تم إرسال رسالة التفعيل."
+  },
+  "ui.iam.userCreatedAndActivationSent": {
+    fr: "Utilisateur créé. Un email d'activation a été envoyé.",
+    en: "User created. An activation email has been sent.",
+    ar: "تم إنشاء المستخدم وإرسال رسالة التفعيل."
+  },
+  "ui.iam.userCreatedActivationFailed": {
+    fr: "Utilisateur créé, mais l'email d'activation n'a pas pu être envoyé. Vous pouvez le renvoyer.",
+    en: "User created, but the activation email could not be sent. You can resend it.",
+    ar: "تم إنشاء المستخدم، لكن تعذر إرسال رسالة التفعيل. يمكنك إعادة إرسالها."
+  },
+  "ui.iam.activateConfirm": {
+    fr: "Réactiver ce compte utilisateur ?",
+    en: "Reactivate this user account?",
+    ar: "هل تريد إعادة تفعيل حساب المستخدم؟"
+  },
+  "ui.iam.deactivateConfirm": {
+    fr: "Désactiver ce compte utilisateur ?",
+    en: "Deactivate this user account?",
+    ar: "هل تريد تعطيل حساب المستخدم؟"
+  },
+  "ui.iam.accountActivated": { fr: "Compte réactivé.", en: "Account reactivated.", ar: "تمت إعادة تفعيل الحساب." },
+  "ui.iam.accountDeactivated": { fr: "Compte désactivé.", en: "Account deactivated.", ar: "تم تعطيل الحساب." },
+  "ui.profile.saved": { fr: "Profil enregistré.", en: "Profile saved.", ar: "تم حفظ الملف الشخصي." },
+  "ui.profile.photoUpdated": { fr: "Photo de profil mise à jour.", en: "Profile photo updated.", ar: "تم تحديث صورة الملف الشخصي." },
+  "ui.profile.photoDeleted": { fr: "Photo de profil supprimée.", en: "Profile photo deleted.", ar: "تم حذف صورة الملف الشخصي." },
+  "ui.profile.avatarTypeForbidden": {
+    fr: "Format d'image non autorisé. Utilisez JPG, PNG ou WebP.",
+    en: "Unsupported image format. Use JPG, PNG, or WebP.",
+    ar: "تنسيق الصورة غير مسموح. استخدم JPG أو PNG أو WebP."
+  },
+  "ui.profile.avatarTooLarge": {
+    fr: "L'image doit peser 2 Mo maximum.",
+    en: "The image must be no larger than 2 MB.",
+    ar: "يجب ألا يتجاوز حجم الصورة 2 ميغابايت."
+  },
+  "ui.profile.passwordChanged": { fr: "Mot de passe modifié.", en: "Password changed.", ar: "تم تغيير كلمة المرور." },
+  "ui.profile.sessionsRevoked": {
+    fr: "Toutes les autres sessions ont été révoquées. Vous allez être déconnecté.",
+    en: "All other sessions have been revoked. You will be signed out.",
+    ar: "تم إلغاء جميع الجلسات الأخرى. سيتم تسجيل خروجك."
+  },
+  "ui.profile.localSessionClosed": { fr: "Session locale fermée.", en: "Local session closed.", ar: "تم إغلاق الجلسة المحلية." },
+  "ui.profile.noOtherSession": {
+    fr: "Session actuelle active. Aucun autre appareil détecté.",
+    en: "Current session active. No other device detected.",
+    ar: "الجلسة الحالية نشطة. لم يتم اكتشاف جهاز آخر."
+  },
+  "ui.profile.sessionsAvailable": {
+    fr: "La liste des sessions actives est à jour.",
+    en: "The active sessions list is up to date.",
+    ar: "قائمة الجلسات النشطة محدثة."
+  },
+  "ui.profile.permissionsManagedInIam": {
+    fr: "Les permissions détaillées sont gérées dans Utilisateurs et droits.",
+    en: "Detailed permissions are managed in Users and permissions.",
+    ar: "تتم إدارة الصلاحيات التفصيلية في المستخدمين والصلاحيات."
+  },
+  "ui.profile.preferencesSaved": { fr: "Préférences enregistrées.", en: "Preferences saved.", ar: "تم حفظ التفضيلات." },
+  "ui.reference.schoolYearInUse": {
+    fr: "L'année scolaire ne peut pas être supprimée car elle est encore utilisée.",
+    en: "The school year cannot be deleted because it is still in use.",
+    ar: "لا يمكن حذف السنة الدراسية لأنها لا تزال مستخدمة."
+  },
+  "ui.reference.cycleInUse": {
+    fr: "Le cycle ne peut pas être supprimé car il est encore utilisé.",
+    en: "The cycle cannot be deleted because it is still in use.",
+    ar: "لا يمكن حذف المرحلة لأنها لا تزال مستخدمة."
+  },
+  "ui.reference.levelInUse": {
+    fr: "Le niveau ne peut pas être supprimé car il est encore utilisé.",
+    en: "The level cannot be deleted because it is still in use.",
+    ar: "لا يمكن حذف المستوى لأنه لا يزال مستخدمًا."
+  },
+  "ui.reference.classInUse": {
+    fr: "La classe ne peut pas être supprimée car elle est encore utilisée.",
+    en: "The class cannot be deleted because it is still in use.",
+    ar: "لا يمكن حذف الصف لأنه لا يزال مستخدمًا."
+  },
+  "ui.reference.subjectInUse": {
+    fr: "La matière ne peut pas être supprimée car elle est encore utilisée.",
+    en: "The subject cannot be deleted because it is still in use.",
+    ar: "لا يمكن حذف المادة لأنها لا تزال مستخدمة."
+  },
+  "ui.reference.periodInUse": {
+    fr: "La période ne peut pas être supprimée car elle est encore utilisée.",
+    en: "The period cannot be deleted because it is still in use.",
+    ar: "لا يمكن حذف الفترة لأنها لا تزال مستخدمة."
+  },
+  "ui.rooms.deleteConfirm": { fr: "Supprimer cette salle ?", en: "Delete this room?", ar: "هل تريد حذف هذه القاعة؟" },
+  "ui.schoolLife.absenceDeleteConfirm": { fr: "Supprimer cette absence ?", en: "Delete this absence?", ar: "هل تريد حذف هذا الغياب؟" },
+  "ui.schoolLife.attachmentDeleteConfirm": { fr: "Supprimer ce justificatif ?", en: "Delete this supporting document?", ar: "هل تريد حذف هذا المبرر؟" },
+  "ui.schoolLife.lessonDeleteConfirm": { fr: "Supprimer ce cours ?", en: "Delete this lesson?", ar: "هل تريد حذف هذا الدرس؟" },
+  "ui.schoolLife.selectAbsence": {
+    fr: "Sélectionnez une absence pour continuer.",
+    en: "Select an absence to continue.",
+    ar: "حدد غيابًا للمتابعة."
+  },
+  "ui.schoolLife.selectFile": {
+    fr: "Sélectionnez un fichier justificatif.",
+    en: "Select a supporting document.",
+    ar: "حدد ملف المبرر."
+  },
+  "ui.schoolLife.selectStudent": {
+    fr: "Sélectionnez au moins un élève.",
+    en: "Select at least one student.",
+    ar: "حدد طالبًا واحدًا على الأقل."
+  },
+  "ui.schoolLife.absenceSaved": { fr: "Absence enregistrée.", en: "Absence recorded.", ar: "تم تسجيل الغياب." },
+  "ui.schoolLife.attachmentSaved": { fr: "Justificatif ajouté.", en: "Supporting document added.", ar: "تمت إضافة المبرر." },
+  "ui.schoolLife.validationUpdated": { fr: "Validation mise à jour.", en: "Validation updated.", ar: "تم تحديث المصادقة." },
+  "ui.schoolLife.lessonSaved": { fr: "Cours ajouté à l'emploi du temps.", en: "Lesson added to the timetable.", ar: "تمت إضافة الدرس إلى الجدول." },
+  "ui.schoolLife.notificationCreated": { fr: "Notification créée.", en: "Notification created.", ar: "تم إنشاء الإشعار." },
+  "ui.schoolLife.notificationCancelled": { fr: "Notification annulée.", en: "Notification cancelled.", ar: "تم إلغاء الإشعار." },
+  "ui.schoolLife.notificationRetried": { fr: "Notification replacée dans la file d'envoi.", en: "Notification returned to the delivery queue.", ar: "تمت إعادة الإشعار إلى قائمة الإرسال." },
+  "ui.schoolLife.absenceDeleted": { fr: "Absence supprimée.", en: "Absence deleted.", ar: "تم حذف الغياب." },
+  "ui.schoolLife.attachmentDeleted": { fr: "Justificatif supprimé.", en: "Supporting document deleted.", ar: "تم حذف المبرر." },
+  "ui.schoolLife.lessonDeleted": { fr: "Cours supprimé.", en: "Lesson deleted.", ar: "تم حذف الدرس." },
+  "ui.schoolLife.bulkCompleted": {
+    fr: "Saisie en masse terminée : {created} créée(s), {updated} mise(s) à jour, {errors} erreur(s).",
+    en: "Bulk entry completed: {created} created, {updated} updated, {errors} error(s).",
+    ar: "اكتمل الإدخال الجماعي: {created} إضافة، و{updated} تحديث، و{errors} خطأ."
+  },
+  "ui.schoolLife.bulkHasErrors": {
+    fr: "Certaines lignes n'ont pas pu être enregistrées.",
+    en: "Some rows could not be saved.",
+    ar: "تعذر حفظ بعض الصفوف."
+  },
+  "ui.schoolLife.notificationsDispatched": {
+    fr: "{count} notification(s) envoyée(s).",
+    en: "{count} notification(s) sent.",
+    ar: "تم إرسال {count} إشعار."
+  },
+  "ui.schoolLife.replayReasonPrompt": {
+    fr: "Motif de la relance (obligatoire)",
+    en: "Retry reason (required)",
+    ar: "سبب إعادة المحاولة (مطلوب)"
+  },
+  "ui.portal.teacherGradeSaved": { fr: "Note enseignant enregistrée.", en: "Teacher grade saved.", ar: "تم حفظ درجة المعلم." },
+  "ui.portal.teacherAttendanceSaved": { fr: "Pointage enseignant enregistré.", en: "Teacher attendance saved.", ar: "تم حفظ حضور المعلم." },
+  "ui.portal.parentNotificationSent": { fr: "Notification envoyée au parent.", en: "Notification sent to the parent.", ar: "تم إرسال الإشعار إلى ولي الأمر." },
+  "ui.students.archiveConfirm": { fr: "Archiver ce dossier élève ?", en: "Archive this student record?", ar: "هل تريد أرشفة ملف الطالب؟" },
+  "ui.students.saved": { fr: "Dossier élève enregistré.", en: "Student record saved.", ar: "تم حفظ ملف الطالب." },
+  "ui.students.archived": { fr: "Dossier élève archivé.", en: "Student record archived.", ar: "تمت أرشفة ملف الطالب." },
+  "ui.teachers.saved": { fr: "Fiche enseignant enregistrée.", en: "Teacher record saved.", ar: "تم حفظ ملف المعلم." },
+  "ui.teachers.skillAdded": { fr: "Compétence enseignant ajoutée.", en: "Teacher skill added.", ar: "تمت إضافة مهارة المعلم." },
+  "ui.teachers.assignmentCreated": { fr: "Affectation pédagogique créée.", en: "Teaching assignment created.", ar: "تم إنشاء التكليف التدريسي." },
+  "ui.documents.added": { fr: "Document ajouté avec succès.", en: "Document added successfully.", ar: "تمت إضافة المستند بنجاح." },
+  "ui.documents.fileRequired": { fr: "Sélectionnez un fichier.", en: "Select a file.", ar: "حدد ملفًا." },
+  "ui.documents.typeForbidden": { fr: "Ce type de fichier n'est pas autorisé.", en: "This file type is not allowed.", ar: "نوع الملف هذا غير مسموح." },
+  "ui.documents.tooLarge": { fr: "Le fichier dépasse la taille maximale autorisée.", en: "The file exceeds the maximum allowed size.", ar: "يتجاوز الملف الحجم الأقصى المسموح به." }
+} as const satisfies Record<string, UiMessageTranslations>;
+
+export type UiMessageToken = keyof typeof UI_MESSAGE_CATALOG;
+
+export const UI_MESSAGES = {
+  toastAttention: "ui.toast.attention",
+  toastInformation: "ui.toast.information",
+  toastClose: "ui.toast.close",
+  toastCloseError: "ui.toast.closeError",
+  toastCloseNotification: "ui.toast.closeNotification",
+  apiUnavailable: "ui.error.apiUnavailable",
+  badRequest: "ui.error.badRequest",
+  authenticationRequired: "ui.error.authenticationRequired",
+  invalidCredentials: "ui.error.invalidCredentials",
+  forbidden: "ui.error.forbidden",
+  notFound: "ui.error.notFound",
+  conflict: "ui.error.conflict",
+  rateLimited: "ui.error.rateLimited",
+  serverError: "ui.error.server",
+  networkError: "ui.error.network",
+  unexpectedError: "ui.error.unexpected",
+  validationError: "ui.error.validation",
+  loadError: "ui.error.load",
+  saveError: "ui.error.save",
+  deleteError: "ui.error.delete",
+  downloadError: "ui.error.download",
+  uploadError: "ui.error.upload",
+  readOnly: "ui.error.readOnly",
+  fieldRequired: "ui.validation.required",
+  fieldInvalid: "ui.validation.invalid",
+  passwordMinimum: "ui.validation.passwordMinimum",
+  previewDisabled: "ui.preview.disabled",
+  previewNotPersisted: "ui.preview.notPersisted",
+  forgotUsernameRequired: "ui.auth.forgotUsernameRequired",
+  resetRequested: "ui.auth.resetRequested",
+  resetLinkInvalid: "ui.auth.resetLinkInvalid",
+  passwordPolicy: "ui.auth.passwordPolicy",
+  passwordMismatch: "ui.auth.passwordMismatch",
+  passwordReset: "ui.auth.passwordReset",
+  activationUsernameRequired: "ui.auth.activationUsernameRequired",
+  activationRequested: "ui.auth.activationRequested",
+  accountActivated: "ui.auth.accountActivated",
+  loginSuccess: "ui.auth.loginSuccess",
+  logoutSuccess: "ui.auth.logoutSuccess",
+  confirmDelete: "ui.confirm.delete",
+  confirmArchive: "ui.confirm.archive",
+  confirmCancel: "ui.confirm.cancel",
+  confirmContinueWarning: "ui.confirm.continueWarning",
+  saved: "ui.success.saved",
+  created: "ui.success.created",
+  updated: "ui.success.updated",
+  deleted: "ui.success.deleted",
+  archived: "ui.success.archived",
+  uploaded: "ui.success.uploaded",
+  downloadReady: "ui.success.downloadReady",
+  exportReady: "ui.success.exportReady",
+  enrollmentClassWithoutLevel: "ui.enrollment.classWithoutLevel",
+  enrollmentDeleteConfirm: "ui.enrollment.deleteConfirm",
+  invoiceCancelConfirm: "ui.finance.invoiceCancelConfirm",
+  invoiceCancelled: "ui.finance.invoiceCancelled",
+  paymentSaved: "ui.finance.paymentSaved",
+  receiptUnavailable: "ui.finance.receiptUnavailable",
+  onlinePaymentNeedsApi: "ui.finance.onlinePaymentNeedsApi",
+  onlinePaymentPending: "ui.finance.onlinePaymentPending",
+  gradeDeleteConfirm: "ui.grades.deleteConfirm",
+  gradeContextRequired: "ui.grades.contextRequired",
+  gradeContextMismatch: "ui.grades.contextMismatch",
+  noGrades: "ui.grades.noGrades",
+  averagesCalculated: "ui.grades.averagesCalculated",
+  reportGenerated: "ui.grades.reportGenerated",
+  userDeleteConfirm: "ui.iam.deleteConfirm",
+  activationResendConfirm: "ui.iam.activationResendConfirm",
+  activationSent: "ui.iam.activationSent",
+  userCreatedAndActivationSent: "ui.iam.userCreatedAndActivationSent",
+  userCreatedActivationFailed: "ui.iam.userCreatedActivationFailed",
+  userActivateConfirm: "ui.iam.activateConfirm",
+  userDeactivateConfirm: "ui.iam.deactivateConfirm",
+  accountReactivated: "ui.iam.accountActivated",
+  accountDeactivated: "ui.iam.accountDeactivated",
+  profileSaved: "ui.profile.saved",
+  profilePhotoUpdated: "ui.profile.photoUpdated",
+  profilePhotoDeleted: "ui.profile.photoDeleted",
+  profileAvatarTypeForbidden: "ui.profile.avatarTypeForbidden",
+  profileAvatarTooLarge: "ui.profile.avatarTooLarge",
+  passwordChanged: "ui.profile.passwordChanged",
+  sessionsRevoked: "ui.profile.sessionsRevoked",
+  localSessionClosed: "ui.profile.localSessionClosed",
+  noOtherSession: "ui.profile.noOtherSession",
+  sessionsAvailable: "ui.profile.sessionsAvailable",
+  permissionsManagedInIam: "ui.profile.permissionsManagedInIam",
+  preferencesSaved: "ui.profile.preferencesSaved",
+  schoolYearInUse: "ui.reference.schoolYearInUse",
+  cycleInUse: "ui.reference.cycleInUse",
+  levelInUse: "ui.reference.levelInUse",
+  classInUse: "ui.reference.classInUse",
+  subjectInUse: "ui.reference.subjectInUse",
+  periodInUse: "ui.reference.periodInUse",
+  roomDeleteConfirm: "ui.rooms.deleteConfirm",
+  absenceDeleteConfirm: "ui.schoolLife.absenceDeleteConfirm",
+  attachmentDeleteConfirm: "ui.schoolLife.attachmentDeleteConfirm",
+  lessonDeleteConfirm: "ui.schoolLife.lessonDeleteConfirm",
+  selectAbsence: "ui.schoolLife.selectAbsence",
+  selectFile: "ui.schoolLife.selectFile",
+  selectStudent: "ui.schoolLife.selectStudent",
+  absenceSaved: "ui.schoolLife.absenceSaved",
+  attachmentSaved: "ui.schoolLife.attachmentSaved",
+  validationUpdated: "ui.schoolLife.validationUpdated",
+  lessonSaved: "ui.schoolLife.lessonSaved",
+  notificationCreated: "ui.schoolLife.notificationCreated",
+  notificationCancelled: "ui.schoolLife.notificationCancelled",
+  notificationRetried: "ui.schoolLife.notificationRetried",
+  absenceDeleted: "ui.schoolLife.absenceDeleted",
+  attachmentDeleted: "ui.schoolLife.attachmentDeleted",
+  lessonDeleted: "ui.schoolLife.lessonDeleted",
+  bulkAttendanceCompleted: "ui.schoolLife.bulkCompleted",
+  bulkAttendanceHasErrors: "ui.schoolLife.bulkHasErrors",
+  notificationsDispatched: "ui.schoolLife.notificationsDispatched",
+  replayReasonPrompt: "ui.schoolLife.replayReasonPrompt",
+  teacherGradeSaved: "ui.portal.teacherGradeSaved",
+  teacherAttendanceSaved: "ui.portal.teacherAttendanceSaved",
+  parentNotificationSent: "ui.portal.parentNotificationSent",
+  studentArchiveConfirm: "ui.students.archiveConfirm",
+  studentSaved: "ui.students.saved",
+  studentArchived: "ui.students.archived",
+  teacherSaved: "ui.teachers.saved",
+  teacherSkillAdded: "ui.teachers.skillAdded",
+  teacherAssignmentCreated: "ui.teachers.assignmentCreated",
+  documentAdded: "ui.documents.added",
+  documentFileRequired: "ui.documents.fileRequired",
+  documentTypeForbidden: "ui.documents.typeForbidden",
+  documentTooLarge: "ui.documents.tooLarge"
+} as const satisfies Record<string, UiMessageToken>;
+
+export const isUiMessageToken = (value: string): value is UiMessageToken =>
+  Object.prototype.hasOwnProperty.call(UI_MESSAGE_CATALOG, value);
+
+export const translateUiMessage = (
+  language: UiLanguage,
+  token: UiMessageToken,
+  params: Record<string, string | number> = {}
+): string =>
+  UI_MESSAGE_CATALOG[token][language].replace(/\{([a-zA-Z0-9_]+)\}/gu, (placeholder, name: string) =>
+    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : placeholder
+  );
+
 type TargetLanguage = Exclude<UiLanguage, "fr">;
 type ExactTranslations = Record<TargetLanguage, Record<string, string>>;
 type PatternTranslation = {
@@ -3316,10 +3898,14 @@ const restorePadding = (source: string, translated: string): string => {
 };
 
 export const translateUiString = (language: UiLanguage, source: string): string => {
-  if (language === "fr") return source;
-
   const normalizedSource = normalizeSource(source);
   if (!normalizedSource) return source;
+
+  if (isUiMessageToken(normalizedSource)) {
+    return restorePadding(source, translateUiMessage(language, normalizedSource));
+  }
+
+  if (language === "fr") return source;
 
   const exactMatch = EXACT_TRANSLATIONS[language][normalizedSource];
   if (exactMatch) {

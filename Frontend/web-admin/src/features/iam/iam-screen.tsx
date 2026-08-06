@@ -83,8 +83,12 @@ const getUserInitials = (item: UserAccount): string => {
   return `${first}${second}`.toUpperCase() || "GS";
 };
 
-const fieldError = (errors: FieldErrors, key: string): JSX.Element | null =>
-  errors[key] ? <span className="field-error">{errors[key]}</span> : null;
+const fieldError = (
+  errors: FieldErrors,
+  key: string,
+  translate: (source: string) => string
+): JSX.Element | null =>
+  errors[key] ? <span className="field-error">{translate(errors[key])}</span> : null;
 
 export function IamScreen({
   api,
@@ -174,7 +178,7 @@ export function IamScreen({
                     onChange={(event) => setUserForm((prev) => ({ ...prev, username: event.target.value }))}
                     required
                   />
-                  {fieldError(userErrors, "username")}
+                  {fieldError(userErrors, "username", tr)}
                 </label>
                 <label>
                   {tr("Adresse email de contact")}<input
@@ -244,7 +248,7 @@ export function IamScreen({
                       <option key={role} value={role}>{tr(formatRoleLabel(role))}</option>
                     ))}
                   </select>
-                  {fieldError(userErrors, "roleId")}
+                  {fieldError(userErrors, "roleId", tr)}
                 </label>
                 <label>
                   {tr("Établissement")}<select
@@ -301,7 +305,7 @@ export function IamScreen({
                       ))}
                     </select>
                     {accountTeachers.length === 0 ? <small>{tr("Créez d'abord la fiche enseignant dans le module Enseignants.")}</small> : null}
-                    {fieldError(userErrors, "teacherId")}
+                  {fieldError(userErrors, "teacherId", tr)}
                   </label>
                 ) : null}
                 {userForm.accountType === "PARENT" ? (
@@ -322,7 +326,7 @@ export function IamScreen({
                       ))}
                     </select>
                     {accountParents.length === 0 ? <small>{tr("Créez d'abord la fiche parent dans le module Parents.")}</small> : null}
-                    {fieldError(userErrors, "parentId")}
+                  {fieldError(userErrors, "parentId", tr)}
                   </label>
                 ) : null}
                 {userForm.accountType === "STUDENT" ? (
@@ -343,7 +347,7 @@ export function IamScreen({
                       ))}
                     </select>
                     {students.length === 0 ? <small>{tr("Créez d'abord la fiche élève dans le module Élèves.")}</small> : null}
-                    {fieldError(userErrors, "studentId")}
+                  {fieldError(userErrors, "studentId", tr)}
                   </label>
                 ) : null}
                 {userForm.accountType === "STAFF" ? (
@@ -352,14 +356,14 @@ export function IamScreen({
                       value={userForm.staffDisplayName}
                       onChange={(event) => setUserForm((prev) => ({ ...prev, staffDisplayName: event.target.value, displayName: event.target.value }))}
                     />
-                    {fieldError(userErrors, "staffDisplayName")}
+                  {fieldError(userErrors, "staffDisplayName", tr)}
                   </label>
                 ) : null}
                 {userForm.accountType !== "STAFF" ? (
                   <p className="iam-inline-help form-grid-span-full">
                     {tr("Identité synchronisée depuis le profil métier.")}</p>
                 ) : null}
-                {fieldError(userErrors, "businessProfile")}
+                  {fieldError(userErrors, "businessProfile", tr)}
               </div>
             </fieldset>
 

@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import "../../styles/profile-premium.css";
-import { translateUiString, type UiLanguage } from "../../shared/i18n";
+import { translateUiString, UI_MESSAGES, type UiLanguage } from "../../shared/i18n";
+import { toUiErrorMessage } from "../../shared/services/api-errors";
 import type {
   FieldErrors,
   SchoolYear,
@@ -69,8 +70,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 const PASSWORD_RULE =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{12,128}$/;
-const PASSWORD_HINT =
-  "Le mot de passe doit contenir au moins 12 caractères, avec majuscule, minuscule, chiffre et caractère spécial.";
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -380,7 +379,7 @@ export function ProfileScreen({
             if (!cancelled) setSessionsState({ status: "unavailable", rows: [] });
           });
       } catch (error) {
-        if (!cancelled) onError(error instanceof Error ? error.message : "Profil utilisateur indisponible.");
+        if (!cancelled) onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -435,12 +434,12 @@ export function ProfileScreen({
 
   const validateProfileForm = (): FieldErrors => {
     const errors: FieldErrors = {};
-    if (!profileForm.displayName.trim()) errors.displayName = "Nom affiché requis.";
-    if (profileForm.displayName.length > 180) errors.displayName = "Nom affiché trop long.";
-    if (profileForm.firstName.length > 100) errors.firstName = "Prénom trop long.";
-    if (profileForm.lastName.length > 100) errors.lastName = "Nom trop long.";
+    if (!profileForm.displayName.trim()) errors.displayName = UI_MESSAGES.validationError;
+    if (profileForm.displayName.length > 180) errors.displayName = UI_MESSAGES.validationError;
+    if (profileForm.firstName.length > 100) errors.firstName = UI_MESSAGES.validationError;
+    if (profileForm.lastName.length > 100) errors.lastName = UI_MESSAGES.validationError;
     if (profileForm.phone && !/^[0-9+\s().-]{6,30}$/u.test(profileForm.phone)) {
-      errors.phone = "Téléphone invalide.";
+      errors.phone = UI_MESSAGES.validationError;
     }
     return errors;
   };
@@ -474,18 +473,18 @@ export function ProfileScreen({
         });
       }
       setIsEditingProfile(false);
-      onNotice("Profil enregistré.");
+      onNotice(UI_MESSAGES.profileSaved);
       onError(null);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Profil non enregistré.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     } finally {
       setSavingProfile(false);
     }
   };
 
   const validateAvatar = (file: File): string | null => {
-    if (!AVATAR_MIME_TYPES.has(file.type)) return "Format d’image non autorisé. Utilisez JPG, PNG ou WebP.";
-    if (file.size > AVATAR_MAX_BYTES) return "L’image doit peser 2 Mo maximum.";
+    if (!AVATAR_MIME_TYPES.has(file.type)) return UI_MESSAGES.profileAvatarTypeForbidden;
+    if (file.size > AVATAR_MAX_BYTES) return UI_MESSAGES.profileAvatarTooLarge;
     return null;
   };
 
@@ -512,11 +511,11 @@ export function ProfileScreen({
           }
         });
       }
-      onNotice("Photo de profil mise à jour.");
+      onNotice(UI_MESSAGES.profilePhotoUpdated);
       onError(null);
     } catch (uploadError) {
       replaceLocalAvatarPreview(null);
-      onError(uploadError instanceof Error ? uploadError.message : "Photo non envoyée.");
+      onError(toUiErrorMessage(uploadError, UI_MESSAGES.uploadError));
     } finally {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
@@ -539,10 +538,10 @@ export function ProfileScreen({
         });
       }
       replaceLocalAvatarPreview(null);
-      onNotice("Photo de profil supprimée.");
+      onNotice(UI_MESSAGES.profilePhotoDeleted);
       onError(null);
     } catch (removeError) {
-      onError(removeError instanceof Error ? removeError.message : "Photo non supprimée.");
+      onError(toUiErrorMessage(removeError, UI_MESSAGES.deleteError));
     } finally {
       setRemovingAvatar(false);
     }
@@ -550,14 +549,14 @@ export function ProfileScreen({
 
   const validatePasswordForm = (): FieldErrors => {
     const errors: FieldErrors = {};
-    if (!passwordForm.currentPassword) errors.currentPassword = "Mot de passe actuel requis.";
+    if (!passwordForm.currentPassword) errors.currentPassword = UI_MESSAGES.validationError;
     if (!passwordForm.newPassword) {
-      errors.newPassword = "Nouveau mot de passe requis.";
+      errors.newPassword = UI_MESSAGES.validationError;
     } else if (!PASSWORD_RULE.test(passwordForm.newPassword)) {
-      errors.newPassword = PASSWORD_HINT;
+      errors.newPassword = UI_MESSAGES.passwordPolicy;
     }
     if (passwordForm.confirmPassword !== passwordForm.newPassword) {
-      errors.confirmPassword = "La confirmation ne correspond pas.";
+      errors.confirmPassword = UI_MESSAGES.passwordMismatch;
     }
     return errors;
   };
@@ -569,16 +568,14 @@ export function ProfileScreen({
     if (Object.keys(errors).length > 0) return;
     setChangingPassword(true);
     try {
-      const message = remoteEnabled
-        ? await changeMyPassword(api, passwordForm)
-        : "Mot de passe validé en aperçu local.";
+      if (remoteEnabled) await changeMyPassword(api, passwordForm);
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setVisiblePasswordFields({ currentPassword: false, newPassword: false, confirmPassword: false });
       setPasswordPanelOpen(false);
-      onNotice(message);
+      onNotice(UI_MESSAGES.passwordChanged);
       onError(null);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Mot de passe non modifié.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     } finally {
       setChangingPassword(false);
     }
@@ -587,26 +584,24 @@ export function ProfileScreen({
   const revokeAllSessions = async (): Promise<void> => {
     try {
       if (remoteEnabled) {
-        const result = await logoutAllMySessions(api);
-        onNotice(`${result.message} Vous allez être déconnecté.`);
+        await logoutAllMySessions(api);
+        onNotice(UI_MESSAGES.sessionsRevoked);
       } else {
-        onNotice("Session locale fermée.");
+        onNotice(UI_MESSAGES.localSessionClosed);
       }
       await onLogoutAllDevices?.();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Sessions non révoquées.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
   const describeSessions = (): void => {
     if (sessionsState.rows.length === 0) {
-      onNotice("Session actuelle active. Aucun autre appareil détecté.");
+      onNotice(UI_MESSAGES.noOtherSession);
       return;
     }
 
-    const latest = sessionsState.rows[0];
-    const startedAt = formatDateTime(latest.createdAt, locale);
-    onNotice(`${formatSessionCount(sessionsState.rows.length)}. Dernière ouverture : ${startedAt}.`);
+    onNotice(UI_MESSAGES.sessionsAvailable);
   };
 
   const submitPreferences = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -636,10 +631,10 @@ export function ProfileScreen({
       }
       onLanguageChange?.(preferencesForm.language);
       onThemeChange?.(preferencesForm.theme);
-      onNotice("Préférences enregistrées.");
+      onNotice(UI_MESSAGES.preferencesSaved);
       onError(null);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Préférences non enregistrées.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     } finally {
       setSavingPreferences(false);
     }
@@ -682,7 +677,7 @@ export function ProfileScreen({
         setVisiblePasswordFields((previous) => ({ ...previous, [key]: !previous[key] }))
       }
       onViewSessions={describeSessions}
-      onViewPermissions={() => onNotice("Les permissions détaillées restent gérées dans Utilisateurs & droits.")}
+      onViewPermissions={() => onNotice(UI_MESSAGES.permissionsManagedInIam)}
       passwordErrors={passwordErrors}
       passwordForm={passwordForm}
       passwordPanelOpen={passwordPanelOpen}

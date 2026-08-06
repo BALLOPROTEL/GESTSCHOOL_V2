@@ -1,5 +1,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
+import { translateUiString, UI_MESSAGES } from "../../../shared/i18n";
+import { useI18n } from "../../../shared/i18n-context";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type {
   AcademicTrack,
   ClassItem,
@@ -286,6 +289,7 @@ export const useGradesData = ({
   onError,
   onNotice
 }: UseGradesDataOptions) => {
+  const { language } = useI18n();
   const [grades, setGrades] = useState<GradeEntry[]>([]);
   const [gradeFilters, setGradeFilters] = useState<GradeFilters>(() => buildGradeFilters());
   const [gradeForm, setGradeForm] = useState<GradeForm>(() => buildGradeForm());
@@ -322,7 +326,7 @@ export const useGradesData = ({
         if (isMounted) setGrades(rows);
       })
       .catch((error) => {
-        if (isMounted) onError(error instanceof Error ? error.message : "Erreur de chargement des notes.");
+        if (isMounted) onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       });
     return () => {
       isMounted = false;
@@ -398,7 +402,7 @@ export const useGradesData = ({
       try {
         setGrades(await fetchGrades(api, filters));
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur de chargement des notes.");
+        onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       }
     },
     [api, gradeFilters, onError, remoteEnabled]
@@ -412,7 +416,7 @@ export const useGradesData = ({
     try {
       setReportCardsAndNotify(await fetchReportCards(api));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de chargement des bulletins.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     }
   }, [api, initialReportCards, onError, remoteEnabled, setReportCardsAndNotify]);
 
@@ -437,18 +441,18 @@ export const useGradesData = ({
 
     const errors: FieldErrors = {};
     const rowErrors: FieldErrors = {};
-    if (!gradeForm.classId) errors.classId = "Classe requise.";
-    if (!gradeForm.subjectId) errors.subjectId = "Matière requise.";
-    if (!gradeForm.academicPeriodId) errors.academicPeriodId = "Période requise.";
-    if (!gradeForm.assessmentLabel.trim()) errors.assessmentLabel = "Libellé de l’évaluation requis.";
-    if (!gradeForm.assessmentDate) errors.assessmentDate = "Date d’évaluation requise.";
+    if (!gradeForm.classId) errors.classId = UI_MESSAGES.validationError;
+    if (!gradeForm.subjectId) errors.subjectId = UI_MESSAGES.validationError;
+    if (!gradeForm.academicPeriodId) errors.academicPeriodId = UI_MESSAGES.validationError;
+    if (!gradeForm.assessmentLabel.trim()) errors.assessmentLabel = UI_MESSAGES.validationError;
+    if (!gradeForm.assessmentDate) errors.assessmentDate = UI_MESSAGES.validationError;
 
     const scoreMax = Number(gradeForm.scoreMax || "20");
     const coefficient = Number(gradeForm.coefficient || "1");
-    if (!Number.isFinite(scoreMax) || scoreMax <= 0) errors.scoreMax = "Le barème doit être supérieur à 0.";
-    if (!Number.isFinite(coefficient) || coefficient <= 0) errors.coefficient = "Le coefficient doit être supérieur à 0.";
+    if (!Number.isFinite(scoreMax) || scoreMax <= 0) errors.scoreMax = UI_MESSAGES.validationError;
+    if (!Number.isFinite(coefficient) || coefficient <= 0) errors.coefficient = UI_MESSAGES.validationError;
     if (!hasCompatibleClassPeriod(gradeForm.classId, gradeForm.academicPeriodId)) {
-      errors.academicPeriodId = "La période doit appartenir à la même année scolaire que la classe.";
+      errors.academicPeriodId = UI_MESSAGES.gradeContextMismatch;
     }
 
     const payloadRows = gradeRows
@@ -456,11 +460,11 @@ export const useGradesData = ({
         const score = Number(row.score);
         const isNeutralized = row.absent || row.exempted;
         if (!isNeutralized && row.score.trim() === "") {
-          rowErrors[`score-${row.studentId}`] = "Note requise.";
+          rowErrors[`score-${row.studentId}`] = UI_MESSAGES.validationError;
         } else if (!isNeutralized && (!Number.isFinite(score) || score < 0)) {
-          rowErrors[`score-${row.studentId}`] = "Note invalide.";
+          rowErrors[`score-${row.studentId}`] = UI_MESSAGES.validationError;
         } else if (!isNeutralized && Number.isFinite(score) && score > scoreMax) {
-          rowErrors[`score-${row.studentId}`] = "La note dépasse le barème.";
+          rowErrors[`score-${row.studentId}`] = UI_MESSAGES.validationError;
         }
         return {
           studentId: row.studentId,
@@ -474,7 +478,7 @@ export const useGradesData = ({
       .filter((row) => row.absent || row.exempted || Number.isFinite(row.score));
 
     if (payloadRows.length === 0) {
-      errors.grades = "Aucune note à enregistrer.";
+      errors.grades = UI_MESSAGES.validationError;
     }
 
     setGradeErrors(errors);
@@ -502,7 +506,7 @@ export const useGradesData = ({
       setGradeErrors({});
       setGradeRowErrors({});
       setGradesWorkflowStep("entry");
-      onNotice("Notes enregistrées en aperçu local.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -511,12 +515,12 @@ export const useGradesData = ({
       setGradeErrors({});
       setGradeRowErrors({});
       setGradesWorkflowStep("entry");
-      onNotice(`${result.upsertedCount} note${result.upsertedCount > 1 ? "s" : ""} enregistrée${result.upsertedCount > 1 ? "s" : ""}.`);
+      onNotice(UI_MESSAGES.saved);
       setGradeRows(buildGridRows(students, gradeForm.classId, gradeForm.track));
       await loadGrades(gradeFilters);
       await loadReportCards();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d’enregistrement des notes.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
@@ -527,20 +531,20 @@ export const useGradesData = ({
   };
 
   const removeGrade = async (gradeId: string): Promise<void> => {
-    const confirmed = window.confirm("Supprimer cette note ? Cette action mettra à jour les moyennes et bulletins liés.");
+    const confirmed = window.confirm(translateUiString(language, UI_MESSAGES.gradeDeleteConfirm));
     if (!confirmed) return;
     if (!remoteEnabled || gradeId.startsWith("local-grade-")) {
       setGrades((current) => current.filter((grade) => grade.id !== gradeId));
-      onNotice("Note supprimée en aperçu local.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
       await deleteGrade(api, gradeId);
-      onNotice("Note supprimée.");
+      onNotice(UI_MESSAGES.deleted);
       await loadGrades(gradeFilters);
       await loadReportCards();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de suppression de la note.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
     }
   };
 
@@ -548,17 +552,17 @@ export const useGradesData = ({
     event.preventDefault();
     onError(null);
     if (!gradeFilters.schoolYearId || !gradeFilters.classId || !gradeFilters.academicPeriodId) {
-      onError("Sélectionnez une année scolaire, une classe et une période pour afficher les données.");
+      onError(UI_MESSAGES.gradeContextRequired);
       return;
     }
     const selectedClass = classes.find((item) => item.id === gradeFilters.classId);
     const selectedPeriod = periods.find((item) => item.id === gradeFilters.academicPeriodId);
     if (selectedClass?.schoolYearId !== gradeFilters.schoolYearId || selectedPeriod?.schoolYearId !== gradeFilters.schoolYearId) {
-      onError("La classe et la période doivent appartenir à l’année scolaire sélectionnée.");
+      onError(UI_MESSAGES.gradeContextMismatch);
       return;
     }
     if (!hasCompatibleClassPeriod(gradeFilters.classId, gradeFilters.academicPeriodId)) {
-      onError("La période filtrée doit appartenir à la même année scolaire que la classe.");
+      onError(UI_MESSAGES.gradeContextMismatch);
       return;
     }
     await loadGrades(gradeFilters);
@@ -570,7 +574,7 @@ export const useGradesData = ({
       setSummaryComputedAt(null);
       setSelectedSummaryStudentId("");
     }
-    onNotice("Données affichées pour le contexte sélectionné.");
+    onNotice(UI_MESSAGES.updated);
   };
 
   const resetGradeFilters = async (): Promise<void> => {
@@ -583,38 +587,38 @@ export const useGradesData = ({
 
   const computeClassSummary = async (): Promise<void> => {
     if (!gradeFilters.classId || !gradeFilters.academicPeriodId) {
-      onError("Sélectionnez d’abord une classe et une période.");
+      onError(UI_MESSAGES.gradeContextRequired);
       return;
     }
     if (!hasCompatibleClassPeriod(gradeFilters.classId, gradeFilters.academicPeriodId)) {
-      onError("La période doit appartenir à la même année scolaire que la classe sélectionnée.");
+      onError(UI_MESSAGES.gradeContextMismatch);
       return;
     }
     if (!remoteEnabled) {
       const summary = buildLocalClassSummary(grades, students, gradeFilters.classId, gradeFilters.academicPeriodId);
       if (summary.students.every((student) => student.noteCount === 0)) {
-        onError("Aucune note disponible pour calculer les moyennes.");
+        onError(UI_MESSAGES.noGrades);
         return;
       }
       setClassSummary(summary);
       setSummaryComputedAt(new Date().toISOString());
       setSelectedSummaryStudentId(summary.students[0]?.studentId || "");
-      onNotice("Moyennes et rangs calculés en aperçu local.");
+      onNotice(UI_MESSAGES.averagesCalculated);
       return;
     }
 
     try {
       const summary = await fetchClassSummary(api, gradeFilters.classId, gradeFilters.academicPeriodId);
       if (summary.students.every((student) => student.noteCount === 0)) {
-        onError("Aucune note disponible pour calculer les moyennes.");
+        onError(UI_MESSAGES.noGrades);
         return;
       }
       setClassSummary(summary);
       setSummaryComputedAt(new Date().toISOString());
       setSelectedSummaryStudentId(summary.students[0]?.studentId || "");
-      onNotice("Moyennes et rangs calculés.");
+      onNotice(UI_MESSAGES.averagesCalculated);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de calcul des moyennes.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
@@ -623,23 +627,23 @@ export const useGradesData = ({
     onError(null);
 
     const errors: FieldErrors = {};
-    if (!reportForm.schoolYearId) errors.schoolYearId = "Année scolaire requise.";
-    if (!reportForm.classId) errors.classId = "Classe requise.";
-    if (!reportForm.academicPeriodId) errors.academicPeriodId = "Période requise.";
-    if (reportForm.mode === "student" && !reportForm.studentId) errors.studentId = "Élève requis.";
+    if (!reportForm.schoolYearId) errors.schoolYearId = UI_MESSAGES.validationError;
+    if (!reportForm.classId) errors.classId = UI_MESSAGES.validationError;
+    if (!reportForm.academicPeriodId) errors.academicPeriodId = UI_MESSAGES.validationError;
+    if (reportForm.mode === "student" && !reportForm.studentId) errors.studentId = UI_MESSAGES.validationError;
     const selectedClass = classes.find((item) => item.id === reportForm.classId);
     const selectedPeriod = periods.find((item) => item.id === reportForm.academicPeriodId);
     if (
       reportForm.schoolYearId &&
       (selectedClass?.schoolYearId !== reportForm.schoolYearId || selectedPeriod?.schoolYearId !== reportForm.schoolYearId)
     ) {
-      errors.schoolYearId = "La classe et la période doivent appartenir à l’année scolaire sélectionnée.";
+      errors.schoolYearId = UI_MESSAGES.gradeContextMismatch;
     }
     if (!hasCompatibleClassPeriod(reportForm.classId, reportForm.academicPeriodId)) {
-      errors.academicPeriodId = "Classe et période doivent être dans la même année scolaire.";
+      errors.academicPeriodId = UI_MESSAGES.gradeContextMismatch;
     }
     if (!classSummary || classSummary.classId !== reportForm.classId || classSummary.academicPeriodId !== reportForm.academicPeriodId) {
-      errors.academicPeriodId = "Calculez d’abord les moyennes et rangs avant de générer les bulletins.";
+      errors.academicPeriodId = UI_MESSAGES.validationError;
     }
 
     setReportErrors(errors);
@@ -650,14 +654,12 @@ export const useGradesData = ({
     const missingGrades = classSummary?.students.reduce((sum, student) => sum + (student.missingGrades ?? 0), 0) || 0;
     if (
       missingGrades > 0 &&
-      !window.confirm(
-        `${missingGrades} note${missingGrades > 1 ? "s" : ""} manquante${missingGrades > 1 ? "s" : ""} détectée${missingGrades > 1 ? "s" : ""}. Voulez-vous générer les bulletins malgré cet avertissement ?`
-      )
+      !window.confirm(translateUiString(language, UI_MESSAGES.confirmContinueWarning))
     ) {
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : PDF non généré.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -673,7 +675,7 @@ export const useGradesData = ({
         setReportErrors({});
         setReportsGeneratedAt(new Date().toISOString());
         setReportCardsAndNotify(nextCards);
-        onNotice(`${nextCards.length} bulletin${nextCards.length > 1 ? "s" : ""} généré${nextCards.length > 1 ? "s" : ""}.`);
+        onNotice(UI_MESSAGES.reportGenerated);
         return;
       }
 
@@ -691,16 +693,16 @@ export const useGradesData = ({
         window.open(reportCard.pdfDataUrl, "_blank", "noopener,noreferrer");
       }
       setReportsGeneratedAt(new Date().toISOString());
-      onNotice("Bulletin généré.");
+      onNotice(UI_MESSAGES.reportGenerated);
       await loadReportCards();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de génération du bulletin.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
   const openReportCardPdf = async (reportCardId: string): Promise<void> => {
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : PDF indisponible.");
+      onNotice(UI_MESSAGES.receiptUnavailable);
       return;
     }
 
@@ -709,13 +711,13 @@ export const useGradesData = ({
       setReportPdfUrl(pdfDataUrl);
       window.open(pdfDataUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d’ouverture du bulletin.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.downloadError));
     }
   };
 
   const downloadReportCardPdf = async (reportCardId: string): Promise<void> => {
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : PDF indisponible.");
+      onNotice(UI_MESSAGES.receiptUnavailable);
       return;
     }
 
@@ -729,7 +731,7 @@ export const useGradesData = ({
       link.click();
       link.remove();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de téléchargement du bulletin.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.downloadError));
     }
   };
 

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { translateUiMessage, UI_MESSAGES } from "../../shared/i18n";
 import type { SchoolYear, Session, UserAccount } from "../../shared/types/app";
 import { PreferencesScreen } from "./account-destination-screens";
 import { ProfileScreen } from "./profile-screen";
@@ -139,13 +140,13 @@ describe("ProfileScreen", () => {
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     const textFile = new File(["bad"], "notes.txt", { type: "text/plain" });
     fireEvent.change(input, { target: { files: [textFile] } });
-    expect(onError).toHaveBeenCalledWith("Format d’image non autorisé. Utilisez JPG, PNG ou WebP.");
+    expect(onError).toHaveBeenCalledWith(UI_MESSAGES.profileAvatarTypeForbidden);
 
     const heavyImage = new File([new Uint8Array(2 * 1024 * 1024 + 1)], "avatar.png", {
       type: "image/png"
     });
     fireEvent.change(input, { target: { files: [heavyImage] } });
-    expect(onError).toHaveBeenCalledWith("L’image doit peser 2 Mo maximum.");
+    expect(onError).toHaveBeenCalledWith(UI_MESSAGES.profileAvatarTooLarge);
   });
 
   it("affiche immédiatement la photo choisie dans l’avatar", async () => {
@@ -207,7 +208,9 @@ describe("ProfileScreen", () => {
     await browserUser.click(within(securityPanel).getByRole("button", { name: "Changer le mot de passe" }));
 
     expect(within(securityPanel).getAllByText(/au moins 12 caractères/i).length).toBeGreaterThan(0);
-    expect(within(securityPanel).getByText("La confirmation ne correspond pas.")).toBeInTheDocument();
+    expect(
+      within(securityPanel).getByText(translateUiMessage("fr", UI_MESSAGES.passwordMismatch))
+    ).toBeInTheDocument();
   });
 
   it("garde les boutons de visibilité de mot de passe indépendants et stables", async () => {

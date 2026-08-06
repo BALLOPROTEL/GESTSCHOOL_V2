@@ -127,7 +127,8 @@ export class ReferenceHierarchyService {
     await this.requireCycle(tenantId, id);
     await this.deleteEntity(
       () => this.prisma.cycle.delete({ where: { id } }),
-      "Cycle cannot be deleted because it is still used."
+      "Cycle cannot be deleted because it is still used.",
+      "REFERENCE_CYCLE_IN_USE"
     );
   }
 
@@ -232,7 +233,8 @@ export class ReferenceHierarchyService {
     await this.requireLevel(tenantId, id);
     await this.deleteEntity(
       () => this.prisma.level.delete({ where: { id } }),
-      "Level cannot be deleted because it is still used."
+      "Level cannot be deleted because it is still used.",
+      "REFERENCE_LEVEL_IN_USE"
     );
   }
 
@@ -371,7 +373,8 @@ export class ReferenceHierarchyService {
     await this.requireClassroom(tenantId, id);
     await this.deleteEntity(
       () => this.prisma.classroom.delete({ where: { id } }),
-      "Class cannot be deleted because it is still used."
+      "Class cannot be deleted because it is still used.",
+      "REFERENCE_CLASS_IN_USE"
     );
   }
 
@@ -538,7 +541,8 @@ export class ReferenceHierarchyService {
 
   private async deleteEntity(
     callback: () => Promise<unknown>,
-    relationErrorMessage: string
+    relationErrorMessage: string,
+    relationErrorCode: string
   ): Promise<void> {
     try {
       await callback();
@@ -547,7 +551,7 @@ export class ReferenceHierarchyService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2003"
       ) {
-        throw new ConflictException(relationErrorMessage);
+        throw new ConflictException({ code: relationErrorCode, message: relationErrorMessage });
       }
       throw error;
     }

@@ -202,8 +202,8 @@ function BackIcon(): JSX.Element {
   );
 }
 
-function renderFieldError(message?: string): JSX.Element | null {
-  return message ? <span className="field-error auth-canvas__field-error">{message}</span> : null;
+function renderFieldError(message: string | undefined, translate: (value: string) => string): JSX.Element | null {
+  return message ? <span className="field-error auth-canvas__field-error">{translate(message)}</span> : null;
 }
 
 function TextField(props: TextFieldProps): JSX.Element {
@@ -461,7 +461,7 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           icon="mail"
           autoComplete="username"
         />
-        {renderFieldError(loginUsernameError)}
+        {renderFieldError(loginUsernameError, t)}
 
         <PasswordField
           value={loginForm.password}
@@ -475,7 +475,7 @@ export function AuthScreen(props: AuthScreenProps): JSX.Element {
           autoComplete="current-password"
           {...passwordToggleLabels}
         />
-        {renderFieldError(loginPasswordError)}
+        {renderFieldError(loginPasswordError, t)}
 
         <div className="auth-canvas__inline">
           <label className="auth-canvas__check">

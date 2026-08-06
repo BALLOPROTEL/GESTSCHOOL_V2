@@ -1,12 +1,13 @@
 import type { JSX } from "react";
 
 import type { FieldErrors, SchoolYearStatus } from "../../../shared/types/app";
+import { UI_MESSAGES } from "../../../shared/i18n";
 
 import {
   SCHOOL_YEAR_STATUS_OPTIONS
 } from "../../../shared/constants/domain";
 import {
-  fieldError,
+  fieldError as renderReferenceFieldError,
   focusFirstInlineErrorField,
   formatSchoolYearOptionLabel,
   formatSchoolYearStatusLabel,
@@ -21,6 +22,7 @@ import { useI18n } from "../../../shared/i18n-context";
 
 export function SchoolYearsSection(): JSX.Element {
   const { t: tr } = useI18n();
+  const fieldError = (errors: FieldErrors, key: string) => renderReferenceFieldError(errors, key, tr);
   const ctx = useReferenceScreenContext();
   const {
     activeSchoolYear,
@@ -59,20 +61,20 @@ export function SchoolYearsSection(): JSX.Element {
                   const errors: FieldErrors = {};
                   const sortOrder = parseOptionalNumber(syForm.sortOrder);
 
-                  if (!syForm.label.trim()) errors.label = "Libelle de l'annee requis.";
-                  if (!syForm.startDate) errors.startDate = "Date de debut requise.";
-                  if (!syForm.endDate) errors.endDate = "Date de fin requise.";
-                  if (!syForm.status) errors.status = "Statut requis.";
+                  if (!syForm.label.trim()) errors.label = UI_MESSAGES.fieldRequired;
+                  if (!syForm.startDate) errors.startDate = UI_MESSAGES.fieldRequired;
+                  if (!syForm.endDate) errors.endDate = UI_MESSAGES.fieldRequired;
+                  if (!syForm.status) errors.status = UI_MESSAGES.fieldRequired;
                   if (syForm.startDate && syForm.endDate && syForm.endDate <= syForm.startDate) {
-                    errors.endDate = "La date de fin doit etre strictement apres la date de debut.";
+                    errors.endDate = UI_MESSAGES.fieldInvalid;
                   }
                   if (syForm.sortOrder.trim() && sortOrder === undefined) {
-                    errors.sortOrder = "Ordre / rang invalide.";
+                    errors.sortOrder = UI_MESSAGES.fieldInvalid;
                   }
                   if (syForm.previousYearId) {
                     const previousYear = schoolYearById.get(syForm.previousYearId);
                     if (previousYear?.endDate && syForm.startDate && previousYear.endDate >= syForm.startDate) {
-                      errors.previousYearId = "L'annee precedente doit se terminer avant la nouvelle annee.";
+                      errors.previousYearId = UI_MESSAGES.fieldInvalid;
                     }
                   }
 
@@ -95,8 +97,7 @@ export function SchoolYearsSection(): JSX.Element {
                       sortOrder,
                       comment: syForm.comment.trim() || undefined,
                       isActive: syForm.status === "ACTIVE"
-                    },
-                    "Annee scolaire creee."
+                    }
                   ).then((ok) => {
                     if (ok) {
                       setSchoolYearErrors({});
@@ -208,7 +209,7 @@ export function SchoolYearsSection(): JSX.Element {
                         <td data-label={tr("Options")}>
                           <ReferenceActionMenu
                             label={`Options annee scolaire ${item.label || item.code}`}
-                            onDelete={() => void deleteRef(`/school-years/${item.id}`, "Annee scolaire supprimee.")}
+                            onDelete={() => void deleteRef(`/school-years/${item.id}`)}
                           />
                         </td>
                       </tr>

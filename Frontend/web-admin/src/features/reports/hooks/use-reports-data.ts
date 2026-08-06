@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { UI_MESSAGES } from "../../../shared/i18n";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type {
   AnalyticsOverview,
   AuditLogPage
@@ -116,7 +118,7 @@ export const useReportsData = ({
       try {
         setAnalyticsOverview(await fetchAnalyticsOverview(api, filters));
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur de chargement des indicateurs.");
+        onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       }
     },
     [analyticsFilters, api, onError, remoteEnabled]
@@ -131,7 +133,7 @@ export const useReportsData = ({
       try {
         setAuditLogs(await fetchAuditLogs(api, filters));
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur de chargement du journal d'audit.");
+        onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       }
     },
     [api, auditFilters, onError, remoteEnabled]
@@ -157,15 +159,15 @@ export const useReportsData = ({
   const exportCurrentAuditLogs = async (): Promise<void> => {
     onError(null);
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : export non persiste.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
       const payload = await exportAuditLogs(api, auditExportFormat, auditFilters);
       triggerFileDownload(payload.fileName, payload.dataUrl);
-      onNotice(`Export audit ${payload.format} genere (${payload.rowCount} ligne(s)).`);
+      onNotice(UI_MESSAGES.exportReady);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'export audit.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.downloadError));
     }
   };
 

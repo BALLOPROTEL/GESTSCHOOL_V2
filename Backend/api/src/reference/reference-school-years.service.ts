@@ -139,7 +139,8 @@ export class ReferenceSchoolYearsService {
     await this.requireSchoolYear(tenantId, id);
     await this.deleteEntity(
       () => this.prisma.schoolYear.delete({ where: { id } }),
-      "School year cannot be deleted because it is still used."
+      "School year cannot be deleted because it is still used.",
+      "REFERENCE_SCHOOL_YEAR_IN_USE"
     );
   }
 
@@ -239,7 +240,8 @@ export class ReferenceSchoolYearsService {
 
   private async deleteEntity(
     callback: () => Promise<unknown>,
-    relationErrorMessage: string
+    relationErrorMessage: string,
+    relationErrorCode: string
   ): Promise<void> {
     try {
       await callback();
@@ -248,7 +250,7 @@ export class ReferenceSchoolYearsService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2003"
       ) {
-        throw new ConflictException(relationErrorMessage);
+        throw new ConflictException({ code: relationErrorCode, message: relationErrorMessage });
       }
       throw error;
     }

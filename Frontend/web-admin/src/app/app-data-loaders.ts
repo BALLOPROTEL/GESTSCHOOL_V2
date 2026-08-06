@@ -10,6 +10,7 @@ import type {
   Student,
   UserAccount
 } from "../shared/types/app";
+import { UI_MESSAGES } from "../shared/i18n";
 import { fetchReferenceData } from "../features/reference/services/reference-service";
 import type { ReferenceData } from "../features/reference/types/reference";
 import { hasScreenAccess } from "./navigation/screen-registry";
@@ -108,7 +109,7 @@ export const resolveBootstrapNeeds = (role: Role): BootstrapNeeds => ({
 export const loadStudentsData = async (api: AppApiClient): Promise<LoadResult<Student[]>> =>
   readListResponse<Student>(
     await api("/students"),
-    "Format inattendu pour la liste des élèves."
+    UI_MESSAGES.loadError
   );
 
 export const loadUsersData = async (
@@ -117,7 +118,7 @@ export const loadUsersData = async (
 ): Promise<LoadResult<UserAccount[]>> =>
   readListResponse<UserAccount>(
     await api("/users", {}, true, { background: currentRole !== "ADMIN" }),
-    "Format inattendu pour la liste des utilisateurs.",
+    UI_MESSAGES.loadError,
     currentRole !== "ADMIN"
   );
 
@@ -127,7 +128,7 @@ export const loadReferenceData = async (
   const { data, errors } = await fetchReferenceData(api);
   return {
     data,
-    error: errors.length > 0 ? errors.join(" | ") : undefined
+    error: errors[0]
   };
 };
 
@@ -137,7 +138,7 @@ export const loadEnrollmentsData = async (
 ): Promise<LoadResult<Enrollment[]>> =>
   readListResponse<Enrollment>(
     await api(`/enrollments${enrollmentSuffix(filters)}`),
-    "Format inattendu pour la liste des inscriptions."
+    UI_MESSAGES.loadError
   );
 
 export const loadFinanceData = async (api: AppApiClient): Promise<LoadResult<FinanceBootstrapData | null>> => {
@@ -173,7 +174,7 @@ export const loadFinanceData = async (api: AppApiClient): Promise<LoadResult<Fin
 export const loadReportCardsData = async (api: AppApiClient): Promise<LoadResult<ReportCard[]>> =>
   readListResponse<ReportCard>(
     await api("/report-cards"),
-    "Format inattendu pour la liste des bulletins."
+    UI_MESSAGES.loadError
   );
 
 export const loadHeaderNotificationRows = async (
@@ -181,7 +182,7 @@ export const loadHeaderNotificationRows = async (
 ): Promise<LoadResult<NotificationSummaryRow[]>> =>
   readListResponse<NotificationSummaryRow>(
     await api("/notifications", {}, false, { background: true }),
-    "Format inattendu pour la liste des notifications.",
+    UI_MESSAGES.loadError,
     true
   );
 

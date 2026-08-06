@@ -1,5 +1,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
+import { UI_MESSAGES } from "../../../shared/i18n";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type { FieldErrors, Period, Subject } from "../../../shared/types/app";
 import {
   createTeacherAttendanceBulk,
@@ -120,7 +122,7 @@ export const usePortalTeacherData = ({
       try {
         setDataAndNotify(await fetchTeacherPortalData(api, nextFilters));
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur de chargement du portail enseignant.");
+        onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       }
     },
     [api, filters, initialData, onError, remoteEnabled, setDataAndNotify]
@@ -136,7 +138,7 @@ export const usePortalTeacherData = ({
       })
       .catch((error) => {
         if (isMounted) {
-          onError(error instanceof Error ? error.message : "Erreur de chargement du portail enseignant.");
+          onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
         }
       });
 
@@ -227,17 +229,17 @@ export const usePortalTeacherData = ({
     event.preventDefault();
     onError(null);
     const nextErrors: FieldErrors = {};
-    if (!gradeForm.studentId) nextErrors.studentId = "Eleve requis.";
-    if (!gradeForm.classId) nextErrors.classId = "Classe requise.";
-    if (!gradeForm.subjectId) nextErrors.subjectId = "Matiere requise.";
-    if (!gradeForm.academicPeriodId) nextErrors.academicPeriodId = "Periode requise.";
-    if (!gradeForm.assessmentLabel.trim()) nextErrors.assessmentLabel = "Libelle requis.";
+    if (!gradeForm.studentId) nextErrors.studentId = UI_MESSAGES.fieldRequired;
+    if (!gradeForm.classId) nextErrors.classId = UI_MESSAGES.fieldRequired;
+    if (!gradeForm.subjectId) nextErrors.subjectId = UI_MESSAGES.fieldRequired;
+    if (!gradeForm.academicPeriodId) nextErrors.academicPeriodId = UI_MESSAGES.fieldRequired;
+    if (!gradeForm.assessmentLabel.trim()) nextErrors.assessmentLabel = UI_MESSAGES.fieldRequired;
 
     const score = Number(gradeForm.score);
     const scoreMax = Number(gradeForm.scoreMax || 20);
-    if (!Number.isFinite(score) || score < 0) nextErrors.score = "Note invalide.";
-    if (!Number.isFinite(scoreMax) || scoreMax <= 0) nextErrors.scoreMax = "Bareme invalide.";
-    if (!hasFieldErrors(nextErrors) && score > scoreMax) nextErrors.score = "La note depasse le bareme.";
+    if (!Number.isFinite(score) || score < 0) nextErrors.score = UI_MESSAGES.fieldInvalid;
+    if (!Number.isFinite(scoreMax) || scoreMax <= 0) nextErrors.scoreMax = UI_MESSAGES.fieldInvalid;
+    if (!hasFieldErrors(nextErrors) && score > scoreMax) nextErrors.score = UI_MESSAGES.fieldInvalid;
 
     setErrors(nextErrors);
     if (hasFieldErrors(nextErrors)) {
@@ -245,7 +247,7 @@ export const usePortalTeacherData = ({
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : note non persistee.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -262,11 +264,11 @@ export const usePortalTeacherData = ({
         comment: gradeForm.comment.trim() || undefined
       });
       setErrors({});
-      onNotice("Note enseignant enregistree.");
+      onNotice(UI_MESSAGES.teacherGradeSaved);
       setGradeForm((previous) => ({ ...previous, score: "", comment: "" }));
       await loadData(filters);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'enregistrement de la note.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
@@ -274,9 +276,9 @@ export const usePortalTeacherData = ({
     event.preventDefault();
     onError(null);
     const nextErrors: FieldErrors = {};
-    if (!attendanceForm.classId) nextErrors.classId = "Classe requise.";
-    if (!attendanceForm.attendanceDate) nextErrors.attendanceDate = "Date requise.";
-    if (attendanceStudents.length === 0) nextErrors.students = "Selectionner au moins un eleve.";
+    if (!attendanceForm.classId) nextErrors.classId = UI_MESSAGES.fieldRequired;
+    if (!attendanceForm.attendanceDate) nextErrors.attendanceDate = UI_MESSAGES.fieldRequired;
+    if (attendanceStudents.length === 0) nextErrors.students = UI_MESSAGES.selectStudent;
 
     setErrors(nextErrors);
     if (hasFieldErrors(nextErrors)) {
@@ -284,7 +286,7 @@ export const usePortalTeacherData = ({
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : pointage non persiste.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -300,10 +302,10 @@ export const usePortalTeacherData = ({
       });
       setErrors({});
       setAttendanceStudents([]);
-      onNotice("Pointage enseignant enregistre.");
+      onNotice(UI_MESSAGES.teacherAttendanceSaved);
       await loadData(filters);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'enregistrement du pointage.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
@@ -311,9 +313,9 @@ export const usePortalTeacherData = ({
     event.preventDefault();
     onError(null);
     const nextErrors: FieldErrors = {};
-    if (!notificationForm.classId) nextErrors.classId = "Classe requise.";
-    if (!notificationForm.title.trim()) nextErrors.title = "Titre requis.";
-    if (!notificationForm.message.trim()) nextErrors.message = "Message requis.";
+    if (!notificationForm.classId) nextErrors.classId = UI_MESSAGES.fieldRequired;
+    if (!notificationForm.title.trim()) nextErrors.title = UI_MESSAGES.fieldRequired;
+    if (!notificationForm.message.trim()) nextErrors.message = UI_MESSAGES.fieldRequired;
 
     setErrors(nextErrors);
     if (hasFieldErrors(nextErrors)) {
@@ -321,7 +323,7 @@ export const usePortalTeacherData = ({
       return;
     }
     if (!remoteEnabled) {
-      onNotice("Mode apercu local : notification non persistee.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -335,10 +337,10 @@ export const usePortalTeacherData = ({
       });
       setErrors({});
       setNotificationForm((previous) => ({ ...previous, title: "", message: "" }));
-      onNotice("Notification parent envoyee.");
+      onNotice(UI_MESSAGES.parentNotificationSent);
       await loadData(filters);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'envoi de notification.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 

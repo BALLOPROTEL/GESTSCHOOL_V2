@@ -63,8 +63,9 @@ import {
   today,
   trackLabel
 } from "./teachers/teachers-screen-model";
-import { translateUiString, type UiLanguage } from "../shared/i18n";
+import { translateUiString, UI_MESSAGES, type UiLanguage } from "../shared/i18n";
 import { useI18n } from "../shared/i18n-context";
+import { toUiErrorMessage } from "../shared/services/api-errors";
 
 
 type TeachersScreenProps = {
@@ -144,7 +145,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       setTeachers(rows);
       if (!selectedTeacherId && rows[0]) setSelectedTeacherId(rows[0].id);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de filtrer les enseignants.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     }
   };
 
@@ -171,7 +172,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       setWorkloads(data.workloads);
       if (!selectedTeacherId && data.teachers[0]) setSelectedTeacherId(data.teachers[0].id);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de charger le module enseignants.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     } finally {
       setLoading(false);
     }
@@ -186,7 +187,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     try {
       setDetail(await fetchTeacherDetail(api, teacherId));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de charger le détail enseignant.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     }
   };
 
@@ -235,7 +236,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       internalNotes: emptyToUndefined(teacherForm.internalNotes)
     };
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : fiche enseignant non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       setEditingTeacherId(null);
       setTeacherForm(defaultTeacherForm());
       setActiveStep("list");
@@ -245,13 +246,13 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     try {
       saved = await saveTeacher(api, editingTeacherId, payload);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'enregistrer l'enseignant.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
     setSelectedTeacherId(saved.id);
     setEditingTeacherId(null);
     setTeacherForm(defaultTeacherForm());
-    onNotice("Fiche enseignant enregistrée.");
+    onNotice(UI_MESSAGES.teacherSaved);
     await loadModule();
     setActiveStep("detail");
   };
@@ -259,7 +260,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   const submitSkill = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : compétence enseignant non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
@@ -276,10 +277,10 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
         comment: emptyToUndefined(skillForm.comment)
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible d'ajouter la compétence enseignant.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice("Compétence enseignant ajoutée.");
+    onNotice(UI_MESSAGES.teacherSkillAdded);
     setSkillForm((prev) => ({ ...defaultSkillForm(), teacherId: prev.teacherId }));
     await loadModule();
   };
@@ -287,7 +288,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   const submitAssignment = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : affectation enseignant non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
@@ -308,19 +309,19 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
         comment: emptyToUndefined(assignmentForm.comment)
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de créer l'affectation enseignant.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice("Affectation pédagogique créée.");
+    onNotice(UI_MESSAGES.teacherAssignmentCreated);
     setAssignmentForm((prev) => ({ ...defaultAssignmentForm(), teacherId: prev.teacherId, schoolYearId: prev.schoolYearId }));
     await loadModule();
   };
 
   const validateDocumentFile = (file: File | null): string => {
-    if (!file) return translate("Veuillez sélectionner un fichier.");
-    if (!isAllowedTeacherDocumentMimeType(file.type)) return translate("Ce type de fichier n'est pas autorisé.");
+    if (!file) return translate(UI_MESSAGES.documentFileRequired);
+    if (!isAllowedTeacherDocumentMimeType(file.type)) return translate(UI_MESSAGES.documentTypeForbidden);
     if (file.size > TEACHER_DOCUMENT_MAX_SIZE_BYTES) {
-      return translate("Le fichier dépasse la taille maximale autorisée.");
+      return translate(UI_MESSAGES.documentTooLarge);
     }
     return "";
   };
@@ -351,7 +352,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     }
     if (!documentFile) return;
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : document enseignant non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       clearDocumentFile();
       setDocumentForm((prev) => ({ ...defaultDocumentForm(), teacherId: prev.teacherId }));
       return;
@@ -364,11 +365,11 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
         status: documentForm.status
       }, documentFile);
     } catch (error) {
-      onError(error instanceof Error ? error.message : translate("L'envoi du document a échoué."));
+      onError(toUiErrorMessage(error, UI_MESSAGES.uploadError));
       setDocumentUploading(false);
       return;
     }
-    onNotice(translate("Document ajouté avec succès."));
+    onNotice(UI_MESSAGES.documentAdded);
     setDocumentForm((prev) => ({ ...defaultDocumentForm(), teacherId: prev.teacherId }));
     setDocumentFile(null);
     setDocumentFileError("");
@@ -409,7 +410,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     try {
       await downloadTeacherDocument(api, document);
     } catch (error) {
-      onError(error instanceof Error ? error.message : translate("Téléchargement impossible."));
+      onError(toUiErrorMessage(error, UI_MESSAGES.downloadError));
     }
   };
 
@@ -422,13 +423,13 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   const archiveResource = async (path: string, successMessage: string, confirmMessage?: string): Promise<void> => {
     if (confirmMessage && !window.confirm(translate(confirmMessage))) return;
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : suppression enseignant non persistée.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
       await deleteTeacherResource(api, path);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Impossible de supprimer la ressource enseignant.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
       return;
     }
     onNotice(successMessage);
@@ -511,7 +512,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           filters={filters}
           loading={loading}
           onArchiveTeacher={(teacherId) =>
-            void archiveResource(`/teachers/${teacherId}`, "Enseignant archivé.", "Confirmer l'archivage de cet enseignant ?")
+            void archiveResource(`/teachers/${teacherId}`, UI_MESSAGES.archived, UI_MESSAGES.confirmArchive)
           }
           onEditTeacher={editTeacher}
           onFilter={() => void loadTeachers()}
@@ -620,7 +621,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Enseignant")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Cycle")}</th><th>{tr("Niveau")}</th><th>{tr("Qualification")}</th><th>{tr("Statut")}</th><th>{tr("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherSkills.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune compétence enregistrée.")}</td></tr> : selectedTeacherSkills.map((skill) => (
-                <tr key={skill.id}><td data-label={tr("Enseignant")}>{skill.teacherName}</td><td data-label={tr("Matière")}>{skill.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(skill.track))}</td><td data-label={tr("Cycle")}>{skill.cycleLabel || tr("Tous")}</td><td data-label={tr("Niveau")}>{skill.levelLabel || tr("Tous")}</td><td data-label={tr("Qualification")}>{skill.qualification || "-"}</td><td data-label={tr("Statut")}><span className={statusPillClass(skill.status)}>{tr(teacherStatusLabel(skill.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/skills/${skill.id}`, "Compétence supprimée.", "Confirmer la suppression de cette compétence ?")}>{tr("Supprimer")}</button></td></tr>
+                <tr key={skill.id}><td data-label={tr("Enseignant")}>{skill.teacherName}</td><td data-label={tr("Matière")}>{skill.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(skill.track))}</td><td data-label={tr("Cycle")}>{skill.cycleLabel || tr("Tous")}</td><td data-label={tr("Niveau")}>{skill.levelLabel || tr("Tous")}</td><td data-label={tr("Qualification")}>{skill.qualification || "-"}</td><td data-label={tr("Statut")}><span className={statusPillClass(skill.status)}>{tr(teacherStatusLabel(skill.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/skills/${skill.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -650,7 +651,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Enseignant")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Classe")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Charge horaire")}</th><th>{tr("Titulaire")}</th><th>{tr("Statut")}</th><th>{tr("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherAssignments.length === 0 ? <tr><td colSpan={10} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedTeacherAssignments.map((item) => (
-                <tr key={item.id}><td data-label={tr("Enseignant")}>{item.teacherName}</td><td data-label={tr("Matière")}>{item.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Classe")}>{item.classLabel}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Charge horaire")}>{item.workloadHours ?? 0} {tr("h")}</td><td data-label={tr("Titulaire")}>{item.isHomeroomTeacher ? tr("Oui") : tr("Non")}</td><td data-label={tr("Statut")}><span className={statusPillClass(item.status)}>{tr(teacherStatusLabel(item.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/assignments/${item.id}`, "Affectation supprimée.", "Confirmer la suppression de cette affectation ?")}>{tr("Supprimer")}</button></td></tr>
+                <tr key={item.id}><td data-label={tr("Enseignant")}>{item.teacherName}</td><td data-label={tr("Matière")}>{item.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Classe")}>{item.classLabel}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Charge horaire")}>{item.workloadHours ?? 0} {tr("h")}</td><td data-label={tr("Titulaire")}>{item.isHomeroomTeacher ? tr("Oui") : tr("Non")}</td><td data-label={tr("Statut")}><span className={statusPillClass(item.status)}>{tr(teacherStatusLabel(item.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/assignments/${item.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>
@@ -724,7 +725,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{translate("Enseignant")}</th><th>{translate("Type")}</th><th>{translate("Nom du document")}</th><th>{translate("Ajouté le")}</th><th>{translate("Statut")}</th><th>{translate("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherDocuments.length === 0 ? <tr><td colSpan={6} className="empty-row">{translate("Aucun document enregistré.")}</td></tr> : selectedTeacherDocuments.map((document) => (
-                <tr key={document.id}><td data-label={translate("Enseignant")}>{document.teacherName}</td><td data-label={translate("Type")}>{translateDocumentType(document.documentType)}</td><td data-label={translate("Nom du document")}><button type="button" className="button-link" onClick={() => void downloadDocument(document)}>{document.documentName || document.originalName}</button></td><td data-label={translate("Ajouté le")}>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td data-label={translate("Statut")}><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td data-label={translate("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, translate("Document supprimé."), translate("Confirmer la suppression de ce document ?"))}>{translate("Supprimer")}</button></td></tr>
+                <tr key={document.id}><td data-label={translate("Enseignant")}>{document.teacherName}</td><td data-label={translate("Type")}>{translateDocumentType(document.documentType)}</td><td data-label={translate("Nom du document")}><button type="button" className="button-link" onClick={() => void downloadDocument(document)}>{document.documentName || document.originalName}</button></td><td data-label={translate("Ajouté le")}>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td data-label={translate("Statut")}><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td data-label={translate("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{translate("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </div>

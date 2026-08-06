@@ -29,7 +29,7 @@ import type {
   TeacherWorkloadRecord,
   UserAccount
 } from "../shared/types/app";
-import { translateUiString, type UiLanguage } from "../shared/i18n";
+import { translateUiString, UI_MESSAGES, type UiLanguage } from "../shared/i18n";
 import { AuthScreen } from "./auth-screen";
 import { DashboardScreen } from "./dashboard-screen";
 import { EnrollmentsScreen } from "./enrollments/enrollments-screen";
@@ -1198,7 +1198,7 @@ describe("critical frontend flows", () => {
 	  fireEvent.click(within(entry).getByRole("button", { name: "Enregistrer les notes" }));
 
 	  await waitFor(() => {
-	    expect(onNotice).toHaveBeenCalledWith("Notes enregistrées en aperçu local.");
+	    expect(onNotice).toHaveBeenCalledWith(UI_MESSAGES.previewNotPersisted);
 	  });
 
 	  fireEvent.click(screen.getByRole("tab", { name: "Moyennes & rangs" }));

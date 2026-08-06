@@ -1,3 +1,4 @@
+import { parseApiError } from "../../../shared/services/api-errors";
 import type { Enrollment } from "../../../shared/types/app";
 import type {
   EnrollmentPlacementPayload,
@@ -5,17 +6,7 @@ import type {
   EnrollmentsApiClient
 } from "../types/enrollments";
 
-export const parseEnrollmentsError = async (response: Response): Promise<string> => {
-  try {
-    const payload = (await response.json()) as { message?: string | string[]; error?: string };
-    if (Array.isArray(payload.message)) return payload.message.join(", ");
-    if (typeof payload.message === "string") return payload.message;
-    if (typeof payload.error === "string") return payload.error;
-  } catch {
-    // Keep a stable fallback for non-JSON API errors.
-  }
-  return `Erreur HTTP ${response.status}`;
-};
+export const parseEnrollmentsError = parseApiError;
 
 export const fetchEnrollments = async (
   api: EnrollmentsApiClient,

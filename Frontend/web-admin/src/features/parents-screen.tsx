@@ -8,6 +8,8 @@ import type {
   WorkflowStepDef
 } from "../shared/types/app";
 import { WorkflowGuide } from "../shared/components/workflow-guide";
+import { UI_MESSAGES } from "../shared/i18n";
+import { toUiErrorMessage } from "../shared/services/api-errors";
 import { ParentsListSection } from "./parents/components/parents-list-section";
 import {
   archiveParentRecord,
@@ -43,13 +45,6 @@ type ParentsScreenProps = {
   onError: (message: string) => void;
   onNotice: (message: string) => void;
   onParentsChanged?: () => Promise<void> | void;
-};
-
-const normalizeParentsError = (error: unknown, fallback: string): string => {
-  const message = error instanceof Error ? error.message : fallback;
-  return /invalid or expired token|session expiree|session expirée/i.test(message)
-    ? "Session expirée. Merci de vous reconnecter."
-    : message;
 };
 
 const formatRelationRoles = (relation: ParentStudentRelation): string => {
@@ -131,7 +126,7 @@ export function ParentsScreen({
       setParents(data.parents);
       setRelations(data.relations);
     } catch (error) {
-      onError(normalizeParentsError(error, "Impossible de charger les responsables."));
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     } finally {
       setLoading(false);
     }
@@ -163,7 +158,7 @@ export function ParentsScreen({
       !parentForm.primaryPhone.trim() ||
       !parentForm.status
     ) {
-      onError("Rôle parental, prénom, nom, téléphone principal et statut sont requis.");
+      onError(UI_MESSAGES.validationError);
       return;
     }
 
@@ -186,7 +181,7 @@ export function ParentsScreen({
     };
 
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : responsable non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       setActiveStep("list");
       return;
     }
@@ -194,12 +189,12 @@ export function ParentsScreen({
     try {
       await saveParent(api, editingParentId, payload);
     } catch (error) {
-      onError(normalizeParentsError(error, "Impossible d’enregistrer le responsable."));
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
 
     resetParentForm();
-    onNotice(editingParentId ? "Responsable modifié." : "Responsable créé.");
+    onNotice(editingParentId ? UI_MESSAGES.updated : UI_MESSAGES.created);
     await loadData();
     await onParentsChanged?.();
     setActiveStep("list");
@@ -229,18 +224,18 @@ export function ParentsScreen({
   };
 
   const archiveParent = async (parentId: string): Promise<void> => {
-    if (!window.confirm("Archiver ce responsable ?")) return;
+    if (!window.confirm(tr(UI_MESSAGES.confirmArchive))) return;
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : archivage non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
       await archiveParentRecord(api, parentId);
     } catch (error) {
-      onError(normalizeParentsError(error, "Impossible d’archiver le responsable."));
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice("Responsable archivé.");
+    onNotice(UI_MESSAGES.archived);
     if (selectedParentId === parentId) setSelectedParentId("");
     await loadData();
     await onParentsChanged?.();
@@ -249,12 +244,12 @@ export function ParentsScreen({
   const submitLink = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!linkForm.parentId || !linkForm.studentId || !linkForm.relationType) {
-      onError("Parent, élève et relation sont requis pour créer le lien.");
+      onError(UI_MESSAGES.validationError);
       return;
     }
 
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : lien parent-élève non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -272,7 +267,7 @@ export function ParentsScreen({
         comment: linkForm.comment.trim() || undefined
       });
     } catch (error) {
-      onError(normalizeParentsError(error, "Impossible de créer le lien parent-élève."));
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
 
@@ -281,24 +276,24 @@ export function ParentsScreen({
       parentId: previous.parentId,
       studentId: previous.studentId
     }));
-    onNotice("Lien parent-élève créé.");
+    onNotice(UI_MESSAGES.created);
     await loadData();
     await onParentsChanged?.();
   };
 
   const archiveLink = async (linkId: string): Promise<void> => {
-    if (!window.confirm("Archiver ce lien parent-élève ?")) return;
+    if (!window.confirm(tr(UI_MESSAGES.confirmArchive))) return;
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : archivage du lien non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
       await archiveParentStudentLink(api, linkId);
     } catch (error) {
-      onError(normalizeParentsError(error, "Impossible d’archiver le lien parent-élève."));
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
       return;
     }
-    onNotice("Lien parent-élève archivé.");
+    onNotice(UI_MESSAGES.archived);
     await loadData();
     await onParentsChanged?.();
   };

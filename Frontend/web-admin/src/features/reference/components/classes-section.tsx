@@ -1,6 +1,7 @@
 import type { JSX } from "react";
 
 import type { AcademicTrack, FieldErrors } from "../../../shared/types/app";
+import { UI_MESSAGES } from "../../../shared/i18n";
 
 import {
   ACADEMIC_TRACK_OPTIONS,
@@ -8,7 +9,7 @@ import {
   TEACHING_MODE_OPTIONS
 } from "../../../shared/constants/domain";
 import {
-  fieldError,
+  fieldError as renderReferenceFieldError,
   focusFirstInlineErrorField,
   formatAcademicTrackLabel,
   formatReferenceStatusLabel,
@@ -24,6 +25,7 @@ import { useI18n } from "../../../shared/i18n-context";
 
 export function ClassesSection(): JSX.Element {
   const { t: tr } = useI18n();
+  const fieldError = (errors: FieldErrors, key: string) => renderReferenceFieldError(errors, key, tr);
   const ctx = useReferenceScreenContext();
   const {
     classCycleOptions,
@@ -75,34 +77,34 @@ export function ClassesSection(): JSX.Element {
                   const capacity = parseOptionalNumber(classForm.capacity);
                   const actualCapacity = parseOptionalNumber(classForm.actualCapacity);
 
-                  if (!classForm.schoolYearId) errors.schoolYearId = "Annee scolaire requise.";
-                  if (!classForm.levelId) errors.levelId = "Niveau requis.";
-                  if (!classForm.track) errors.track = "Cursus requis.";
-                  if (!classForm.code.trim()) errors.code = "Code classe requis.";
-                  if (!classForm.label.trim()) errors.label = "Nom de la classe requis.";
+                  if (!classForm.schoolYearId) errors.schoolYearId = UI_MESSAGES.fieldRequired;
+                  if (!classForm.levelId) errors.levelId = UI_MESSAGES.fieldRequired;
+                  if (!classForm.track) errors.track = UI_MESSAGES.fieldRequired;
+                  if (!classForm.code.trim()) errors.code = UI_MESSAGES.fieldRequired;
+                  if (!classForm.label.trim()) errors.label = UI_MESSAGES.fieldRequired;
                   if (capacity === undefined || capacity <= 0) {
-                    errors.capacity = "L'effectif maximal doit etre strictement superieur a zero.";
+                    errors.capacity = UI_MESSAGES.fieldInvalid;
                   }
-                  if (!classForm.status) errors.status = "Statut requis.";
+                  if (!classForm.status) errors.status = UI_MESSAGES.fieldRequired;
                   if (classForm.actualCapacity.trim() && (actualCapacity === undefined || actualCapacity < 0)) {
-                    errors.actualCapacity = "Capacite reelle invalide.";
+                    errors.actualCapacity = UI_MESSAGES.fieldInvalid;
                   }
                   if (
                     actualCapacity !== undefined &&
                     capacity !== undefined &&
                     actualCapacity > capacity
                   ) {
-                    errors.actualCapacity = "La capacite reelle ne peut pas depasser l'effectif maximal.";
+                    errors.actualCapacity = UI_MESSAGES.fieldInvalid;
                   }
                   if (selectedClassLevel && selectedClassLevel.track !== classForm.track) {
-                    errors.track = "Le cursus de la classe doit rester coherent avec celui du niveau.";
+                    errors.track = UI_MESSAGES.fieldInvalid;
                   }
                   if (
                     selectedClassCycle &&
                     classForm.schoolYearId &&
                     selectedClassCycle.schoolYearId !== classForm.schoolYearId
                   ) {
-                    errors.schoolYearId = "L'annee de la classe doit correspondre a l'annee du niveau / cycle.";
+                    errors.schoolYearId = UI_MESSAGES.fieldInvalid;
                   }
 
                   setClassErrors(errors);
@@ -129,8 +131,7 @@ export function ClassesSection(): JSX.Element {
                       speciality: classForm.speciality.trim() || undefined,
                       description: classForm.description.trim() || undefined,
                       teachingMode: classForm.teachingMode
-                    },
-                    "Classe creee."
+                    }
                   ).then((ok) => {
                     if (ok) {
                       setClassErrors({});
@@ -345,7 +346,7 @@ export function ClassesSection(): JSX.Element {
                         <td data-label={tr("Action")}>
                           <ReferenceActionMenu
                             label={`Options classe ${item.label}`}
-                            onDelete={() => void deleteRef(`/classes/${item.id}`, "Classe supprimee.")}
+                            onDelete={() => void deleteRef(`/classes/${item.id}`)}
                           />
                         </td>
                       </tr>

@@ -1,5 +1,8 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
+import { translateUiString, UI_MESSAGES } from "../../../shared/i18n";
+import { useI18n } from "../../../shared/i18n-context";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type { FieldErrors, Student } from "../../../shared/types/app";
 import { focusFirstInlineErrorField, hasFieldErrors, today } from "../../../shared/utils/form-ui";
 import { fetchStudents, removeStudent, saveStudent } from "../services/students-service";
@@ -66,6 +69,7 @@ export const useStudentsData = ({
   onError,
   onNotice
 }: UseStudentsDataOptions) => {
+  const { language } = useI18n();
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
@@ -97,7 +101,7 @@ export const useStudentsData = ({
       setStudentsLoading(true);
       setStudentsAndNotify(await fetchStudents(api));
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de chargement des élèves.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
     } finally {
       setStudentsLoading(false);
     }
@@ -152,22 +156,22 @@ export const useStudentsData = ({
     onError(null);
 
     const errors: FieldErrors = {};
-    if (!studentForm.matricule.trim()) errors.matricule = "Matricule requis.";
-    if (!studentForm.firstName.trim()) errors.firstName = "Prénom requis.";
-    if (!studentForm.lastName.trim()) errors.lastName = "Nom requis.";
-    if (!studentForm.sex) errors.sex = "Sexe requis.";
-    if (!studentForm.establishmentId) errors.establishmentId = "Établissement requis.";
+    if (!studentForm.matricule.trim()) errors.matricule = UI_MESSAGES.validationError;
+    if (!studentForm.firstName.trim()) errors.firstName = UI_MESSAGES.validationError;
+    if (!studentForm.lastName.trim()) errors.lastName = UI_MESSAGES.validationError;
+    if (!studentForm.sex) errors.sex = UI_MESSAGES.validationError;
+    if (!studentForm.establishmentId) errors.establishmentId = UI_MESSAGES.validationError;
     if (!studentForm.birthDate) {
-      errors.birthDate = "Date de naissance requise.";
+      errors.birthDate = UI_MESSAGES.validationError;
     } else if (studentForm.birthDate > today()) {
-      errors.birthDate = "Date de naissance invalide.";
+      errors.birthDate = UI_MESSAGES.validationError;
     }
-    if (!studentForm.status) errors.status = "Statut requis.";
+    if (!studentForm.status) errors.status = UI_MESSAGES.validationError;
     if (studentForm.admissionDate && studentForm.admissionDate > today()) {
-      errors.admissionDate = "Date d’admission invalide.";
+      errors.admissionDate = UI_MESSAGES.validationError;
     }
     if (studentForm.email && !studentForm.email.includes("@")) {
-      errors.email = "Email invalide.";
+      errors.email = UI_MESSAGES.validationError;
     }
 
     setStudentErrors(errors);
@@ -177,7 +181,7 @@ export const useStudentsData = ({
     }
 
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : dossier élève non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -185,19 +189,19 @@ export const useStudentsData = ({
       await saveStudent(api, studentForm, editingStudentId);
       setStudentErrors({});
       resetStudentForm();
-      onNotice(editingStudentId ? "Dossier élève modifié." : "Dossier élève créé.");
+      onNotice(UI_MESSAGES.studentSaved);
       setStudentWorkflowStep("list");
       await loadStudents();
       await onReloadEnrollments?.();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de sauvegarde de l’élève.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
   const deleteStudent = async (studentId: string): Promise<void> => {
-    if (!window.confirm("Archiver ce dossier élève ?")) return;
+    if (!window.confirm(translateUiString(language, UI_MESSAGES.studentArchiveConfirm))) return;
     if (!remoteEnabled) {
-      onNotice("Mode aperçu local : archivage non persisté.");
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
@@ -205,11 +209,11 @@ export const useStudentsData = ({
       await removeStudent(api, studentId);
       if (editingStudentId === studentId) resetStudentForm();
       if (selectedStudentId === studentId) setSelectedStudentId(null);
-      onNotice("Dossier élève archivé.");
+      onNotice(UI_MESSAGES.studentArchived);
       await loadStudents();
       await onReloadEnrollments?.();
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d’archivage de l’élève.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 

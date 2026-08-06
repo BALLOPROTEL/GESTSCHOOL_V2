@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-import { translateUiString, type UiLanguage } from "../../shared/i18n";
+import { translateUiString, UI_MESSAGES, type UiLanguage } from "../../shared/i18n";
+import { toUiErrorMessage } from "../../shared/services/api-errors";
 import type {
   SchoolYear,
   Session,
@@ -169,10 +170,10 @@ export function PreferencesScreen({
       }
       onLanguageChange(form.language);
       onThemeChange(form.theme);
-      onNotice("Préférences enregistrées.");
+      onNotice(UI_MESSAGES.preferencesSaved);
       onError(null);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Préférences non enregistrées.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     } finally {
       setSaving(false);
     }
@@ -263,7 +264,7 @@ export function ActivityScreen({
         if (!cancelled) setActivity(rows);
       })
       .catch((error) => {
-        if (!cancelled) onError(error instanceof Error ? error.message : "Journal d’activité indisponible.");
+        if (!cancelled) onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

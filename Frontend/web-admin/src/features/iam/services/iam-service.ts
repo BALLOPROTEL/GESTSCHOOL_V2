@@ -1,3 +1,4 @@
+import { parseApiError } from "../../../shared/services/api-errors";
 import type {
   ParentRecord,
   Role,
@@ -7,17 +8,7 @@ import type {
 } from "../../../shared/types/app";
 import type { IamApiClient } from "../types/iam";
 
-export const parseIamError = async (response: Response): Promise<string> => {
-  try {
-    const payload = (await response.json()) as { message?: string | string[]; error?: string };
-    if (Array.isArray(payload.message)) return payload.message.join(", ");
-    if (typeof payload.message === "string") return payload.message;
-    if (typeof payload.error === "string") return payload.error;
-  } catch {
-    // Keep a stable fallback when the API returns an empty or non-JSON error body.
-  }
-  return `Erreur HTTP ${response.status}`;
-};
+export const parseIamError = parseApiError;
 
 export const fetchIamUsers = async (api: IamApiClient): Promise<UserAccount[]> => {
   const response = await api("/users");

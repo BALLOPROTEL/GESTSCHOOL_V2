@@ -1,4 +1,5 @@
 import type { ClassItem, Cycle, Level, Period, SchoolYear, Subject } from "../../../shared/types/app";
+import { parseApiError } from "../../../shared/services/api-errors";
 import type { ReferenceApiClient, ReferenceData } from "../types/reference";
 
 export const emptyReferenceData = (): ReferenceData => ({
@@ -10,17 +11,7 @@ export const emptyReferenceData = (): ReferenceData => ({
   periods: []
 });
 
-export const parseReferenceError = async (response: Response): Promise<string> => {
-  try {
-    const payload = (await response.json()) as { message?: string | string[]; error?: string };
-    if (Array.isArray(payload.message)) return payload.message.join(", ");
-    if (typeof payload.message === "string") return payload.message;
-    if (typeof payload.error === "string") return payload.error;
-  } catch {
-    // Keep the original response available for the generic HTTP fallback.
-  }
-  return `Erreur HTTP ${response.status}`;
-};
+export const parseReferenceError = parseApiError;
 
 export const fetchReferenceData = async (
   api: ReferenceApiClient
@@ -41,37 +32,37 @@ export const fetchReferenceData = async (
   if (schoolYearsResponse.ok) {
     data.schoolYears = (await schoolYearsResponse.json()) as SchoolYear[];
   } else {
-    errors.push(`Annees: ${await parseReferenceError(schoolYearsResponse)}`);
+    errors.push(await parseReferenceError(schoolYearsResponse));
   }
 
   if (cyclesResponse.ok) {
     data.cycles = (await cyclesResponse.json()) as Cycle[];
   } else {
-    errors.push(`Cycles: ${await parseReferenceError(cyclesResponse)}`);
+    errors.push(await parseReferenceError(cyclesResponse));
   }
 
   if (levelsResponse.ok) {
     data.levels = (await levelsResponse.json()) as Level[];
   } else {
-    errors.push(`Niveaux: ${await parseReferenceError(levelsResponse)}`);
+    errors.push(await parseReferenceError(levelsResponse));
   }
 
   if (classesResponse.ok) {
     data.classes = (await classesResponse.json()) as ClassItem[];
   } else {
-    errors.push(`Classes: ${await parseReferenceError(classesResponse)}`);
+    errors.push(await parseReferenceError(classesResponse));
   }
 
   if (subjectsResponse.ok) {
     data.subjects = (await subjectsResponse.json()) as Subject[];
   } else {
-    errors.push(`Matieres: ${await parseReferenceError(subjectsResponse)}`);
+    errors.push(await parseReferenceError(subjectsResponse));
   }
 
   if (periodsResponse.ok) {
     data.periods = (await periodsResponse.json()) as Period[];
   } else {
-    errors.push(`Periodes: ${await parseReferenceError(periodsResponse)}`);
+    errors.push(await parseReferenceError(periodsResponse));
   }
 
   return { data, errors };

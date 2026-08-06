@@ -7,7 +7,8 @@ import type {
   SchoolYear,
   Student
 } from "../../../shared/types/app";
-import { translateUiString, type UiLanguage } from "../../../shared/i18n";
+import { translateUiString, UI_MESSAGES, type UiLanguage } from "../../../shared/i18n";
+import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import {
   createEnrollment,
   fetchEnrollments,
@@ -153,7 +154,7 @@ export const useEnrollmentsData = ({
       try {
         setEnrollmentsAndNotify(await fetchEnrollments(api, filters));
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Erreur de chargement des inscriptions.");
+        onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       }
     },
     [api, enrollmentFilters, initialEnrollments, onError, remoteEnabled, setEnrollmentsAndNotify]
@@ -197,29 +198,29 @@ export const useEnrollmentsData = ({
       ? enrollments.find((item) => item.id === editingEnrollmentId) || null
       : null;
     const errors: FieldErrors = {};
-    if (!enrollmentForm.schoolYearId) errors.schoolYearId = "Année scolaire requise.";
-    if (!enrollmentForm.classId) errors.classId = "Classe requise.";
-    if (!enrollmentForm.studentId) errors.studentId = "Élève requis.";
-    if (!enrollmentForm.track) errors.track = "Cursus requis.";
-    if (!enrollmentForm.enrollmentDate) errors.enrollmentDate = "Date d'inscription requise.";
-    if (!enrollmentForm.enrollmentStatus.trim()) errors.enrollmentStatus = "Statut requis.";
+    if (!enrollmentForm.schoolYearId) errors.schoolYearId = UI_MESSAGES.validationError;
+    if (!enrollmentForm.classId) errors.classId = UI_MESSAGES.validationError;
+    if (!enrollmentForm.studentId) errors.studentId = UI_MESSAGES.validationError;
+    if (!enrollmentForm.track) errors.track = UI_MESSAGES.validationError;
+    if (!enrollmentForm.enrollmentDate) errors.enrollmentDate = UI_MESSAGES.validationError;
+    if (!enrollmentForm.enrollmentStatus.trim()) errors.enrollmentStatus = UI_MESSAGES.validationError;
 
     const selectedClass = classes.find((item) => item.id === enrollmentForm.classId);
     if (selectedClass && selectedClass.schoolYearId !== enrollmentForm.schoolYearId) {
-      errors.classId = "La classe doit appartenir à l'année sélectionnée.";
+      errors.classId = UI_MESSAGES.validationError;
     }
     if (selectedClass && selectedClass.track !== enrollmentForm.track) {
-      errors.track = "Le cursus doit correspondre à la classe sélectionnée.";
+      errors.track = UI_MESSAGES.validationError;
     }
     if (editedEnrollment) {
       if (editedEnrollment.studentId !== enrollmentForm.studentId) {
-        errors.studentId = "Pour changer d'élève, créez une nouvelle inscription.";
+        errors.studentId = UI_MESSAGES.validationError;
       }
       if (editedEnrollment.schoolYearId !== enrollmentForm.schoolYearId) {
-        errors.schoolYearId = "Pour changer d'année scolaire, créez une nouvelle inscription.";
+        errors.schoolYearId = UI_MESSAGES.validationError;
       }
       if (editedEnrollment.track !== enrollmentForm.track) {
-        errors.track = "Pour changer de cursus, créez une nouvelle inscription.";
+        errors.track = UI_MESSAGES.validationError;
       }
     }
 
@@ -235,7 +236,7 @@ export const useEnrollmentsData = ({
       );
     });
     if (duplicateEnrollment) {
-      errors.studentId = "Cet élève possède déjà un placement actif sur cette année, cette classe et ce cursus.";
+      errors.studentId = UI_MESSAGES.conflict;
     }
 
     setEnrollmentErrors(errors);
@@ -264,18 +265,18 @@ export const useEnrollmentsData = ({
             : item
         );
         setEnrollmentsAndNotify(nextEnrollments);
-        setNoticeAndStep(translateUiString(language, "Mode aperçu local : inscription modifiée."), "list");
+        setNoticeAndStep(UI_MESSAGES.previewNotPersisted, "list");
         setEditingEnrollmentId(null);
         return;
       }
-      onNotice(translateUiString(language, "Mode aperçu local : inscription non persistée."));
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
 
     try {
       if (editedEnrollment) {
         if (!selectedClass?.levelId) {
-          onError("La classe sélectionnée n'a pas de niveau associé.");
+          onError(UI_MESSAGES.enrollmentClassWithoutLevel);
           return;
         }
         await upsertEnrollmentPlacement(api, {
@@ -289,7 +290,7 @@ export const useEnrollmentsData = ({
           isPrimary: Boolean(editedEnrollment.isPrimary)
         });
         setEditingEnrollmentId(null);
-        setNoticeAndStep(translateUiString(language, "Inscription modifiée."), "list");
+        setNoticeAndStep(UI_MESSAGES.updated, "list");
       } else {
         await createEnrollment(api, {
           schoolYearId: enrollmentForm.schoolYearId,
@@ -299,12 +300,12 @@ export const useEnrollmentsData = ({
           enrollmentDate: enrollmentForm.enrollmentDate || today(),
           enrollmentStatus: normalizeEnrollmentStatus(enrollmentForm.enrollmentStatus)
         });
-        setNoticeAndStep(translateUiString(language, "Inscription créée."), "list");
+        setNoticeAndStep(UI_MESSAGES.created, "list");
       }
       setEnrollmentErrors({});
       await loadEnrollments(enrollmentFilters);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur d'enregistrement de l'inscription.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.saveError));
     }
   };
 
@@ -314,17 +315,17 @@ export const useEnrollmentsData = ({
   };
 
   const deleteEnrollment = async (id: string): Promise<void> => {
-    if (!window.confirm(translateUiString(language, "Supprimer cette inscription ?"))) return;
+    if (!window.confirm(translateUiString(language, UI_MESSAGES.enrollmentDeleteConfirm))) return;
     if (!remoteEnabled) {
-      onNotice(translateUiString(language, "Mode aperçu local : suppression non persistée."));
+      onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
       await removeEnrollment(api, id);
-      onNotice(translateUiString(language, "Inscription supprimée."));
+      onNotice(UI_MESSAGES.deleted);
       await loadEnrollments(enrollmentFilters);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "Erreur de suppression d'inscription.");
+      onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
     }
   };
 

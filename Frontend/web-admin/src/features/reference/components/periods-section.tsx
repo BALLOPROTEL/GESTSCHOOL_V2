@@ -1,13 +1,14 @@
 import type { JSX } from "react";
 
 import type { FieldErrors, PeriodStatus } from "../../../shared/types/app";
+import { UI_MESSAGES } from "../../../shared/i18n";
 
 import {
   PERIOD_STATUS_OPTIONS,
   PERIOD_TYPE_OPTIONS,
 } from "../../../shared/constants/domain";
 import {
-  fieldError,
+  fieldError as renderReferenceFieldError,
   focusFirstInlineErrorField,
   formatPeriodTypeLabel,
   formatReferenceStatusLabel,
@@ -22,6 +23,7 @@ import { useI18n } from "../../../shared/i18n-context";
 
 export function PeriodsSection(): JSX.Element {
   const { t: tr } = useI18n();
+  const fieldError = (errors: FieldErrors, key: string) => renderReferenceFieldError(errors, key, tr);
   const ctx = useReferenceScreenContext();
   const {
     createRef,
@@ -61,17 +63,17 @@ export function PeriodsSection(): JSX.Element {
                   event.preventDefault();
                   const errors: FieldErrors = {};
 
-                  if (!periodForm.schoolYearId) errors.schoolYearId = "Annee scolaire requise.";
-                  if (!periodForm.label.trim()) errors.label = "Nom de la periode requis.";
-                  if (!periodForm.code.trim()) errors.code = "Code periode requis.";
-                  if (!periodForm.startDate) errors.startDate = "Date de debut requise.";
-                  if (!periodForm.endDate) errors.endDate = "Date de fin requise.";
+                  if (!periodForm.schoolYearId) errors.schoolYearId = UI_MESSAGES.fieldRequired;
+                  if (!periodForm.label.trim()) errors.label = UI_MESSAGES.fieldRequired;
+                  if (!periodForm.code.trim()) errors.code = UI_MESSAGES.fieldRequired;
+                  if (!periodForm.startDate) errors.startDate = UI_MESSAGES.fieldRequired;
+                  if (!periodForm.endDate) errors.endDate = UI_MESSAGES.fieldRequired;
                   if (!Number.isFinite(periodForm.sortOrder) || periodForm.sortOrder < 0) {
-                    errors.sortOrder = "Ordre de periode invalide.";
+                    errors.sortOrder = UI_MESSAGES.fieldInvalid;
                   }
-                  if (!periodForm.status) errors.status = "Statut requis.";
+                  if (!periodForm.status) errors.status = UI_MESSAGES.fieldRequired;
                   if (periodForm.startDate && periodForm.endDate && periodForm.endDate <= periodForm.startDate) {
-                    errors.endDate = "La date de fin doit etre strictement apres la date de debut.";
+                    errors.endDate = UI_MESSAGES.fieldInvalid;
                   }
                   if (
                     selectedPeriodSchoolYear &&
@@ -80,7 +82,7 @@ export function PeriodsSection(): JSX.Element {
                     selectedPeriodSchoolYear.endDate &&
                     (periodForm.startDate < selectedPeriodSchoolYear.startDate || periodForm.startDate > selectedPeriodSchoolYear.endDate)
                   ) {
-                    errors.startDate = "La date de debut doit rester dans l'annee scolaire choisie.";
+                    errors.startDate = UI_MESSAGES.fieldInvalid;
                   }
                   if (
                     selectedPeriodSchoolYear &&
@@ -89,21 +91,21 @@ export function PeriodsSection(): JSX.Element {
                     selectedPeriodSchoolYear.endDate &&
                     (periodForm.endDate < selectedPeriodSchoolYear.startDate || periodForm.endDate > selectedPeriodSchoolYear.endDate)
                   ) {
-                    errors.endDate = "La date de fin doit rester dans l'annee scolaire choisie.";
+                    errors.endDate = UI_MESSAGES.fieldInvalid;
                   }
                   if (
                     periodForm.gradeEntryDeadline &&
                     (periodForm.gradeEntryDeadline < periodForm.startDate || periodForm.gradeEntryDeadline > periodForm.endDate)
                   ) {
-                    errors.gradeEntryDeadline = "La date limite de saisie doit rester dans la periode.";
+                    errors.gradeEntryDeadline = UI_MESSAGES.fieldInvalid;
                   }
                   if (periodForm.lockDate && periodForm.startDate && periodForm.lockDate < periodForm.startDate) {
-                    errors.lockDate = "La date de verrouillage ne peut pas etre avant le debut.";
+                    errors.lockDate = UI_MESSAGES.fieldInvalid;
                   }
                   if (periodForm.parentPeriodId) {
                     const parent = periods.find((item) => item.id === periodForm.parentPeriodId);
                     if (parent && parent.schoolYearId !== periodForm.schoolYearId) {
-                      errors.parentPeriodId = "La periode parent doit appartenir a la meme annee scolaire.";
+                      errors.parentPeriodId = UI_MESSAGES.fieldInvalid;
                     }
                   }
 
@@ -129,8 +131,7 @@ export function PeriodsSection(): JSX.Element {
                       gradeEntryDeadline: periodForm.gradeEntryDeadline || undefined,
                       lockDate: periodForm.lockDate || undefined,
                       comment: periodForm.comment.trim() || undefined
-                    },
-                    "Periode creee."
+                    }
                   ).then((ok) => {
                     if (ok) {
                       setPeriodErrors({});
@@ -289,7 +290,7 @@ export function PeriodsSection(): JSX.Element {
                         <td data-label={tr("Action")}>
                           <ReferenceActionMenu
                             label={`Options periode ${item.label}`}
-                            onDelete={() => void deleteRef(`/academic-periods/${item.id}`, "Periode supprimee.")}
+                            onDelete={() => void deleteRef(`/academic-periods/${item.id}`)}
                           />
                         </td>
                       </tr>

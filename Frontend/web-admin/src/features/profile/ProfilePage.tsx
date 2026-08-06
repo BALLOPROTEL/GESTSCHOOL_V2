@@ -141,10 +141,14 @@ function PremiumIcon({ name }: { name: PremiumIconName }): JSX.Element {
   );
 }
 
-const renderError = (errors: FieldErrors, key: string): JSX.Element | null =>
+const renderError = (
+  errors: FieldErrors,
+  key: string,
+  translate: (source: string) => string
+): JSX.Element | null =>
   errors[key] ? (
     <span className="field-error" role="alert">
-      {errors[key]}
+      {translate(errors[key])}
     </span>
   ) : null;
 
@@ -278,7 +282,7 @@ function PersonalInfoCard(props: ProfilePageProps): JSX.Element {
               value={props.profileForm.displayName}
               onChange={(event) => props.onProfileFieldChange("displayName", event.target.value)}
             />
-            {renderError(props.profileErrors, "displayName")}
+            {renderError(props.profileErrors, "displayName", props.t)}
           </label>
           <label>
             {props.t("Prénom")}
@@ -286,7 +290,7 @@ function PersonalInfoCard(props: ProfilePageProps): JSX.Element {
               value={props.profileForm.firstName}
               onChange={(event) => props.onProfileFieldChange("firstName", event.target.value)}
             />
-            {renderError(props.profileErrors, "firstName")}
+            {renderError(props.profileErrors, "firstName", props.t)}
           </label>
           <label>
             {props.t("Nom")}
@@ -294,7 +298,7 @@ function PersonalInfoCard(props: ProfilePageProps): JSX.Element {
               value={props.profileForm.lastName}
               onChange={(event) => props.onProfileFieldChange("lastName", event.target.value)}
             />
-            {renderError(props.profileErrors, "lastName")}
+            {renderError(props.profileErrors, "lastName", props.t)}
           </label>
           <label>
             {props.t("Téléphone")}
@@ -302,7 +306,7 @@ function PersonalInfoCard(props: ProfilePageProps): JSX.Element {
               value={props.profileForm.phone}
               onChange={(event) => props.onProfileFieldChange("phone", event.target.value)}
             />
-            {renderError(props.profileErrors, "phone")}
+            {renderError(props.profileErrors, "phone", props.t)}
           </label>
           <div className="premium-edit-actions">
             <button type="submit" className="premium-profile-primary" disabled={props.savingProfile}>
@@ -379,7 +383,7 @@ function SecurityCard(props: ProfilePageProps): JSX.Element {
                     <PremiumIcon name={visible ? "eyeOff" : "eye"} />
                   </button>
                 </span>
-                {renderError(props.passwordErrors, key)}
+                {renderError(props.passwordErrors, key, props.t)}
               </label>
             );
           })}

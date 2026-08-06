@@ -4,6 +4,7 @@ import type { Role, ScreenId, Session, UserSelfProfile } from "../shared/types/a
 import { AppSidebar } from "../shared/components/app-sidebar";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
 import { I18nProvider } from "../shared/i18n-context";
+import { UI_MESSAGES } from "../shared/i18n";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
 import { HeaderNavigation } from "./navigation/header-navigation";
@@ -121,7 +122,7 @@ export function App(): JSX.Element {
   });
   const enterPreview = useCallback(async (): Promise<void> => {
     if (!localPreviewEnabled) {
-      setError("Le mode aperçu local est désactivé en production.");
+      setError(UI_MESSAGES.previewDisabled);
       return;
     }
 

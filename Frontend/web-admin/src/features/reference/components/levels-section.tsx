@@ -1,13 +1,14 @@
 import type { JSX } from "react";
 
 import type { AcademicTrack, FieldErrors } from "../../../shared/types/app";
+import { UI_MESSAGES } from "../../../shared/i18n";
 
 import {
   ACADEMIC_TRACK_OPTIONS,
   REFERENCE_STATUS_OPTIONS,
 } from "../../../shared/constants/domain";
 import {
-  fieldError,
+  fieldError as renderReferenceFieldError,
   focusFirstInlineErrorField,
   formatAcademicTrackLabel,
   formatReferenceStatusLabel,
@@ -23,6 +24,7 @@ import { useI18n } from "../../../shared/i18n-context";
 
 export function LevelsSection(): JSX.Element {
   const { t: tr } = useI18n();
+  const fieldError = (errors: FieldErrors, key: string) => renderReferenceFieldError(errors, key, tr);
   const ctx = useReferenceScreenContext();
   const {
     createRef,
@@ -63,16 +65,16 @@ export function LevelsSection(): JSX.Element {
                   const errors: FieldErrors = {};
                   const theoreticalAge = parseOptionalNumber(levelForm.theoreticalAge);
 
-                  if (!levelForm.cycleId) errors.cycleId = "Cycle requis.";
-                  if (!levelForm.label.trim()) errors.label = "Nom du niveau requis.";
-                  if (!levelForm.code.trim()) errors.code = "Code niveau requis.";
-                  if (!levelForm.track) errors.track = "Cursus requis.";
-                  if (!levelForm.status) errors.status = "Statut requis.";
+                  if (!levelForm.cycleId) errors.cycleId = UI_MESSAGES.fieldRequired;
+                  if (!levelForm.label.trim()) errors.label = UI_MESSAGES.fieldRequired;
+                  if (!levelForm.code.trim()) errors.code = UI_MESSAGES.fieldRequired;
+                  if (!levelForm.track) errors.track = UI_MESSAGES.fieldRequired;
+                  if (!levelForm.status) errors.status = UI_MESSAGES.fieldRequired;
                   if (!Number.isFinite(levelForm.sortOrder) || levelForm.sortOrder < 0) {
-                    errors.sortOrder = "Ordre invalide dans le cycle.";
+                    errors.sortOrder = UI_MESSAGES.fieldInvalid;
                   }
                   if (levelForm.theoreticalAge.trim() && theoreticalAge === undefined) {
-                    errors.theoreticalAge = "Age theorique invalide.";
+                    errors.theoreticalAge = UI_MESSAGES.fieldInvalid;
                   }
 
                   setLevelErrors(errors);
@@ -94,8 +96,7 @@ export function LevelsSection(): JSX.Element {
                       theoreticalAge,
                       description: levelForm.description.trim() || undefined,
                       defaultSection: levelForm.defaultSection.trim() || undefined
-                    },
-                    "Niveau cree."
+                    }
                   ).then((ok) => {
                     if (ok) {
                       setLevelErrors({});
@@ -237,7 +238,7 @@ export function LevelsSection(): JSX.Element {
                         <td data-label={tr("Action")}>
                           <ReferenceActionMenu
                             label={`Options niveau ${item.label}`}
-                            onDelete={() => void deleteRef(`/levels/${item.id}`, "Niveau supprime.")}
+                            onDelete={() => void deleteRef(`/levels/${item.id}`)}
                           />
                         </td>
                       </tr>
