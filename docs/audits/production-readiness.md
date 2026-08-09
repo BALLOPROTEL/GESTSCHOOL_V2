@@ -2221,3 +2221,36 @@ Validation evidence:
 
 LOT 2E changes dependency tooling and CI policy only. It contains no business,
 API contract or runtime production dependency change.
+
+## CI advisory refresh - 2026-08-09
+
+Three consecutive responsive-only commits exposed the same independent CI
+drift. The pnpm 11 Bulk Advisory database and Trivy both reported
+`GHSA-5p4m-2wfm-xmqj` on the production dependency `js-yaml@4.3.0`; additional
+new development-tooling advisories were present on the full audit. No failure
+originated from the responsive application changes.
+
+Compatible patch-only overrides now resolve the affected branches to:
+
+- `js-yaml` 3.x to `3.15.1` and 4.x to `4.3.1`;
+- `brace-expansion` 1.x to `1.1.18` and 5.x to `5.0.9`;
+- `fast-uri` to `3.1.5`;
+- `nanoid` 3.x to `3.3.17`;
+- `postcss` to `8.5.23`;
+- `undici` 7.x to `7.29.0`.
+
+The former `brace-expansion@1.1.16` exception is retired because a compatible
+1.x fix is now available. The audit policy contains zero exceptions and fails
+if an exception entry is reintroduced without an explicit policy review. No
+major upgrade or incompatible override was used.
+
+Validation evidence:
+
+- frozen pnpm 10 installation: passed;
+- audit policy tests: 7/7 passed;
+- pnpm 11 production audit: zero advisories;
+- pnpm 11 full gate: zero critical/high advisories and no PostCSS advisory;
+- non-blocking development debt: `esbuild@0.27.3` low advisory remains visible;
+- lockfile unchanged by both audits;
+- rebuilt API image, Trivy 0.70.0: zero fixed critical/high findings;
+- rebuilt worker image, Trivy 0.70.0: zero fixed critical/high findings.

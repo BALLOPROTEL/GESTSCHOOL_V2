@@ -1,19 +1,5 @@
 {
   "schemaVersion": 1,
   "owner": "GestSchool maintainers",
-  "exceptions": [
-    {
-      "id": "GHSA-mh99-v99m-4gvg",
-      "package": "brace-expansion",
-      "version": "1.1.16",
-      "scope": "devDependencies",
-      "expiresAt": "2026-08-11T23:59:59.999Z",
-      "reason": "Latest stable ESLint 9, Jest 30 and Nest CLI 11 toolchains still resolve minimatch 3 to brace-expansion 1.1.16. All repository glob patterns are static and repository-owned.",
-      "allowedChains": [
-        "eslint",
-        "jest",
-        "nestjs-cli"
-      ]
-    }
-  ]
+  "exceptions": []
 }
