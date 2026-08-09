@@ -1277,14 +1277,11 @@ tbody td {
    Shell-only layer: navigation, header, drawer, page container and scroll model. */
 
 :root {
-  --shell-mobile-break: 1100px;
-  --shell-tablet-break: 760px;
-  --shell-phone-break: 420px;
-  --shell-gutter-desktop: clamp(0.9rem, 1.45vw, 1.35rem);
-  --shell-gutter-mobile: clamp(0.48rem, 2.8vw, 0.92rem);
-  --shell-header-height: 3.9rem;
+  --shell-gutter-desktop: var(--gs-responsive-gutter-inline);
+  --shell-gutter-mobile: var(--gs-responsive-gutter-inline);
+  --shell-header-height: var(--gs-responsive-header-height);
   --shell-drawer-width: min(25.5rem, calc(100vw - (var(--shell-gutter-mobile) * 2)));
-  --shell-touch-target: 2.8rem;
+  --shell-touch-target: var(--gs-responsive-touch-target);
 }
 
 html,
@@ -1302,7 +1299,6 @@ html.mobile-shell-open body {
 
 .page:not(.page-auth) {
   min-width: 0;
-  overflow-x: clip;
 }
 
 .workspace {
@@ -1324,7 +1320,7 @@ html.mobile-shell-open body {
   display: none;
 }
 
-@media (min-width: 1101px) {
+@media (min-width: 1280px) {
   html.mobile-shell-open,
   html.mobile-shell-open body {
     overflow: auto;
@@ -1349,7 +1345,7 @@ html.mobile-shell-open body {
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 767px) {
   .page:not(.page-auth) {
     min-height: 100dvh;
     padding: var(--shell-gutter-mobile);
@@ -1670,7 +1666,7 @@ html.mobile-shell-open body {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 479px) {
   .page:not(.page-auth) {
     padding: 0.56rem;
   }

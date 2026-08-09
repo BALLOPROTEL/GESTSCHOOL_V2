@@ -517,7 +517,7 @@
   min-height: 100dvh;
   height: 100dvh;
   display: grid !important;
-  grid-template-columns: 16rem minmax(0, 1fr) !important;
+  grid-template-columns: var(--gs-responsive-sidebar-width) minmax(0, 1fr) !important;
   gap: 0 !important;
   padding: 0 !important;
   align-items: stretch;
@@ -548,9 +548,9 @@
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 1.5rem;
+  gap: var(--gs-responsive-gutter-block);
   overflow: auto;
-  padding: 1.5rem 1.5rem 2rem;
+  padding: var(--gs-responsive-gutter-block) var(--gs-responsive-gutter-inline) 2rem;
 }
 
 :root:not([data-theme="dark"]) .page:not(.page-auth) .app-footer,
@@ -598,7 +598,7 @@
 :root:not([data-theme="dark"]) .page:not(.page-auth) .app-shell > .app-sidebar-v2.panel {
   position: relative !important;
   inset: auto !important;
-  width: 16rem;
+  width: var(--gs-responsive-sidebar-width);
   height: 100dvh;
   max-height: none !important;
   min-height: 0;
@@ -968,7 +968,7 @@
   min-height: 100dvh;
   height: 100dvh;
   display: grid !important;
-  grid-template-columns: 16rem minmax(0, 1fr) !important;
+  grid-template-columns: var(--gs-responsive-sidebar-width) minmax(0, 1fr) !important;
   gap: 0 !important;
   padding: 0 !important;
   align-items: stretch;
@@ -999,9 +999,9 @@
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 1.5rem;
+  gap: var(--gs-responsive-gutter-block);
   overflow: auto;
-  padding: 1.5rem 1.5rem 2rem;
+  padding: var(--gs-responsive-gutter-block) var(--gs-responsive-gutter-inline) 2rem;
   background: #020817;
 }
 
@@ -1050,7 +1050,7 @@
 :root[data-theme="dark"] .page:not(.page-auth) .app-shell > .app-sidebar-v2.panel {
   position: relative !important;
   inset: auto !important;
-  width: 16rem;
+  width: var(--gs-responsive-sidebar-width);
   height: 100dvh;
   max-height: none !important;
   min-height: 0;
@@ -3820,41 +3820,6 @@
 }
 
 @media (max-width: 1100px) {
-  :root:not([data-theme="dark"]) .page:not(.page-auth) .app-shell,
-  :root:not([data-theme="dark"]) .page:not(.page-auth) .app-shell.is-sidebar-collapsed {
-    height: auto;
-    min-height: 100dvh;
-    grid-template-columns: minmax(0, 1fr) !important;
-    overflow: visible;
-  }
-
-  :root:not([data-theme="dark"]) .page:not(.page-auth) .app-sidebar-v2 {
-    display: none !important;
-  }
-
-  :root:not([data-theme="dark"]) .page:not(.page-auth) .app-shell-main {
-    height: auto;
-    min-height: 100dvh;
-    overflow: visible;
-  }
-
-  :root:not([data-theme="dark"]) .page:not(.page-auth) .app-shell-content {
-    overflow: visible;
-    padding: 1rem 1rem 1.5rem;
-  }
-
-  :root:not([data-theme="dark"]) .page:not(.page-auth) .global-header-row {
-    grid-template-columns: minmax(0, 1fr) auto !important;
-  }
-
-  :root:not([data-theme="dark"]) .page:not(.page-auth) .global-brand {
-    display: inline-flex;
-  }
-
-  :root:not([data-theme="dark"]) .page:not(.page-auth) .global-header-center {
-    display: none;
-  }
-
   :root:not([data-theme="dark"]) .dashboard-kpi-grid-flex,
   :root:not([data-theme="dark"]) .teachers-v3-kpi-grid,
   :root:not([data-theme="dark"]) .dashboard-template-grid,
@@ -3944,29 +3909,29 @@
   }
 }
 
-/* Tablet shell: keep the desktop grammar on medium screens instead of mixing it with the phone drawer. */
-@media (min-width: 761px) and (max-width: 1100px) {
+/* R1 tablet rail: preserve the desktop product grammar without compressing a full sidebar. */
+@media (min-width: 768px) and (max-width: 1023px) {
   :root .page:not(.page-auth) {
     min-height: 100dvh;
-    padding: clamp(0.55rem, 1vw, 0.85rem) !important;
-    overflow-x: hidden;
+    padding: 0 !important;
   }
 
   :root .page:not(.page-auth) .workspace {
     width: min(100%, var(--ui-layout-max));
-    gap: clamp(0.7rem, 1.1vw, 0.95rem) !important;
+    gap: 0 !important;
     padding: 0 !important;
   }
 
   :root .page:not(.page-auth) .app-shell,
   :root .page:not(.page-auth) .app-shell:not(.is-sidebar-collapsed) {
     display: grid !important;
-    grid-template-columns: clamp(13.75rem, 24vw, 16rem) minmax(0, 1fr) !important;
-    align-items: start !important;
-    gap: clamp(0.75rem, 1.2vw, 1rem) !important;
+    grid-template-columns: var(--gs-responsive-rail-width) minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    gap: 0 !important;
     width: 100% !important;
-    min-height: calc(100dvh - 1.1rem) !important;
-    overflow: visible !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
   }
 
   :root .page:not(.page-auth) .app-shell.is-sidebar-collapsed {
@@ -3976,14 +3941,14 @@
 
   :root .page:not(.page-auth) .app-shell > .app-sidebar-v2,
   :root .page:not(.page-auth) .app-shell > .app-sidebar-v2.panel {
-    position: sticky !important;
+    position: relative !important;
     inset: auto !important;
-    top: clamp(0.45rem, 0.9vw, 0.7rem) !important;
-    z-index: 60 !important;
-    display: grid !important;
+    top: 0 !important;
+    z-index: var(--gs-responsive-z-sidebar) !important;
+    display: flex !important;
     width: 100% !important;
     min-width: 0 !important;
-    height: calc(100dvh - clamp(0.9rem, 1.8vw, 1.4rem)) !important;
+    height: 100dvh !important;
     min-height: 0 !important;
     overflow: hidden !important;
     opacity: 1 !important;
@@ -3998,31 +3963,34 @@
   }
 
   :root .page:not(.page-auth) .app-shell-main {
-    display: grid !important;
-    grid-auto-rows: max-content !important;
-    gap: clamp(0.7rem, 1.1vw, 0.95rem) !important;
+    display: flex !important;
+    flex-direction: column;
+    gap: 0 !important;
     width: 100% !important;
     min-width: 0 !important;
-    min-height: calc(100dvh - 1.1rem) !important;
-    overflow: visible !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
   }
 
   :root .page:not(.page-auth) .app-shell-content {
     display: grid !important;
     align-content: start !important;
-    gap: clamp(0.9rem, 1.35vw, 1.15rem) !important;
+    flex: 1 1 auto;
+    gap: var(--gs-responsive-gutter-block) !important;
     min-width: 0 !important;
-    overflow: visible !important;
-    padding: 0 !important;
+    min-height: 0;
+    overflow: auto !important;
+    padding: var(--gs-responsive-gutter-block) var(--gs-responsive-gutter-inline) 1.5rem !important;
   }
 
   :root .page:not(.page-auth) .global-header-shell,
   :root .page:not(.page-auth) .global-header-shell.panel {
     position: sticky !important;
-    top: clamp(0.45rem, 0.9vw, 0.7rem) !important;
-    min-height: 3.35rem !important;
+    top: 0 !important;
+    min-height: var(--gs-responsive-header-height) !important;
     padding: 0.44rem 0.55rem !important;
-    border-radius: 1rem !important;
+    border-radius: 0 !important;
   }
 
   :root .page:not(.page-auth) .global-header-row {
@@ -4081,15 +4049,71 @@
 
   :root .page:not(.page-auth) .header-icon-button,
   :root .page:not(.page-auth) .header-workspace-toggle {
-    width: 2.55rem !important;
-    min-width: 2.55rem !important;
-    height: 2.55rem !important;
-    min-height: 2.55rem !important;
+    width: var(--gs-responsive-touch-target) !important;
+    min-width: var(--gs-responsive-touch-target) !important;
+    height: var(--gs-responsive-touch-target) !important;
+    min-height: var(--gs-responsive-touch-target) !important;
   }
 
   :root .page:not(.page-auth) .header-language-dropdown .header-icon-button {
     width: auto !important;
-    min-width: 2.55rem !important;
+    min-width: var(--gs-responsive-touch-target) !important;
+  }
+
+  :root:not([data-theme="dark"]) .page:not(.page-auth) .app-sidebar-v2 :where(
+    .sidebar-brand-copy,
+    .sidebar-title,
+    .sidebar-link-copy,
+    .sidebar-user-copy,
+    .sidebar-user-caret
+  ),
+  :root[data-theme="dark"] .page:not(.page-auth) .app-sidebar-v2 :where(
+    .sidebar-brand-copy,
+    .sidebar-title,
+    .sidebar-link-copy,
+    .sidebar-user-copy,
+    .sidebar-user-caret
+  ) {
+    display: none;
+  }
+
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-scroll-region {
+    padding-inline: 0.5rem;
+  }
+
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-group + .sidebar-group {
+    margin-top: 0.75rem;
+  }
+
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-link {
+    min-height: var(--gs-responsive-touch-target);
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-link-visual {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-user-card {
+    min-height: var(--gs-responsive-touch-target);
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    padding-inline: 0.5rem;
+  }
+
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-user-dropdown {
+    right: auto;
+    bottom: 0.5rem;
+    left: auto;
+    inset-inline-start: calc(100% + 0.5rem);
+    width: min(18rem, calc(100vw - var(--gs-responsive-rail-width) - 1.5rem));
   }
 
   :root .page:not(.page-auth) .dashboard-kpi-grid-flex,
@@ -4112,16 +4136,7 @@
   }
 }
 
-@media (min-width: 761px) and (max-width: 899px) {
-  :root .page:not(.page-auth) .app-shell,
-  :root .page:not(.page-auth) .app-shell:not(.is-sidebar-collapsed) {
-    grid-template-columns: clamp(12.6rem, 28vw, 13.75rem) minmax(0, 1fr) !important;
-  }
-
-  :root .page:not(.page-auth) .header-utility-actions {
-    display: none !important;
-  }
-
+@media (min-width: 768px) and (max-width: 899px) {
   :root .page:not(.page-auth) .dashboard-kpi-grid-flex,
   :root .page:not(.page-auth) .dashboard-template-grid,
   :root .page:not(.page-auth) .dashboard-main-grid-summary {
@@ -4654,5 +4669,23 @@
     border-color: rgba(34, 211, 238, 0.5) !important;
     background: rgba(34, 211, 238, 0.12) !important;
     color: #e2e8f0 !important;
+  }
+}
+
+/* Keep late profile rules from expanding the compact tablet rail. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-user-card {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    min-height: var(--gs-responsive-touch-target);
+    padding-inline: 0.5rem;
+  }
+
+  :root .page:not(.page-auth) .app-sidebar-v2 .sidebar-user-dropdown {
+    right: auto;
+    bottom: 0.5rem;
+    left: auto;
+    inset-inline-start: calc(100% + 0.5rem);
+    width: min(18rem, calc(100vw - var(--gs-responsive-rail-width) - 1.5rem));
   }
 }

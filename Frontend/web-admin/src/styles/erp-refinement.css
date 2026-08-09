@@ -1708,10 +1708,6 @@ body,
   padding: 0;
 }
 
-body {
-  overflow-x: clip;
-}
-
 #root {
   display: block;
 }
@@ -1781,7 +1777,6 @@ body {
 @media (max-width: 980px) {
   .page:not(.page-auth) {
     min-height: 100dvh;
-    overflow-x: hidden;
   }
 
   .page:not(.page-auth) .workspace {

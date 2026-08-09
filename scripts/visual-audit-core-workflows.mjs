@@ -38,10 +38,20 @@ const storageKeys = {
 };
 
 const viewports = {
+  smallMobile: { width: 320, height: 568 },
   mobileNarrow: { width: 360, height: 800 },
+  mobile375: { width: 375, height: 812 },
+  mobile390: { width: 390, height: 844 },
+  mobile412: { width: 412, height: 915 },
   mobileLarge: { width: 414, height: 896 },
+  boundary767: { width: 767, height: 900 },
   tabletPortrait: { width: 768, height: 1024 },
+  tablet820: { width: 820, height: 1180 },
+  boundary1023: { width: 1023, height: 1200 },
+  compactPortrait: { width: 1024, height: 1366 },
   tabletLandscape: { width: 1024, height: 768 },
+  boundary1279: { width: 1279, height: 800 },
+  desktop1280: { width: 1280, height: 720 },
   desktop: { width: 1440, height: 900 },
   desktopLarge: { width: 1920, height: 1080 },
   zoom200: { width: 720, height: 450 }
@@ -95,6 +105,26 @@ const ciCriticalVariants = [
   { viewport: "mobileNarrow", theme: "light" },
   { viewport: "tabletPortrait", theme: "light" },
   { viewport: "zoom200", theme: "light" }
+];
+const responsiveReferenceVariants = [
+  { viewport: "smallMobile", theme: "light" },
+  { viewport: "mobileNarrow", theme: "light" },
+  { viewport: "mobile375", theme: "light" },
+  { viewport: "mobile390", theme: "dark" },
+  { viewport: "mobile412", theme: "light" },
+  { viewport: "tabletPortrait", theme: "light" },
+  { viewport: "tablet820", theme: "dark" },
+  { viewport: "compactPortrait", theme: "light" },
+  { viewport: "desktop1280", theme: "light" },
+  { viewport: "desktop", theme: "light" }
+];
+const responsiveBoundaryVariants = [
+  { viewport: "boundary767", theme: "light" },
+  { viewport: "tabletPortrait", theme: "light" },
+  { viewport: "boundary1023", theme: "light" },
+  { viewport: "compactPortrait", theme: "light" },
+  { viewport: "boundary1279", theme: "light" },
+  { viewport: "desktop1280", theme: "light" }
 ];
 
 const guard = createAuditGuard({
@@ -373,6 +403,88 @@ async function restoreTopViewport(page) {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
 }
 
+async function assertResponsiveShellContract(page, metadata) {
+  const snapshot = await page.evaluate(() => {
+    const isVisible = (element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const sidebar = document.querySelector(".app-sidebar-v2");
+    const shell = document.querySelector(".app-shell");
+    const content = document.querySelector(".app-shell-main");
+    const mobileToggle = document.querySelector(".header-mobile-toggle");
+    const touchTargets = [...document.querySelectorAll(".global-header-shell button, .app-sidebar-v2 button")]
+      .filter(isVisible)
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          height: rect.height,
+          label: element.getAttribute("aria-label") || element.textContent?.trim().slice(0, 60) || "button",
+          width: rect.width
+        };
+      });
+    const sidebarRect = sidebar?.getBoundingClientRect();
+    const shellRect = shell?.getBoundingClientRect();
+    const contentRect = content?.getBoundingClientRect();
+    return {
+      contentRight: contentRect?.right ?? 0,
+      documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+      mobileToggleVisible: isVisible(mobileToggle),
+      shellLeft: shellRect?.left ?? 0,
+      shellRight: shellRect?.right ?? 0,
+      sidebarVisible: isVisible(sidebar),
+      sidebarWidth: sidebarRect?.width ?? 0,
+      touchTargets,
+      viewportWidth: window.innerWidth
+    };
+  });
+
+  const problems = [];
+  const near = (actual, expected, tolerance = 2) => Math.abs(actual - expected) <= tolerance;
+  if (snapshot.documentOverflow > 1) problems.push(`overflow document ${snapshot.documentOverflow}px`);
+  if (snapshot.shellLeft < -1 || snapshot.shellRight > snapshot.viewportWidth + 1) {
+    problems.push(`shell hors viewport (${snapshot.shellLeft.toFixed(1)}..${snapshot.shellRight.toFixed(1)})`);
+  }
+  if (snapshot.contentRight > snapshot.viewportWidth + 1) {
+    problems.push(`contenu hors viewport (${snapshot.contentRight.toFixed(1)}px)`);
+  }
+
+  if (snapshot.viewportWidth < 768) {
+    if (snapshot.sidebarVisible) problems.push("sidebar desktop visible sous 768px");
+    if (!snapshot.mobileToggleVisible) problems.push("navigation mobile absente sous 768px");
+  } else if (snapshot.viewportWidth < 1024) {
+    if (!snapshot.sidebarVisible || !near(snapshot.sidebarWidth, 76)) {
+      problems.push(`rail tablette invalide (${snapshot.sidebarWidth.toFixed(1)}px)`);
+    }
+    if (snapshot.mobileToggleVisible) problems.push("drawer mobile visible en mode rail");
+  } else if (snapshot.viewportWidth < 1280) {
+    if (!snapshot.sidebarVisible || !near(snapshot.sidebarWidth, 224)) {
+      problems.push(`sidebar compacte invalide (${snapshot.sidebarWidth.toFixed(1)}px)`);
+    }
+    if (snapshot.mobileToggleVisible) problems.push("drawer mobile visible en desktop compact");
+  } else if (!snapshot.sidebarVisible || !near(snapshot.sidebarWidth, 256)) {
+    problems.push(`sidebar desktop modifiée (${snapshot.sidebarWidth.toFixed(1)}px)`);
+  }
+
+  if (snapshot.viewportWidth < 1024) {
+    const undersized = snapshot.touchTargets.filter((target) => target.width < 43.5 || target.height < 43.5);
+    if (undersized.length > 0) {
+      problems.push(`cibles tactiles sous 44px: ${undersized.map((target) => target.label).join(" | ")}`);
+    }
+  }
+
+  for (const problem of problems) {
+    guard.addFinding({
+      type: "responsive-shell-contract",
+      message: problem,
+      metadata,
+      route: metadata.route
+    });
+  }
+}
+
 async function assertFocusVisible(page, metadata) {
   await page.keyboard.press("Tab");
   const focus = await page.evaluate(() => {
@@ -416,6 +528,7 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     guard.setMetadata(page, metadata);
     await openModule(page, workflow, language);
     await assertRequiredText(page, workflow, metadata);
+    await assertResponsiveShellContract(page, metadata);
     if (criticalKeys.has(workflow.key)) await assertFocusVisible(page, metadata);
     if (language === "ar") {
       const direction = await page.locator("main.page").getAttribute("dir");
@@ -593,6 +706,18 @@ async function main() {
       for (const workflow of allWorkflows.filter((item) => criticalKeys.has(item.key))) {
         await executeModuleWorkflow(browser, workflow, { viewport: "desktop", theme: "dark" }, "en");
         await executeModuleWorkflow(browser, workflow, { viewport: "tabletLandscape", theme: "light" }, "ar");
+      }
+      const dashboard = allWorkflows.find((workflow) => workflow.key === "dashboard");
+      if (!dashboard) throw new Error("Workflow dashboard absent de l'audit visuel.");
+      const responsiveVariants = auditScope === "ci" ? responsiveBoundaryVariants : responsiveReferenceVariants;
+      for (const variant of responsiveVariants) await executeModuleWorkflow(browser, dashboard, variant);
+      if (auditScope !== "ci") {
+        await executeModuleWorkflow(browser, dashboard, { viewport: "mobile412", theme: "dark" }, "ar");
+        await executeModuleWorkflow(browser, dashboard, { viewport: "tabletPortrait", theme: "light" }, "ar");
+        for (const variant of responsiveBoundaryVariants) {
+          if (responsiveReferenceVariants.some((candidate) => candidate.viewport === variant.viewport)) continue;
+          await executeModuleWorkflow(browser, dashboard, variant);
+        }
       }
     }
   } finally {

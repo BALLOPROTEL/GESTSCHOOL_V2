@@ -6,19 +6,18 @@
   display: none;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   html,
   body,
   #root {
     width: 100% !important;
-    max-width: 100vw !important;
-    overflow-x: clip !important;
+    max-width: 100% !important;
   }
 
   :root {
-    --mobile-page-gutter: clamp(0.75rem, 4vw, 1rem);
+    --mobile-page-gutter: var(--gs-responsive-gutter-inline);
     --mobile-card-radius: 1rem;
-    --mobile-touch-target: 2.9rem;
+    --mobile-touch-target: var(--gs-responsive-touch-target);
     --mobile-card-bg: #ffffff;
     --mobile-card-border: #dbe5ef;
     --mobile-card-muted: #64748b;
@@ -51,7 +50,7 @@
   :root[data-theme="dark"] .page:not(.page-auth) .app-shell.is-sidebar-collapsed {
     display: block !important;
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     height: auto !important;
     min-height: 100dvh !important;
     grid-template-columns: minmax(0, 1fr) !important;
@@ -84,7 +83,7 @@
   :root[data-theme="dark"] .page:not(.page-auth) .app-shell-content {
     height: auto !important;
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     min-width: 0 !important;
     overflow: visible !important;
   }
@@ -115,7 +114,7 @@
     top: max(0.5rem, env(safe-area-inset-top));
     z-index: 80;
     width: calc(100% - (var(--mobile-page-gutter) * 2));
-    min-height: 3.9rem !important;
+    min-height: var(--gs-responsive-header-height) !important;
     margin: 0.5rem var(--mobile-page-gutter) 0.7rem !important;
     padding: 0.5rem !important;
     border-radius: 1rem !important;
@@ -129,6 +128,7 @@
   .global-brand {
     display: inline-flex !important;
     min-width: 0;
+    min-height: var(--gs-responsive-touch-target);
     max-width: calc(100vw - 9rem);
     padding-inline: 0.25rem !important;
   }
