@@ -19,6 +19,7 @@ import {
   HeaderUtilityButton,
   HeaderUtilityDropdown
 } from "./header-utility-menu";
+import { useNavigationDrawer, type NavigationDrawerController } from "./use-navigation-drawer";
 
 export type {
   HeaderNavigationAction,
@@ -59,6 +60,7 @@ type HeaderNavigationProps = {
   };
   user: HeaderNavigationUser;
   userActions?: HeaderUserAction[];
+  navigationDrawer?: NavigationDrawerController;
 };
 
 export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
@@ -68,6 +70,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     logoAlt,
     logoSrc,
     messages,
+    navigationDrawer,
     notifications,
     onSearchChange,
     onSearchSubmit,
@@ -85,7 +88,8 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
   } = props;
   const { t } = useI18n();
   const [openId, setOpenId] = useState<string | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const fallbackNavigationDrawer = useNavigationDrawer();
+  const drawer = navigationDrawer ?? fallbackNavigationDrawer;
   const languagePreference = preferences.find((item) => item.id === "language") ?? preferences[0];
   const themePreference =
     preferences.find((item) => item.id === "theme") ??
@@ -256,7 +260,6 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpenId(null);
-        setMobileOpen(false);
       }
     };
 
@@ -268,18 +271,9 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
     };
   }, []);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("mobile-shell-open", mobileOpen);
-    return () => {
-      document.documentElement.classList.remove("mobile-shell-open");
-    };
-  }, [mobileOpen]);
-
   const handleOpenIdChange = (value: string | null) => {
     setOpenId(value);
-    if (value) {
-      setMobileOpen(false);
-    }
+    if (value) drawer.close();
   };
 
   return (
@@ -419,12 +413,13 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
           </div>
           <button
             type="button"
-            className={`header-mobile-toggle ${mobileOpen ? "is-open" : ""}`.trim()}
-            aria-expanded={mobileOpen}
+            className={`header-mobile-toggle ${drawer.isOpen ? "is-open" : ""}`.trim()}
+            aria-expanded={drawer.isOpen}
             aria-controls="header-mobile-panel"
-            onClick={() => {
+            aria-label={t(drawer.isOpen ? "Fermer le menu" : "Ouvrir le menu")}
+            onClick={(event) => {
               setOpenId(null);
-              setMobileOpen((previous) => !previous);
+              drawer.toggleFrom(event.currentTarget);
             }}
           >
             <span aria-hidden="true">
@@ -439,20 +434,20 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
 
       <button
         type="button"
-        className={`header-mobile-backdrop ${mobileOpen ? "is-open" : ""}`.trim()}
+        className={`header-mobile-backdrop ${drawer.isOpen ? "is-open" : ""}`.trim()}
         aria-hidden="true"
         tabIndex={-1}
-        onClick={() => setMobileOpen(false)}
+        onClick={drawer.close}
       />
 
       <HeaderMobilePanel
         brandLogoSrc={logoSrc}
         brandName={brandName}
-        isOpen={mobileOpen}
+        isOpen={drawer.isOpen}
         logoAlt={logoAlt}
         messages={messages}
         notifications={notifications}
-        onClose={() => setMobileOpen(false)}
+        onClose={drawer.close}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
         preferences={preferences}
@@ -461,6 +456,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
         sections={mobileSections}
         user={user}
         userActions={userMenuActions}
+        panelRef={drawer.panelRef}
       />
     </header>
   );

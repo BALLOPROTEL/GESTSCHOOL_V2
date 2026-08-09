@@ -1,4 +1,5 @@
 import { HeaderSearchBar } from "./header-search-bar";
+import type { RefObject } from "react";
 import { ModuleIcon } from "../../shared/components/module-icon";
 import type {
   HeaderNavigationAction,
@@ -67,6 +68,7 @@ export function HeaderMobilePanel(props: {
   sections: HeaderMobileSection[];
   user: HeaderNavigationUser;
   userActions?: HeaderUserAction[];
+  panelRef?: RefObject<HTMLDivElement>;
 }): JSX.Element {
   const {
     brandLogoSrc,
@@ -78,6 +80,7 @@ export function HeaderMobilePanel(props: {
     onClose,
     onSearchChange,
     onSearchSubmit,
+    panelRef,
     preferences,
     searchPlaceholder,
     searchValue,
@@ -89,12 +92,14 @@ export function HeaderMobilePanel(props: {
 
   return (
     <div
+      ref={panelRef}
       id="header-mobile-panel"
       className={`header-mobile-panel ${isOpen ? "is-open" : ""}`.trim()}
       role="dialog"
       aria-modal="true"
       aria-hidden={!isOpen}
-      aria-label={`${t("Navigation mobile")} ${brandName}`}
+      aria-label={`${t("Navigation principale")} - ${brandName}`}
+      tabIndex={-1}
     >
       <div className="header-mobile-panel-head">
         <div className="header-mobile-brand">
@@ -103,13 +108,14 @@ export function HeaderMobilePanel(props: {
           </span>
           <div>
             <strong>{brandName}</strong>
-            <small>{user.roleLabel}</small>
+            <small>{t(user.roleLabel)}</small>
           </div>
         </div>
         <button
           type="button"
           className="header-mobile-close"
-          aria-label={t("Fermer le menu mobile")}
+          aria-label={t("Fermer le menu")}
+          data-navigation-drawer-initial-focus
           onClick={onClose}
         >
           <span aria-hidden="true">X</span>
@@ -138,6 +144,7 @@ export function HeaderMobilePanel(props: {
                   className={`header-mobile-link ${item.active ? "is-active" : ""}`.trim()}
                   disabled={item.disabled}
                   role="menuitem"
+                  aria-current={item.active ? "page" : undefined}
                   onClick={() => {
                     item.onSelect();
                     onClose();
@@ -162,6 +169,7 @@ export function HeaderMobilePanel(props: {
                       className={`header-mobile-link ${item.active ? "is-active" : ""}`.trim()}
                       disabled={item.disabled}
                       role="menuitem"
+                      aria-current={item.active ? "page" : undefined}
                       onClick={() => {
                         item.onSelect();
                         onClose();

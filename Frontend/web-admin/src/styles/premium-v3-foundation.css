@@ -305,6 +305,11 @@
   .sidebar-link,
   .header-icon-button,
   .header-mobile-toggle,
+  .header-mobile-close,
+  .header-mobile-link,
+  .header-preference-button,
+  .header-logout-button,
+  .header-mobile-backdrop,
   .header-user-trigger,
   .header-language-option,
   .header-nav-button,
@@ -326,6 +331,11 @@
   .sidebar-link,
   .header-icon-button,
   .header-mobile-toggle,
+  .header-mobile-close,
+  .header-mobile-link,
+  .header-preference-button,
+  .header-logout-button,
+  .header-mobile-backdrop,
   .header-user-trigger,
   .header-language-option,
   .header-nav-button,
@@ -4002,8 +4012,6 @@
 
   :root .page:not(.page-auth) .global-brand,
   :root .page:not(.page-auth) .header-mobile-toggle,
-  :root .page:not(.page-auth) .header-mobile-backdrop,
-  :root .page:not(.page-auth) .header-mobile-panel,
   :root .page:not(.page-auth) .header-user-menu {
     display: none !important;
   }

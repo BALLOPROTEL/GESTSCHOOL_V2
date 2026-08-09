@@ -8,6 +8,7 @@ import { UI_MESSAGES } from "../shared/i18n";
 import { API_BASE_URLS } from "../shared/services/api-config";
 import { readRememberedLogin } from "../shared/services/session-storage";
 import { HeaderNavigation } from "./navigation/header-navigation";
+import { useNavigationDrawer } from "./navigation/use-navigation-drawer";
 import { hasScreenAccess } from "./navigation/screen-registry";
 import { GlobalToastLayer } from "./shell/global-toast-layer";
 import {
@@ -36,6 +37,7 @@ export function App(): JSX.Element {
   const appRootRef = useRef<HTMLElement | null>(null);
   const rememberedLogin = useMemo(() => readRememberedLogin(DEFAULT_TENANT), []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const navigationDrawer = useNavigationDrawer();
   const [mobileTasksOpen, setMobileTasksOpen] = useState(false);
   const [headerNotificationCount, setHeaderNotificationCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -400,7 +402,9 @@ export function App(): JSX.Element {
               groups={navigation.sidebarGroups}
               logoAlt={`Logo ${SCHOOL_NAME}`}
               logoSrc="/logo.png"
+              navigationOpen={navigationDrawer.isOpen}
               onBrandSelect={navigation.dashboardAction.onSelect}
+              onOpenNavigation={navigationDrawer.openFrom}
               onUserLogout={() => void logout()}
               user={{
                 avatar: headerSession.avatarInitial,
@@ -442,6 +446,7 @@ export function App(): JSX.Element {
                   label: "Notifications en temps reel",
                   onSelect: () => setTab(navigation.notificationTarget)
                 }}
+                navigationDrawer={navigationDrawer}
                 user={{
                   avatar: headerSession.avatarInitial,
                   avatarUrl: headerSession.avatarUrl,

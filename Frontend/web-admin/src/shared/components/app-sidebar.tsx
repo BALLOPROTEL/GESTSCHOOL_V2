@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FocusEvent as ReactFocusEvent,
+  type MouseEvent as ReactMouseEvent
+} from "react";
+import { createPortal } from "react-dom";
 
 import { HeaderGlyph } from "../../app/navigation/header-glyph";
 import type { ModuleIconName } from "../types/app";
@@ -18,7 +26,9 @@ type AppSidebarProps = {
   groups: AppSidebarGroup[];
   logoAlt?: string;
   logoSrc?: string;
+  navigationOpen?: boolean;
   onBrandSelect?: () => void;
+  onOpenNavigation?: (trigger: HTMLButtonElement) => void;
   onUserLogout?: () => void;
   user?: Pick<HeaderNavigationUser, "avatar" | "avatarUrl" | "email" | "roleLabel" | "username">;
   userActions?: HeaderUserAction[];
@@ -46,9 +56,25 @@ const SIDEBAR_ICON_BY_ACTION: Record<string, ModuleIconName> = {
 };
 
 export function AppSidebar(props: AppSidebarProps): JSX.Element {
-  const { brandName, groups, logoAlt, logoSrc, onBrandSelect, onUserLogout, user, userActions = [] } = props;
+  const {
+    brandName,
+    groups,
+    logoAlt,
+    logoSrc,
+    navigationOpen = false,
+    onBrandSelect,
+    onOpenNavigation,
+    onUserLogout,
+    user,
+    userActions = []
+  } = props;
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [railTooltip, setRailTooltip] = useState<{
+    label: string;
+    style: CSSProperties;
+  } | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const userMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const { t } = useI18n();
 
   const visibleGroups = groups
@@ -60,6 +86,22 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
 
   const resolveIcon = (actionId: string): ModuleIconName =>
     SIDEBAR_ICON_BY_ACTION[actionId] || "settings";
+
+  const showRailTooltip = (
+    event: ReactMouseEvent<HTMLButtonElement> | ReactFocusEvent<HTMLButtonElement>,
+    label: string
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const isRtl = document.documentElement.dir === "rtl";
+    setRailTooltip({
+      label,
+      style: {
+        left: isRtl ? rect.left - 8 : rect.right + 8,
+        top: rect.top + rect.height / 2,
+        transform: isRtl ? "translate(-100%, -50%)" : "translateY(-50%)"
+      }
+    });
+  };
 
   useEffect(() => {
     if (!userMenuOpen) {
@@ -77,6 +119,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setUserMenuOpen(false);
+        userMenuTriggerRef.current?.focus();
       }
     };
 
@@ -99,7 +142,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
   };
 
   return (
-    <aside className="panel app-sidebar app-sidebar-v2" aria-label={t("Navigation laterale")}>
+    <aside className="panel app-sidebar app-sidebar-v2" aria-label={t("Navigation principale")}>
       {brandName && logoSrc ? (
         <button type="button" className="sidebar-brand" onClick={onBrandSelect}>
           <span className="sidebar-brand-logo">
@@ -108,6 +151,28 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
           <span className="sidebar-brand-copy">
             <strong>{brandName}</strong>
             <small>{t("Administration scolaire")}</small>
+          </span>
+        </button>
+      ) : null}
+
+      {onOpenNavigation ? (
+        <button
+          type="button"
+          className="sidebar-rail-navigation-trigger"
+          aria-label={t("Ouvrir le menu")}
+          aria-controls="header-mobile-panel"
+          aria-expanded={navigationOpen}
+          onBlur={() => setRailTooltip(null)}
+          onClick={(event) => {
+            setRailTooltip(null);
+            onOpenNavigation(event.currentTarget);
+          }}
+          onFocus={(event) => showRailTooltip(event, t("Ouvrir le menu"))}
+          onMouseEnter={(event) => showRailTooltip(event, t("Ouvrir le menu"))}
+          onMouseLeave={() => setRailTooltip(null)}
+        >
+          <span aria-hidden="true">
+            <HeaderGlyph icon="layout" />
           </span>
         </button>
       ) : null}
@@ -122,7 +187,16 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
                   key={item.id}
                   type="button"
                   className={`sidebar-link ${item.active ? "is-active" : ""}`.trim()}
-                  onClick={item.onSelect}
+                  aria-current={item.active ? "page" : undefined}
+                  aria-label={t(item.label)}
+                  onBlur={() => setRailTooltip(null)}
+                  onClick={() => {
+                    setRailTooltip(null);
+                    item.onSelect();
+                  }}
+                  onFocus={(event) => showRailTooltip(event, t(item.label))}
+                  onMouseEnter={(event) => showRailTooltip(event, t(item.label))}
+                  onMouseLeave={() => setRailTooltip(null)}
                 >
                   <span className="sidebar-link-visual">
                     <span className="sidebar-link-icon" aria-hidden="true">
@@ -143,12 +217,20 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
       {user ? (
         <div ref={userMenuRef} className={`sidebar-user-menu ${userMenuOpen ? "is-open" : ""}`.trim()}>
           <button
+            ref={userMenuTriggerRef}
             type="button"
             className="sidebar-user-card"
             aria-haspopup="menu"
             aria-expanded={userMenuOpen}
-            aria-label={t("Ouvrir le menu du profil")}
-            onClick={() => setUserMenuOpen((previous) => !previous)}
+            aria-label={t("Ouvrir le menu utilisateur")}
+            onBlur={() => setRailTooltip(null)}
+            onClick={() => {
+              setRailTooltip(null);
+              setUserMenuOpen((previous) => !previous);
+            }}
+            onFocus={(event) => showRailTooltip(event, t("Compte utilisateur"))}
+            onMouseEnter={(event) => showRailTooltip(event, t("Compte utilisateur"))}
+            onMouseLeave={() => setRailTooltip(null)}
           >
             <span className="sidebar-user-avatar" aria-hidden="true">
               {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.avatar}
@@ -164,7 +246,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
             </span>
           </button>
           {userMenuOpen ? (
-            <div className="sidebar-user-dropdown" role="menu" aria-label={t("Menu profil")}>
+            <div className="sidebar-user-dropdown" role="menu" aria-label={t("Compte utilisateur")}>
               <div className="sidebar-user-summary">
                 <span className="sidebar-user-summary-avatar" aria-hidden="true">
                   {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.avatar}
@@ -203,6 +285,14 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
           ) : null}
         </div>
       ) : null}
+      {railTooltip && typeof document !== "undefined"
+        ? createPortal(
+            <span className="sidebar-rail-tooltip" role="tooltip" style={railTooltip.style}>
+              {railTooltip.label}
+            </span>,
+            document.body
+          )
+        : null}
     </aside>
   );
 }

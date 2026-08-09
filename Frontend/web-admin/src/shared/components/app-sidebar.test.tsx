@@ -1,8 +1,27 @@
-import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppSidebar } from "./app-sidebar";
 import type { HeaderUserAction } from "../../app/navigation/header-navigation-types";
+
+afterEach(() => {
+  cleanup();
+  document.documentElement.dir = "ltr";
+});
+
+const domRect = (partial: Partial<DOMRect>): DOMRect =>
+  ({
+    bottom: 0,
+    height: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    width: 0,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+    ...partial
+  }) as DOMRect;
 
 describe("AppSidebar", () => {
   it("rend tous les items dans une structure de liste uniforme", () => {
@@ -70,13 +89,13 @@ describe("AppSidebar", () => {
       />
     );
 
-    const trigger = getByLabelText("Ouvrir le menu du profil");
+    const trigger = getByLabelText("Ouvrir le menu utilisateur");
     fireEvent.click(trigger);
 
-    expect(getByRole("menu", { name: "Menu profil" })).toBeInTheDocument();
+    expect(getByRole("menu", { name: "Compte utilisateur" })).toBeInTheDocument();
     fireEvent.click(getByRole("menuitem", { name: /Mon profil/i }));
     expect(profileAction).toHaveBeenCalledTimes(1);
-    expect(queryByRole("menu", { name: "Menu profil" })).toBeNull();
+    expect(queryByRole("menu", { name: "Compte utilisateur" })).toBeNull();
 
     fireEvent.click(trigger);
     fireEvent.click(getByRole("menuitem", { name: /Préférences/i }));
@@ -85,5 +104,76 @@ describe("AppSidebar", () => {
     fireEvent.click(trigger);
     fireEvent.click(getByRole("menuitem", { name: /Se déconnecter/i }));
     expect(logoutAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("expose l'état actif et les aides accessibles du rail tablette", () => {
+    const openNavigation = vi.fn();
+    const { getByLabelText, getByRole } = render(
+      <AppSidebar
+        groups={[
+          {
+            id: "pilotage",
+            title: "Pilotage",
+            items: [{ id: "dashboard", label: "Tableau de bord", active: true, onSelect: vi.fn() }]
+          }
+        ]}
+        navigationOpen
+        onOpenNavigation={openNavigation}
+      />
+    );
+
+    const activeLink = getByLabelText("Tableau de bord");
+    expect(activeLink).toHaveAttribute("aria-current", "page");
+    fireEvent.focus(activeLink);
+    expect(getByRole("tooltip")).toHaveTextContent("Tableau de bord");
+
+    const drawerTrigger = getByLabelText("Ouvrir le menu");
+    expect(drawerTrigger).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(drawerTrigger);
+    expect(openNavigation).toHaveBeenCalledWith(drawerTrigger);
+  });
+
+  it("positionne le tooltip du rail du bon cote en RTL", () => {
+    document.documentElement.dir = "rtl";
+    const { getByLabelText, getByRole } = render(
+      <AppSidebar
+        groups={[
+          {
+            id: "pilotage",
+            title: "Pilotage",
+            items: [{ id: "dashboard", label: "Tableau de bord", onSelect: vi.fn() }]
+          }
+        ]}
+      />
+    );
+    const link = getByLabelText("Tableau de bord");
+    vi.spyOn(link, "getBoundingClientRect").mockReturnValue(domRect({ left: 76, height: 44, top: 100 }));
+
+    fireEvent.focus(link);
+    const tooltip = getByRole("tooltip");
+    expect(tooltip).toHaveStyle({ left: "68px", transform: "translate(-100%, -50%)" });
+  });
+
+  it("ferme le menu profil avec Escape et restaure le focus", () => {
+    const { getByLabelText, getByRole, queryByRole } = render(
+      <AppSidebar
+        groups={[
+          {
+            id: "pilotage",
+            title: "Pilotage",
+            items: [{ id: "dashboard", label: "Tableau de bord", onSelect: vi.fn() }]
+          }
+        ]}
+        user={{ avatar: "PR", roleLabel: "Administrateur", username: "preview.admin" }}
+      />
+    );
+
+    const trigger = getByLabelText("Ouvrir le menu utilisateur");
+    fireEvent.click(trigger);
+    expect(getByRole("menu", { name: "Compte utilisateur" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(queryByRole("menu", { name: "Compte utilisateur" })).toBeNull();
+    expect(trigger).toHaveFocus();
   });
 });

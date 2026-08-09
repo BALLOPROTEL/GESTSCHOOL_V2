@@ -114,6 +114,14 @@ describe("declarative i18n", () => {
     expect(translateUiString("ar", "Ouvrir mon profil")).toBe("فتح ملفي الشخصي");
   });
 
+  it("traduit les commandes du drawer dans les trois langues", () => {
+    expect(translateUiString("fr", "Ouvrir le menu")).toBe("Ouvrir le menu");
+    expect(translateUiString("en", "Ouvrir le menu")).toBe("Open menu");
+    expect(translateUiString("ar", "Ouvrir le menu")).toBe("فتح القائمة");
+    expect(translateUiString("en", "Fermer le menu")).toBe("Close menu");
+    expect(translateUiString("ar", "Navigation principale")).toBe("التنقل الرئيسي");
+  });
+
   it("conserve une traduction déclarative pour les dix-huit destinations migrées", () => {
     const missingEnglish = LEGACY_SCREEN_LABELS.filter(
       (source) => translateUiString("en", source) === source

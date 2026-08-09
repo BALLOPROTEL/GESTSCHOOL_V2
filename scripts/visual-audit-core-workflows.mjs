@@ -50,6 +50,7 @@ const viewports = {
   boundary1023: { width: 1023, height: 1200 },
   compactPortrait: { width: 1024, height: 1366 },
   tabletLandscape: { width: 1024, height: 768 },
+  tabletLandscape1180: { width: 1180, height: 820 },
   boundary1279: { width: 1279, height: 800 },
   desktop1280: { width: 1280, height: 720 },
   desktop: { width: 1440, height: 900 },
@@ -114,6 +115,8 @@ const responsiveReferenceVariants = [
   { viewport: "mobile412", theme: "light" },
   { viewport: "tabletPortrait", theme: "light" },
   { viewport: "tablet820", theme: "dark" },
+  { viewport: "tabletLandscape1180", theme: "light" },
+  { viewport: "mobile375", theme: "dark", reducedMotion: "reduce" },
   { viewport: "compactPortrait", theme: "light" },
   { viewport: "desktop1280", theme: "light" },
   { viewport: "desktop", theme: "light" }
@@ -218,6 +221,7 @@ async function createContext(browser, metadata) {
     hasTouch: viewport.width <= 1024,
     isMobile: viewport.width <= 480,
     locale: localeFor(metadata.language),
+    reducedMotion: metadata.reducedMotion ?? "no-preference",
     timezoneId: "Europe/Paris",
     viewport
   });
@@ -415,6 +419,7 @@ async function assertResponsiveShellContract(page, metadata) {
     const shell = document.querySelector(".app-shell");
     const content = document.querySelector(".app-shell-main");
     const mobileToggle = document.querySelector(".header-mobile-toggle");
+    const railNavigationTrigger = document.querySelector(".sidebar-rail-navigation-trigger");
     const touchTargets = [...document.querySelectorAll(".global-header-shell button, .app-sidebar-v2 button")]
       .filter(isVisible)
       .map((element) => {
@@ -432,6 +437,7 @@ async function assertResponsiveShellContract(page, metadata) {
       contentRight: contentRect?.right ?? 0,
       documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
       mobileToggleVisible: isVisible(mobileToggle),
+      railNavigationTriggerVisible: isVisible(railNavigationTrigger),
       shellLeft: shellRect?.left ?? 0,
       shellRight: shellRect?.right ?? 0,
       sidebarVisible: isVisible(sidebar),
@@ -459,6 +465,7 @@ async function assertResponsiveShellContract(page, metadata) {
       problems.push(`rail tablette invalide (${snapshot.sidebarWidth.toFixed(1)}px)`);
     }
     if (snapshot.mobileToggleVisible) problems.push("drawer mobile visible en mode rail");
+    if (!snapshot.railNavigationTriggerVisible) problems.push("ouverture navigation complète absente du rail tablette");
   } else if (snapshot.viewportWidth < 1280) {
     if (!snapshot.sidebarVisible || !near(snapshot.sidebarWidth, 224)) {
       problems.push(`sidebar compacte invalide (${snapshot.sidebarWidth.toFixed(1)}px)`);
@@ -483,6 +490,85 @@ async function assertResponsiveShellContract(page, metadata) {
       route: metadata.route
     });
   }
+}
+
+async function assertNavigationDrawerContract(page, metadata) {
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  if (viewportWidth >= 1024) return;
+
+  const trigger = viewportWidth < 768
+    ? page.locator(".header-mobile-toggle").first()
+    : page.locator(".sidebar-rail-navigation-trigger").first();
+  if (!(await trigger.isVisible().catch(() => false))) {
+    guard.addFinding({
+      type: "navigation-drawer-contract",
+      message: "Déclencheur du drawer introuvable.",
+      metadata,
+      route: metadata.route
+    });
+    return;
+  }
+
+  await trigger.focus();
+  await trigger.click();
+  const drawer = page.locator("#header-mobile-panel.is-open");
+  await drawer.waitFor({ state: "visible" });
+  const openState = await page.evaluate(() => ({
+    activeInside: Boolean(document.querySelector("#header-mobile-panel")?.contains(document.activeElement)),
+    ariaModal: document.querySelector("#header-mobile-panel")?.getAttribute("aria-modal"),
+    drawerOverflow: (() => {
+      const panel = document.querySelector("#header-mobile-panel");
+      return panel ? Math.max(0, panel.scrollWidth - panel.clientWidth) : -1;
+    })(),
+    undersizedTargets: [...document.querySelectorAll("#header-mobile-panel button")]
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      })
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { height: rect.height, label: element.getAttribute("aria-label") || element.textContent?.trim(), width: rect.width };
+      })
+      .filter((target) => target.width < 43.5 || target.height < 43.5),
+    scrollLocked: document.documentElement.classList.contains("mobile-shell-open")
+  }));
+  if (
+    !openState.activeInside ||
+    openState.ariaModal !== "true" ||
+    openState.drawerOverflow > 1 ||
+    openState.undersizedTargets.length > 0 ||
+    !openState.scrollLocked
+  ) {
+    guard.addFinding({
+      type: "navigation-drawer-contract",
+      message: `Drawer incomplet: focus=${openState.activeInside}, modal=${openState.ariaModal}, overflow=${openState.drawerOverflow}, petites-cibles=${openState.undersizedTargets.length}, scroll=${openState.scrollLocked}.`,
+      metadata,
+      route: metadata.route
+    });
+  }
+
+  const drawerScreenshot = path.join(
+    outputDir,
+    `${safeName(`${metadata.workflow}-${metadata.viewport}-${metadata.theme}-${metadata.language}-navigation-drawer`)}.png`
+  );
+  await page.screenshot({ path: drawerScreenshot, fullPage: false });
+
+  await page.keyboard.press("Escape");
+  await drawer.waitFor({ state: "hidden" });
+  const closeState = await page.evaluate(() => ({
+    focusRestored: document.activeElement?.matches(".header-mobile-toggle, .sidebar-rail-navigation-trigger") ?? false,
+    scrollLocked: document.documentElement.classList.contains("mobile-shell-open")
+  }));
+  if (!closeState.focusRestored || closeState.scrollLocked) {
+    guard.addFinding({
+      type: "navigation-drawer-contract",
+      message: `Fermeture drawer incorrecte: focus=${closeState.focusRestored}, scroll=${closeState.scrollLocked}.`,
+      metadata,
+      route: metadata.route
+    });
+  }
+  return drawerScreenshot;
 }
 
 async function assertFocusVisible(page, metadata) {
@@ -516,19 +602,22 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     route: `/app/${workflow.key}`,
     viewport: variant.viewport,
     theme: variant.theme,
-    language
+    language,
+    reducedMotion: variant.reducedMotion ?? "no-preference"
   };
   const before = guard.blockingFindings().length;
   const context = await createContext(browser, metadata);
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const page = await context.newPage();
   let screenshot;
+  let drawerScreenshot;
   try {
     await openApplication(page);
     guard.setMetadata(page, metadata);
     await openModule(page, workflow, language);
     await assertRequiredText(page, workflow, metadata);
     await assertResponsiveShellContract(page, metadata);
+    if (workflow.key === "dashboard") drawerScreenshot = await assertNavigationDrawerContract(page, metadata);
     if (criticalKeys.has(workflow.key)) await assertFocusVisible(page, metadata);
     if (language === "ar") {
       const direction = await page.locator("main.page").getAttribute("dir");
@@ -555,7 +644,13 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     const failed = guard.blockingFindings().length > before;
     const tracePath = path.join(outputDir, `${safeName(`${workflow.key}-${variant.viewport}-${variant.theme}-${language}`)}-trace.zip`);
     await context.tracing.stop(failed ? { path: tracePath } : undefined);
-    workflowResults.push({ ...metadata, screenshot, status: failed ? "failed" : "passed", trace: failed ? tracePath : null });
+    workflowResults.push({
+      ...metadata,
+      drawerScreenshot,
+      screenshot,
+      status: failed ? "failed" : "passed",
+      trace: failed ? tracePath : null
+    });
     await context.close();
   }
 }

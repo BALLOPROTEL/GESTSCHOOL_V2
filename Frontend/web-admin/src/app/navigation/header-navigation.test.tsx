@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { HeaderNavigation } from "./header-navigation";
@@ -83,6 +83,46 @@ describe("HeaderNavigation", () => {
 
     fireEvent.click(container.querySelector<HTMLButtonElement>(".header-mobile-close")!);
     expect(mobilePanel).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("piège le focus dans le drawer puis le restaure après Escape", async () => {
+    const { container } = render(
+      <HeaderNavigation
+        brandName="Al Manarat"
+        logoAlt="Logo GestSchool"
+        logoSrc="/logo.png"
+        sidebarCollapsed={false}
+        searchPlaceholder="Rechercher"
+        searchValue=""
+        onSearchChange={vi.fn()}
+        onToggleSidebar={vi.fn()}
+        dashboard={action("dashboard", "Tableau de bord")}
+        scolarite={[action("students", "Eleves")]}
+        schoolLife={[action("grades", "Notes")]}
+        settings={[action("reports", "Rapports")]}
+        preferences={preferences}
+        messages={{ count: 0, label: "Messages", onSelect: vi.fn() }}
+        notifications={{ count: 2, label: "Notifications", onSelect: vi.fn() }}
+        user={{
+          avatar: "AD",
+          contextLabel: "GestSchool admin",
+          roleLabel: "Administrateur",
+          username: "preview.admin",
+          onLogout: vi.fn()
+        }}
+      />
+    );
+
+    const trigger = container.querySelector<HTMLButtonElement>(".header-mobile-toggle")!;
+    fireEvent.click(trigger);
+    const close = container.querySelector<HTMLButtonElement>(".header-mobile-close")!;
+    await waitFor(() => expect(close).toHaveFocus());
+    expect(document.documentElement).toHaveClass("mobile-shell-open");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(container.querySelector("#header-mobile-panel")).toHaveAttribute("aria-hidden", "true");
+    expect(document.documentElement).not.toHaveClass("mobile-shell-open");
   });
 
   it("rend les notifications dans une couche flottante hors du header", () => {

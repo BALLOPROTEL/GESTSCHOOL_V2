@@ -244,8 +244,6 @@
   }
 
   .header-mobile-close {
-    width: 2.6rem !important;
-    height: 2.6rem !important;
     border-radius: 0.78rem !important;
     background: var(--mobile-card-soft) !important;
     color: var(--mobile-card-text) !important;
@@ -289,79 +287,6 @@
 
   .header-mobile-links {
     gap: 0.22rem !important;
-  }
-
-  .header-mobile-link,
-  .header-preference-button,
-  .header-logout-button {
-    min-height: 2.82rem !important;
-    display: grid !important;
-    grid-template-columns: 2rem minmax(0, 1fr) !important;
-    align-items: center !important;
-    justify-content: initial !important;
-    gap: 0.72rem !important;
-    width: 100% !important;
-    padding: 0.48rem 0.62rem !important;
-    border: 1px solid transparent !important;
-    border-radius: 0.72rem !important;
-    background: transparent !important;
-    color: var(--mobile-card-text) !important;
-    box-shadow: none !important;
-    text-align: left !important;
-  }
-
-  .header-mobile-link:hover,
-  .header-preference-button:hover,
-  .header-logout-button:hover {
-    background: var(--mobile-card-soft) !important;
-    border-color: var(--mobile-card-border) !important;
-    transform: none !important;
-  }
-
-  .header-mobile-link.is-active {
-    background: color-mix(in srgb, #2f64eb 12%, transparent) !important;
-    border-color: color-mix(in srgb, #2f64eb 24%, transparent) !important;
-    color: #1d4ed8 !important;
-  }
-
-  :root[data-theme="dark"] .header-mobile-link.is-active {
-    background: rgba(47, 100, 235, 0.18) !important;
-    color: #dbeafe !important;
-  }
-
-  .header-mobile-link-icon,
-  .header-preference-button img,
-  .header-logout-button::before {
-    width: 2rem !important;
-    height: 2rem !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 0.58rem !important;
-    color: var(--mobile-card-text) !important;
-  }
-
-  .header-mobile-link-icon svg {
-    width: 1.05rem !important;
-    height: 1.05rem !important;
-    fill: currentColor !important;
-  }
-
-  .header-mobile-link.is-active .header-mobile-link-icon {
-    color: #2563eb !important;
-  }
-
-  .header-mobile-link > span:not(.header-mobile-link-icon),
-  .header-preference-button > span,
-  .header-logout-button > span {
-    min-width: 0 !important;
-    color: inherit !important;
-    font-size: 0.94rem !important;
-    font-weight: 850 !important;
-    line-height: 1.2 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
   }
 
   .header-mobile-link small,
