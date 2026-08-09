@@ -3,6 +3,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { translateUiString, UI_MESSAGES } from "../../../shared/i18n";
 import { useI18n } from "../../../shared/i18n-context";
 import { toUiErrorMessage } from "../../../shared/services/api-errors";
+import { useConfirmDialog } from "../../../shared/components/confirm-dialog";
 import type {
   AcademicTrack,
   ClassItem,
@@ -290,6 +291,7 @@ export const useGradesData = ({
   onNotice
 }: UseGradesDataOptions) => {
   const { language } = useI18n();
+  const confirmAction = useConfirmDialog();
   const [grades, setGrades] = useState<GradeEntry[]>([]);
   const [gradeFilters, setGradeFilters] = useState<GradeFilters>(() => buildGradeFilters());
   const [gradeForm, setGradeForm] = useState<GradeForm>(() => buildGradeForm());
@@ -531,7 +533,11 @@ export const useGradesData = ({
   };
 
   const removeGrade = async (gradeId: string): Promise<void> => {
-    const confirmed = window.confirm(translateUiString(language, UI_MESSAGES.gradeDeleteConfirm));
+    const confirmed = await confirmAction({
+      description: translateUiString(language, UI_MESSAGES.gradeDeleteConfirm),
+      confirmLabel: translateUiString(language, "Supprimer"),
+      tone: "danger"
+    });
     if (!confirmed) return;
     if (!remoteEnabled || gradeId.startsWith("local-grade-")) {
       setGrades((current) => current.filter((grade) => grade.id !== gradeId));
@@ -654,7 +660,10 @@ export const useGradesData = ({
     const missingGrades = classSummary?.students.reduce((sum, student) => sum + (student.missingGrades ?? 0), 0) || 0;
     if (
       missingGrades > 0 &&
-      !window.confirm(translateUiString(language, UI_MESSAGES.confirmContinueWarning))
+      !(await confirmAction({
+        description: translateUiString(language, UI_MESSAGES.confirmContinueWarning),
+        confirmLabel: translateUiString(language, "Continuer")
+      }))
     ) {
       return;
     }

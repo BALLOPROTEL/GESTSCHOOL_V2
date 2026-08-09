@@ -5,6 +5,7 @@ import { useI18n } from "../../../shared/i18n-context";
 import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type { FieldErrors, Student } from "../../../shared/types/app";
 import { focusFirstInlineErrorField, hasFieldErrors, today } from "../../../shared/utils/form-ui";
+import { useConfirmDialog } from "../../../shared/components/confirm-dialog";
 import { fetchStudents, removeStudent, saveStudent } from "../services/students-service";
 import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm, type StudentsApiClient } from "../types/students";
 
@@ -70,6 +71,7 @@ export const useStudentsData = ({
   onNotice
 }: UseStudentsDataOptions) => {
   const { language } = useI18n();
+  const confirmAction = useConfirmDialog();
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
@@ -199,7 +201,11 @@ export const useStudentsData = ({
   };
 
   const deleteStudent = async (studentId: string): Promise<void> => {
-    if (!window.confirm(translateUiString(language, UI_MESSAGES.studentArchiveConfirm))) return;
+    if (!(await confirmAction({
+      description: translateUiString(language, UI_MESSAGES.studentArchiveConfirm),
+      confirmLabel: translateUiString(language, "Archiver"),
+      tone: "danger"
+    }))) return;
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;

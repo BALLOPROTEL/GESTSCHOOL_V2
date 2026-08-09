@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { translateUiString, UI_MESSAGES, type UiLanguage } from "../../shared/i18n";
 import { toUiErrorMessage } from "../../shared/services/api-errors";
+import { ResponsiveForm } from "../../shared/components/responsive-form";
 import type {
   SchoolYear,
   Session,
@@ -187,7 +188,12 @@ export function PreferencesScreen({
       uiLanguage={uiLanguage}
     >
       <section className="panel profile-tabs-panel">
-        <form className="profile-form-grid compact" onSubmit={(event) => void submit(event)}>
+        <ResponsiveForm
+          className="profile-form-grid compact"
+          formTitle={t("Préférences")}
+          triggerLabel={t("Enregistrer les préférences")}
+          onSubmit={(event) => void submit(event)}
+        >
           <label>
             {t("Langue")}
             <select
@@ -234,7 +240,7 @@ export function PreferencesScreen({
               {saving ? t("Enregistrement...") : t("Enregistrer les préférences")}
             </button>
           </div>
-        </form>
+        </ResponsiveForm>
       </section>
     </PageShell>
   );

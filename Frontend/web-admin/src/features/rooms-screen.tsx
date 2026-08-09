@@ -56,6 +56,8 @@ import {
   trackLabel
 } from "./rooms/rooms-screen-model";
 import { useI18n } from "../shared/i18n-context";
+import { ResponsiveForm } from "../shared/components/responsive-form";
+import { useConfirmDialog } from "../shared/components/confirm-dialog";
 
 
 type RoomsScreenProps = {
@@ -73,6 +75,7 @@ type RoomsScreenProps = {
 
 export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
   const { t: tr } = useI18n();
+  const confirmAction = useConfirmDialog();
   const { api, classes, cycles, levels, onError, onNotice, periods, remoteEnabled = true, schoolYears, subjects } = props;
   const [activeStep, setActiveStep] = useState("list");
   const [rooms, setRooms] = useState<RoomRecord[]>([]);
@@ -335,8 +338,13 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
           filters={filters}
           loading={loading}
           onAddRoom={() => setActiveStep("form")}
-          onArchiveRoom={(roomId) => {
-            if (window.confirm(tr(UI_MESSAGES.roomDeleteConfirm))) void archiveResource(`/rooms/${roomId}`, UI_MESSAGES.deleted);
+          onArchiveRoom={async (roomId) => {
+            const accepted = await confirmAction({
+              description: tr(UI_MESSAGES.roomDeleteConfirm),
+              confirmLabel: tr("Archiver"),
+              tone: "danger"
+            });
+            if (accepted) await archiveResource(`/rooms/${roomId}`, UI_MESSAGES.deleted);
           }}
           onEditRoom={editRoom}
           onFilter={() => void loadRooms()}
@@ -351,7 +359,12 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
       {activeStep === "form" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{tr("Fiche salle")}</p><h2>{editingRoomId ? tr("Modifier la salle") : tr("Ajouter une salle")}</h2></div><span className="module-header-badge">{SCHOOL_NAME}</span></div>
-          <form className="form-grid module-form teachers-form-grid" onSubmit={submitRoom}>
+          <ResponsiveForm
+            className="form-grid module-form teachers-form-grid"
+            formTitle={editingRoomId ? tr("Modifier la salle") : tr("Créer la salle")}
+            openOnMount
+            onSubmit={submitRoom}
+          >
             <label>{tr("Code *")}<input value={roomForm.code} onChange={(event) => setRoomForm((prev) => ({ ...prev, code: event.target.value }))} required /></label>
             <label>{tr("Nom *")}<input value={roomForm.name} onChange={(event) => setRoomForm((prev) => ({ ...prev, name: event.target.value }))} required /></label>
             <label>{tr("Type *")}<select value={roomForm.roomTypeId} onChange={(event) => setRoomForm((prev) => ({ ...prev, roomTypeId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{roomTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
@@ -367,7 +380,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <label className="form-grid-span-full">{tr("Description")}<input value={roomForm.description} onChange={(event) => setRoomForm((prev) => ({ ...prev, description: event.target.value }))} /></label>
             <label className="form-grid-span-full">{tr("Notes internes")}<textarea value={roomForm.notes} onChange={(event) => setRoomForm((prev) => ({ ...prev, notes: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{editingRoomId ? tr("Mettre à jour") : tr("Créer la salle")}</button><button type="button" className="button-ghost" onClick={() => { setEditingRoomId(null); setRoomForm(defaultRoomForm()); }}>{tr("Réinitialiser")}</button></div>
-          </form>
+          </ResponsiveForm>
         </section>
       ) : null}
 
@@ -399,7 +412,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
       {activeStep === "assignments" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{tr("Affectations salles")}</p><h2>{tr("Usage pédagogique et cursus")}</h2></div></div>
-          <form className="form-grid module-form teachers-form-grid" onSubmit={submitAssignment}>
+          <ResponsiveForm className="form-grid module-form teachers-form-grid" formTitle={tr("Créer l'affectation")} onSubmit={submitAssignment}>
             <label>{tr("Salle *")}<select value={assignmentForm.roomId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, roomId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{rooms.filter((room) => room.status === "ACTIVE").map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
             <label>{tr("Année scolaire *")}<select value={assignmentForm.schoolYearId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{schoolYears.map((year) => <option key={year.id} value={year.id}>{year.label || year.code}</option>)}</select></label>
             <label>{tr("Type d'affectation *")}<select value={assignmentForm.assignmentType} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, assignmentType: event.target.value }))} required>{ASSIGNMENT_TYPES.map((type) => <option key={type} value={type}>{tr(assignmentTypeLabel(type))}</option>)}</select></label>
@@ -414,7 +427,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <label>{tr("Statut *")}<select value={assignmentForm.status} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, status: event.target.value }))} required>{ASSIGNMENT_STATUSES.map((status) => <option key={status} value={status}>{tr(statusLabel(status))}</option>)}</select></label>
             <label className="form-grid-span-full">{tr("Commentaire")}<input value={assignmentForm.comment} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Créer l'affectation")}</button></div>
-          </form>
+          </ResponsiveForm>
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Classe")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Statut")}</th><th>{tr("Action")}</th></tr></thead>
               <tbody>{selectedAssignments.length === 0 ? <tr><td colSpan={9} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedAssignments.map((item) => (
@@ -428,7 +441,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
       {activeStep === "availability" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{tr("Disponibilités")}</p><h2>{tr("Réservations, maintenance et indisponibilités")}</h2></div></div>
-          <form className="form-grid module-form teachers-form-grid" onSubmit={submitAvailability}>
+          <ResponsiveForm className="form-grid module-form teachers-form-grid" formTitle={tr("Déclarer une indisponibilité")} onSubmit={submitAvailability}>
             <label>{tr("Salle *")}<select value={availabilityForm.roomId} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, roomId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{rooms.map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
             <label>{tr("Jour")}<select value={availabilityForm.dayOfWeek} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}><option value="">{tr("Tous")}</option>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{tr(dayLabel(day))}</option>)}</select></label>
             <label>{tr("Début *")}<input type="time" value={availabilityForm.startTime} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, startTime: event.target.value }))} required /></label>
@@ -438,7 +451,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <label>{tr("Période")}<select value={availabilityForm.periodId} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, periodId: event.target.value }))}><option value="">{tr("Optionnelle")}</option>{periods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select></label>
             <label className="form-grid-span-full">{tr("Commentaire")}<input value={availabilityForm.comment} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Déclarer une indisponibilité")}</button></div>
-          </form>
+          </ResponsiveForm>
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Jour")}</th><th>{tr("Début")}</th><th>{tr("Fin")}</th><th>{tr("Type")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Action")}</th></tr></thead>
               <tbody>{selectedAvailabilities.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune indisponibilité enregistrée.")}</td></tr> : selectedAvailabilities.map((item) => (
@@ -465,13 +478,13 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
       {activeStep === "types" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{tr("Typologie")}</p><h2>{tr("Typologie des salles")}</h2></div></div>
-          <form className="form-grid module-form teachers-form-grid" onSubmit={submitRoomType}>
+          <ResponsiveForm className="form-grid module-form teachers-form-grid" formTitle={tr("Ajouter le type")} onSubmit={submitRoomType}>
             <label>{tr("Code *")}<input value={roomTypeForm.code} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, code: event.target.value }))} required placeholder={tr("CLASSROOM")} /></label>
             <label>{tr("Nom *")}<input value={roomTypeForm.name} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, name: event.target.value }))} required placeholder={tr("Salle de classe")} /></label>
             <label>{tr("Statut *")}<select value={roomTypeForm.status} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, status: event.target.value }))} required>{ROOM_TYPE_STATUSES.map((status) => <option key={status} value={status}>{tr(statusLabel(status))}</option>)}</select></label>
             <label className="form-grid-span-full">{tr("Description")}<input value={roomTypeForm.description} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, description: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Ajouter le type")}</button></div>
-          </form>
+          </ResponsiveForm>
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Code")}</th><th>{tr("Nom")}</th><th>{tr("Description")}</th><th>{tr("Statut")}</th></tr></thead>
               <tbody>{roomTypes.length === 0 ? <tr><td colSpan={4} className="empty-row">{tr("Aucun type de salle enregistré.")}</td></tr> : roomTypes.map((type) => (

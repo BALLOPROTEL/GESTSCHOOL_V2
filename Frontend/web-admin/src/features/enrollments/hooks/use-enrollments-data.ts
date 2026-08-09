@@ -9,6 +9,7 @@ import type {
 } from "../../../shared/types/app";
 import { translateUiString, UI_MESSAGES, type UiLanguage } from "../../../shared/i18n";
 import { toUiErrorMessage } from "../../../shared/services/api-errors";
+import { useConfirmDialog } from "../../../shared/components/confirm-dialog";
 import {
   createEnrollment,
   fetchEnrollments,
@@ -96,6 +97,7 @@ export const useEnrollmentsData = ({
   onError,
   onNotice
 }: UseEnrollmentsDataOptions) => {
+  const confirmAction = useConfirmDialog();
   const [enrollments, setEnrollments] = useState<Enrollment[]>(initialEnrollments);
   const [enrollmentFilters, setEnrollmentFilters] = useState<EnrollmentFilters>(() => buildInitialFilters());
   const [enrollmentForm, setEnrollmentForm] = useState<EnrollmentForm>(() => buildInitialForm());
@@ -315,7 +317,11 @@ export const useEnrollmentsData = ({
   };
 
   const deleteEnrollment = async (id: string): Promise<void> => {
-    if (!window.confirm(translateUiString(language, UI_MESSAGES.enrollmentDeleteConfirm))) return;
+    if (!(await confirmAction({
+      description: translateUiString(language, UI_MESSAGES.enrollmentDeleteConfirm),
+      confirmLabel: translateUiString(language, "Supprimer"),
+      tone: "danger"
+    }))) return;
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;

@@ -1,0 +1,246 @@
+:root {
+  --gs-responsive-z-form-backdrop: 640;
+  --gs-responsive-z-form: 645;
+  --gs-responsive-z-confirm: 650;
+  --gs-responsive-form-width: 42rem;
+}
+
+.responsive-form-header,
+.responsive-form-trigger {
+  display: none;
+}
+
+.responsive-form-boundary {
+  display: contents;
+}
+
+html.responsive-form-overlay-open,
+html.responsive-form-overlay-open body {
+  overflow: hidden;
+}
+
+.confirm-dialog-layer,
+.responsive-form-layer {
+  position: fixed;
+  inset: 0;
+  isolation: isolate;
+}
+
+.responsive-form-layer {
+  z-index: var(--gs-responsive-z-form-backdrop);
+}
+
+.confirm-dialog-layer {
+  z-index: var(--gs-responsive-z-confirm);
+  display: grid;
+  place-items: center;
+  padding: max(1rem, var(--gs-responsive-safe-top)) max(1rem, var(--gs-responsive-safe-right)) max(1rem, var(--gs-responsive-safe-bottom)) max(1rem, var(--gs-responsive-safe-left));
+}
+
+.responsive-form-backdrop,
+.confirm-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  background: rgb(4 12 28 / 64%);
+  backdrop-filter: blur(3px);
+}
+
+.confirm-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 30rem);
+  max-height: min(90dvh, 34rem);
+  overflow: auto;
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: min(var(--radius, 1rem), 1rem);
+  background: var(--panel);
+  color: var(--ink-900);
+  box-shadow: var(--shadow-lg, 0 1.5rem 4rem rgb(0 0 0 / 26%));
+}
+
+.confirm-dialog-copy {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.confirm-dialog-copy h2,
+.confirm-dialog-copy p {
+  margin: 0;
+}
+
+.confirm-dialog-copy h2 {
+  font-size: 1.2rem;
+}
+
+.confirm-dialog-copy p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+@media (max-width: 1023px) {
+  .responsive-form-trigger {
+    display: inline-flex;
+    width: fit-content;
+    min-height: var(--gs-responsive-touch-target);
+    align-items: center;
+    justify-content: center;
+    margin-block: 0.75rem;
+  }
+
+  .responsive-form-surface {
+    position: fixed;
+    z-index: var(--gs-responsive-z-form);
+    inset-block: 0;
+    inset-inline-end: 0;
+    width: min(100%, var(--gs-responsive-form-width));
+    max-width: 100%;
+    max-height: 100dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    display: grid;
+    align-content: start;
+    gap: var(--form-gap-y, 0.75rem);
+    padding: max(1rem, var(--gs-responsive-safe-top)) max(1rem, var(--gs-responsive-safe-right)) 0 max(1rem, var(--gs-responsive-safe-left));
+    border: 0;
+    border-inline-start: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--panel);
+    color: var(--ink-900);
+    box-shadow: var(--shadow-lg, 0 1.5rem 4rem rgb(0 0 0 / 26%));
+  }
+
+  .responsive-form-header {
+    position: sticky;
+    z-index: 2;
+    inset-block-start: calc(-1 * max(1rem, var(--gs-responsive-safe-top)));
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: calc(-1 * max(1rem, var(--gs-responsive-safe-top))) calc(-1 * max(1rem, var(--gs-responsive-safe-right))) 0 calc(-1 * max(1rem, var(--gs-responsive-safe-left)));
+    padding: max(1rem, var(--gs-responsive-safe-top)) max(1rem, var(--gs-responsive-safe-right)) 1rem max(1rem, var(--gs-responsive-safe-left));
+    border-block-end: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .responsive-form-header h2,
+  .responsive-form-header p {
+    margin: 0;
+  }
+
+  .responsive-form-header h2 {
+    font-size: 1.15rem;
+    line-height: 1.25;
+  }
+
+  .responsive-form-header p {
+    margin-block-start: 0.3rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  .responsive-form-close {
+    width: var(--gs-responsive-touch-target);
+    min-width: var(--gs-responsive-touch-target);
+    height: var(--gs-responsive-touch-target);
+    min-height: var(--gs-responsive-touch-target);
+    padding: 0;
+    flex: 0 0 auto;
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+
+  .responsive-form-surface > .actions,
+  .responsive-form-surface > .premium-edit-actions,
+  .responsive-form-surface > .profile-form-actions,
+  .responsive-form-surface > .form-grid > .actions,
+  .responsive-form-surface > button[type="submit"]:last-child {
+    position: sticky;
+    z-index: 2;
+    inset-block-end: 0;
+    margin: 0 calc(-1 * max(1rem, var(--gs-responsive-safe-right))) 0 calc(-1 * max(1rem, var(--gs-responsive-safe-left)));
+    padding: 0.85rem max(1rem, var(--gs-responsive-safe-right)) max(0.85rem, var(--gs-responsive-safe-bottom)) max(1rem, var(--gs-responsive-safe-left));
+    border-block-start: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .responsive-form-surface input,
+  .responsive-form-surface select,
+  .responsive-form-surface textarea {
+    min-height: var(--gs-responsive-touch-target);
+    font-size: max(1rem, 16px);
+  }
+
+  .responsive-form-surface button {
+    min-height: var(--gs-responsive-touch-target);
+  }
+
+  .responsive-form-surface .premium-select-row select {
+    font-size: max(1rem, 16px);
+  }
+
+  .profile-form-grid.compact.responsive-form-surface {
+    padding: max(1rem, var(--gs-responsive-safe-top)) max(1rem, var(--gs-responsive-safe-right)) 0 max(1rem, var(--gs-responsive-safe-left));
+  }
+
+  .responsive-form-surface .field-error {
+    min-height: 1.1rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .responsive-form-trigger {
+    width: 100%;
+  }
+
+  .responsive-form-surface {
+    inset: 0;
+    width: 100%;
+    border: 0;
+  }
+
+  .confirm-dialog-layer {
+    align-items: end;
+    padding: 0;
+  }
+
+  .confirm-dialog {
+    width: 100%;
+    max-height: min(86dvh, 36rem);
+    padding: 1rem max(1rem, var(--gs-responsive-safe-right)) max(1rem, var(--gs-responsive-safe-bottom)) max(1rem, var(--gs-responsive-safe-left));
+    border-radius: 1rem 1rem 0 0;
+  }
+
+  .confirm-dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .confirm-dialog-actions button {
+    width: 100%;
+    min-height: var(--gs-responsive-touch-target);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .responsive-form-surface,
+  .confirm-dialog {
+    animation-duration: 1ms;
+    transition-duration: 1ms;
+  }
+}

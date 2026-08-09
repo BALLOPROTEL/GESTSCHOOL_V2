@@ -1,6 +1,8 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { WorkflowGuide } from "../../shared/components/workflow-guide";
+import { ResponsiveForm } from "../../shared/components/responsive-form";
+import { useConfirmDialog } from "../../shared/components/confirm-dialog";
 import { translateUiMessage, UI_MESSAGES } from "../../shared/i18n";
 import { toUiErrorMessage } from "../../shared/services/api-errors";
 import {
@@ -62,6 +64,7 @@ type RowAction = {
 
 export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   const { language, t: tr } = useI18n();
+  const confirmAction = useConfirmDialog();
   const {
     api,
     students,
@@ -409,7 +412,12 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
   const deleteAttendance = async (id: string): Promise<void> => {
     if (rejectReadOnly()) return;
-    if (!window.confirm(tr(UI_MESSAGES.absenceDeleteConfirm))) return;
+    const accepted = await confirmAction({
+      description: tr(UI_MESSAGES.absenceDeleteConfirm),
+      confirmLabel: tr("Supprimer"),
+      tone: "danger"
+    });
+    if (!accepted) return;
     try {
       await deleteAttendanceById(api, id);
     } catch (error) {
@@ -470,7 +478,12 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       return;
     }
 
-    if (!window.confirm(tr(UI_MESSAGES.attachmentDeleteConfirm))) {
+    const accepted = await confirmAction({
+      description: tr(UI_MESSAGES.attachmentDeleteConfirm),
+      confirmLabel: tr("Supprimer"),
+      tone: "danger"
+    });
+    if (!accepted) {
       return;
     }
 
@@ -591,7 +604,12 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
 
   const deleteTimetableSlot = async (id: string): Promise<void> => {
     if (rejectReadOnly()) return;
-    if (!window.confirm(tr(UI_MESSAGES.lessonDeleteConfirm))) return;
+    const accepted = await confirmAction({
+      description: tr(UI_MESSAGES.lessonDeleteConfirm),
+      confirmLabel: tr("Supprimer"),
+      tone: "danger"
+    });
+    if (!accepted) return;
     try {
       await deleteTimetableSlotById(api, id);
     } catch (error) {
@@ -779,7 +797,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         <h2>{tr("Absences")}</h2>
         <p className="section-lead">{tr("Saisissez un pointage individuel clair, lisible et rapidement exploitable.")}</p>
         {renderLoadWarning("attendance", "Journal des absences indisponible")}
-        <form className="form-grid module-form" onSubmit={(event) => void submitAttendance(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Enregistrer une absence")} onSubmit={(event) => void submitAttendance(event)}>
           <label>
             {tr("Eleve")}<select value={attendanceForm.studentId} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, studentId: event.target.value }))} required>
               <option value="">{tr("Choisir...")}</option>
@@ -811,13 +829,13 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
             {tr("Motif")}<input value={attendanceForm.reason} onChange={(event) => setAttendanceForm((prev) => ({ ...prev, reason: event.target.value }))} />
           </label>
           <button type="submit">{tr("Enregistrer")}</button>
-        </form>
+        </ResponsiveForm>
       </section>
 
       <section data-step-id="bulk" className="panel editor-panel workflow-section module-modern">
         <h2>{tr("Absences - saisie de masse")}</h2>
         <p className="section-lead">{tr("Traitez une classe complete sans perdre la lisibilite du journal des absences.")}</p>
-        <form className="form-grid module-form" onSubmit={(event) => void submitBulkAttendance(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Absences - saisie de masse")} onSubmit={(event) => void submitBulkAttendance(event)}>
           <div className="split-grid">
             <label>{tr("Classe")}<select value={bulkAttendanceForm.classId} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, classId: event.target.value }))} required><option value="">{tr("Choisir...")}</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
             <label>{tr("Date")}<input type="date" value={bulkAttendanceForm.attendanceDate} onChange={(event) => setBulkAttendanceForm((prev) => ({ ...prev, attendanceDate: event.target.value }))} required /></label>
@@ -842,7 +860,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           </label>
           <p className="subtle hint">{tr("Ctrl/Cmd + clic pour multi-selection.")}</p>
           <button type="submit">{tr("Enregistrer en masse")}</button>
-        </form>
+        </ResponsiveForm>
       </section>
       <section data-step-id="journal" className="panel table-panel workflow-section module-modern">
         <div className="table-header">
@@ -899,7 +917,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         <p className="section-lead">{tr("Centralisez validation et pieces justificatives sans ouvrir plusieurs ecrans.")}</p>
         {renderLoadWarning("attachments", "Justificatifs indisponibles")}
         <h3>{tr("Validation")}</h3>
-        <form className="form-grid module-form" onSubmit={(event) => void submitAttendanceValidation(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Enregistrer validation")} onSubmit={(event) => void submitAttendanceValidation(event)}>
           <div className="split-grid">
             <label>
               {tr("Pointage cible")}<select value={selectedAttendanceId} onChange={(event) => setSelectedAttendanceId(event.target.value)}>
@@ -940,10 +958,10 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <div className="actions">
             <button type="submit" disabled={!selectedAttendanceId}>{tr("Enregistrer validation")}</button>
           </div>
-        </form>
+        </ResponsiveForm>
 
         <h3>{tr("Ajout de justificatif")}</h3>
-        <form className="form-grid module-form" onSubmit={(event) => void submitAttendanceAttachment(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Ajout de justificatif")} onSubmit={(event) => void submitAttendanceAttachment(event)}>
           <label>
             {tr("Fichier justificatif")}<input
               type="file"
@@ -956,7 +974,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <div className="actions">
             <button type="submit" disabled={!selectedAttendanceId}>{tr("Ajouter justificatif")}</button>
           </div>
-        </form>
+        </ResponsiveForm>
 
         <h3>{tr("Liste des justificatifs")}</h3>
         <div className="table-wrap">
@@ -1005,7 +1023,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         <h2>{tr("Emploi du temps")}</h2>
         <p className="section-lead">{tr("Composez des creneaux lisibles puis controlez la semaine complete en un seul coup d'oeil.")}</p>
         {renderLoadWarning("timetable", "References emploi du temps indisponibles")}
-        <form className="form-grid module-form" onSubmit={(event) => void submitTimetableSlot(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Ajouter un créneau")} onSubmit={(event) => void submitTimetableSlot(event)}>
           <label>{tr("Classe")}<select value={timetableForm.classId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, classId: event.target.value }))} required>{classes.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
           <label>{tr("Matiere")}<select value={timetableForm.subjectId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, subjectId: event.target.value }))} required>{subjects.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.label}</option>)}</select></label>
           <label>{tr("Jour")}<select value={timetableForm.dayOfWeek} onChange={(event) => setTimetableForm((prev) => ({ ...prev, dayOfWeek: event.target.value }))}>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
@@ -1014,7 +1032,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <label>{tr("Salle")}<select value={timetableForm.roomId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, roomId: event.target.value }))}><option value="">{tr("Non definie")}</option>{activeRooms.map((room) => <option key={room.id} value={room.id}>{room.code} - {room.name}</option>)}</select></label>
           <label>{tr("Enseignant")}<select value={timetableForm.teacherAssignmentId} onChange={(event) => setTimetableForm((prev) => ({ ...prev, teacherAssignmentId: event.target.value }))}><option value="">{tr("Non defini")}</option>{compatibleTeacherAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.teacherName || tr("Enseignant")} - {assignment.subjectLabel || tr("Matiere")} - {assignment.classLabel || tr("Classe")}</option>)}</select></label>
           <button type="submit">{tr("Ajouter")}</button>
-        </form>
+        </ResponsiveForm>
       </section>
 
       <section data-step-id="grid" className="panel table-panel workflow-section module-modern">
@@ -1099,7 +1117,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </div>
         <p className="section-lead">{tr("Programmez les messages importants avec un flux plus propre pour les equipes.")}</p>
         {renderLoadWarning("notifications", "Notifications indisponibles")}
-        <form className="form-grid module-form" onSubmit={(event) => void submitNotification(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Programmer une notification")} onSubmit={(event) => void submitNotification(event)}>
           <label>{tr("Titre")}<input value={notificationForm.title} onChange={(event) => setNotificationForm((prev) => ({ ...prev, title: event.target.value }))} required /></label>
           <label>{tr("Message")}<input value={notificationForm.message} onChange={(event) => setNotificationForm((prev) => ({ ...prev, message: event.target.value }))} required /></label>
           <label>{tr("Audience")}<select value={notificationForm.audienceRole} onChange={(event) => setNotificationForm((prev) => ({ ...prev, audienceRole: event.target.value }))}><option value="">{tr("Aucun")}</option><option value="PARENT">{labelFromMap(notificationAudienceLabels, "PARENT")}</option><option value="ENSEIGNANT">{labelFromMap(notificationAudienceLabels, "ENSEIGNANT")}</option><option value="SCOLARITE">{labelFromMap(notificationAudienceLabels, "SCOLARITE")}</option><option value="COMPTABLE">{labelFromMap(notificationAudienceLabels, "COMPTABLE")}</option></select></label>
@@ -1108,7 +1126,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <label>{tr("Cible explicite")}<input value={notificationForm.targetAddress} onChange={(event) => setNotificationForm((prev) => ({ ...prev, targetAddress: event.target.value }))} placeholder={tr("Email ou telephone")} /></label>
           <label>{tr("Planifiee")}<input type="datetime-local" value={notificationForm.scheduledAt} onChange={(event) => setNotificationForm((prev) => ({ ...prev, scheduledAt: event.target.value }))} /></label>
           <button type="submit">{tr("Programmer l'envoi")}</button>
-        </form>
+        </ResponsiveForm>
       </section>
 
       <section data-step-id="history" className="panel table-panel workflow-section module-modern">

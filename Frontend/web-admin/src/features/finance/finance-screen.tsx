@@ -11,6 +11,7 @@ import type {
 import { useFinanceData } from "./hooks/use-finance-data";
 import type { FinanceApiClient, FinanceData } from "./types/finance";
 import { useI18n } from "../../shared/i18n-context";
+import { ResponsiveForm } from "../../shared/components/responsive-form";
 
 type FinanceScreenProps = {
   api: FinanceApiClient;
@@ -290,7 +291,7 @@ export function FinanceScreen({
           <span className="module-header-badge">{feePlans.length} {tr("plan(s)")}</span>
         </div>
         <p className="section-lead">{tr("Définissez les frais par année et niveau, puis réutilisez-les pour la facturation.")}</p>
-        <form className="form-grid module-form" onSubmit={(event) => void submitFeePlan(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Créer un plan de frais")} onSubmit={(event) => void submitFeePlan(event)}>
           <label>
             {tr("Année scolaire *")}<select
               value={feePlanForm.schoolYearId}
@@ -350,7 +351,7 @@ export function FinanceScreen({
             {renderFieldError(feePlanErrors, "currency", tr)}
           </label>
           <button type="submit">{tr("Créer le plan de frais")}</button>
-        </form>
+        </ResponsiveForm>
       </section>
 
       <section data-step-id="feePlans" className="panel table-panel workflow-section module-modern finance-screen-shell">
@@ -433,7 +434,7 @@ export function FinanceScreen({
           <span className="module-header-badge">{invoices.length} {tr("facture(s)")}</span>
         </div>
         <p className="section-lead">{tr("Associez un élève, une année et un montant dû pour générer une facture claire.")}</p>
-        <form className="form-grid module-form" onSubmit={(event) => void submitInvoice(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Créer une facture")} onSubmit={(event) => void submitInvoice(event)}>
           <label>
             {tr("Élève *")}<select
               value={invoiceForm.studentId}
@@ -500,7 +501,7 @@ export function FinanceScreen({
             {renderFieldError(invoiceErrors, "dueDate", tr)}
           </label>
           <button type="submit">{tr("Créer la facture")}</button>
-        </form>
+        </ResponsiveForm>
       </section>
 
       <section data-step-id="invoices" className="panel table-panel workflow-section module-modern finance-screen-shell">
@@ -611,7 +612,7 @@ export function FinanceScreen({
           <span className="module-header-badge">{payments.length} {tr("reçu(s)")}</span>
         </div>
         <p className="section-lead">{tr("Enregistrez chaque encaissement et rattachez-le à la facture correspondante.")}</p>
-        <form className="form-grid module-form" onSubmit={(event) => void submitPayment(event)}>
+        <ResponsiveForm className="form-grid module-form" formTitle={tr("Enregistrer un paiement")} onSubmit={(event) => void submitPayment(event)}>
           <label>
             {tr("Facture *")}<select
               value={paymentForm.invoiceId}
@@ -685,7 +686,7 @@ export function FinanceScreen({
             >
               {tr("Paiement en ligne PayDunya")}</button>
           </div>
-        </form>
+        </ResponsiveForm>
       </section>
 
       <section data-step-id="payments" className="panel table-panel workflow-section module-modern finance-screen-shell">

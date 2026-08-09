@@ -18,6 +18,7 @@ import {
 import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 import { useI18n } from "../../../shared/i18n-context";
+import { ResponsiveForm } from "../../../shared/components/responsive-form";
 
 
 export function SchoolYearsSection(): JSX.Element {
@@ -54,7 +55,8 @@ export function SchoolYearsSection(): JSX.Element {
               </div>
             </div>
             <div className="reference-section-grid">
-              <form
+              <ResponsiveForm
+                formTitle={tr("Ajouter une année scolaire")}
                 className="form-grid module-form reference-grid-strict"
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -183,7 +185,7 @@ export function SchoolYearsSection(): JSX.Element {
                 <div className="actions">
                   <button type="submit">{tr("Creer l'annee scolaire")}</button>
                 </div>
-              </form>
+              </ResponsiveForm>
             </div>
             <div className="table-wrap">
               <table data-responsive-table="true">

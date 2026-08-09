@@ -13,6 +13,7 @@ import type {
   Student
 } from "../../shared/types/app";
 import { translateUiString, type UiLanguage } from "../../shared/i18n";
+import { ResponsiveForm } from "../../shared/components/responsive-form";
 import { useEnrollmentsData } from "./hooks/use-enrollments-data";
 import type { EnrollmentsApiClient } from "./types/enrollments";
 
@@ -68,7 +69,11 @@ const fieldError = (
   key: string,
   translate: (source: string) => string
 ): JSX.Element | null =>
-  errors[key] ? <span className="field-error">{translate(errors[key])}</span> : null;
+  errors[key] ? (
+    <span className="field-error" role="alert">
+      {translate(errors[key])}
+    </span>
+  ) : null;
 
 const renderRequiredLabel = (label: string): JSX.Element => (
   <span className="field-label-required">
@@ -260,7 +265,13 @@ export function EnrollmentsScreen({
             </div>
             <span className="students-overview-status">Placement académique</span>
           </div>
-          <form className="form-grid module-form enrollments-v3-form-grid" onSubmit={(event) => void submitEnrollment(event)}>
+          <ResponsiveForm
+            className="form-grid module-form enrollments-v3-form-grid"
+            formTitle={t(editingEnrollment ? "Modifier inscription" : "Nouvelle inscription")}
+            openOnMount
+            triggerLabel={t(editingEnrollment ? "Modifier inscription" : "Nouvelle inscription")}
+            onSubmit={(event) => void submitEnrollment(event)}
+          >
             <label>
               {renderRequiredLabel("Année scolaire")}
               <select
@@ -375,7 +386,7 @@ export function EnrollmentsScreen({
                 Voir la liste
               </button>
             </div>
-          </form>
+          </ResponsiveForm>
         </section>
       ) : (
         <>

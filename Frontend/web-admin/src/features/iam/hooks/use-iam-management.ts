@@ -8,6 +8,7 @@ import {
 } from "../../../shared/constants/domain";
 import { UI_MESSAGES } from "../../../shared/i18n";
 import { toUiErrorMessage } from "../../../shared/services/api-errors";
+import { useConfirmDialog } from "../../../shared/components/confirm-dialog";
 import type {
   AccountType,
   FieldErrors,
@@ -152,6 +153,7 @@ export const useIamManagement = ({
   onUsersChange,
   translate = (source) => source
 }: UseIamManagementOptions) => {
+  const confirmAction = useConfirmDialog();
   const [users, setUsers] = useState<UserAccount[]>(initialUsers);
   const [accountTeachers, setAccountTeachers] = useState<TeacherRecord[]>([]);
   const [accountParents, setAccountParents] = useState<ParentRecord[]>([]);
@@ -430,7 +432,7 @@ export const useIamManagement = ({
   };
 
   const deleteUserAccount = async (id: string): Promise<void> => {
-    if (!window.confirm(translate(UI_MESSAGES.userDeleteConfirm))) return;
+    if (!(await confirmAction({ description: translate(UI_MESSAGES.userDeleteConfirm), confirmLabel: translate("Supprimer"), tone: "danger" }))) return;
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;
@@ -452,7 +454,11 @@ export const useIamManagement = ({
     const confirmation = isActive
       ? UI_MESSAGES.userActivateConfirm
       : UI_MESSAGES.userDeactivateConfirm;
-    if (!window.confirm(translate(confirmation))) return;
+    if (!(await confirmAction({
+      description: translate(confirmation),
+      confirmLabel: translate(isActive ? "Activer" : "Désactiver"),
+      tone: isActive ? "default" : "danger"
+    }))) return;
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;
@@ -472,7 +478,10 @@ export const useIamManagement = ({
   };
 
   const resendUserActivation = async (item: UserAccount): Promise<void> => {
-    if (!window.confirm(translate(UI_MESSAGES.activationResendConfirm))) return;
+    if (!(await confirmAction({
+      description: translate(UI_MESSAGES.activationResendConfirm),
+      confirmLabel: translate("Renvoyer")
+    }))) return;
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;

@@ -35,6 +35,55 @@ const LEGACY_SCREEN_LABELS = [
   "Portail parent",
   "Portail élève"
 ] as const;
+const RESPONSIVE_FORM_LABELS = [
+  "Absences - saisie de masse",
+  "Ajout de justificatif",
+  "Ajouter le type",
+  "Ajouter un créneau",
+  "Ajouter un cycle",
+  "Ajouter un document",
+  "Ajouter un enseignant",
+  "Ajouter un niveau",
+  "Ajouter un responsable",
+  "Ajouter un élève",
+  "Ajouter une année scolaire",
+  "Ajouter une classe",
+  "Ajouter une compétence",
+  "Ajouter une matière",
+  "Ajouter une période",
+  "Créer l'affectation",
+  "Créer un plan de frais",
+  "Créer une affectation",
+  "Créer une facture",
+  "Créer la salle",
+  "Créer l'utilisateur",
+  "Déclarer une indisponibilité",
+  "Enregistrer note",
+  "Enregistrer pointage",
+  "Enregistrer un paiement",
+  "Enregistrer une absence",
+  "Enregistrer validation",
+  "Génération des bulletins",
+  "Lier un responsable à un élève",
+  "Modifier inscription",
+  "Modifier l'enseignant",
+  "Modifier la salle",
+  "Modifier le dossier",
+  "Modifier le mot de passe",
+  "Modifier le profil",
+  "Modifier le responsable",
+  "Modifier l'utilisateur",
+  "Nouvelle inscription",
+  "Préférences",
+  "Programmer une notification",
+  "Saisie des notes par évaluation",
+  "Modifications non enregistrées",
+  "Abandonner les modifications en cours ?",
+  "Continuer la modification",
+  "Abandonner",
+  "Fermer le formulaire",
+  "Ouvrir le formulaire"
+] as const;
 
 afterEach(cleanup);
 
@@ -129,6 +178,14 @@ describe("declarative i18n", () => {
     const missingArabic = LEGACY_SCREEN_LABELS.filter(
       (source) => translateUiString("ar", source) === source
     );
+
+    expect(missingEnglish).toEqual([]);
+    expect(missingArabic).toEqual([]);
+  });
+
+  it("traduit les formulaires et dialogues responsives en anglais et en arabe", () => {
+    const missingEnglish = RESPONSIVE_FORM_LABELS.filter((source) => translateUiString("en", source) === source);
+    const missingArabic = RESPONSIVE_FORM_LABELS.filter((source) => translateUiString("ar", source) === source);
 
     expect(missingEnglish).toEqual([]);
     expect(missingArabic).toEqual([]);

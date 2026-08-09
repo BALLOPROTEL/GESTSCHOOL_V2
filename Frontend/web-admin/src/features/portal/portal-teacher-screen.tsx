@@ -11,6 +11,7 @@ import type { UiMessageToken } from "../../shared/i18n";
 import { usePortalTeacherData } from "./hooks/use-portal-teacher-data";
 import type { PortalApiClient, TeacherPortalData } from "./types/portal-teacher";
 import { useI18n } from "../../shared/i18n-context";
+import { ResponsiveForm } from "../../shared/components/responsive-form";
 
 
 type PortalTeacherScreenProps = {
@@ -210,7 +211,7 @@ export function PortalTeacherScreen({
           <h2>{tr("Actions metier")}</h2>
         </div>
         <div className="split-grid">
-          <form data-step-id="teacher-grade" className="form-grid compact-form" onSubmit={(event) => void submitGrade(event)}>
+          <ResponsiveForm data-step-id="teacher-grade" className="form-grid compact-form" formTitle={tr("Enregistrer note")} onSubmit={(event) => void submitGrade(event)}>
             <h3>{tr("Saisir une note")}</h3>
             <label>
               {tr("Classe")}<select value={gradeForm.classId} onChange={(event) => setGradeForm((previous) => ({ ...previous, classId: event.target.value }))}>
@@ -283,9 +284,9 @@ export function PortalTeacherScreen({
               {renderFieldError(errors, "scoreMax")}
             </label>
             <button type="submit">{tr("Enregistrer note")}</button>
-          </form>
+          </ResponsiveForm>
 
-          <form data-step-id="teacher-attendance" className="form-grid compact-form" onSubmit={(event) => void submitAttendanceBulk(event)}>
+          <ResponsiveForm data-step-id="teacher-attendance" className="form-grid compact-form" formTitle={tr("Enregistrer pointage")} onSubmit={(event) => void submitAttendanceBulk(event)}>
             <h3>{tr("Pointage en masse")}</h3>
             <label>
               {tr("Classe")}<select value={attendanceForm.classId} onChange={(event) => setAttendanceForm((previous) => ({ ...previous, classId: event.target.value }))}>
@@ -333,9 +334,9 @@ export function PortalTeacherScreen({
               {renderFieldError(errors, "students")}
             </label>
             <button type="submit">{tr("Enregistrer pointage")}</button>
-          </form>
+          </ResponsiveForm>
 
-          <form data-step-id="teacher-notifications" className="form-grid compact-form" onSubmit={(event) => void submitNotification(event)}>
+          <ResponsiveForm data-step-id="teacher-notifications" className="form-grid compact-form" formTitle={tr("Programmer une notification")} onSubmit={(event) => void submitNotification(event)}>
             <h3>{tr("Notifier les parents")}</h3>
             <label>
               {tr("Classe")}<select value={notificationForm.classId} onChange={(event) => setNotificationForm((previous) => ({ ...previous, classId: event.target.value }))}>
@@ -376,7 +377,7 @@ export function PortalTeacherScreen({
               {renderFieldError(errors, "message")}
             </label>
             <button type="submit">{tr("Envoyer notification")}</button>
-          </form>
+          </ResponsiveForm>
         </div>
       </section>
 

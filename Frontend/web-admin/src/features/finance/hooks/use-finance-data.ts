@@ -3,6 +3,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { translateUiString, UI_MESSAGES } from "../../../shared/i18n";
 import { useI18n } from "../../../shared/i18n-context";
 import { toUiErrorMessage } from "../../../shared/services/api-errors";
+import { useConfirmDialog } from "../../../shared/components/confirm-dialog";
 import type { FieldErrors, Level, SchoolYear, Student } from "../../../shared/types/app";
 import {
   createFeePlan,
@@ -93,6 +94,7 @@ export const useFinanceData = ({
   onNotice
 }: UseFinanceDataOptions) => {
   const { language } = useI18n();
+  const confirmAction = useConfirmDialog();
   const [financeData, setFinanceData] = useState<FinanceData>(initialData);
   const [feePlanForm, setFeePlanForm] = useState<FeePlanForm>(() => buildFeePlanForm(defaultCurrency));
   const [invoiceForm, setInvoiceForm] = useState<InvoiceForm>(() => buildInvoiceForm());
@@ -264,7 +266,11 @@ export const useFinanceData = ({
   };
 
   const voidInvoice = async (id: string): Promise<void> => {
-    if (!window.confirm(translateUiString(language, UI_MESSAGES.invoiceCancelConfirm))) return;
+    if (!(await confirmAction({
+      description: translateUiString(language, UI_MESSAGES.invoiceCancelConfirm),
+      confirmLabel: translateUiString(language, "Annuler la facture"),
+      tone: "danger"
+    }))) return;
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;

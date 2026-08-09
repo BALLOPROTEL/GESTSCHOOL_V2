@@ -80,6 +80,32 @@ const allWorkflows = [
 ];
 
 const criticalKeys = new Set(["dashboard", "students", "enrollments", "finance", "grades"]);
+const responsiveFormWorkflowKeys = new Set([
+  "students",
+  "teachers",
+  "iam",
+  "enrollments",
+  "finance",
+  "grades",
+  "attendance",
+  "rooms",
+  "timetable",
+  "notifications",
+  "reference",
+  "parents",
+  "profile",
+  "preferences"
+]);
+const responsiveFormOpeners = {
+  enrollments: ".enrollments-v3-page-header > button",
+  finance: ".workflow-tabs [role='tab']:nth-child(2)",
+  grades: ".workflow-tabs [role='tab']:nth-child(2)",
+  parents: ".workflow-tabs [role='tab']:nth-child(2)",
+  profile: ".premium-profile-primary",
+  rooms: ".rooms-v3-table-card .v3-table-head > button",
+  students: ".students-v3-page-header > button",
+  teachers: ".teachers-v3-page-header > button"
+};
 
 const fullVariants = [
   { viewport: "desktop", theme: "light" },
@@ -571,8 +597,157 @@ async function assertNavigationDrawerContract(page, metadata) {
   return drawerScreenshot;
 }
 
+async function assertResponsiveFormContract(page, metadata) {
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  if (!responsiveFormWorkflowKeys.has(metadata.workflow)) return null;
+
+  if (viewportWidth >= 1024) {
+    const inlineForm = page.locator("form.responsive-form-surface:visible").first();
+    if (!(await inlineForm.isVisible().catch(() => false))) return null;
+    const inlineState = await inlineForm.evaluate((form) => ({
+      ariaModal: form.getAttribute("aria-modal"),
+      role: form.getAttribute("role"),
+      triggerVisible: [...document.querySelectorAll(".responsive-form-trigger")].some((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      })
+    }));
+    if (inlineState.ariaModal || inlineState.role || inlineState.triggerVisible) {
+      guard.addFinding({
+        type: "responsive-form-contract",
+        message: `Formulaire desktop altere: modal=${inlineState.ariaModal}, role=${inlineState.role}, trigger=${inlineState.triggerVisible}.`,
+        metadata,
+        route: metadata.route
+      });
+    }
+    return null;
+  }
+
+  let dialog = page.locator("form.responsive-form-surface[role='dialog']:visible").first();
+  let trigger = page.locator(".responsive-form-trigger:visible").first();
+  if (!(await dialog.isVisible().catch(() => false)) && !(await trigger.isVisible().catch(() => false))) {
+    const openerSelector = responsiveFormOpeners[metadata.workflow];
+    if (openerSelector) {
+      const opener = page.locator(openerSelector).first();
+      if (await opener.isVisible().catch(() => false)) {
+        await opener.click();
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        dialog = page.locator("form.responsive-form-surface[role='dialog']:visible").first();
+        trigger = page.locator(".responsive-form-trigger:visible").first();
+      }
+    }
+  }
+
+  if (!(await dialog.isVisible().catch(() => false))) {
+    if (await trigger.isVisible().catch(() => false)) {
+      await trigger.focus();
+      await trigger.click();
+      dialog = page.locator("form.responsive-form-surface[role='dialog']:visible").first();
+      await dialog.waitFor({ state: "visible" });
+    } else {
+      guard.addFinding({
+        type: "responsive-form-contract",
+        message: "Aucun formulaire responsive ouvrable dans ce module.",
+        metadata,
+        route: metadata.route
+      });
+      return null;
+    }
+  }
+
+  const state = await dialog.evaluate((form) => {
+    const isVisible = (element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const controls = [...form.querySelectorAll("button, input, select, textarea")]
+      .filter(isVisible)
+      .filter((element) => !(element instanceof HTMLInputElement && ["checkbox", "radio", "hidden"].includes(element.type)))
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+          height: rect.height,
+          label: element.getAttribute("aria-label") || element.textContent?.trim().slice(0, 50) || element.tagName,
+          tag: element.tagName,
+          width: rect.width
+        };
+      });
+    const actions = form.querySelector(":scope > .actions, :scope > .premium-edit-actions, :scope > .profile-form-actions, :scope > .form-grid > .actions");
+    const rect = form.getBoundingClientRect();
+    return {
+      activeInside: form.contains(document.activeElement),
+      ariaLabelledBy: form.getAttribute("aria-labelledby"),
+      ariaModal: form.getAttribute("aria-modal"),
+      controls,
+      direction: getComputedStyle(form).direction,
+      formOverflow: Math.max(0, form.scrollWidth - form.clientWidth),
+      left: rect.left,
+      right: rect.right,
+      scrollLocked: document.documentElement.classList.contains("responsive-form-overlay-open"),
+      stickyActions: actions ? getComputedStyle(actions).position === "sticky" : null,
+      viewportWidth: window.innerWidth,
+      width: rect.width
+    };
+  });
+
+  const problems = [];
+  if (!state.activeInside) problems.push("focus initial hors formulaire");
+  if (!state.ariaLabelledBy || state.ariaModal !== "true") problems.push("semantique de dialogue incomplete");
+  if (!state.scrollLocked) problems.push("scroll arriere-plan non verrouille");
+  if (state.formOverflow > 1) problems.push(`overflow formulaire ${state.formOverflow}px`);
+  if (state.left < -1 || state.right > state.viewportWidth + 1) problems.push(`formulaire hors viewport ${state.left}..${state.right}`);
+  if (viewportWidth < 768 && Math.abs(state.width - state.viewportWidth) > 2) {
+    problems.push(`drawer mobile non plein ecran (${state.width.toFixed(1)}/${state.viewportWidth})`);
+  }
+  if (viewportWidth >= 768 && (state.width < 420 || state.width > Math.min(674, state.viewportWidth + 2))) {
+    problems.push(`largeur drawer tablette incorrecte (${state.width.toFixed(1)}px)`);
+  }
+  const undersized = state.controls.filter((control) => control.height < 43.5 || (control.tag === "BUTTON" && control.width < 43.5));
+  if (undersized.length > 0) problems.push(`cibles sous 44px: ${undersized.map((item) => item.label).join(" | ")}`);
+  const smallInputs = state.controls.filter((control) => control.tag !== "BUTTON" && control.fontSize < 16);
+  if (smallInputs.length > 0) problems.push(`police de controle sous 16px: ${smallInputs.map((item) => item.label).join(" | ")}`);
+  if (state.stickyActions === false) problems.push("zone d'actions non sticky");
+  if (metadata.language === "ar" && state.direction !== "rtl") problems.push(`direction formulaire incorrecte (${state.direction})`);
+
+  for (const problem of problems) {
+    guard.addFinding({
+      type: "responsive-form-contract",
+      message: problem,
+      metadata,
+      route: metadata.route
+    });
+  }
+
+  const formScreenshot = path.join(
+    outputDir,
+    `${safeName(`${metadata.workflow}-${metadata.viewport}-${metadata.theme}-${metadata.language}-responsive-form`)}.png`
+  );
+  await page.screenshot({ path: formScreenshot, fullPage: false });
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  const closeState = await page.evaluate(() => ({
+    focusRestored: document.activeElement?.matches(".responsive-form-trigger") ?? false,
+    scrollLocked: document.documentElement.classList.contains("responsive-form-overlay-open")
+  }));
+  if (!closeState.focusRestored || closeState.scrollLocked) {
+    guard.addFinding({
+      type: "responsive-form-contract",
+      message: `Fermeture formulaire incorrecte: focus=${closeState.focusRestored}, scroll=${closeState.scrollLocked}.`,
+      metadata,
+      route: metadata.route
+    });
+  }
+  return formScreenshot;
+}
+
 async function assertFocusVisible(page, metadata) {
-  await page.keyboard.press("Tab");
+  const hasActiveElement = await page.evaluate(
+    () => document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+  );
+  if (!hasActiveElement) await page.keyboard.press("Tab");
   const focus = await page.evaluate(() => {
     const element = document.activeElement;
     if (!(element instanceof HTMLElement) || element === document.body) return { visible: false, label: "body" };
@@ -611,6 +786,7 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
   const page = await context.newPage();
   let screenshot;
   let drawerScreenshot;
+  let formScreenshot;
   try {
     await openApplication(page);
     guard.setMetadata(page, metadata);
@@ -618,6 +794,7 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     await assertRequiredText(page, workflow, metadata);
     await assertResponsiveShellContract(page, metadata);
     if (workflow.key === "dashboard") drawerScreenshot = await assertNavigationDrawerContract(page, metadata);
+    formScreenshot = await assertResponsiveFormContract(page, metadata);
     if (criticalKeys.has(workflow.key)) await assertFocusVisible(page, metadata);
     if (language === "ar") {
       const direction = await page.locator("main.page").getAttribute("dir");
@@ -647,6 +824,7 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     workflowResults.push({
       ...metadata,
       drawerScreenshot,
+      formScreenshot,
       screenshot,
       status: failed ? "failed" : "passed",
       trace: failed ? tracePath : null

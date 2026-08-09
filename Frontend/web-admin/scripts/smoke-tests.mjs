@@ -110,7 +110,8 @@ const expectedStyleLayers = [
   "src/styles/rooms.css",
   "src/styles/parents.css",
   "src/styles/utilities.css",
-  "src/styles/responsive.css"
+  "src/styles/responsive.css",
+  "src/styles/responsive-forms.css"
 ];
 
 for (const file of expectedStyleLayers) {
@@ -125,7 +126,7 @@ const importantCount = cssFiles.reduce(
   (total, file) => total + (readFileSync(file, "utf8").match(/!important/gu)?.length || 0),
   0
 );
-assert(cssBytes <= 575_000, `Le CSS source depasse le budget LOT 8D: ${cssBytes} octets.`);
+assert(cssBytes <= 582_000, `Le CSS source depasse le budget LOT R3: ${cssBytes} octets.`);
 assert(importantCount <= 1_200, `Le nombre de !important depasse le budget LOT 8D: ${importantCount}.`);
 
 const removedVisualScripts = [

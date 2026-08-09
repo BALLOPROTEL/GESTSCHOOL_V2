@@ -16,6 +16,7 @@ import type {
 import { useGradesData } from "./hooks/use-grades-data";
 import type { GradesApiClient } from "./types/grades";
 import { useI18n } from "../../shared/i18n-context";
+import { ResponsiveForm } from "../../shared/components/responsive-form";
 
 type GradesScreenProps = {
   api: GradesApiClient;
@@ -523,7 +524,7 @@ export function GradesScreen({
         </div>
         <p className="section-lead">
           {tr("Créez une évaluation, puis saisissez les notes des élèves dans une grille unique.")}</p>
-        <form className="module-form" onSubmit={(event) => void submitGradesBulk(event)}>
+        <ResponsiveForm className="module-form" formTitle={tr("Saisie des notes par évaluation")} onSubmit={(event) => void submitGradesBulk(event)}>
           <div className="form-grid">
             <label>
               {tr("Classe *")}<select value={gradeForm.classId} onChange={(event) => setClassOnGradeForm(event.target.value)} required>
@@ -742,7 +743,7 @@ export function GradesScreen({
             <button type="button" className="button-ghost" onClick={() => scrollToGrades("filters")}>
               {tr("Retour à la vue d’ensemble")}</button>
           </div>
-        </form>
+        </ResponsiveForm>
       </section>
 
       <section data-step-id="entry" className="panel table-panel workflow-section module-modern">
@@ -939,7 +940,7 @@ export function GradesScreen({
         </div>
         <p className="section-lead">
           {tr("Générez un bulletin individuel ou les bulletins de toute une classe après calcul des moyennes.")}</p>
-        <form className="module-form" onSubmit={(event) => void generateReport(event)}>
+        <ResponsiveForm className="module-form" formTitle={tr("Génération des bulletins")} onSubmit={(event) => void generateReport(event)}>
           <div className="form-grid">
             <label>
               {tr("Année scolaire *")}<select
@@ -1075,7 +1076,7 @@ export function GradesScreen({
                 {tr("Voir le dernier PDF")}</button>
             ) : null}
           </div>
-        </form>
+        </ResponsiveForm>
       </section>
 
       <section data-step-id="reports" className="panel table-panel workflow-section module-modern">

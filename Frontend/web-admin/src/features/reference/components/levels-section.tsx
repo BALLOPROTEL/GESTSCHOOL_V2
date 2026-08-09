@@ -20,6 +20,7 @@ import {
 import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 import { useI18n } from "../../../shared/i18n-context";
+import { ResponsiveForm } from "../../../shared/components/responsive-form";
 
 
 export function LevelsSection(): JSX.Element {
@@ -58,7 +59,8 @@ export function LevelsSection(): JSX.Element {
               </div>
             </div>
             <div className="reference-section-grid">
-              <form
+              <ResponsiveForm
+                formTitle={tr("Ajouter un niveau")}
                 className="form-grid module-form reference-grid-strict"
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -197,7 +199,7 @@ export function LevelsSection(): JSX.Element {
                 <div className="actions">
                   <button type="submit">{tr("Creer le niveau")}</button>
                 </div>
-              </form>
+              </ResponsiveForm>
             </div>
             <div className="filter-grid module-filter">
               <label>

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type RefObject } from "react";
 
 import type { FieldErrors, ThemeMode, UserSelfProfile } from "../../shared/types/app";
 import type { UiLanguage } from "../../shared/i18n";
+import { ResponsiveForm } from "../../shared/components/responsive-form";
 
 export type PasswordFieldKey = "currentPassword" | "newPassword" | "confirmPassword";
 
@@ -275,7 +276,7 @@ function PersonalInfoCard(props: ProfilePageProps): JSX.Element {
       </div>
 
       {props.isEditingProfile ? (
-        <form className="premium-profile-edit-form visible" onSubmit={props.onSubmitProfile}>
+        <ResponsiveForm className="premium-profile-edit-form visible" formTitle={props.t("Modifier le profil")} openOnMount onSubmit={props.onSubmitProfile}>
           <label>
             {props.t("Nom affiché")} *
             <input
@@ -316,7 +317,7 @@ function PersonalInfoCard(props: ProfilePageProps): JSX.Element {
               {props.t("Annuler")}
             </button>
           </div>
-        </form>
+        </ResponsiveForm>
       ) : null}
     </section>
   );
@@ -354,7 +355,7 @@ function SecurityCard(props: ProfilePageProps): JSX.Element {
       </div>
 
       {props.passwordPanelOpen ? (
-        <form className="premium-password-editor" onSubmit={props.onSubmitPassword}>
+        <ResponsiveForm className="premium-password-editor" formTitle={props.t("Modifier le mot de passe")} openOnMount onSubmit={props.onSubmitPassword}>
           {([
             ["currentPassword", "Mot de passe actuel *", "current-password"],
             ["newPassword", "Nouveau mot de passe *", "new-password"],
@@ -393,7 +394,7 @@ function SecurityCard(props: ProfilePageProps): JSX.Element {
           <button type="submit" className="premium-profile-primary" disabled={props.changingPassword}>
             {props.changingPassword ? props.t("Modification...") : props.t("Changer le mot de passe")}
           </button>
-        </form>
+        </ResponsiveForm>
       ) : null}
 
       <button type="button" className="premium-logout-devices" onClick={props.onLogoutAllDevices}>
@@ -408,7 +409,7 @@ function PreferencesCard(props: ProfilePageProps): JSX.Element {
   return (
     <section className="premium-profile-card">
       <CardTitle title={props.t("Préférences")} />
-      <form className="premium-preferences-form" onSubmit={props.onSubmitPreferences}>
+      <ResponsiveForm className="premium-preferences-form" formTitle={props.t("Préférences")} onSubmit={props.onSubmitPreferences}>
         <label className="premium-select-row">
           <span>{props.t("Langue")}</span>
           <select
@@ -454,7 +455,7 @@ function PreferencesCard(props: ProfilePageProps): JSX.Element {
         <button type="submit" className="premium-profile-secondary" disabled={props.savingPreferences}>
           {props.savingPreferences ? props.t("Enregistrement...") : props.t("Enregistrer les préférences")}
         </button>
-      </form>
+      </ResponsiveForm>
     </section>
   );
 }

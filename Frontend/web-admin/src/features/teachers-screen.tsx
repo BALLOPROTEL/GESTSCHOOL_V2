@@ -65,6 +65,8 @@ import {
 } from "./teachers/teachers-screen-model";
 import { translateUiString, UI_MESSAGES, type UiLanguage } from "../shared/i18n";
 import { useI18n } from "../shared/i18n-context";
+import { ResponsiveForm } from "../shared/components/responsive-form";
+import { useConfirmDialog } from "../shared/components/confirm-dialog";
 import { toUiErrorMessage } from "../shared/services/api-errors";
 
 
@@ -85,6 +87,7 @@ type TeachersScreenProps = {
 
 export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   const { t: tr } = useI18n();
+  const confirmAction = useConfirmDialog();
   const {
     api,
     classes,
@@ -421,7 +424,14 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
   };
 
   const archiveResource = async (path: string, successMessage: string, confirmMessage?: string): Promise<void> => {
-    if (confirmMessage && !window.confirm(translate(confirmMessage))) return;
+    if (confirmMessage) {
+      const accepted = await confirmAction({
+        description: translate(confirmMessage),
+        confirmLabel: translate("Archiver"),
+        tone: "danger"
+      });
+      if (!accepted) return;
+    }
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;
@@ -534,7 +544,13 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
             </div>
             <span className="module-header-badge">{SCHOOL_NAME}</span>
           </div>
-          <form className="form-grid module-form teachers-form-grid" onSubmit={submitTeacher}>
+          <ResponsiveForm
+            className="form-grid module-form teachers-form-grid"
+            formTitle={editingTeacherId ? tr("Modifier l'enseignant") : tr("Ajouter un enseignant")}
+            openOnMount
+            triggerLabel={editingTeacherId ? tr("Modifier l'enseignant") : tr("Ajouter un enseignant")}
+            onSubmit={submitTeacher}
+          >
             <label>{tr("Matricule *")}<input value={teacherForm.matricule} onChange={(event) => setTeacherForm((prev) => ({ ...prev, matricule: event.target.value }))} required /></label>
             <label>{tr("Prénom *")}<input value={teacherForm.firstName} onChange={(event) => setTeacherForm((prev) => ({ ...prev, firstName: event.target.value }))} required /></label>
             <label>{tr("Nom *")}<input value={teacherForm.lastName} onChange={(event) => setTeacherForm((prev) => ({ ...prev, lastName: event.target.value }))} required /></label>
@@ -561,7 +577,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
               <button type="button" className="button-ghost" onClick={() => { setEditingTeacherId(null); setTeacherForm(defaultTeacherForm()); }}>{tr("Réinitialiser")}</button>
               <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>{tr("Retour à la liste")}</button>
             </div>
-          </form>
+          </ResponsiveForm>
         </section>
       ) : null}
 
@@ -605,7 +621,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       {activeStep === "skills" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{tr("Compétences pédagogiques")}</p><h2>{tr("Ce que l'enseignant peut enseigner")}</h2></div></div>
-          <form className="form-grid module-form teachers-form-grid" onSubmit={submitSkill}>
+          <ResponsiveForm className="form-grid module-form teachers-form-grid" formTitle={tr("Ajouter une compétence")} onSubmit={submitSkill}>
             <label>{tr("Enseignant *")}<select value={skillForm.teacherId} onChange={(event) => setSkillForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
             <label>{tr("Matière *")}<select value={skillForm.subjectId} onChange={(event) => setSkillForm((prev) => ({ ...prev, subjectId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}</select></label>
             <label>{tr("Cursus *")}<select value={skillForm.track} onChange={(event) => setSkillForm((prev) => ({ ...prev, track: event.target.value as AcademicTrack }))} required>{TRACKS.map((track) => <option key={track} value={track}>{tr(trackLabel(track))}</option>)}</select></label>
@@ -617,7 +633,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
             <label>{tr("Statut *")}<select value={skillForm.status} onChange={(event) => setSkillForm((prev) => ({ ...prev, status: event.target.value }))} required><option value="ACTIVE">{tr("Actif")}</option><option value="INACTIVE">{tr("Inactif")}</option></select></label>
             <label className="form-grid-span-full">{tr("Commentaire")}<input value={skillForm.comment} onChange={(event) => setSkillForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Ajouter la compétence")}</button></div>
-          </form>
+          </ResponsiveForm>
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Enseignant")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Cycle")}</th><th>{tr("Niveau")}</th><th>{tr("Qualification")}</th><th>{tr("Statut")}</th><th>{tr("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherSkills.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune compétence enregistrée.")}</td></tr> : selectedTeacherSkills.map((skill) => (
@@ -631,7 +647,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       {activeStep === "assignments" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{tr("Affectations pédagogiques")}</p><h2>{tr("Ce que l'enseignant enseigne réellement")}</h2></div></div>
-          <form className="form-grid module-form teachers-form-grid" onSubmit={submitAssignment}>
+          <ResponsiveForm className="form-grid module-form teachers-form-grid" formTitle={tr("Créer une affectation")} onSubmit={submitAssignment}>
             <label>{tr("Enseignant *")}<select value={assignmentForm.teacherId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
             <label>{tr("Année scolaire *")}<select value={assignmentForm.schoolYearId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{schoolYears.map((year) => <option key={year.id} value={year.id}>{year.label || year.code}</option>)}</select></label>
             <label>{tr("Classe *")}<select value={assignmentForm.classId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, classId: event.target.value }))} required><option value="">{tr("Choisir")}</option>{filteredClasses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
@@ -647,7 +663,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
             <label className="check-row"><input type="checkbox" checked={assignmentForm.isHomeroomTeacher} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, isHomeroomTeacher: event.target.checked }))} /> {tr("Professeur principal")}</label>
             <label className="form-grid-span-full">{tr("Commentaire")}<input value={assignmentForm.comment} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Créer l'affectation")}</button></div>
-          </form>
+          </ResponsiveForm>
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Enseignant")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Classe")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Charge horaire")}</th><th>{tr("Titulaire")}</th><th>{tr("Statut")}</th><th>{tr("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherAssignments.length === 0 ? <tr><td colSpan={10} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedTeacherAssignments.map((item) => (
@@ -674,7 +690,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       {activeStep === "documents" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{translate("Dossier administratif")}</p><h2>{translate("Documents administratifs")}</h2></div></div>
-          <form className="form-grid module-form teachers-form-grid" onSubmit={submitDocument}>
+          <ResponsiveForm className="form-grid module-form teachers-form-grid" formTitle={tr("Ajouter un document")} onSubmit={submitDocument}>
             <label>{translate("Enseignant *")}<select value={documentForm.teacherId} onChange={(event) => setDocumentForm((prev) => ({ ...prev, teacherId: event.target.value }))} required><option value="">{translate("Choisir")}</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}</select></label>
             <label>{translate("Type de document *")}<select value={documentForm.documentType} onChange={(event) => setDocumentForm((prev) => ({ ...prev, documentType: event.target.value }))} required>{DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{translateDocumentType(type)}</option>)}</select></label>
             <label>{translate("Nom du document *")}<input value={documentForm.documentName} onChange={(event) => setDocumentForm((prev) => ({ ...prev, documentName: event.target.value }))} required /></label>
@@ -721,7 +737,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
                 {documentUploading ? translate("Envoi du document en cours...") : translate("Ajouter le document")}
               </button>
             </div>
-          </form>
+          </ResponsiveForm>
           <div className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{translate("Enseignant")}</th><th>{translate("Type")}</th><th>{translate("Nom du document")}</th><th>{translate("Ajouté le")}</th><th>{translate("Statut")}</th><th>{translate("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherDocuments.length === 0 ? <tr><td colSpan={6} className="empty-row">{translate("Aucun document enregistré.")}</td></tr> : selectedTeacherDocuments.map((document) => (

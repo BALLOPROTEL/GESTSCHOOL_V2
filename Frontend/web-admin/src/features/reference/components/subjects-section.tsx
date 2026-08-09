@@ -20,6 +20,7 @@ import {
 import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 import { useI18n } from "../../../shared/i18n-context";
+import { ResponsiveForm } from "../../../shared/components/responsive-form";
 
 
 export function SubjectsSection(): JSX.Element {
@@ -58,7 +59,8 @@ export function SubjectsSection(): JSX.Element {
               </div>
             </div>
             <div className="reference-section-grid">
-              <form
+              <ResponsiveForm
+                formTitle={tr("Ajouter une matière")}
                 className="form-grid module-form reference-grid-strict"
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -243,7 +245,7 @@ export function SubjectsSection(): JSX.Element {
                 <div className="actions">
                   <button type="submit">{tr("Creer la matiere")}</button>
                 </div>
-              </form>
+              </ResponsiveForm>
             </div>
             <div className="table-wrap">
               <table data-responsive-table="true">

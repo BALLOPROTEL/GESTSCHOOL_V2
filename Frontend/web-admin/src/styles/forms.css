@@ -316,7 +316,7 @@
 }
 
 @media (max-width: 760px) {
-  .module-form,
+  .module-form:not(.responsive-form-surface),
   .module-filter,
   .filter-grid {
     padding: clamp(0.74rem, 3.2vw, 0.92rem) !important;

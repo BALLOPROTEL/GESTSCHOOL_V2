@@ -2,6 +2,7 @@ import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 
 import type { Role, ScreenId, Session, UserSelfProfile } from "../shared/types/app";
 import { AppSidebar } from "../shared/components/app-sidebar";
+import { ConfirmDialogProvider } from "../shared/components/confirm-dialog";
 import { useAuthSession } from "../shared/hooks/use-auth-session-resilient";
 import { I18nProvider } from "../shared/i18n-context";
 import { UI_MESSAGES } from "../shared/i18n";
@@ -340,6 +341,7 @@ export function App(): JSX.Element {
 
   return (
     <I18nProvider language={uiLanguage}>
+      <ConfirmDialogProvider>
       <main
         ref={appRootRef}
         className={`page ${!session ? "page-auth" : ""}`.trim()}
@@ -526,6 +528,7 @@ export function App(): JSX.Element {
           onDismissNotice={() => setNotice(null)}
         />
       </main>
+      </ConfirmDialogProvider>
     </I18nProvider>
   );
 }

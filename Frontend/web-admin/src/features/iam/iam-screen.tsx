@@ -25,6 +25,7 @@ import type {
 import { useIamManagement } from "./hooks/use-iam-management";
 import type { IamApiClient } from "./types/iam";
 import { useI18n } from "../../shared/i18n-context";
+import { ResponsiveForm } from "../../shared/components/responsive-form";
 
 type IamScreenProps = {
   api: IamApiClient;
@@ -88,7 +89,11 @@ const fieldError = (
   key: string,
   translate: (source: string) => string
 ): JSX.Element | null =>
-  errors[key] ? <span className="field-error">{translate(errors[key])}</span> : null;
+  errors[key] ? (
+    <span className="field-error" role="alert">
+      {translate(errors[key])}
+    </span>
+  ) : null;
 
 export function IamScreen({
   api,
@@ -168,7 +173,12 @@ export function IamScreen({
       <div className="iam-v3-shell module-v3-shell">
         <section id="iam-accounts" data-step-id="accounts" className="panel editor-panel workflow-section module-modern iam-v3-form-card">
           <h2>{editingUserId ? tr("Modifier l'utilisateur") : tr("Créer l'utilisateur")}</h2>
-          <form className="iam-account-form" onSubmit={(event) => void submitUser(event)}>
+          <ResponsiveForm
+            className="iam-account-form"
+            formTitle={editingUserId ? tr("Modifier l'utilisateur") : tr("Créer l'utilisateur")}
+            triggerLabel={editingUserId ? tr("Modifier l'utilisateur") : tr("Créer l'utilisateur")}
+            onSubmit={(event) => void submitUser(event)}
+          >
             <fieldset className="iam-form-section">
               <legend>{tr("Accès au système")}</legend>
               <div className="form-grid iam-form-grid">
@@ -382,7 +392,7 @@ export function IamScreen({
                 {editingUserId ? tr("Annuler") : tr("Réinitialiser")}
               </button>
             </div>
-          </form>
+          </ResponsiveForm>
         </section>
 
         <section data-step-id="accounts" className="panel table-panel workflow-section module-modern iam-v3-table-card">

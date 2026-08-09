@@ -9,7 +9,11 @@ export const fieldError = (
   key: string,
   translate: (source: string) => string
 ): JSX.Element | null =>
-  errors[key] ? <span className="field-error">{translate(errors[key])}</span> : null;
+  errors[key] ? (
+    <span className="field-error" role="alert">
+      {translate(errors[key])}
+    </span>
+  ) : null;
 
 export const focusFirstInlineErrorField = (stepId?: string): void => {
   window.setTimeout(() => {

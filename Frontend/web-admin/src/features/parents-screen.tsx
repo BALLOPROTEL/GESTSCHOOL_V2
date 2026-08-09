@@ -33,6 +33,8 @@ import {
   trackLabel
 } from "./parents/parents-screen-model";
 import { useI18n } from "../shared/i18n-context";
+import { ResponsiveForm } from "../shared/components/responsive-form";
+import { useConfirmDialog } from "../shared/components/confirm-dialog";
 
 
 type ParentsScreenProps = {
@@ -80,6 +82,7 @@ export function ParentsScreen({
   users
 }: ParentsScreenProps): JSX.Element {
   const { t: tr } = useI18n();
+  const confirmAction = useConfirmDialog();
   const [activeStep, setActiveStep] = useState("list");
   const [parents, setParents] = useState<ParentRecord[]>(initialParents);
   const [relations, setRelations] = useState<ParentStudentRelation[]>(initialRelations);
@@ -224,7 +227,12 @@ export function ParentsScreen({
   };
 
   const archiveParent = async (parentId: string): Promise<void> => {
-    if (!window.confirm(tr(UI_MESSAGES.confirmArchive))) return;
+    const accepted = await confirmAction({
+      description: tr(UI_MESSAGES.confirmArchive),
+      confirmLabel: tr("Archiver"),
+      tone: "danger"
+    });
+    if (!accepted) return;
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;
@@ -282,7 +290,12 @@ export function ParentsScreen({
   };
 
   const archiveLink = async (linkId: string): Promise<void> => {
-    if (!window.confirm(tr(UI_MESSAGES.confirmArchive))) return;
+    const accepted = await confirmAction({
+      description: tr(UI_MESSAGES.confirmArchive),
+      confirmLabel: tr("Archiver"),
+      tone: "danger"
+    });
+    if (!accepted) return;
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;
@@ -350,7 +363,13 @@ export function ParentsScreen({
               </div>
               <span className="students-overview-status">{tr("Dossier responsable")}</span>
             </div>
-            <form className="module-form parents-form" onSubmit={(event) => void submitParent(event)}>
+            <ResponsiveForm
+              className="module-form parents-form"
+              formTitle={editingParentId ? tr("Modifier le responsable") : tr("Ajouter un responsable")}
+              openOnMount
+              triggerLabel={editingParentId ? tr("Modifier le responsable") : tr("Ajouter un responsable")}
+              onSubmit={(event) => void submitParent(event)}
+            >
               <fieldset className="students-form-section parents-form-section">
                 <legend>{tr("Identité")}</legend>
                 <div className="form-grid students-form-grid">
@@ -489,7 +508,7 @@ export function ParentsScreen({
                 <button type="button" className="button-ghost" onClick={resetParentForm}>{tr("Réinitialiser")}</button>
                 <button type="button" className="button-ghost" onClick={() => setActiveStep("list")}>{tr("Voir la liste")}</button>
               </div>
-            </form>
+            </ResponsiveForm>
           </section>
         ) : null}
 
@@ -504,7 +523,12 @@ export function ParentsScreen({
                 {relations.length === 1 ? "1 lien" : `${relations.length} liens`}
               </span>
             </div>
-            <form className="form-grid module-form students-form-grid parents-links-form" onSubmit={(event) => void submitLink(event)}>
+            <ResponsiveForm
+              className="form-grid module-form students-form-grid parents-links-form"
+              formTitle={tr("Lier un responsable à un élève")}
+              triggerLabel={tr("Lier un responsable à un élève")}
+              onSubmit={(event) => void submitLink(event)}
+            >
               <label>
                 {tr("Parent *")}<select
                   required
@@ -552,7 +576,7 @@ export function ParentsScreen({
               <div className="actions span-2">
                 <button type="submit">{tr("Créer le lien parent-élève")}</button>
               </div>
-            </form>
+            </ResponsiveForm>
 
             <div className="table-wrap">
               <table data-responsive-table="true">

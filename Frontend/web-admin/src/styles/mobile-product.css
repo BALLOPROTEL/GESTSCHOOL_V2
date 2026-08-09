@@ -462,13 +462,13 @@
   .module-form textarea {
     min-height: var(--mobile-touch-target) !important;
     border-radius: 0.82rem !important;
-    font-size: 0.95rem !important;
+    font-size: 1rem !important;
   }
 
   .students-v3-filter-card > button,
   .enrollments-v3-filter-card > button,
   .teachers-v3-filter-actions > button,
-  .module-form button,
+  .module-form button:not(.responsive-form-close),
   .workflow-section .actions > button {
     width: 100% !important;
     min-height: var(--mobile-touch-target) !important;

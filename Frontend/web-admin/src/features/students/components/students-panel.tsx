@@ -4,6 +4,7 @@ import type { AcademicTrack, FieldErrors, Student } from "../../../shared/types/
 import { fieldError } from "../../../shared/utils/form-ui";
 import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm } from "../types/students";
 import { useI18n } from "../../../shared/i18n-context";
+import { ResponsiveForm } from "../../../shared/components/responsive-form";
 
 
 type StudentsPanelProps = {
@@ -173,7 +174,13 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
             </div>
             <p className="section-lead">
               {tr("Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.")}</p>
-            <form className="form-grid module-form students-form-grid" onSubmit={onSubmitStudent}>
+            <ResponsiveForm
+              className="form-grid module-form students-form-grid"
+              formTitle={editingStudentId ? tr("Modifier le dossier") : tr("Ajouter un élève")}
+              openOnMount
+              triggerLabel={editingStudentId ? tr("Modifier le dossier") : tr("Ajouter un élève")}
+              onSubmit={onSubmitStudent}
+            >
               <fieldset className="students-form-section">
                 <legend>{tr("Identité")}</legend>
                 <label>
@@ -370,7 +377,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 >
                   {tr("Voir la base élèves")}</button>
               </div>
-            </form>
+            </ResponsiveForm>
           </section>
         ) : null}
 
