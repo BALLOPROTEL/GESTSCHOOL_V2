@@ -68,6 +68,7 @@ import { useI18n } from "../shared/i18n-context";
 import { ResponsiveForm } from "../shared/components/responsive-form";
 import { useConfirmDialog } from "../shared/components/confirm-dialog";
 import { toUiErrorMessage } from "../shared/services/api-errors";
+import { ResponsiveDataTable } from "../shared/components/responsive-data-table";
 
 
 type TeachersScreenProps = {
@@ -634,13 +635,13 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
             <label className="form-grid-span-full">{tr("Commentaire")}<input value={skillForm.comment} onChange={(event) => setSkillForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Ajouter la compétence")}</button></div>
           </ResponsiveForm>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Enseignant")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Cycle")}</th><th>{tr("Niveau")}</th><th>{tr("Qualification")}</th><th>{tr("Statut")}</th><th>{tr("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherSkills.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune compétence enregistrée.")}</td></tr> : selectedTeacherSkills.map((skill) => (
                 <tr key={skill.id}><td data-label={tr("Enseignant")}>{skill.teacherName}</td><td data-label={tr("Matière")}>{skill.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(skill.track))}</td><td data-label={tr("Cycle")}>{skill.cycleLabel || tr("Tous")}</td><td data-label={tr("Niveau")}>{skill.levelLabel || tr("Tous")}</td><td data-label={tr("Qualification")}>{skill.qualification || "-"}</td><td data-label={tr("Statut")}><span className={statusPillClass(skill.status)}>{tr(teacherStatusLabel(skill.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/skills/${skill.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       ) : null}
 
@@ -664,26 +665,26 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
             <label className="form-grid-span-full">{tr("Commentaire")}<input value={assignmentForm.comment} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Créer l'affectation")}</button></div>
           </ResponsiveForm>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Enseignant")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Classe")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Charge horaire")}</th><th>{tr("Titulaire")}</th><th>{tr("Statut")}</th><th>{tr("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherAssignments.length === 0 ? <tr><td colSpan={10} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedTeacherAssignments.map((item) => (
                 <tr key={item.id}><td data-label={tr("Enseignant")}>{item.teacherName}</td><td data-label={tr("Matière")}>{item.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Classe")}>{item.classLabel}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Charge horaire")}>{item.workloadHours ?? 0} {tr("h")}</td><td data-label={tr("Titulaire")}>{item.isHomeroomTeacher ? tr("Oui") : tr("Non")}</td><td data-label={tr("Statut")}><span className={statusPillClass(item.status)}>{tr(teacherStatusLabel(item.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/assignments/${item.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       ) : null}
 
       {activeStep === "workloads" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{tr("Charge pédagogique")}</p><h2>{tr("Synthèse par enseignant")}</h2></div></div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Matricule")}</th><th>{tr("Enseignant")}</th><th>{tr("Affectations")}</th><th>{tr("Total horaire")}</th><th>{tr("Francophone")}</th><th>{tr("Arabophone")}</th><th>{tr("Classes")}</th><th>{tr("Matières")}</th><th>{tr("Statut")}</th></tr></thead>
               <tbody>{workloads.length === 0 ? <tr><td colSpan={9} className="empty-row"><span>{tr("Aucune charge calculée.")}</span><small>{tr("Ajoutez des affectations pour calculer la charge des enseignants.")}</small></td></tr> : workloads.map((item) => (
                 <tr key={item.teacherId}><td data-label={tr("Matricule")}>{item.matricule}</td><td data-label={tr("Enseignant")}>{item.teacherName}</td><td data-label={tr("Affectations")}>{item.assignmentsCount}</td><td data-label={tr("Total horaire")}>{item.workloadHoursTotal} {tr("h")}</td><td data-label={tr("Francophone")}>{item.francophoneHoursTotal} {tr("h")}</td><td data-label={tr("Arabophone")}>{item.arabophoneHoursTotal} {tr("h")}</td><td data-label={tr("Classes")}>{item.classes.join(", ") || "-"}</td><td data-label={tr("Matières")}>{item.subjects.join(", ") || "-"}</td><td data-label={tr("Statut")}><span className={statusPillClass(item.status)}>{tr(teacherStatusLabel(item.status))}</span></td></tr>
               ))}</tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       ) : null}
 
@@ -738,13 +739,13 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
               </button>
             </div>
           </ResponsiveForm>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{translate("Enseignant")}</th><th>{translate("Type")}</th><th>{translate("Nom du document")}</th><th>{translate("Ajouté le")}</th><th>{translate("Statut")}</th><th>{translate("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherDocuments.length === 0 ? <tr><td colSpan={6} className="empty-row">{translate("Aucun document enregistré.")}</td></tr> : selectedTeacherDocuments.map((document) => (
                 <tr key={document.id}><td data-label={translate("Enseignant")}>{document.teacherName}</td><td data-label={translate("Type")}>{translateDocumentType(document.documentType)}</td><td data-label={translate("Nom du document")}><button type="button" className="button-link" onClick={() => void downloadDocument(document)}>{document.documentName || document.originalName}</button></td><td data-label={translate("Ajouté le")}>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td data-label={translate("Statut")}><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td data-label={translate("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{translate("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       ) : null}
     </div>

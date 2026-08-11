@@ -21,6 +21,8 @@ import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 import { useI18n } from "../../../shared/i18n-context";
 import { ResponsiveForm } from "../../../shared/components/responsive-form";
+import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
+import { ResponsiveFilterPanel } from "../../../shared/components/responsive-filter-panel";
 
 
 export function LevelsSection(): JSX.Element {
@@ -201,7 +203,7 @@ export function LevelsSection(): JSX.Element {
                 </div>
               </ResponsiveForm>
             </div>
-            <div className="filter-grid module-filter">
+            <ResponsiveFilterPanel className="filter-grid module-filter" title={tr("Filtre cycle")} activeCount={levelCycleFilter ? 1 : 0}>
               <label>
                 {renderFieldLabel("Filtre cycle")}
                 <select value={levelCycleFilter} onChange={(event) => setLevelCycleFilter(event.target.value)}>
@@ -213,8 +215,8 @@ export function LevelsSection(): JSX.Element {
                   ))}
                 </select>
               </label>
-            </div>
-            <div className="table-wrap">
+            </ResponsiveFilterPanel>
+            <ResponsiveDataTable className="table-wrap">
               <table data-responsive-table="true">
                 <thead>
                   <tr>
@@ -248,7 +250,7 @@ export function LevelsSection(): JSX.Element {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveDataTable>
           </article>
   );
 }

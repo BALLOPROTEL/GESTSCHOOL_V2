@@ -20,6 +20,8 @@ import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 import { useI18n } from "../../../shared/i18n-context";
 import { ResponsiveForm } from "../../../shared/components/responsive-form";
+import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
+import { ResponsiveFilterPanel } from "../../../shared/components/responsive-filter-panel";
 
 
 export function PeriodsSection(): JSX.Element {
@@ -253,7 +255,7 @@ export function PeriodsSection(): JSX.Element {
                 </div>
               </ResponsiveForm>
             </div>
-            <div className="filter-grid module-filter">
+            <ResponsiveFilterPanel className="filter-grid module-filter" title={tr("Filtre annee")} activeCount={periodYearFilter ? 1 : 0}>
               <label>
                 {renderFieldLabel("Filtre annee")}
                 <select value={periodYearFilter} onChange={(event) => setPeriodYearFilter(event.target.value)}>
@@ -265,8 +267,8 @@ export function PeriodsSection(): JSX.Element {
                   ))}
                 </select>
               </label>
-            </div>
-            <div className="table-wrap">
+            </ResponsiveFilterPanel>
+            <ResponsiveDataTable className="table-wrap">
               <table data-responsive-table="true">
                 <thead>
                   <tr>
@@ -300,7 +302,7 @@ export function PeriodsSection(): JSX.Element {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveDataTable>
           </article>
   );
 }

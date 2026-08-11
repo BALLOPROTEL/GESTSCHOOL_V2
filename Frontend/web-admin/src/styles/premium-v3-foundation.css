@@ -2176,46 +2176,6 @@
   word-break: keep-all;
 }
 
-:root:not([data-theme="dark"]) .students-v3-action-menu {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  right: 0.25rem;
-  z-index: 30;
-  min-width: 10.5rem;
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.35rem;
-  border: 1px solid var(--gs-v3-border);
-  border-radius: 0.8rem;
-  background: #ffffff;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
-}
-
-:root:not([data-theme="dark"]) .students-v3-action-menu button {
-  width: 100%;
-  min-height: 2.1rem;
-  padding: 0.35rem 0.65rem;
-  border: 0 !important;
-  border-radius: 0.55rem;
-  background: transparent !important;
-  color: var(--gs-v3-text) !important;
-  text-align: left;
-  font-size: 0.84rem;
-  font-weight: 600;
-  box-shadow: none !important;
-  cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease;
-}
-
-:root:not([data-theme="dark"]) .students-v3-action-menu button:hover {
-  background: #f8fafc !important;
-  color: var(--gs-v3-primary) !important;
-}
-
-:root:not([data-theme="dark"]) .students-v3-action-menu button.is-danger {
-  color: #dc2626 !important;
-}
-
 :root:not([data-theme="dark"]) .students-v3-form-card {
   padding: 1.5rem;
 }
@@ -2473,46 +2433,6 @@
 
 :root[data-theme="dark"] .students-v3-more-button:active {
   transform: translateY(1px);
-}
-
-:root[data-theme="dark"] .students-v3-action-menu {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  right: 0.25rem;
-  z-index: 30;
-  min-width: 10.5rem;
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.35rem;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 0.8rem;
-  background: #0f172a;
-  box-shadow: 0 18px 42px rgba(2, 8, 23, 0.42);
-}
-
-:root[data-theme="dark"] .students-v3-action-menu button {
-  width: 100%;
-  min-height: 2.1rem;
-  padding: 0.35rem 0.65rem;
-  border: 0 !important;
-  border-radius: 0.55rem;
-  background: transparent !important;
-  color: #e2e8f0 !important;
-  text-align: left;
-  font-size: 0.84rem;
-  font-weight: 600;
-  box-shadow: none !important;
-  cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease;
-}
-
-:root[data-theme="dark"] .students-v3-action-menu button:hover {
-  background: rgba(148, 163, 184, 0.14) !important;
-  color: #67e8f9 !important;
-}
-
-:root[data-theme="dark"] .students-v3-action-menu button.is-danger {
-  color: #f87171 !important;
 }
 
 :root .enrollments-v3-shell {
@@ -2794,33 +2714,6 @@
   word-break: keep-all;
 }
 
-:root .enrollments-v3-action-menu {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  right: 0.25rem;
-  z-index: 30;
-  min-width: 11.5rem;
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.35rem;
-  border-radius: 0.8rem;
-}
-
-:root .enrollments-v3-action-menu button {
-  width: 100%;
-  min-height: 2.1rem;
-  padding: 0.35rem 0.65rem;
-  border: 0 !important;
-  border-radius: 0.55rem;
-  background: transparent !important;
-  text-align: left;
-  font-size: 0.84rem;
-  font-weight: 600;
-  box-shadow: none !important;
-  cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease;
-}
-
 :root .enrollments-v3-form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2914,25 +2807,6 @@
   color: #111827 !important;
 }
 
-:root:not([data-theme="dark"]) .enrollments-v3-action-menu {
-  border: 1px solid var(--gs-v3-border);
-  background: #ffffff;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
-}
-
-:root:not([data-theme="dark"]) .enrollments-v3-action-menu button {
-  color: var(--gs-v3-text) !important;
-}
-
-:root:not([data-theme="dark"]) .enrollments-v3-action-menu button:hover {
-  background: #f8fafc !important;
-  color: var(--gs-v3-primary) !important;
-}
-
-:root:not([data-theme="dark"]) .enrollments-v3-action-menu button.is-danger {
-  color: #dc2626 !important;
-}
-
 :root:not([data-theme="dark"]) .enrollments-v3-detail-panel {
   border: 1px solid var(--gs-v3-border);
   background: #f8fafc;
@@ -3002,25 +2876,6 @@
 :root[data-theme="dark"] .enrollments-v3-more-button[aria-expanded="true"] {
   background: rgba(148, 163, 184, 0.14) !important;
   color: #f8fafc !important;
-}
-
-:root[data-theme="dark"] .enrollments-v3-action-menu {
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: #0f172a;
-  box-shadow: 0 18px 42px rgba(2, 8, 23, 0.42);
-}
-
-:root[data-theme="dark"] .enrollments-v3-action-menu button {
-  color: #e2e8f0 !important;
-}
-
-:root[data-theme="dark"] .enrollments-v3-action-menu button:hover {
-  background: rgba(148, 163, 184, 0.14) !important;
-  color: #67e8f9 !important;
-}
-
-:root[data-theme="dark"] .enrollments-v3-action-menu button.is-danger {
-  color: #f87171 !important;
 }
 
 :root[data-theme="dark"] .enrollments-v3-detail-panel {
@@ -3350,33 +3205,6 @@
   word-break: keep-all;
 }
 
-:root .teachers-v3-action-menu {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  right: 0.25rem;
-  z-index: 30;
-  min-width: 10.5rem;
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.35rem;
-  border-radius: 0.8rem;
-}
-
-:root .teachers-v3-action-menu button {
-  width: 100%;
-  min-height: 2.1rem;
-  padding: 0.35rem 0.65rem;
-  border: 0 !important;
-  border-radius: 0.55rem;
-  background: transparent !important;
-  text-align: left;
-  font-size: 0.84rem;
-  font-weight: 600;
-  box-shadow: none !important;
-  cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease;
-}
-
 :root:not([data-theme="dark"]) .teachers-v3-page-header h1,
 :root:not([data-theme="dark"]) .teachers-v3-table-head h2,
 :root:not([data-theme="dark"]) .teachers-v3-teacher-cell strong,
@@ -3479,25 +3307,6 @@
   color: #111827 !important;
 }
 
-:root:not([data-theme="dark"]) .teachers-v3-action-menu {
-  border: 1px solid var(--gs-v3-border);
-  background: #ffffff;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
-}
-
-:root:not([data-theme="dark"]) .teachers-v3-action-menu button {
-  color: var(--gs-v3-text) !important;
-}
-
-:root:not([data-theme="dark"]) .teachers-v3-action-menu button:hover {
-  background: #f8fafc !important;
-  color: var(--gs-v3-primary) !important;
-}
-
-:root:not([data-theme="dark"]) .teachers-v3-action-menu button.is-danger {
-  color: #dc2626 !important;
-}
-
 :root[data-theme="dark"] .teachers-v3-page-header h1,
 :root[data-theme="dark"] .teachers-v3-table-head h2,
 :root[data-theme="dark"] .teachers-v3-teacher-cell strong,
@@ -3588,25 +3397,6 @@
 :root[data-theme="dark"] .teachers-v3-more-button[aria-expanded="true"] {
   background: rgba(148, 163, 184, 0.14) !important;
   color: #f8fafc !important;
-}
-
-:root[data-theme="dark"] .teachers-v3-action-menu {
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: #0f172a;
-  box-shadow: 0 18px 42px rgba(2, 8, 23, 0.42);
-}
-
-:root[data-theme="dark"] .teachers-v3-action-menu button {
-  color: #e2e8f0 !important;
-}
-
-:root[data-theme="dark"] .teachers-v3-action-menu button:hover {
-  background: rgba(148, 163, 184, 0.14) !important;
-  color: #67e8f9 !important;
-}
-
-:root[data-theme="dark"] .teachers-v3-action-menu button.is-danger {
-  color: #f87171 !important;
 }
 
 :root:not([data-theme="dark"]) .dashboard-section-head,

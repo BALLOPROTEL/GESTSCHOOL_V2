@@ -9,6 +9,9 @@ import type {
 import { useReportsData } from "./hooks/use-reports-data";
 import type { ReportsApiClient } from "./types/reports";
 import { useI18n } from "../../shared/i18n-context";
+import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import { ResponsivePagination } from "../../shared/components/responsive-pagination";
+import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 
 
 type ReportsScreenProps = {
@@ -106,13 +109,14 @@ export function ReportsScreen({
               : "-"}
           </span>
         </div>
-        <form
-          className="filter-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void loadAnalytics(analyticsFilters);
-          }}
-        >
+        <ResponsiveFilterPanel title={tr("Filtrer la fenetre de pilotage")} activeCount={Object.values(analyticsFilters).filter(Boolean).length}>
+          <form
+            className="filter-grid"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void loadAnalytics(analyticsFilters);
+            }}
+          >
           <label>
             {tr("Du")}<input
               type="date"
@@ -158,7 +162,8 @@ export function ReportsScreen({
             >
               {tr("Reinitialiser")}</button>
           </div>
-        </form>
+          </form>
+        </ResponsiveFilterPanel>
         <div className="metrics-grid reports-grid">
           <article className="metric-card">
             <span>{tr("Eleves actifs")}</span>
@@ -216,15 +221,16 @@ export function ReportsScreen({
             {auditLogs ? `${auditLogs.total} evenement(s)` : tr("Aucun chargement")}
           </span>
         </div>
-        <form
-          className="filter-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const next = { ...auditFilters, page: 1 };
-            setAuditFilters(next);
-            void loadAuditLogs(next);
-          }}
-        >
+        <ResponsiveFilterPanel title={tr("Filtres du journal d'audit")} activeCount={Object.values(auditFilters).filter((value) => value !== "" && value !== 1 && value !== 20).length}>
+          <form
+            className="filter-grid"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const next = { ...auditFilters, page: 1 };
+              setAuditFilters(next);
+              void loadAuditLogs(next);
+            }}
+          >
           <label>
             {tr("Ressource")}<input
               value={auditFilters.resource}
@@ -310,8 +316,9 @@ export function ReportsScreen({
             >
               {tr("Reinitialiser")}</button>
           </div>
-        </form>
-        <div className="table-wrap">
+          </form>
+        </ResponsiveFilterPanel>
+        <ResponsiveDataTable label={tr("Journal d'audit")}>
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -343,41 +350,23 @@ export function ReportsScreen({
               )}
             </tbody>
           </table>
-        </div>
-        <div className="pagination-row">
-          <span className="subtle">
-            {tr("Page ")}{auditLogs?.page || 1} / {auditLogs?.totalPages || 1}
-          </span>
-          <div className="actions">
-            <button
-              type="button"
-              className="button-ghost"
-              disabled={!auditLogs || auditLogs.page <= 1}
-              onClick={() => {
-                if (!auditLogs) return;
-                const next = { ...auditFilters, page: Math.max(1, auditLogs.page - 1) };
-                setAuditFilters(next);
-                void loadAuditLogs(next);
-              }}
-            >
-              {tr("Prec.")}</button>
-            <button
-              type="button"
-              className="button-ghost"
-              disabled={!auditLogs || auditLogs.page >= auditLogs.totalPages}
-              onClick={() => {
-                if (!auditLogs) return;
-                const next = {
-                  ...auditFilters,
-                  page: Math.min(auditLogs.totalPages, auditLogs.page + 1)
-                };
-                setAuditFilters(next);
-                void loadAuditLogs(next);
-              }}
-            >
-              {tr("Suiv.")}</button>
-          </div>
-        </div>
+        </ResponsiveDataTable>
+        <ResponsivePagination
+          currentPage={auditLogs?.page || 1}
+          totalPages={auditLogs?.totalPages || 1}
+          onPrevious={() => {
+            if (!auditLogs) return;
+            const next = { ...auditFilters, page: Math.max(1, auditLogs.page - 1) };
+            setAuditFilters(next);
+            void loadAuditLogs(next);
+          }}
+          onNext={() => {
+            if (!auditLogs) return;
+            const next = { ...auditFilters, page: Math.min(auditLogs.totalPages, auditLogs.page + 1) };
+            setAuditFilters(next);
+            void loadAuditLogs(next);
+          }}
+        />
       </section>
 
       <section className="panel table-panel" data-step-id="export">

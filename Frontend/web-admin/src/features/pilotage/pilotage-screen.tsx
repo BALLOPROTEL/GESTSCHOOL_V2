@@ -20,6 +20,7 @@ import type { AttendanceSummary, NotificationItem } from "../school-life/types/s
 import { fetchGrades } from "../grades/services/grades-service";
 import { fetchAttendanceSummary, fetchNotifications } from "../school-life/services/school-life-service";
 import { useI18n } from "../../shared/i18n-context";
+import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 
 
 type PilotageScreenProps = {
@@ -696,7 +697,11 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
         </div>
       </div>
 
-      <section className="pilotage-filters" aria-label={tr("Filtres du pilotage")}>
+      <ResponsiveFilterPanel
+        className="pilotage-filters"
+        title={tr("Filtres du pilotage")}
+        activeCount={Object.values(filters).filter(Boolean).length}
+      >
         <label>
           <span>{tr("Année scolaire")}</span>
           <select
@@ -785,7 +790,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
             ))}
           </select>
         </label>
-      </section>
+      </ResponsiveFilterPanel>
 
       <PilotageQuickActions actions={quickActions} onSelectScreen={onSelectScreen} />
 

@@ -12,6 +12,8 @@ import { useFinanceData } from "./hooks/use-finance-data";
 import type { FinanceApiClient, FinanceData } from "./types/finance";
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
+import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import { RowActionMenu } from "../../shared/components/row-action-menu";
 
 type FinanceScreenProps = {
   api: FinanceApiClient;
@@ -362,7 +364,7 @@ export function FinanceScreen({
           </div>
           <span className="module-header-badge">{feePlans.length} {tr("plan(s)")}</span>
         </div>
-        <div className="table-wrap">
+        <ResponsiveDataTable label={tr("Liste des plans de frais")}>
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -395,26 +397,15 @@ export function FinanceScreen({
                       <td data-label={tr("Devise")}>{formatCurrencyLabel(item.currency)}</td>
                       <td data-label={tr("Statut")}><span className="status-pill is-success">{tr("Actif")}</span></td>
                       <td data-label={tr("Actions")}>
-                        <div className="v3-action-cell">
-                          <button
-                            type="button"
-                            className="v3-more-button"
-                            aria-label={`Informations plan ${item.label}`}
-                            aria-expanded={openFeePlanActionMenuId === item.id}
-                            onClick={() =>
-                              setOpenFeePlanActionMenuId((current) => (current === item.id ? null : item.id))
-                            }
+                          <RowActionMenu
+                            label={`${tr("Informations plan")} ${item.label}`}
+                            open={openFeePlanActionMenuId === item.id}
+                            onOpenChange={(open) => setOpenFeePlanActionMenuId(open ? item.id : null)}
                           >
-                            <span aria-hidden="true">...</span>
-                          </button>
-                          {openFeePlanActionMenuId === item.id ? (
-                            <div className="v3-action-menu" role="menu">
                               <span className="v3-action-menu-note">
-                                {usageCount > 0 ? `${usageCount} facture(s) liée(s)` : tr("Plan protégé")}
+                                {usageCount > 0 ? `${usageCount} ${tr("facture(s) liée(s)")}` : tr("Plan protégé")}
                               </span>
-                            </div>
-                          ) : null}
-                        </div>
+                          </RowActionMenu>
                       </td>
                     </tr>
                   );
@@ -422,7 +413,7 @@ export function FinanceScreen({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
 
       <section id="finance-invoices" data-step-id="invoices" className="panel editor-panel workflow-section module-modern finance-screen-shell">
@@ -512,7 +503,7 @@ export function FinanceScreen({
           </div>
           <span className="module-header-badge">{invoices.length} {tr("facture(s)")}</span>
         </div>
-        <div className="table-wrap">
+        <ResponsiveDataTable label={tr("Factures")}>
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -558,18 +549,11 @@ export function FinanceScreen({
                       ) : item.remainingAmount <= 0 ? (
                         <span className="finance-safe-note">{tr("Soldée")}</span>
                       ) : (
-                        <div className="v3-action-cell">
-                          <button
-                            type="button"
-                            className="v3-more-button"
-                            aria-label={`Actions facture ${item.invoiceNo}`}
-                            aria-expanded={openInvoiceActionMenuId === item.id}
-                            onClick={() => setOpenInvoiceActionMenuId((current) => (current === item.id ? null : item.id))}
-                          >
-                            <span aria-hidden="true">...</span>
-                          </button>
-                          {openInvoiceActionMenuId === item.id ? (
-                            <div className="v3-action-menu" role="menu">
+                        <RowActionMenu
+                          label={`${tr("Actions facture")} ${item.invoiceNo}`}
+                          open={openInvoiceActionMenuId === item.id}
+                          onOpenChange={(open) => setOpenInvoiceActionMenuId(open ? item.id : null)}
+                        >
                               <button
                                 type="button"
                                 onClick={() => {
@@ -590,9 +574,7 @@ export function FinanceScreen({
                                 >
                                   {tr("Annuler")}</button>
                               ) : null}
-                            </div>
-                          ) : null}
-                        </div>
+                        </RowActionMenu>
                       )}
                     </td>
                   </tr>
@@ -600,7 +582,7 @@ export function FinanceScreen({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
 
       <section id="finance-payments" data-step-id="payments" className="panel editor-panel workflow-section module-modern finance-screen-shell">
@@ -697,7 +679,7 @@ export function FinanceScreen({
           </div>
           <span className="module-header-badge">{payments.length} {tr("opération(s)")}</span>
         </div>
-        <div className="table-wrap">
+        <ResponsiveDataTable label={tr("Paiements")}>
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -731,18 +713,11 @@ export function FinanceScreen({
                     <td data-label={tr("Statut")}><span className="status-pill is-success">{tr("Enregistré")}</span></td>
                     <td data-label={tr("Actions")}>
                       {remoteEnabled ? (
-                        <div className="v3-action-cell">
-                          <button
-                            type="button"
-                            className="v3-more-button"
-                            aria-label={`Actions paiement ${item.receiptNo}`}
-                            aria-expanded={openPaymentActionMenuId === item.id}
-                            onClick={() => setOpenPaymentActionMenuId((current) => (current === item.id ? null : item.id))}
-                          >
-                            <span aria-hidden="true">...</span>
-                          </button>
-                          {openPaymentActionMenuId === item.id ? (
-                            <div className="v3-action-menu" role="menu">
+                        <RowActionMenu
+                          label={`${tr("Actions paiement")} ${item.receiptNo}`}
+                          open={openPaymentActionMenuId === item.id}
+                          onOpenChange={(open) => setOpenPaymentActionMenuId(open ? item.id : null)}
+                        >
                               <button
                                 type="button"
                                 onClick={() => {
@@ -751,9 +726,7 @@ export function FinanceScreen({
                                 }}
                               >
                                 {tr("Reçu en PDF")}</button>
-                            </div>
-                          ) : null}
-                        </div>
+                        </RowActionMenu>
                       ) : (
                         <span className="finance-safe-note">{tr("PDF non disponible en aperçu")}</span>
                       )}
@@ -763,7 +736,7 @@ export function FinanceScreen({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
       </WorkflowGuide>
     </div>

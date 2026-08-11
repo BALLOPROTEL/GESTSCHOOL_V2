@@ -12,6 +12,8 @@ import type { AcademicTrack, ReportCard, ReportCardMode } from "../../shared/typ
 import { usePortalParentData } from "./hooks/use-portal-parent-data";
 import type { ParentPortalData, PortalApiClient } from "./types/portal-parent";
 import { useI18n } from "../../shared/i18n-context";
+import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 
 
 type PortalParentScreenProps = {
@@ -133,7 +135,8 @@ export function PortalParentScreen({
             <strong>{data.overview?.notificationsCount ?? 0}</strong>
           </article>
         </div>
-        <form className="filter-grid" onSubmit={(event) => void submitFilters(event)}>
+        <ResponsiveFilterPanel title={tr("Filtres du portail parent")} activeCount={studentFilter ? 1 : 0}>
+          <form className="filter-grid" onSubmit={(event) => void submitFilters(event)}>
           <label>
             {tr("Enfant")}<select value={studentFilter} onChange={(event) => setStudentFilter(event.target.value)}>
               <option value="">{tr("Tous")}</option>
@@ -150,8 +153,9 @@ export function PortalParentScreen({
             <button type="button" className="button-ghost" onClick={() => void resetFilters()}>
               {tr("Reinitialiser")}</button>
           </div>
-        </form>
-        <div className="table-wrap">
+          </form>
+        </ResponsiveFilterPanel>
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -200,13 +204,13 @@ export function PortalParentScreen({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
 
       <div className="split-grid">
         <section className="panel table-panel workflow-section">
           <div className="table-header"><h2>{tr("Notes")}</h2></div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -235,12 +239,12 @@ export function PortalParentScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
 
         <section className="panel table-panel workflow-section">
           <div className="table-header"><h2>{tr("Bulletins")}</h2></div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -282,14 +286,14 @@ export function PortalParentScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       </div>
 
       <div className="split-grid">
         <section className="panel table-panel workflow-section">
           <div className="table-header"><h2>{tr("Absences")}</h2></div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -318,12 +322,12 @@ export function PortalParentScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
 
         <section className="panel table-panel workflow-section">
           <div className="table-header"><h2>{tr("Comptabilite famille")}</h2></div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -356,14 +360,14 @@ export function PortalParentScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       </div>
 
       <div className="split-grid">
         <section className="panel table-panel workflow-section">
           <div className="table-header"><h2>{tr("Paiements")}</h2></div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -390,12 +394,12 @@ export function PortalParentScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
 
         <section className="panel table-panel workflow-section">
           <div className="table-header"><h2>{tr("Emploi du temps")}</h2></div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -424,13 +428,13 @@ export function PortalParentScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       </div>
 
       <section className="panel table-panel workflow-section">
         <div className="table-header"><h2>{tr("Notifications recues")}</h2></div>
-        <div className="table-wrap">
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -457,7 +461,7 @@ export function PortalParentScreen({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
     </>
   );

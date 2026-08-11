@@ -35,6 +35,7 @@ import {
 import { useI18n } from "../shared/i18n-context";
 import { ResponsiveForm } from "../shared/components/responsive-form";
 import { useConfirmDialog } from "../shared/components/confirm-dialog";
+import { ResponsiveDataTable } from "../shared/components/responsive-data-table";
 
 
 type ParentsScreenProps = {
@@ -578,7 +579,7 @@ export function ParentsScreen({
               </div>
             </ResponsiveForm>
 
-            <div className="table-wrap">
+            <ResponsiveDataTable className="table-wrap">
               <table data-responsive-table="true">
                 <thead>
                   <tr>
@@ -618,7 +619,7 @@ export function ParentsScreen({
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveDataTable>
           </section>
         ) : null}
       </div>

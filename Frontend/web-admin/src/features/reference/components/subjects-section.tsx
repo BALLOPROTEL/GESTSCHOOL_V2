@@ -21,6 +21,7 @@ import { ReferenceActionMenu } from "./reference-action-menu";
 import { useReferenceScreenContext } from "./reference-screen-context";
 import { useI18n } from "../../../shared/i18n-context";
 import { ResponsiveForm } from "../../../shared/components/responsive-form";
+import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
 
 
 export function SubjectsSection(): JSX.Element {
@@ -247,7 +248,7 @@ export function SubjectsSection(): JSX.Element {
                 </div>
               </ResponsiveForm>
             </div>
-            <div className="table-wrap">
+            <ResponsiveDataTable className="table-wrap">
               <table data-responsive-table="true">
                 <thead>
                   <tr>
@@ -281,7 +282,7 @@ export function SubjectsSection(): JSX.Element {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveDataTable>
             </article>
   );
 }

@@ -7,6 +7,26 @@
   --table-card-radius: 1rem;
   --table-label-width: minmax(6.4rem, 0.42fr);
   --table-action-menu-width: 11.25rem;
+  --table-sticky-action-width: 4.4rem;
+}
+
+.responsive-data-table-shell {
+  position: relative;
+  min-width: 0;
+}
+
+.responsive-data-table-hint {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.55rem 0 0;
+  color: var(--flexadm-surface-copy-soft, var(--ink-500));
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.responsive-data-table-hint[aria-hidden="true"] {
+  visibility: hidden;
 }
 
 .table-panel,
@@ -195,10 +215,6 @@
 }
 
 .v3-action-menu {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  right: 0.25rem;
-  z-index: 30;
   min-width: min(var(--table-action-menu-width), calc(100vw - 2rem));
   display: grid;
   gap: 0.15rem;
@@ -207,11 +223,6 @@
   border-radius: 0.8rem;
   background: var(--flexadm-surface, #ffffff);
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
-}
-
-.table-wrap td:has(.v3-more-button[aria-expanded="true"]),
-.table-wrap td:has(.v3-action-menu) {
-  z-index: 70 !important;
 }
 
 .v3-action-menu button {
@@ -226,18 +237,13 @@
   cursor: pointer;
   font-size: 0.84rem;
   font-weight: 800;
-  text-align: left;
+  text-align: start;
   transition: background-color 0.18s ease, color 0.18s ease;
 }
 
 .v3-action-menu button:hover {
   background: color-mix(in srgb, var(--flexadm-surface-raised, #f8fafc) 88%, transparent) !important;
   color: var(--flexadm-primary, #2f64eb) !important;
-}
-
-.reference-shell .table-wrap .v3-action-menu {
-  top: auto;
-  bottom: calc(100% + 0.35rem);
 }
 
 .v3-action-menu button.is-danger {
@@ -349,7 +355,7 @@
 .iam-permissions-table th:first-child,
 .iam-permissions-table td:first-child {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 2;
   min-width: 12rem;
   text-align: left;
@@ -461,7 +467,7 @@
 
   .table-wrap table[data-responsive-table="true"] th:first-child,
   .table-wrap table[data-responsive-table="true"] td:first-child {
-    left: auto !important;
+    inset-inline-start: auto !important;
     width: auto !important;
     min-width: 12rem !important;
     max-width: none !important;
@@ -476,7 +482,7 @@
   .table-wrap table[data-responsive-table="true"] th:last-child,
   .table-wrap table[data-responsive-table="true"] td:last-child {
     position: sticky !important;
-    right: 0 !important;
+    inset-inline-end: 0 !important;
     z-index: 3 !important;
     width: 4.4rem !important;
     min-width: 4.4rem !important;
@@ -485,28 +491,13 @@
     box-shadow: -1px 0 0 color-mix(in srgb, var(--flexadm-surface-border, var(--line)) 82%, transparent);
   }
 
-  .table-wrap table[data-responsive-table="true"] td:has(.v3-more-button[aria-expanded="true"]),
-  .table-wrap table[data-responsive-table="true"] td:has(.v3-action-menu) {
-    z-index: 90 !important;
-  }
-
-  .table-wrap table[data-responsive-table="true"] .v3-action-menu {
-    right: 0.3rem !important;
-    z-index: 95 !important;
-  }
-
-  .reference-shell .table-wrap table[data-responsive-table="true"] .v3-action-menu {
-    top: auto !important;
-    bottom: calc(100% + 0.4rem) !important;
-  }
-
   .table-wrap table[data-responsive-table="true"] th:last-child {
     z-index: 4 !important;
     background: var(--flexadm-surface-raised, #f8fafc) !important;
   }
 
   .iam-permissions-table th:first-child {
-    left: auto !important;
+    inset-inline-start: auto !important;
     width: auto !important;
     min-width: 12rem !important;
     max-width: none !important;
@@ -515,7 +506,7 @@
 
   .iam-permissions-table td:first-child {
     position: static !important;
-    left: auto !important;
+    inset-inline-start: auto !important;
     z-index: auto !important;
     width: auto !important;
     min-width: 12rem !important;
@@ -543,6 +534,20 @@
 
   .table-actions > button {
     width: 100%;
+  }
+}
+
+@media (max-width: 1023px) {
+  .responsive-data-table-hint {
+    display: flex;
+  }
+
+  .responsive-data-table[data-scrollable="true"]:not([data-at-end="true"]) {
+    box-shadow: inset -1.25rem 0 1.1rem -1.2rem color-mix(in srgb, var(--ink-900) 30%, transparent);
+  }
+
+  [dir="rtl"] .responsive-data-table[data-scrollable="true"]:not([data-at-end="true"]) {
+    box-shadow: inset 1.25rem 0 1.1rem -1.2rem color-mix(in srgb, var(--ink-900) 30%, transparent);
   }
 }
 
@@ -634,7 +639,7 @@
   }
 
   .table-wrap table[data-responsive-table="true"] th:first-child {
-    left: auto !important;
+    inset-inline-start: auto !important;
     z-index: 2 !important;
     width: auto !important;
     min-width: 12rem !important;
@@ -648,7 +653,7 @@
 
   .table-wrap table[data-responsive-table="true"] td:first-child {
     position: static !important;
-    left: auto !important;
+    inset-inline-start: auto !important;
     z-index: auto !important;
     width: auto !important;
     min-width: 12rem !important;
@@ -660,24 +665,13 @@
   .table-wrap table[data-responsive-table="true"] th:last-child,
   .table-wrap table[data-responsive-table="true"] td:last-child {
     position: sticky !important;
-    right: 0 !important;
+    inset-inline-end: 0 !important;
     z-index: 3 !important;
     width: var(--table-sticky-action-width) !important;
     min-width: var(--table-sticky-action-width) !important;
     max-width: var(--table-sticky-action-width) !important;
     background: var(--mobile-card-bg, var(--flexadm-surface, #ffffff)) !important;
     box-shadow: -1px 0 0 color-mix(in srgb, var(--mobile-card-border, var(--flexadm-surface-border, var(--line))) 82%, transparent);
-  }
-
-  .table-wrap table[data-responsive-table="true"] .v3-action-menu {
-    right: 0.35rem !important;
-    z-index: 110 !important;
-    max-width: calc(100vw - 3rem) !important;
-  }
-
-  .reference-shell .table-wrap table[data-responsive-table="true"] .v3-action-menu {
-    top: auto !important;
-    bottom: calc(100% + 0.45rem) !important;
   }
 
   .table-wrap table[data-responsive-table="true"] th:last-child {

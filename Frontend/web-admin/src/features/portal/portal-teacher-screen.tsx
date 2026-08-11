@@ -12,6 +12,8 @@ import { usePortalTeacherData } from "./hooks/use-portal-teacher-data";
 import type { PortalApiClient, TeacherPortalData } from "./types/portal-teacher";
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
+import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 
 
 type PortalTeacherScreenProps = {
@@ -139,13 +141,14 @@ export function PortalTeacherScreen({
             <strong>{data.overview?.notificationsCount ?? 0}</strong>
           </article>
         </div>
-        <form
-          className="filter-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void loadData(filters);
-          }}
-        >
+        <ResponsiveFilterPanel title={tr("Filtres du portail enseignant")} activeCount={Object.values(filters).filter(Boolean).length}>
+          <form
+            className="filter-grid"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void loadData(filters);
+            }}
+          >
           <label>
             {tr("Classe")}<select
               value={filters.classId}
@@ -203,7 +206,8 @@ export function PortalTeacherScreen({
             <button type="button" className="button-ghost" onClick={() => void resetFilters()}>
               {tr("Reinitialiser")}</button>
           </div>
-        </form>
+          </form>
+        </ResponsiveFilterPanel>
       </section>
 
       <section className="panel table-panel workflow-section">
@@ -385,7 +389,7 @@ export function PortalTeacherScreen({
         <div className="table-header">
           <h2>{tr("Notes recentes")}</h2>
         </div>
-        <div className="table-wrap">
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -416,7 +420,7 @@ export function PortalTeacherScreen({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
 
       <div className="split-grid">
@@ -424,7 +428,7 @@ export function PortalTeacherScreen({
           <div className="table-header">
             <h2>{tr("Emploi du temps")}</h2>
           </div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -453,14 +457,14 @@ export function PortalTeacherScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
 
         <section className="panel table-panel workflow-section">
           <div className="table-header">
             <h2>{tr("Notifications")}</h2>
           </div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -485,7 +489,7 @@ export function PortalTeacherScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       </div>
     </>

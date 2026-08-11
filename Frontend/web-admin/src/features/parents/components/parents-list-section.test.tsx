@@ -48,9 +48,9 @@ describe("ParentsListSection", () => {
     expect(screen.queryByText("ACTIVE")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /actions aminata diallo/i }));
-    await user.click(screen.getByRole("button", { name: /voir/i }));
+    await user.click(screen.getByRole("menuitem", { name: /voir/i }));
     await user.click(screen.getByRole("button", { name: /actions aminata diallo/i }));
-    await user.click(screen.getByRole("button", { name: /modifier/i }));
+    await user.click(screen.getByRole("menuitem", { name: /modifier/i }));
 
     expect(handleSelect).toHaveBeenCalledWith("parent-1");
     expect(handleEdit).toHaveBeenCalledWith(parent);

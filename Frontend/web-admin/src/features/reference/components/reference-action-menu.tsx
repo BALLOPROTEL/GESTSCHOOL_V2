@@ -1,5 +1,7 @@
 import { useState, type JSX } from "react";
 
+import { RowActionMenu } from "../../../shared/components/row-action-menu";
+
 type ReferenceActionMenuProps = {
   deleteLabel?: string;
   label: string;
@@ -14,18 +16,7 @@ export function ReferenceActionMenu({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="v3-action-cell">
-      <button
-        type="button"
-        className="v3-more-button"
-        aria-label={label}
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span aria-hidden="true">...</span>
-      </button>
-      {open ? (
-        <div className="v3-action-menu" role="menu">
+    <RowActionMenu label={label} open={open} onOpenChange={setOpen}>
           <button
             type="button"
             role="menuitem"
@@ -37,8 +28,6 @@ export function ReferenceActionMenu({
           >
             {deleteLabel}
           </button>
-        </div>
-      ) : null}
-    </div>
+    </RowActionMenu>
   );
 }

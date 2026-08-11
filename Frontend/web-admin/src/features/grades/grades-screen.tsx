@@ -17,6 +17,8 @@ import { useGradesData } from "./hooks/use-grades-data";
 import type { GradesApiClient } from "./types/grades";
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
+import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
+import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
 
 type GradesScreenProps = {
   api: GradesApiClient;
@@ -363,7 +365,8 @@ export function GradesScreen({
         </div>
         <p className="section-lead">
           {tr("Choisissez l’année scolaire, la classe et la période avant de saisir, calculer ou générer les bulletins.")}</p>
-        <form className="filter-grid module-filter" onSubmit={(event) => void applyGradeFilters(event)}>
+        <ResponsiveFilterPanel title={tr("Filtres des notes")} activeCount={Object.values(gradeFilters).filter(Boolean).length}>
+          <form className="filter-grid module-filter" onSubmit={(event) => void applyGradeFilters(event)}>
           <label>
             {tr("Année scolaire *")}<select
               value={gradeFilters.schoolYearId}
@@ -463,7 +466,8 @@ export function GradesScreen({
             <button type="button" className="button-ghost" onClick={() => void resetGradeFilters()}>
               {tr("Réinitialiser les filtres")}</button>
           </div>
-        </form>
+          </form>
+        </ResponsiveFilterPanel>
         <div className="module-overview-grid">
           <article className="module-overview-card">
             <span>{tr("Notes saisies")}</span>
@@ -650,7 +654,7 @@ export function GradesScreen({
               />
             </label>
           </div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true">
               <thead>
                 <tr>
@@ -734,7 +738,7 @@ export function GradesScreen({
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
           {renderFieldError(gradeErrors, "grades")}
           <div className="actions">
             <button type="submit">{tr("Enregistrer les notes")}</button>
@@ -754,7 +758,7 @@ export function GradesScreen({
           </div>
           <span className="module-header-badge">{pluralize(grades.length, "ligne", "lignes")}</span>
         </div>
-        <div className="table-wrap">
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -803,7 +807,7 @@ export function GradesScreen({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
 
       <section id="grades-summary" data-step-id="summary" className="panel table-panel workflow-section module-modern">
@@ -829,7 +833,7 @@ export function GradesScreen({
         ) : null}
         {classSummary && classSummary.students.length > 0 ? (
           <>
-            <div className="table-wrap">
+            <ResponsiveDataTable className="table-wrap">
               <table data-responsive-table="true">
                 <thead>
                   <tr>
@@ -875,7 +879,7 @@ export function GradesScreen({
                     })}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveDataTable>
             {selectedSummaryStudent ? (
               <div className="panel nested-panel">
                 <div className="table-header">
@@ -885,7 +889,7 @@ export function GradesScreen({
                   </div>
                   <span className="module-header-badge">{tr(formatTrackLabel(selectedSummaryStudent.track))}</span>
                 </div>
-                <div className="table-wrap">
+                <ResponsiveDataTable className="table-wrap">
                   <table data-responsive-table="true">
                     <thead>
                       <tr>
@@ -917,7 +921,7 @@ export function GradesScreen({
                       )}
                     </tbody>
                   </table>
-                </div>
+                </ResponsiveDataTable>
               </div>
             ) : null}
           </>
@@ -1087,7 +1091,7 @@ export function GradesScreen({
           </div>
           <span className="module-header-badge">{pluralize(reportCards.length, "fichier", "fichiers")}</span>
         </div>
-        <div className="table-wrap">
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -1140,7 +1144,7 @@ export function GradesScreen({
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
     </WorkflowGuide>
   );

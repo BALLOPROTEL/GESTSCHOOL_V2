@@ -26,6 +26,8 @@ import { useIamManagement } from "./hooks/use-iam-management";
 import type { IamApiClient } from "./types/iam";
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
+import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import { RowActionMenu } from "../../shared/components/row-action-menu";
 
 type IamScreenProps = {
   api: IamApiClient;
@@ -404,7 +406,7 @@ export function IamScreen({
             </div>
             <span className="v3-count-badge">{users.length} {tr("compte(s)")}</span>
           </div>
-          <div className="table-wrap">
+          <ResponsiveDataTable label={tr("Comptes utilisateurs")}>
             <table data-responsive-table="true" data-testid="iam-users-table">
               <thead>
                 <tr>
@@ -447,18 +449,11 @@ export function IamScreen({
                       </td>
                       <td data-label={tr("Dernière mise à jour")}>{new Date(item.updatedAt).toLocaleString(locale)}</td>
                       <td data-label={tr("Actions")}>
-                        <div className="v3-action-cell">
-                          <button
-                            type="button"
-                            className="v3-more-button"
-                            aria-label={`Actions ${item.username}`}
-                            aria-expanded={openUserActionMenuId === item.id}
-                            onClick={() => setOpenUserActionMenuId((current) => (current === item.id ? null : item.id))}
-                          >
-                            <span aria-hidden="true">...</span>
-                          </button>
-                          {openUserActionMenuId === item.id ? (
-                            <div className="v3-action-menu" role="menu">
+                        <RowActionMenu
+                          label={`${tr("Actions")} ${item.username}`}
+                          open={openUserActionMenuId === item.id}
+                          onOpenChange={(open) => setOpenUserActionMenuId(open ? item.id : null)}
+                        >
                               <button
                                 type="button"
                                 onClick={() => {
@@ -495,16 +490,14 @@ export function IamScreen({
                                 }}
                               >
                                 {tr("Supprimer")}</button>
-                            </div>
-                          ) : null}
-                        </div>
+                        </RowActionMenu>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
 
         <section id="iam-permissions" data-step-id="permissions" className="panel table-panel workflow-section module-modern iam-permissions-panel">
@@ -535,7 +528,7 @@ export function IamScreen({
           </div>
           <p className="subtle">
             {tr("Sélectionnez les actions autorisées pour chaque ressource.")}</p>
-          <div className="table-wrap iam-permissions-wrap">
+          <ResponsiveDataTable className="iam-permissions-wrap" label={tr("Droits par profil")}>
             <table className="iam-permissions-table" data-responsive-table="true" data-testid="iam-permissions-table">
               <thead>
                 <tr>
@@ -565,7 +558,7 @@ export function IamScreen({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       </div>
     </WorkflowGuide>

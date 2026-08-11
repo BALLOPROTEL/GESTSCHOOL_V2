@@ -3,6 +3,8 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { WorkflowGuide } from "../../shared/components/workflow-guide";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
 import { useConfirmDialog } from "../../shared/components/confirm-dialog";
+import { RowActionMenu } from "../../shared/components/row-action-menu";
+import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 import { translateUiMessage, UI_MESSAGES } from "../../shared/i18n";
 import { toUiErrorMessage } from "../../shared/services/api-errors";
 import {
@@ -48,6 +50,7 @@ import type {
   TimetableSlot
 } from "./types/school-life";
 import { useI18n } from "../../shared/i18n-context";
+import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
 
 
 type LoadWarningKey = "attendance" | "attachments" | "timetable" | "notifications";
@@ -164,35 +167,26 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
     ) : null;
 
   const renderActionMenu = (id: string, label: string, actions: RowAction[]): JSX.Element => (
-    <div className="v3-action-cell">
-      <button
-        type="button"
-        className="v3-more-button"
-        aria-label={label}
-        aria-expanded={openActionMenuId === id}
-        onClick={() => setOpenActionMenuId((current) => (current === id ? null : id))}
-      >
-        <span aria-hidden="true">...</span>
-      </button>
-      {openActionMenuId === id ? (
-        <div className="v3-action-menu" role="menu">
-          {actions.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              role="menuitem"
-              className={action.danger ? "is-danger" : undefined}
-              onClick={() => {
-                setOpenActionMenuId(null);
-                action.onSelect();
-              }}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <RowActionMenu
+      label={label}
+      open={openActionMenuId === id}
+      onOpenChange={(open) => setOpenActionMenuId(open ? id : null)}
+    >
+      {actions.map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          role="menuitem"
+          className={action.danger ? "is-danger" : undefined}
+          onClick={() => {
+            setOpenActionMenuId(null);
+            action.onSelect();
+          }}
+        >
+          {action.label}
+        </button>
+      ))}
+    </RowActionMenu>
   );
 
   useEffect(() => {
@@ -868,15 +862,17 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <span className="subtle">{tr("Filtre rapide, puis actions sur chaque ligne.")}</span>
         </div>
         {renderLoadWarning("attendance", "Journal des absences indisponible")}
-        <form className="filter-grid module-filter" onSubmit={(event) => void applyAttendanceFilters(event)}>
+        <ResponsiveFilterPanel title={tr("Filtres des absences")} activeCount={Object.values(attendanceFilters).filter(Boolean).length}>
+          <form className="filter-grid module-filter" onSubmit={(event) => void applyAttendanceFilters(event)}>
           <label>{tr("Classe")}<select value={attendanceFilters.classId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">{tr("Toutes")}</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
           <label>{tr("Eleve")}<select value={attendanceFilters.studentId} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">{tr("Tous")}</option>{students.map((item) => <option key={item.id} value={item.id}>{item.matricule}</option>)}</select></label>
           <label>{tr("Statut")}<select value={attendanceFilters.status} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">{tr("Tous")}</option><option value="PRESENT">{labelFromMap(attendanceStatusLabels, "PRESENT")}</option><option value="ABSENT">{labelFromMap(attendanceStatusLabels, "ABSENT")}</option><option value="LATE">{labelFromMap(attendanceStatusLabels, "LATE")}</option><option value="EXCUSED">{labelFromMap(attendanceStatusLabels, "EXCUSED")}</option></select></label>
           <label>{tr("Du")}<input type="date" value={attendanceFilters.fromDate} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, fromDate: event.target.value }))} /></label>
           <label>{tr("Au")}<input type="date" value={attendanceFilters.toDate} onChange={(event) => setAttendanceFilters((prev) => ({ ...prev, toDate: event.target.value }))} /></label>
           <div className="actions"><button type="submit">{tr("Filtrer")}</button><button type="button" className="button-ghost" onClick={() => void resetAttendanceFilters()}>{tr("Reinitialiser")}</button></div>
-        </form>
-        <div className="table-wrap">
+          </form>
+        </ResponsiveFilterPanel>
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr><th>{tr("Date")}</th><th>{tr("Eleve")}</th><th>{tr("Classe")}</th><th>{tr("Statut")}</th><th>{tr("Justif.")}</th><th>{tr("Validation")}</th><th>{tr("Pieces")}</th><th>{tr("Motif")}</th><th>{tr("Action")}</th></tr>
@@ -909,7 +905,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
 
       <section data-step-id="validation" className="panel editor-panel workflow-section module-modern">
@@ -977,7 +973,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
         </ResponsiveForm>
 
         <h3>{tr("Liste des justificatifs")}</h3>
-        <div className="table-wrap">
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr><th>{tr("Fichier")}</th><th>{tr("MIME")}</th><th>{tr("Ajoute le")}</th><th>{tr("Action")}</th></tr>
@@ -1003,7 +999,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
 
         {selectedAttendance ? (
           <p className="subtle">{tr("Selection active: ")}{selectedAttendance.studentName || selectedAttendance.studentId} - {selectedAttendance.attendanceDate}</p>
@@ -1041,12 +1037,14 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <span className="subtle">{tr("Recherche par classe et par jour.")}</span>
         </div>
         {renderLoadWarning("timetable", "Grille emploi du temps indisponible")}
-        <form className="filter-grid module-filter" onSubmit={(event) => void applyTimetableFilters(event)}>
+        <ResponsiveFilterPanel title={tr("Filtres de l'emploi du temps")} activeCount={Object.values(timetableFilters).filter(Boolean).length}>
+          <form className="filter-grid module-filter" onSubmit={(event) => void applyTimetableFilters(event)}>
           <label>{tr("Classe")}<select value={timetableFilters.classId} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, classId: event.target.value }))}><option value="">{tr("Toutes")}</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}</select></label>
           <label>{tr("Jour")}<select value={timetableFilters.dayOfWeek} onChange={(event) => setTimetableFilters((prev) => ({ ...prev, dayOfWeek: event.target.value }))}><option value="">{tr("Tous")}</option>{[1,2,3,4,5,6,7].map((day) => <option key={day} value={String(day)}>{dayLabels.get(day)}</option>)}</select></label>
           <div className="actions"><button type="submit">{tr("Filtrer")}</button><button type="button" className="button-ghost" onClick={() => void resetTimetableFilters()}>{tr("Reinitialiser")}</button></div>
-        </form>
-        <div className="table-wrap">
+          </form>
+        </ResponsiveFilterPanel>
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr><th>{tr("Jour")}</th><th>{tr("Heure")}</th><th>{tr("Classe")}</th><th>{tr("Matiere")}</th><th>{tr("Salle")}</th><th>{tr("Enseignant")}</th><th>{tr("Action")}</th></tr>
@@ -1073,7 +1071,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
 
         <h3>{tr("Vue hebdo")}</h3>
         <div className="day-grid">
@@ -1135,13 +1133,15 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <span className="subtle">{tr("Suivi des envois, statuts et relances.")}</span>
         </div>
         {renderLoadWarning("notifications", "Historique notifications indisponible")}
-        <form className="filter-grid module-filter" onSubmit={(event) => void applyNotificationFilters(event)}>
+        <ResponsiveFilterPanel title={tr("Filtres des notifications")} activeCount={Object.values(notificationFilters).filter(Boolean).length}>
+          <form className="filter-grid module-filter" onSubmit={(event) => void applyNotificationFilters(event)}>
           <label>{tr("Statut")}<select value={notificationFilters.status} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">{tr("Tous")}</option>{Object.entries(notificationStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label>{tr("Canal")}<select value={notificationFilters.channel} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, channel: event.target.value }))}><option value="">{tr("Tous")}</option><option value="IN_APP">{labelFromMap(notificationChannelLabels, "IN_APP")}</option><option value="EMAIL">{labelFromMap(notificationChannelLabels, "EMAIL")}</option><option value="SMS">{labelFromMap(notificationChannelLabels, "SMS")}</option></select></label>
           <label>{tr("Distribution")}<select value={notificationFilters.deliveryStatus} onChange={(event) => setNotificationFilters((prev) => ({ ...prev, deliveryStatus: event.target.value }))}><option value="">{tr("Toutes")}</option>{Object.entries(notificationDeliveryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <div className="actions"><button type="submit">{tr("Filtrer")}</button><button type="button" className="button-ghost" onClick={() => void resetNotificationFilters()}>{tr("Reinitialiser")}</button></div>
-        </form>
-        <div className="table-wrap">
+          </form>
+        </ResponsiveFilterPanel>
+        <ResponsiveDataTable className="table-wrap">
           <table data-responsive-table="true">
             <thead>
               <tr><th>{tr("Titre")}</th><th>{tr("Canal")}</th><th>{tr("Statut")}</th><th>{tr("Distribution")}</th><th>{tr("Cible")}</th><th>{tr("Fournisseur")}</th><th>{tr("Tentatives")}</th><th>{tr("Planifiee")}</th><th>{tr("Envoyee")}</th><th>{tr("Action")}</th></tr>
@@ -1177,7 +1177,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
       </WorkflowGuide>
       ) : null}

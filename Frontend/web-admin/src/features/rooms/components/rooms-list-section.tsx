@@ -11,6 +11,9 @@ import {
   trackLabel
 } from "../rooms-screen-model";
 import { useI18n } from "../../../shared/i18n-context";
+import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
+import { ResponsiveFilterPanel } from "../../../shared/components/responsive-filter-panel";
+import { RowActionMenu } from "../../../shared/components/row-action-menu";
 
 
 const getRoomInitials = (room: RoomRecord): string =>
@@ -61,7 +64,11 @@ export function RoomsListSection(props: {
         </div>
         <button type="button" onClick={onAddRoom}>{tr("Ajouter une salle")}</button>
       </div>
-      <div className="filter-grid module-filter teachers-filter-grid">
+      <ResponsiveFilterPanel
+        className="filter-grid module-filter teachers-filter-grid"
+        title={tr("Filtres salles")}
+        activeCount={Object.values(filters).filter((value) => value.trim().length > 0).length}
+      >
         <label>{tr("Recherche")}<input value={filters.search} onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))} placeholder={tr("Code, nom, bâtiment")} /></label>
         <label>{tr("Type")}<select value={filters.roomTypeId} onChange={(event) => setFilters((prev) => ({ ...prev, roomTypeId: event.target.value }))}><option value="">{tr("Tous")}</option>{roomTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></label>
         <label>{tr("Cursus")}<select value={filters.track} onChange={(event) => setFilters((prev) => ({ ...prev, track: event.target.value }))}><option value="">{tr("Tous")}</option>{TRACKS.map((track) => <option key={track} value={track}>{tr(trackLabel(track))}</option>)}</select></label>
@@ -79,8 +86,8 @@ export function RoomsListSection(props: {
           >
             {tr("Réinitialiser")}</button>
         </div>
-      </div>
-      <div className="table-wrap">
+      </ResponsiveFilterPanel>
+      <ResponsiveDataTable label={tr("Salles, capacités et usages")}>
         <table data-responsive-table="true">
           <thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Capacité")}</th><th>{tr("Cursus")}</th><th>{tr("Bâtiment")}</th><th>{tr("Occupation")}</th><th>{tr("Statut")}</th><th aria-label={tr("Actions")}></th></tr></thead>
           <tbody>{rooms.length === 0 ? <tr><td colSpan={8} className="empty-row">{loading ? tr("Chargement...") : tr("Aucune salle enregistrée.")}</td></tr> : rooms.map((room) => (
@@ -101,29 +108,20 @@ export function RoomsListSection(props: {
               <td data-label={tr("Occupation")}>{room.activeAssignmentsCount ? `${room.activeAssignmentsCount} affectation(s)` : tr("Aucune")}</td>
               <td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(room.status))}</span></td>
               <td data-label={tr("Actions")}>
-                <div className="v3-action-cell">
-                  <button
-                    type="button"
-                    className="v3-more-button"
-                    aria-label={`Actions ${room.name}`}
-                    aria-expanded={openRoomActionMenuId === room.id}
-                    onClick={() => setOpenRoomActionMenuId((current) => (current === room.id ? null : room.id))}
-                  >
-                    <span aria-hidden="true">...</span>
-                  </button>
-                  {openRoomActionMenuId === room.id ? (
-                    <div className="v3-action-menu" role="menu">
+                <RowActionMenu
+                  label={`${tr("Actions")} ${room.name}`}
+                  open={openRoomActionMenuId === room.id}
+                  onOpenChange={(open) => setOpenRoomActionMenuId(open ? room.id : null)}
+                >
                       <button type="button" onClick={() => { setOpenRoomActionMenuId(null); onOpenDetail(room.id); }}>{tr("Voir")}</button>
                       <button type="button" onClick={() => { setOpenRoomActionMenuId(null); onEditRoom(room); }}>{tr("Modifier")}</button>
                       <button type="button" className="is-danger" onClick={() => { setOpenRoomActionMenuId(null); onArchiveRoom(room.id); }}>{tr("Supprimer")}</button>
-                    </div>
-                  ) : null}
-                </div>
+                </RowActionMenu>
               </td>
             </tr>
           ))}</tbody>
         </table>
-      </div>
+      </ResponsiveDataTable>
     </section>
   );
 }

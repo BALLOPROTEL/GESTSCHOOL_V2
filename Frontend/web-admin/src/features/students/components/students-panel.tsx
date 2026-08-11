@@ -5,6 +5,9 @@ import { fieldError } from "../../../shared/utils/form-ui";
 import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm } from "../types/students";
 import { useI18n } from "../../../shared/i18n-context";
 import { ResponsiveForm } from "../../../shared/components/responsive-form";
+import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
+import { ResponsiveFilterPanel } from "../../../shared/components/responsive-filter-panel";
+import { RowActionMenu } from "../../../shared/components/row-action-menu";
 
 
 type StudentsPanelProps = {
@@ -383,7 +386,11 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
 
       {studentWorkflowStep === "list" ? (
         <>
-          <section className="panel students-v3-filter-card" aria-label={tr("Filtres élèves")}>
+          <ResponsiveFilterPanel
+            className="panel students-v3-filter-card"
+            title={tr("Filtres élèves")}
+            activeCount={[studentSearch, statusFilter !== "ALL" ? statusFilter : "", trackFilter !== "ALL" ? trackFilter : ""].filter(Boolean).length}
+          >
             <label className="students-v3-search-field">
               <span>{tr("Recherche rapide")}</span>
               <input
@@ -417,7 +424,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
             </label>
             <button type="button" className="button-ghost" onClick={resetListFilters} disabled={!hasListFilters}>
               {tr("Réinitialiser")}</button>
-          </section>
+          </ResponsiveFilterPanel>
 
           <section className="panel table-panel module-modern students-list-panel students-v3-table-card">
             <div className="students-v3-table-head">
@@ -429,7 +436,7 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                 {studentsLoading ? tr("Synchronisation en cours") : `${students.length} dossier(s)`}
               </span>
             </div>
-            <div className="table-wrap">
+            <ResponsiveDataTable label={tr("Base élèves")}>
               <table className="students-v3-table" data-responsive-table="true">
                 <thead>
                   <tr>
@@ -478,18 +485,13 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                           </span>
                         </td>
                         <td data-label={tr("Actions")}>
-                          <div className="students-v3-action-cell v3-action-cell">
-                            <button
-                              type="button"
-                              className="students-v3-more-button v3-more-button"
-                              aria-label={`Actions pour ${getStudentDisplayName(item)}`}
-                              aria-expanded={openActionMenuId === item.id}
-                              onClick={() => toggleActionMenu(item.id)}
-                            >
-                              <span aria-hidden="true">...</span>
-                            </button>
-                            {openActionMenuId === item.id ? (
-                              <div className="students-v3-action-menu v3-action-menu" role="menu">
+                          <RowActionMenu
+                            label={`${tr("Actions pour")} ${getStudentDisplayName(item)}`}
+                            open={openActionMenuId === item.id}
+                            onOpenChange={(open) => (open ? toggleActionMenu(item.id) : closeActionMenu())}
+                            triggerClassName="students-v3-more-button"
+                            menuClassName="students-v3-action-menu"
+                          >
                                 <button
                                   type="button"
                                   role="menuitem"
@@ -518,16 +520,14 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
                                   }}
                                 >
                                   {tr("Archiver")}</button>
-                              </div>
-                            ) : null}
-                          </div>
+                          </RowActionMenu>
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveDataTable>
             {selectedStudent ? (
               <aside className="students-detail-panel" aria-label={tr("Dossier consulté")}>
                 <div className="table-header">

@@ -14,6 +14,9 @@ import type {
 } from "../../shared/types/app";
 import { translateUiString, type UiLanguage } from "../../shared/i18n";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
+import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
+import { RowActionMenu } from "../../shared/components/row-action-menu";
 import { useEnrollmentsData } from "./hooks/use-enrollments-data";
 import type { EnrollmentsApiClient } from "./types/enrollments";
 
@@ -390,25 +393,29 @@ export function EnrollmentsScreen({
         </section>
       ) : (
         <>
-          <section className="panel enrollments-v3-filter-card" aria-label="Filtres inscriptions">
+          <ResponsiveFilterPanel
+            className="panel enrollments-v3-filter-card"
+            title={t("Filtres inscriptions")}
+            activeCount={[enrollmentSearch, enrollmentFilters.schoolYearId, enrollmentFilters.classId, enrollmentFilters.enrollmentStatus].filter(Boolean).length}
+          >
             <label className="enrollments-v3-search-field">
-              <span>Recherche rapide</span>
+              <span>{t("Recherche rapide")}</span>
               <input
                 className="search-input"
-                placeholder="Nom, matricule, classe ou année..."
+                placeholder={t("Nom, matricule, classe ou année...")}
                 value={enrollmentSearch}
                 onChange={(event) => setEnrollmentSearch(event.target.value)}
               />
             </label>
             <label className="enrollments-v3-filter-field">
-              <span>Année scolaire</span>
+              <span>{t("Année scolaire")}</span>
               <select
                 value={enrollmentFilters.schoolYearId}
                 onChange={(event) =>
                   setEnrollmentFilters((prev) => ({ ...prev, schoolYearId: event.target.value }))
                 }
               >
-                <option value="">Toutes les années</option>
+                <option value="">{t("Toutes les années")}</option>
                 {schoolYears.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code}
@@ -417,14 +424,14 @@ export function EnrollmentsScreen({
               </select>
             </label>
             <label className="enrollments-v3-filter-field">
-              <span>Classe</span>
+              <span>{t("Classe")}</span>
               <select
                 value={enrollmentFilters.classId}
                 onChange={(event) =>
                   setEnrollmentFilters((prev) => ({ ...prev, classId: event.target.value }))
                 }
               >
-                <option value="">Toutes les classes</option>
+                <option value="">{t("Toutes les classes")}</option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.code}
@@ -433,14 +440,14 @@ export function EnrollmentsScreen({
               </select>
             </label>
             <label className="enrollments-v3-filter-field">
-              <span>Statut</span>
+              <span>{t("Statut")}</span>
               <select
                 value={enrollmentFilters.enrollmentStatus}
                 onChange={(event) =>
                   setEnrollmentFilters((prev) => ({ ...prev, enrollmentStatus: event.target.value }))
                 }
               >
-                <option value="">Tous les statuts</option>
+                <option value="">{t("Tous les statuts")}</option>
                 {ENROLLMENT_STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
                     {formatEnrollmentStatusLabel(status)}
@@ -449,9 +456,9 @@ export function EnrollmentsScreen({
               </select>
             </label>
             <button type="button" className="button-ghost" onClick={resetListFilters} disabled={!hasListFilters}>
-              Réinitialiser
+              {t("Réinitialiser")}
             </button>
-          </section>
+          </ResponsiveFilterPanel>
 
           <section
             id="enrollments-list"
@@ -470,7 +477,7 @@ export function EnrollmentsScreen({
                 {pluralize(enrollments.length, "dossier", "dossiers")}
               </span>
             </div>
-            <div className="table-wrap">
+            <ResponsiveDataTable label={t("Liste des inscriptions")}>
               <table className="enrollments-v3-table" data-responsive-table="true">
                 <thead>
                   <tr>
@@ -530,53 +537,46 @@ export function EnrollmentsScreen({
                             </span>
                           </td>
                           <td data-label={t("Actions")}>
-                            <div className="enrollments-v3-action-cell v3-action-cell">
-                              <button
-                                type="button"
-                                className="enrollments-v3-more-button v3-more-button"
-                                aria-label={`Actions inscription ${studentName}`}
-                                aria-expanded={openActionMenuId === item.id}
-                                onClick={() => toggleActionMenu(item.id)}
-                              >
-                                <span aria-hidden="true">...</span>
-                              </button>
-                              {openActionMenuId === item.id ? (
-                                <div className="enrollments-v3-action-menu v3-action-menu" role="menu">
+                            <RowActionMenu
+                              label={`${t("Actions inscription")} ${studentName}`}
+                              open={openActionMenuId === item.id}
+                              onOpenChange={(open) => (open ? toggleActionMenu(item.id) : closeActionMenu())}
+                              triggerClassName="enrollments-v3-more-button"
+                              menuClassName="enrollments-v3-action-menu"
+                            >
                                   <button
                                     type="button"
                                     role="menuitem"
-                                    onClick={() => {
-                                      closeActionMenu();
-                                      setSelectedEnrollmentId(item.id);
-                                    }}
-                                  >
-                                    Voir
+                                  onClick={() => {
+                                    closeActionMenu();
+                                    setSelectedEnrollmentId(item.id);
+                                  }}
+                                >
+                                    {t("Voir")}
                                   </button>
                                   <button
                                     type="button"
                                     role="menuitem"
-                                    onClick={() => {
-                                      closeActionMenu();
-                                      setSelectedEnrollmentId(null);
-                                      startEnrollmentEdit(item);
-                                    }}
-                                  >
-                                    Modifier
+                                  onClick={() => {
+                                    closeActionMenu();
+                                    setSelectedEnrollmentId(null);
+                                    startEnrollmentEdit(item);
+                                  }}
+                                >
+                                    {t("Modifier")}
                                   </button>
                                   <button
                                     type="button"
                                     role="menuitem"
                                     className="is-danger"
-                                    onClick={() => {
-                                      closeActionMenu();
-                                      void deleteEnrollment(item.id);
-                                    }}
-                                  >
-                                    Supprimer
+                                  onClick={() => {
+                                    closeActionMenu();
+                                    void deleteEnrollment(item.id);
+                                  }}
+                                >
+                                    {t("Supprimer")}
                                   </button>
-                                </div>
-                              ) : null}
-                            </div>
+                            </RowActionMenu>
                           </td>
                         </tr>
                       );
@@ -584,7 +584,7 @@ export function EnrollmentsScreen({
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveDataTable>
             {selectedEnrollment ? (
               <aside className="enrollments-v3-detail-panel" aria-label="Inscription consultée">
                 <div className="table-header">

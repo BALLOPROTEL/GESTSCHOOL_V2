@@ -58,6 +58,7 @@ import {
 import { useI18n } from "../shared/i18n-context";
 import { ResponsiveForm } from "../shared/components/responsive-form";
 import { useConfirmDialog } from "../shared/components/confirm-dialog";
+import { ResponsiveDataTable } from "../shared/components/responsive-data-table";
 
 
 type RoomsScreenProps = {
@@ -428,13 +429,13 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <label className="form-grid-span-full">{tr("Commentaire")}<input value={assignmentForm.comment} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Créer l'affectation")}</button></div>
           </ResponsiveForm>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Classe")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Statut")}</th><th>{tr("Action")}</th></tr></thead>
               <tbody>{selectedAssignments.length === 0 ? <tr><td colSpan={9} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedAssignments.map((item) => (
                 <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Type")}>{tr(assignmentTypeLabel(item.assignmentType))}</td><td data-label={tr("Classe")}>{item.classLabel || item.levelLabel || item.cycleLabel || "-"}</td><td data-label={tr("Matière")}>{item.subjectLabel || "-"}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(item.status))}</span></td><td data-label={tr("Action")}><button type="button" className="button-ghost" onClick={() => void archiveResource(`/rooms/assignments/${item.id}`, UI_MESSAGES.archived)}>{tr("Archiver")}</button></td></tr>
               ))}</tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       ) : null}
 
@@ -452,26 +453,26 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <label className="form-grid-span-full">{tr("Commentaire")}<input value={availabilityForm.comment} onChange={(event) => setAvailabilityForm((prev) => ({ ...prev, comment: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Déclarer une indisponibilité")}</button></div>
           </ResponsiveForm>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Jour")}</th><th>{tr("Début")}</th><th>{tr("Fin")}</th><th>{tr("Type")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Action")}</th></tr></thead>
               <tbody>{selectedAvailabilities.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune indisponibilité enregistrée.")}</td></tr> : selectedAvailabilities.map((item) => (
                 <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Jour")}>{tr(dayLabel(item.dayOfWeek))}</td><td data-label={tr("Début")}>{item.startTime || "-"}</td><td data-label={tr("Fin")}>{item.endTime || "-"}</td><td data-label={tr("Type")}>{tr(availabilityTypeLabel(item.availabilityType))}</td><td data-label={tr("Année")}>{item.schoolYearCode || "-"}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Action")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/rooms/availabilities/${item.id}`, UI_MESSAGES.deleted)}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       ) : null}
 
       {activeStep === "occupancy" ? (
         <section className="panel table-panel workflow-section module-modern teachers-panel">
           <div className="table-header"><div><p className="section-kicker">{tr("Occupation")}</p><h2>{tr("Synthèse d'occupation par salle")}</h2></div></div>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Capacité")}</th><th>{tr("Cursus")}</th><th>{tr("Affectations")}</th><th>{tr("FR")}</th><th>{tr("AR")}</th><th>{tr("Partage")}</th><th>{tr("Classes")}</th><th>{tr("Matières")}</th><th>{tr("Statut")}</th></tr></thead>
               <tbody>{occupancy.length === 0 ? <tr><td colSpan={11} className="empty-row">{tr("Aucune occupation calculée pour le moment.")}</td></tr> : occupancy.map((item) => (
                 <tr key={item.roomId}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Type")}>{item.roomTypeName || "-"}</td><td data-label={tr("Capacité")}>{item.capacity}</td><td data-label={tr("Cursus")}>{item.isSharedBetweenCurricula ? tr("Partagée") : tr(trackLabel(item.defaultTrack))}</td><td data-label={tr("Affectations")}>{item.assignmentsCount}</td><td data-label={tr("FR")}>{item.francophoneAssignmentsCount}</td><td data-label={tr("AR")}>{item.arabophoneAssignmentsCount}</td><td data-label={tr("Partage")}>{item.sharedAssignmentsCount}</td><td data-label={tr("Classes")}>{item.classes.join(", ") || "-"}</td><td data-label={tr("Matières")}>{item.subjects.join(", ") || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(item.status))}</span></td></tr>
               ))}</tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       ) : null}
 
@@ -485,13 +486,13 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
             <label className="form-grid-span-full">{tr("Description")}<input value={roomTypeForm.description} onChange={(event) => setRoomTypeForm((prev) => ({ ...prev, description: event.target.value }))} /></label>
             <div className="actions"><button type="submit">{tr("Ajouter le type")}</button></div>
           </ResponsiveForm>
-          <div className="table-wrap">
+          <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Code")}</th><th>{tr("Nom")}</th><th>{tr("Description")}</th><th>{tr("Statut")}</th></tr></thead>
               <tbody>{roomTypes.length === 0 ? <tr><td colSpan={4} className="empty-row">{tr("Aucun type de salle enregistré.")}</td></tr> : roomTypes.map((type) => (
                 <tr key={type.id}><td data-label={tr("Code")}>{type.code}</td><td data-label={tr("Nom")}>{type.name}</td><td data-label={tr("Description")}>{type.description || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(type.status))}</span></td></tr>
               ))}</tbody>
             </table>
-          </div>
+          </ResponsiveDataTable>
         </section>
       ) : null}
       </div>

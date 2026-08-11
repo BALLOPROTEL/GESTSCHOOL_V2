@@ -3,6 +3,8 @@ import { useState } from "react";
 import type { ParentRecord } from "../../../shared/types/app";
 import { SCHOOL_NAME, roleLabel, statusLabel, statusPillClassName } from "../parents-screen-model";
 import { useI18n } from "../../../shared/i18n-context";
+import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
+import { RowActionMenu } from "../../../shared/components/row-action-menu";
 
 
 const getParentInitials = (parent: ParentRecord): string => {
@@ -56,7 +58,7 @@ export function ParentsListSection(props: {
         </div>
         <p className="section-lead">
           {tr("Un responsable est une personne rattachée à un ou plusieurs élèves. Le compte portail reste optionnel.")}</p>
-        <div className="table-wrap">
+        <ResponsiveDataTable label={tr("Liste des responsables")}>
           <table data-responsive-table="true">
             <thead>
               <tr>
@@ -96,31 +98,22 @@ export function ParentsListSection(props: {
                       <span className={statusPillClassName(parent.status)}>{tr(statusLabel(parent.status))}</span>
                     </td>
                     <td data-label={tr("Actions")}>
-                      <div className="v3-action-cell">
-                        <button
-                          type="button"
-                          className="v3-more-button"
-                          aria-label={`Actions ${parent.fullName}`}
-                          aria-expanded={openParentActionMenuId === parent.id}
-                          onClick={() => setOpenParentActionMenuId((current) => (current === parent.id ? null : parent.id))}
-                        >
-                          <span aria-hidden="true">...</span>
-                        </button>
-                        {openParentActionMenuId === parent.id ? (
-                          <div className="v3-action-menu" role="menu">
+                      <RowActionMenu
+                        label={`${tr("Actions")} ${parent.fullName}`}
+                        open={openParentActionMenuId === parent.id}
+                        onOpenChange={(open) => setOpenParentActionMenuId(open ? parent.id : null)}
+                      >
                             <button type="button" onClick={() => { setOpenParentActionMenuId(null); onSelectParent(parent.id); }}>{tr("Voir")}</button>
                             <button type="button" onClick={() => { setOpenParentActionMenuId(null); onEditParent(parent); }}>{tr("Modifier")}</button>
                             <button type="button" className="is-danger" onClick={() => { setOpenParentActionMenuId(null); onArchiveParent(parent.id); }}>{tr("Archiver")}</button>
-                          </div>
-                        ) : null}
-                      </div>
+                      </RowActionMenu>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
 
       {selectedParent ? (

@@ -14,6 +14,9 @@ import {
   trackLabel
 } from "../teachers-screen-model";
 import { useI18n } from "../../../shared/i18n-context";
+import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
+import { ResponsiveFilterPanel } from "../../../shared/components/responsive-filter-panel";
+import { RowActionMenu } from "../../../shared/components/row-action-menu";
 
 
 const teacherInitials = (teacher: TeacherRecord): string => {
@@ -65,7 +68,11 @@ export function TeachersListSection(props: {
 
   return (
     <>
-      <section className="panel teachers-v3-filter-card" aria-label={t("Filtres enseignants")}>
+      <ResponsiveFilterPanel
+        className="panel teachers-v3-filter-card"
+        title={t("Filtres enseignants")}
+        activeCount={Object.values(filters).filter((value) => value.trim().length > 0).length}
+      >
         <label className="teachers-v3-search-field">
           <span>{t("Recherche rapide")}</span>
           <input
@@ -130,7 +137,7 @@ export function TeachersListSection(props: {
             {t("Réinitialiser")}
           </button>
         </div>
-      </section>
+      </ResponsiveFilterPanel>
 
       <section className="panel table-panel module-modern teachers-v3-table-card">
         <div className="teachers-v3-table-head">
@@ -140,7 +147,7 @@ export function TeachersListSection(props: {
           </div>
           <span className="students-overview-status">{pluralize(teachers.length, "enseignant", "enseignants")}</span>
         </div>
-        <div className="table-wrap">
+        <ResponsiveDataTable label={t("Base enseignants")}>
           <table className="teachers-v3-table" data-responsive-table="true">
             <thead>
               <tr>
@@ -191,18 +198,13 @@ export function TeachersListSection(props: {
                     <span className={statusPillClass(teacher.status)}>{t(teacherStatusLabel(teacher.status))}</span>
                   </td>
                   <td data-label={t("Actions")}>
-                    <div className="teachers-v3-action-cell v3-action-cell">
-                      <button
-                        type="button"
-                        className="teachers-v3-more-button v3-more-button"
-                        aria-label={`${t("Actions enseignant")} ${teacher.fullName}`}
-                        aria-expanded={openActionMenuId === teacher.id}
-                        onClick={() => toggleActionMenu(teacher.id)}
-                      >
-                        <span aria-hidden="true">...</span>
-                      </button>
-                      {openActionMenuId === teacher.id ? (
-                        <div className="teachers-v3-action-menu v3-action-menu" role="menu">
+                    <RowActionMenu
+                      label={`${t("Actions enseignant")} ${teacher.fullName}`}
+                      open={openActionMenuId === teacher.id}
+                      onOpenChange={(open) => (open ? toggleActionMenu(teacher.id) : closeActionMenu())}
+                      triggerClassName="teachers-v3-more-button"
+                      menuClassName="teachers-v3-action-menu"
+                    >
                           <button
                             type="button"
                             role="menuitem"
@@ -234,15 +236,13 @@ export function TeachersListSection(props: {
                           >
                             {t("Archiver")}
                           </button>
-                        </div>
-                      ) : null}
-                    </div>
+                    </RowActionMenu>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </ResponsiveDataTable>
       </section>
     </>
   );

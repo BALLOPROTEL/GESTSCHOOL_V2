@@ -3,6 +3,7 @@
   --gs-responsive-z-form: 645;
   --gs-responsive-z-confirm: 650;
   --gs-responsive-form-width: 42rem;
+  --gs-responsive-filter-width: 30rem;
 }
 
 .responsive-form-header,
@@ -12,6 +13,79 @@
 
 .responsive-form-boundary {
   display: contents;
+}
+
+.responsive-filter-boundary {
+  display: contents;
+}
+
+.responsive-filter-trigger,
+.responsive-filter-header {
+  display: none;
+}
+
+.responsive-filter-layer {
+  position: fixed;
+  z-index: var(--gs-responsive-z-form-backdrop);
+  inset: 0;
+  isolation: isolate;
+}
+
+.responsive-filter-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: rgb(4 12 28 / 64%);
+  backdrop-filter: blur(3px);
+}
+
+.responsive-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-block-start: 1rem;
+}
+
+.responsive-pagination button {
+  display: inline-flex;
+  min-height: var(--gs-responsive-touch-target, 2.75rem);
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.responsive-pagination-status {
+  color: var(--muted);
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+  :root .v3-more-button {
+    width: var(--gs-responsive-touch-target, 2.75rem);
+    min-width: var(--gs-responsive-touch-target, 2.75rem);
+    min-height: var(--gs-responsive-touch-target, 2.75rem);
+  }
+
+  :root .v3-action-menu.v3-action-menu-portal button {
+    min-height: var(--gs-responsive-touch-target, 2.75rem);
+  }
+}
+
+:root .v3-action-menu.v3-action-menu-portal {
+  position: fixed;
+  z-index: 900;
+  inset: auto;
+  min-width: min(var(--table-action-menu-width, 11.25rem), calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+  max-height: min(22rem, calc(100dvh - 1rem));
+  overflow: auto;
+  overscroll-behavior: contain;
+  transform: none;
 }
 
 html.responsive-form-overlay-open,
@@ -89,6 +163,91 @@ html.responsive-form-overlay-open body {
 }
 
 @media (max-width: 1023px) {
+  .responsive-filter-trigger {
+    display: inline-flex;
+    min-height: var(--gs-responsive-touch-target);
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-block: 0.75rem;
+  }
+
+  .responsive-filter-trigger strong {
+    min-width: 1.55rem;
+    min-height: 1.55rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--flexadm-primary, #2f64eb);
+    color: #ffffff;
+    font-size: 0.72rem;
+  }
+
+  .responsive-filter-panel {
+    position: fixed;
+    z-index: var(--gs-responsive-z-form);
+    inset-block: 0;
+    inset-inline-end: 0;
+    width: min(100%, var(--gs-responsive-filter-width));
+    max-height: 100dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    display: grid;
+    align-content: start;
+    gap: 0.85rem;
+    padding: 0 max(1rem, var(--gs-responsive-safe-right)) max(1rem, var(--gs-responsive-safe-bottom)) max(1rem, var(--gs-responsive-safe-left));
+    border: 0;
+    border-inline-start: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--panel);
+    color: var(--ink-900);
+    box-shadow: var(--shadow-lg, 0 1.5rem 4rem rgb(0 0 0 / 26%));
+  }
+
+  .responsive-filter-header {
+    position: sticky;
+    z-index: 2;
+    inset-block-start: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-inline: calc(-1 * max(1rem, var(--gs-responsive-safe-right)));
+    padding: max(1rem, var(--gs-responsive-safe-top)) max(1rem, var(--gs-responsive-safe-right)) 1rem;
+    border-block-end: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .responsive-filter-header h2,
+  .responsive-filter-header p {
+    margin: 0;
+  }
+
+  .responsive-filter-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .responsive-filter-header p {
+    margin-block-start: 0.25rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  .responsive-filter-header button {
+    width: var(--gs-responsive-touch-target);
+    min-width: var(--gs-responsive-touch-target);
+    min-height: var(--gs-responsive-touch-target);
+    padding: 0;
+  }
+
+  .responsive-filter-panel label,
+  .responsive-filter-panel input,
+  .responsive-filter-panel select,
+  .responsive-filter-panel button {
+    min-height: var(--gs-responsive-touch-target);
+  }
+
   .responsive-form-trigger {
     display: inline-flex;
     width: fit-content;
@@ -204,6 +363,24 @@ html.responsive-form-overlay-open body {
 }
 
 @media (max-width: 767px) {
+  .responsive-filter-trigger {
+    width: 100%;
+  }
+
+  .responsive-filter-panel {
+    inset: 0;
+    width: 100%;
+  }
+
+  .responsive-pagination-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
   .responsive-form-trigger {
     width: 100%;
   }
