@@ -27,6 +27,7 @@ import "./styles/mobile-product.css";
 import "./styles/v3-module-unification.css";
 import "./styles/navigation-responsive.css";
 import "./styles/responsive-forms.css";
+import "./styles/responsive-dashboard.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

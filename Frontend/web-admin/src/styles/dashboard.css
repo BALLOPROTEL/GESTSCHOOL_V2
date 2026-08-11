@@ -3,10 +3,6 @@
   gap: clamp(1rem, 1.5vw, 1.35rem);
 }
 
-.dashboard-kpi-grid-flex {
-  align-items: stretch;
-}
-
 .kpi-card-flex {
   min-height: 7.15rem;
 }

@@ -13,6 +13,10 @@ import type { FinanceApiClient, FinanceData } from "./types/finance";
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
 import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import {
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../../shared/components/responsive-dashboard";
 import { RowActionMenu } from "../../shared/components/row-action-menu";
 
 type FinanceScreenProps = {
@@ -197,28 +201,12 @@ export function FinanceScreen({
           </div>
           <p className="section-lead">
             {tr("Suivez les montants facturés, encaissés et restant à recouvrer pour l’année scolaire sélectionnée.")}</p>
-          <div className="module-overview-grid">
-            <article className="module-overview-card">
-              <span>{tr("Total facturé")}</span>
-              <strong>{formatMoney(recovery?.totals.amountDue || 0)}</strong>
-              <small>{tr("Factures émises")}</small>
-            </article>
-            <article className="module-overview-card">
-              <span>{tr("Montant encaissé")}</span>
-              <strong>{formatMoney(recovery?.totals.amountPaid || 0)}</strong>
-              <small>{tr("Paiements confirmés")}</small>
-            </article>
-            <article className="module-overview-card">
-              <span>{tr("Reste à recouvrer")}</span>
-              <strong>{formatMoney(recovery?.totals.remainingAmount || 0)}</strong>
-              <small>{tr("Suivi des impayés")}</small>
-            </article>
-            <article className="module-overview-card">
-              <span>{tr("Factures en retard")}</span>
-              <strong>{overdueInvoicesCount}</strong>
-              <small>{tr("Relances prioritaires")}</small>
-            </article>
-          </div>
+          <ResponsiveKpiGrid label={tr("Synthèse du recouvrement")}>
+            <ResponsiveKpiCard className="module-overview-card" label={tr("Total facturé")} value={formatMoney(recovery?.totals.amountDue || 0)} hint={tr("Factures émises")} />
+            <ResponsiveKpiCard className="module-overview-card" label={tr("Montant encaissé")} value={formatMoney(recovery?.totals.amountPaid || 0)} hint={tr("Paiements confirmés")} tone="positive" />
+            <ResponsiveKpiCard className="module-overview-card" label={tr("Reste à recouvrer")} value={formatMoney(recovery?.totals.remainingAmount || 0)} hint={tr("Suivi des impayés")} tone="warning" />
+            <ResponsiveKpiCard className="module-overview-card" label={tr("Factures en retard")} value={overdueInvoicesCount} hint={tr("Relances prioritaires")} tone={overdueInvoicesCount > 0 ? "negative" : "neutral"} />
+          </ResponsiveKpiGrid>
           <div className="module-inline-strip">
             <span className="module-inline-pill">{tr("Factures ouvertes : ")}{openInvoicesCount}</span>
             <span className="module-inline-pill">
@@ -240,36 +228,15 @@ export function FinanceScreen({
           <span className="module-header-badge">{tr("Pilotage journalier")}</span>
         </div>
         <p className="section-lead">{tr("Suivez la santé financière avant de passer aux opérations de saisie.")}</p>
-        <div className="metrics-grid">
-          <article className="metric-card">
-            <span>{tr("Total dû")}</span>
-            <strong>{formatMoney(recovery?.totals.amountDue || 0)}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Montant encaissé")}</span>
-            <strong>{formatMoney(recovery?.totals.amountPaid || 0)}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Reste à recouvrer")}</span>
-            <strong>{formatMoney(recovery?.totals.remainingAmount || 0)}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Taux de recouvrement")}</span>
-            <strong>{(recovery?.totals.recoveryRatePercent || 0).toFixed(2)}%</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Factures ouvertes")}</span>
-            <strong>{openInvoicesCount}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Factures en retard")}</span>
-            <strong>{overdueInvoicesCount}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Paiements reçus")}</span>
-            <strong>{payments.length}</strong>
-          </article>
-        </div>
+        <ResponsiveKpiGrid label={tr("Synthèse du recouvrement")} priority="secondary">
+          <ResponsiveKpiCard className="metric-card" label={tr("Total dû")} value={formatMoney(recovery?.totals.amountDue || 0)} priority="secondary" />
+          <ResponsiveKpiCard className="metric-card" label={tr("Montant encaissé")} value={formatMoney(recovery?.totals.amountPaid || 0)} priority="secondary" tone="positive" />
+          <ResponsiveKpiCard className="metric-card" label={tr("Reste à recouvrer")} value={formatMoney(recovery?.totals.remainingAmount || 0)} priority="secondary" tone="warning" />
+          <ResponsiveKpiCard className="metric-card" label={tr("Taux de recouvrement")} value={`${(recovery?.totals.recoveryRatePercent || 0).toFixed(2)}%`} priority="secondary" />
+          <ResponsiveKpiCard className="metric-card" label={tr("Factures ouvertes")} value={openInvoicesCount} priority="secondary" />
+          <ResponsiveKpiCard className="metric-card" label={tr("Factures en retard")} value={overdueInvoicesCount} priority="secondary" tone={overdueInvoicesCount > 0 ? "negative" : "neutral"} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Paiements reçus")} value={payments.length} priority="secondary" />
+        </ResponsiveKpiGrid>
         <div className="actions">
           <button type="button" className="button-ghost" onClick={() => void loadFinance()}>
             {tr("Recharger la comptabilité")}</button>

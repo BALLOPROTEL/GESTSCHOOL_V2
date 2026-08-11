@@ -2082,7 +2082,7 @@ tbody tr:hover td {
   padding-inline-start: 0.86rem;
 }
 
-:root:not([data-theme="dark"]) :where(.kpi-card-label, .metric-card span, .module-overview-card span, .students-overview-card span) {
+:root:not([data-theme="dark"]) :where(.metric-card span, .module-overview-card span, .students-overview-card span) {
   color: #415166;
 }
 
@@ -2123,14 +2123,6 @@ tbody tr:hover td {
   border-color: var(--erp-border);
   background: #ffffff;
   color: var(--erp-text);
-}
-
-:root:not([data-theme="dark"]) .kpi-card-progress {
-  background: #dbe4ee;
-}
-
-:root:not([data-theme="dark"]) .kpi-card-progress span {
-  background: var(--erp-button-primary-bg);
 }
 
 .module-card {
@@ -2914,8 +2906,6 @@ code {
     letter-spacing: 0;
   }
 
-  .dashboard-kpi-grid-flex,
-  .module-overview-grid,
   .module-grid,
   .students-overview-grid,
   .teachers-detail-grid {

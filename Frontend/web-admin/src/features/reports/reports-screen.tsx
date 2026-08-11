@@ -12,6 +12,11 @@ import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
 import { ResponsivePagination } from "../../shared/components/responsive-pagination";
 import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
+import {
+  ResponsiveChartCard,
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../../shared/components/responsive-dashboard";
 
 
 type ReportsScreenProps = {
@@ -62,8 +67,15 @@ export function ReportsScreen({
   ): JSX.Element => {
     const max = Math.max(...points.map((point) => point.value), 0);
     return (
-      <article className="panel trend-panel">
-        <h4>{title}</h4>
+      <ResponsiveChartCard
+        className="panel trend-panel"
+        title={title}
+        chartLabel={title}
+        summary={points.map((point) => ({
+          label: point.label,
+          value: unit === "amount" ? formatMoney(point.value) : point.value.toLocaleString(locale)
+        }))}
+      >
         <div className="trend-list">
           {points.length === 0 ? (
             <p className="subtle">{tr("Aucune donnee.")}</p>
@@ -87,7 +99,7 @@ export function ReportsScreen({
             ))
           )}
         </div>
-      </article>
+      </ResponsiveChartCard>
     );
   };
 
@@ -164,53 +176,18 @@ export function ReportsScreen({
           </div>
           </form>
         </ResponsiveFilterPanel>
-        <div className="metrics-grid reports-grid">
-          <article className="metric-card">
-            <span>{tr("Eleves actifs")}</span>
-            <strong>{analyticsOverview?.students.active ?? 0}</strong>
-            <small className="subtle">
-              +{analyticsOverview?.students.createdInWindow ?? 0} {tr("sur la periode")}</small>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Inscriptions actives")}</span>
-            <strong>{analyticsOverview?.academics.activeEnrollments ?? 0}</strong>
-            <small className="subtle">
-              {analyticsOverview?.academics.classes ?? 0} {tr("classes surveillees")}</small>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Recouvrement")}</span>
-            <strong>
-              {(analyticsOverview?.finance.recoveryRatePercent ?? 0).toFixed(1)}%
-            </strong>
-            <small className="subtle">
-              {tr("Reste ")}{formatMoney(analyticsOverview?.finance.remainingAmount ?? 0)}
-            </small>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Absences")}</span>
-            <strong>{analyticsOverview?.schoolLife.absences ?? 0}</strong>
-            <small className="subtle">
-              {analyticsOverview?.schoolLife.justificationRatePercent?.toFixed(1) ?? "0.0"}{tr("% justifiees")}</small>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Dons mosquee")}</span>
-            <strong>
-              {formatMoney(analyticsOverview?.mosquee.donationsInWindow ?? 0)}
-            </strong>
-            <small className="subtle">
-              {analyticsOverview?.mosquee.donationsCountInWindow ?? 0} {tr("transactions")}</small>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Alertes notifications")}</span>
-            <strong>{analyticsOverview?.schoolLife.notificationsFailed ?? 0}</strong>
-            <small className="subtle">
-              {analyticsOverview?.schoolLife.notificationsQueued ?? 0} {tr("en attente")}</small>
-          </article>
-        </div>
+        <ResponsiveKpiGrid className="reports-grid" label={tr("Indicateurs executifs")}>
+          <ResponsiveKpiCard className="metric-card" label={tr("Eleves actifs")} value={analyticsOverview?.students.active ?? 0} hint={<>+{analyticsOverview?.students.createdInWindow ?? 0} {tr("sur la periode")}</>} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Inscriptions actives")} value={analyticsOverview?.academics.activeEnrollments ?? 0} hint={<>{analyticsOverview?.academics.classes ?? 0} {tr("classes surveillees")}</>} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Recouvrement")} value={`${(analyticsOverview?.finance.recoveryRatePercent ?? 0).toFixed(1)}%`} hint={<>{tr("Reste ")}{formatMoney(analyticsOverview?.finance.remainingAmount ?? 0)}</>} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Absences")} value={analyticsOverview?.schoolLife.absences ?? 0} hint={<>{analyticsOverview?.schoolLife.justificationRatePercent?.toFixed(1) ?? "0.0"}{tr("% justifiees")}</>} tone={(analyticsOverview?.schoolLife.absences ?? 0) > 0 ? "warning" : "neutral"} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Dons mosquee")} value={formatMoney(analyticsOverview?.mosquee.donationsInWindow ?? 0)} hint={<>{analyticsOverview?.mosquee.donationsCountInWindow ?? 0} {tr("transactions")}</>} priority="secondary" />
+          <ResponsiveKpiCard className="metric-card" label={tr("Alertes notifications")} value={analyticsOverview?.schoolLife.notificationsFailed ?? 0} hint={<>{analyticsOverview?.schoolLife.notificationsQueued ?? 0} {tr("en attente")}</>} priority="secondary" tone={(analyticsOverview?.schoolLife.notificationsFailed ?? 0) > 0 ? "negative" : "neutral"} />
+        </ResponsiveKpiGrid>
         <div className="split-grid">
-          {renderTrend("Paiements mensuels", analyticsOverview?.trends.payments || [], "amount")}
-          {renderTrend("Dons mensuels", analyticsOverview?.trends.donations || [], "amount")}
-          {renderTrend("Absences mensuelles", analyticsOverview?.trends.absences || [], "count")}
+          {renderTrend(tr("Paiements mensuels"), analyticsOverview?.trends.payments || [], "amount")}
+          {renderTrend(tr("Dons mensuels"), analyticsOverview?.trends.donations || [], "amount")}
+          {renderTrend(tr("Absences mensuelles"), analyticsOverview?.trends.absences || [], "count")}
         </div>
       </section>
 

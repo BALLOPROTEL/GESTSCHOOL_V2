@@ -148,10 +148,6 @@
   margin-bottom: 0.65rem;
 }
 
-.reports-grid {
-  margin-bottom: 0.8rem;
-}
-
 .trend-panel {
   border: 1px solid var(--line);
   border-radius: 0.9rem;
@@ -222,12 +218,6 @@
   gap: 0.3rem;
 }
 
-.metrics-grid {
-  display: grid;
-  gap: 0.62rem;
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-}
-
 .metric-card {
   position: relative;
   overflow: hidden;
@@ -271,12 +261,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-.dashboard-kpi-grid {
-  display: grid;
-  gap: 0.72rem;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .kpi-card {

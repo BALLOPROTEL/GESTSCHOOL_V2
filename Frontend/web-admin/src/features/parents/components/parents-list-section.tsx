@@ -4,6 +4,7 @@ import type { ParentRecord } from "../../../shared/types/app";
 import { SCHOOL_NAME, roleLabel, statusLabel, statusPillClassName } from "../parents-screen-model";
 import { useI18n } from "../../../shared/i18n-context";
 import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
+import { ResponsiveKpiCard } from "../../../shared/components/responsive-dashboard";
 import { RowActionMenu } from "../../../shared/components/row-action-menu";
 
 
@@ -126,26 +127,10 @@ export function ParentsListSection(props: {
             <span className={statusPillClassName(selectedParent.status)}>{tr(statusLabel(selectedParent.status))}</span>
           </div>
           <div className="students-overview-grid">
-            <article className="students-overview-card">
-              <span>{tr("Rôle")}</span>
-              <strong>{tr(roleLabel(selectedParent.parentalRole))}</strong>
-              <small>{selectedParent.userUsername ? tr("Compte portail lié") : tr("Aucun compte portail")}</small>
-            </article>
-            <article className="students-overview-card">
-              <span>{tr("Contact")}</span>
-              <strong>{selectedParent.primaryPhone}</strong>
-              <small>{selectedParent.email || tr("Email non renseigné")}</small>
-            </article>
-            <article className="students-overview-card">
-              <span>{tr("Élèves liés")}</span>
-              <strong>{selectedParent.childrenCount}</strong>
-              <small>{selectedParent.primaryChildrenCount} {tr("contact principal")}</small>
-            </article>
-            <article className="students-overview-card">
-              <span>{tr("Établissement")}</span>
-              <strong>{SCHOOL_NAME}</strong>
-              <small>{selectedParent.profession || tr("Profession non renseignée")}</small>
-            </article>
+            <ResponsiveKpiCard className="students-overview-card" label={tr("Rôle")} value={tr(roleLabel(selectedParent.parentalRole))} hint={selectedParent.userUsername ? tr("Compte portail lié") : tr("Aucun compte portail")} priority="detail" />
+            <ResponsiveKpiCard className="students-overview-card" label={tr("Contact")} value={selectedParent.primaryPhone} hint={selectedParent.email || tr("Email non renseigné")} priority="detail" />
+            <ResponsiveKpiCard className="students-overview-card" label={tr("Élèves liés")} value={selectedParent.childrenCount} hint={<>{selectedParent.primaryChildrenCount} {tr("contact principal")}</>} priority="detail" />
+            <ResponsiveKpiCard className="students-overview-card" label={tr("Établissement")} value={SCHOOL_NAME} hint={selectedParent.profession || tr("Profession non renseignée")} priority="detail" />
           </div>
         </section>
       ) : null}

@@ -193,15 +193,35 @@ describe("declarative i18n", () => {
 
   it("traduit les libellés dynamiques des indicateurs de notes", () => {
     for (const source of [
+      "Vue d’ensemble",
       "Contexte appliqué",
       "Dans le contexte choisi",
+      "Notes saisies",
+      "Élèves concernés",
+      "Matières évaluées",
       "Matières avec notes",
       "Calculées le",
       "Bulletins générés le",
-      "Moyennes et rangs calculés le"
+      "Moyennes et rangs calculés le",
+      "Tous les cursus",
+      "Choisissez l’année scolaire, la classe et la période avant de saisir, calculer ou générer les bulletins.",
+      "Afficher les données",
+      "Réinitialiser les filtres"
     ]) {
       expect(translateUiString("en", source)).not.toBe(source);
       expect(translateUiString("ar", source)).not.toBe(source);
+    }
+  });
+
+  it("traduit les synthèses financières compactes", () => {
+    for (const source of [
+      "% recouvrement",
+      "Factures ouvertes : ",
+      "Factures payées : ",
+      "Paiements reçus : "
+    ]) {
+      expect(translateUiString("en", source).trim()).not.toBe(source.trim());
+      expect(translateUiString("ar", source).trim()).not.toBe(source.trim());
     }
   });
 

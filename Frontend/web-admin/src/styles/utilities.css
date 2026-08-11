@@ -97,10 +97,7 @@ canvas {
 }
 
 :where(
-  .dashboard-kpi-grid,
-  .dashboard-kpi-grid-flex,
   .module-grid,
-  .module-overview-grid,
   .students-overview-grid,
   .teachers-detail-grid,
   .messages-side
@@ -109,11 +106,7 @@ canvas {
   gap: var(--responsive-space-2);
 }
 
-:where(
-  .dashboard-kpi-grid-flex,
-  .module-overview-grid,
-  .students-overview-grid
-) {
+:where(.students-overview-grid) {
   grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
 }
 
@@ -321,10 +314,7 @@ canvas {
   }
 
   :where(
-    .dashboard-kpi-grid,
-    .dashboard-kpi-grid-flex,
     .module-grid,
-    .module-overview-grid,
     .students-overview-grid,
     .teachers-detail-grid,
     .messages-side

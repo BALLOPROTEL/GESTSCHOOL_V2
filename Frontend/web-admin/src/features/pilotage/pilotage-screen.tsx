@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import "../../styles/pilotage.css";
 import type {
@@ -21,6 +21,10 @@ import { fetchGrades } from "../grades/services/grades-service";
 import { fetchAttendanceSummary, fetchNotifications } from "../school-life/services/school-life-service";
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
+import {
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../../shared/components/responsive-dashboard";
 
 
 type PilotageScreenProps = {
@@ -57,6 +61,7 @@ type KpiItem = {
   label: string;
   value: string | number | null;
   hint: string;
+  state?: "ready" | "loading" | "empty";
   tone?: "teal" | "blue" | "amber" | "green" | "red";
 };
 
@@ -112,25 +117,29 @@ const getActiveSchoolYear = (schoolYears: SchoolYear[]): SchoolYear | undefined 
   schoolYears.find((item) => normalizeStatus(item.status) === "ACTIVE") ??
   schoolYears[0];
 
-const metricValue = (
-  value: string | number | null,
-  status?: RemoteState<unknown>["status"]
-): string | number => {
-  if (status === "loading") return "Chargement";
-  if (value === null || value === undefined || value === "") return "Non disponible";
-  return value;
-};
-
 function PilotageKpiCard({ item }: { item: KpiItem }): JSX.Element {
+  const { t: tr } = useI18n();
+  const tone =
+    item.tone === "green"
+      ? "positive"
+      : item.tone === "amber"
+        ? "warning"
+        : item.tone === "red"
+          ? "negative"
+          : item.tone === "blue"
+            ? "info"
+            : "neutral";
+
   return (
-    <article
+    <ResponsiveKpiCard
       className={`pilotage-kpi pilotage-kpi--${item.tone ?? "teal"}`}
-      aria-label={`${item.label} : ${metricValue(item.value)}`}
-    >
-      <span className="pilotage-kpi__label">{item.label}</span>
-      <strong>{metricValue(item.value)}</strong>
-      <span className="pilotage-kpi__hint">{item.hint}</span>
-    </article>
+      ariaLabel={`${tr(item.label)} : ${item.value ?? tr("Non disponible")}`}
+      label={tr(item.label)}
+      value={item.value ?? ""}
+      hint={tr(item.hint)}
+      state={item.state ?? (item.value === null ? "empty" : "ready")}
+      tone={tone}
+    />
   );
 }
 
@@ -149,25 +158,25 @@ function PilotageDomainCard({
   actionLabel: string;
   onAction: () => void;
 }): JSX.Element {
+  const { t: tr } = useI18n();
+  const titleId = useId();
   return (
-    <section className="pilotage-card" aria-labelledby={`pilotage-${eyebrow}`}>
+    <section className="pilotage-card" aria-labelledby={titleId}>
       <div className="pilotage-card__header">
         <div>
-          <span id={`pilotage-${eyebrow}`} className="pilotage-eyebrow">
-            {eyebrow}
-          </span>
-          <h3>{title}</h3>
-          <p>{description}</p>
+          <span className="pilotage-eyebrow">{tr(eyebrow)}</span>
+          <h3 id={titleId}>{tr(title)}</h3>
+          <p>{tr(description)}</p>
         </div>
         <button type="button" className="button-ghost pilotage-card__action" onClick={onAction}>
-          {actionLabel}
+          {tr(actionLabel)}
         </button>
       </div>
-      <div className="pilotage-kpi-grid">
+      <ResponsiveKpiGrid desktopColumns={2} label={tr(title)} priority="secondary">
         {kpis.map((item) => (
           <PilotageKpiCard key={item.label} item={item} />
         ))}
-      </div>
+      </ResponsiveKpiGrid>
     </section>
   );
 }
@@ -192,15 +201,15 @@ function PilotageAlertList({
       <div className="pilotage-alert-list">
         {alerts.map((alert) => (
           <article key={alert.id} className={`pilotage-alert pilotage-alert--${alert.tone}`}>
-            <div className="pilotage-alert__count" aria-label={`${alert.label} : ${alert.value}`}>
-              {alert.value}
+            <div className="pilotage-alert__count" aria-label={`${tr(alert.label)} : ${typeof alert.value === "string" ? tr(alert.value) : alert.value}`}>
+              {typeof alert.value === "string" ? tr(alert.value) : alert.value}
             </div>
             <div className="pilotage-alert__body">
-              <strong>{alert.label}</strong>
-              <span>{alert.hint}</span>
+              <strong>{tr(alert.label)}</strong>
+              <span>{tr(alert.hint)}</span>
             </div>
             <button type="button" className="button-ghost" onClick={() => onSelectScreen(alert.screen)}>
-              {alert.actionLabel}
+              {tr(alert.actionLabel)}
             </button>
           </article>
         ))}
@@ -226,8 +235,8 @@ function PilotageQuickActions({
           className="pilotage-quick-action"
           onClick={() => onSelectScreen(action.screen)}
         >
-          <strong>{action.label}</strong>
-          <span>{action.hint}</span>
+          <strong>{tr(action.label)}</strong>
+          <span>{tr(action.hint)}</span>
         </button>
       ))}
     </section>
@@ -564,6 +573,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
       label: "Notes saisies",
       value: gradesState.status === "available" ? gradesInScope.length : null,
       hint: gradesState.status === "loading" ? "Chargement des notes" : "Entrées de notes existantes",
+      state: gradesState.status === "loading" ? "loading" : gradesState.status === "available" ? "ready" : "empty",
       tone: "blue"
     },
     {
@@ -576,12 +586,14 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
       label: "Absences",
       value: attendanceState.status === "available" ? attendanceState.data?.byStatus.ABSENT ?? 0 : null,
       hint: attendanceState.status === "loading" ? "Chargement des absences" : "Synthèse vie scolaire",
+      state: attendanceState.status === "loading" ? "loading" : attendanceState.status === "available" ? "ready" : "empty",
       tone: "amber"
     },
     {
       label: "Notifications",
       value: notificationsState.status === "available" ? notificationsState.data?.length ?? 0 : null,
       hint: notificationsState.status === "loading" ? "Chargement des notifications" : "Messages suivis",
+      state: notificationsState.status === "loading" ? "loading" : notificationsState.status === "available" ? "ready" : "empty",
       tone: "teal"
     }
   ];
@@ -657,27 +669,27 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
   const quickActions: QuickAction[] = [
     {
       label: "Inscriptions",
-      hint: `${incompleteEnrollments.length} dossier(s) à vérifier`,
+      hint: `${incompleteEnrollments.length} ${tr("dossier(s) à vérifier")}`,
       screen: "enrollments"
     },
     {
       label: "Élèves",
-      hint: `${studentsWithoutClass.length} sans classe`,
+      hint: `${studentsWithoutClass.length} ${tr("sans classe")}`,
       screen: "students"
     },
     {
       label: "Comptabilité",
-      hint: `${openInvoices.length} facture(s) à suivre`,
+      hint: `${openInvoices.length} ${tr("facture(s) à suivre")}`,
       screen: "finance"
     },
     {
       label: "Notes & bulletins",
-      hint: missingReportCardsCount === null ? "Choisir une période" : `${missingReportCardsCount} bulletin(s) manquant(s)`,
+      hint: missingReportCardsCount === null ? tr("Choisir une période") : `${missingReportCardsCount} ${tr("bulletin(s) manquant(s)")}`,
       screen: "grades"
     },
     {
       label: "Absences",
-      hint: attendanceState.status === "available" ? `${attendanceState.data?.byStatus.ABSENT ?? 0} absence(s)` : "Synthèse à charger",
+      hint: attendanceState.status === "available" ? `${attendanceState.data?.byStatus.ABSENT ?? 0} ${tr("absence(s)")}` : tr("Synthèse à charger"),
       screen: "schoolLifeAttendance"
     }
   ];
@@ -796,24 +808,24 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
 
       <div className="pilotage-grid">
         <PilotageDomainCard
-          title={tr("Scolarité")}
-          eyebrow="scolarite"
+          title="Scolarité"
+          eyebrow="Scolarité"
           description="Suivi des effectifs, inscriptions, classes et cursus actifs."
           kpis={schoolKpis}
           actionLabel="Ouvrir inscriptions"
           onAction={() => onSelectScreen("enrollments")}
         />
         <PilotageDomainCard
-          title={tr("Vie scolaire")}
-          eyebrow="vie-scolaire"
+          title="Vie scolaire"
+          eyebrow="Vie scolaire"
           description="Lecture opérationnelle des notes, bulletins, absences et notifications."
           kpis={schoolLifeKpis}
           actionLabel="Ouvrir absences"
           onAction={() => onSelectScreen("schoolLifeAttendance")}
         />
         <PilotageDomainCard
-          title={tr("Finance")}
-          eyebrow="finance"
+          title="Finance"
+          eyebrow="Finance"
           description="Situation de recouvrement et niveau des impayés."
           kpis={financeKpis}
           actionLabel="Ouvrir comptabilité"

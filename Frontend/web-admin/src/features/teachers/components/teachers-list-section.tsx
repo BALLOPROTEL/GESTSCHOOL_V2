@@ -15,6 +15,10 @@ import {
 } from "../teachers-screen-model";
 import { useI18n } from "../../../shared/i18n-context";
 import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
+import {
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../../../shared/components/responsive-dashboard";
 import { ResponsiveFilterPanel } from "../../../shared/components/responsive-filter-panel";
 import { RowActionMenu } from "../../../shared/components/row-action-menu";
 
@@ -269,27 +273,35 @@ export function TeachersSummarySection(props: {
   );
 
   return (
-    <section className="teachers-v3-kpi-grid" aria-label={t("Synthèse enseignants")}>
-      <article className="teachers-v3-kpi-card">
-        <span>{t("Actifs")}</span>
-        <strong>{loading ? "..." : summary.activeTeachers}</strong>
-        <small>{t("Enseignants affectables")}</small>
-      </article>
-      <article className="teachers-v3-kpi-card">
-        <span>{t("Compétences")}</span>
-        <strong>{loading ? "..." : skills.length}</strong>
-        <small>{t("Matières et périmètres")}</small>
-      </article>
-      <article className="teachers-v3-kpi-card">
-        <span>{t("Affectations")}</span>
-        <strong>{loading ? "..." : summary.activeAssignments}</strong>
-        <small>{t("Classes et années")}</small>
-      </article>
-      <article className="teachers-v3-kpi-card">
-        <span>{t("Charge hebdo")}</span>
-        <strong>{loading ? "..." : summary.totalWorkload}</strong>
-        <small>{t("Heures déclarées")}</small>
-      </article>
-    </section>
+    <ResponsiveKpiGrid label={t("Synthèse enseignants")}>
+      <ResponsiveKpiCard
+        className="teachers-v3-kpi-card"
+        label={t("Actifs")}
+        value={summary.activeTeachers}
+        hint={t("Enseignants affectables")}
+        state={loading ? "loading" : "ready"}
+      />
+      <ResponsiveKpiCard
+        className="teachers-v3-kpi-card"
+        label={t("Compétences")}
+        value={skills.length}
+        hint={t("Matières et périmètres")}
+        state={loading ? "loading" : "ready"}
+      />
+      <ResponsiveKpiCard
+        className="teachers-v3-kpi-card"
+        label={t("Affectations")}
+        value={summary.activeAssignments}
+        hint={t("Classes et années")}
+        state={loading ? "loading" : "ready"}
+      />
+      <ResponsiveKpiCard
+        className="teachers-v3-kpi-card"
+        label={t("Charge hebdo")}
+        value={summary.totalWorkload}
+        hint={t("Heures déclarées")}
+        state={loading ? "loading" : "ready"}
+      />
+    </ResponsiveKpiGrid>
   );
 }

@@ -325,8 +325,6 @@ textarea {
     grid-template-columns: 1fr !important;
   }
 
-  .dashboard-kpi-grid-flex,
-  .module-overview-grid,
   .module-grid,
   .dashboard-modules .module-grid,
   .students-overview-grid,
@@ -518,8 +516,6 @@ textarea {
     padding: 0.76rem !important;
   }
 
-  .dashboard-kpi-grid-flex,
-  .module-overview-grid,
   .module-grid,
   .dashboard-modules .module-grid,
   .students-overview-grid,

@@ -13,6 +13,10 @@ import { usePortalParentData } from "./hooks/use-portal-parent-data";
 import type { ParentPortalData, PortalApiClient } from "./types/portal-parent";
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import {
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../../shared/components/responsive-dashboard";
 import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 
 
@@ -109,32 +113,14 @@ export function PortalParentScreen({
               {tr("Recharger")}</button>
           </div>
         </div>
-        <div className="metrics-grid">
-          <article className="metric-card">
-            <span>{tr("Enfants lies")}</span>
-            <strong>{data.overview?.childrenCount ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Factures ouvertes")}</span>
-            <strong>{data.overview?.openInvoicesCount ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Reste a payer")}</span>
-            <strong>{formatMoney(data.overview?.remainingAmount ?? 0)}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Absences/retards")}</span>
-            <strong>{data.overview?.absencesCount ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Bulletins")}</span>
-            <strong>{data.overview?.reportCardsCount ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Notifications")}</span>
-            <strong>{data.overview?.notificationsCount ?? 0}</strong>
-          </article>
-        </div>
+        <ResponsiveKpiGrid label={tr("Portail parent metier")}>
+          <ResponsiveKpiCard className="metric-card" label={tr("Enfants lies")} value={data.overview?.childrenCount ?? 0} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Factures ouvertes")} value={data.overview?.openInvoicesCount ?? 0} tone={(data.overview?.openInvoicesCount ?? 0) > 0 ? "warning" : "neutral"} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Reste a payer")} value={formatMoney(data.overview?.remainingAmount ?? 0)} tone={(data.overview?.remainingAmount ?? 0) > 0 ? "warning" : "neutral"} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Absences/retards")} value={data.overview?.absencesCount ?? 0} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Bulletins")} value={data.overview?.reportCardsCount ?? 0} priority="secondary" />
+          <ResponsiveKpiCard className="metric-card" label={tr("Notifications")} value={data.overview?.notificationsCount ?? 0} priority="secondary" />
+        </ResponsiveKpiGrid>
         <ResponsiveFilterPanel title={tr("Filtres du portail parent")} activeCount={studentFilter ? 1 : 0}>
           <form className="filter-grid" onSubmit={(event) => void submitFilters(event)}>
           <label>

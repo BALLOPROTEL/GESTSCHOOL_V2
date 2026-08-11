@@ -198,7 +198,6 @@
   box-shadow: none;
 }
 
-.kpi-card-label,
 .module-overview-card span,
 .metric-card span,
 .students-overview-card span {
@@ -215,23 +214,9 @@
   color: var(--flexadm-surface-copy);
 }
 
-.dashboard-kpi-grid-flex {
-  gap: 0.82rem;
-}
-
 .kpi-card-flex {
   padding: 0.92rem 0.96rem;
   gap: 0.48rem;
-}
-
-.kpi-card-progress {
-  height: 0.34rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.kpi-card-progress span {
-  background: linear-gradient(90deg, var(--flexadm-accent) 0%, var(--flexadm-accent-soft) 100%);
 }
 
 .dashboard-main-grid {
@@ -737,13 +722,6 @@ tbody td {
   gap: 0.88rem;
 }
 
-.dashboard-kpi-grid-flex,
-.module-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.78rem;
-}
-
 .dashboard-main-grid {
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr);
   gap: 0.88rem;
@@ -994,11 +972,6 @@ tbody td {
 }
 
 @media (max-width: 1320px) {
-  .dashboard-kpi-grid-flex,
-  .module-overview-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .dashboard-main-grid {
     grid-template-columns: 1fr;
   }

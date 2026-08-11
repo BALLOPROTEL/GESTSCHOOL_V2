@@ -203,8 +203,8 @@ describe("PilotageScreen", () => {
     renderPilotage();
 
     expect(screen.getByRole("heading", { name: "Pilotage" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /scolarite/i })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /vie-scolaire/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /scolarité/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /vie scolaire/i })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: /finance/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "À traiter en priorité" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Actions rapides de pilotage" })).toBeInTheDocument();
@@ -214,7 +214,7 @@ describe("PilotageScreen", () => {
   it("utilise les vraies données passées et affiche les métriques indisponibles sans inventer de chiffres", () => {
     renderPilotage();
 
-    const scolarite = screen.getByRole("region", { name: /scolarite/i });
+    const scolarite = screen.getByRole("region", { name: /scolarité/i });
     expect(within(scolarite).getByLabelText("Élèves actifs : 2")).toBeInTheDocument();
     expect(within(scolarite).getByLabelText("Inscriptions : 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Notes saisies : Non disponible")).toBeInTheDocument();
@@ -229,7 +229,7 @@ describe("PilotageScreen", () => {
     fireEvent.change(screen.getByLabelText("Classe"), { target: { value: classCm2.id } });
     fireEvent.change(screen.getByLabelText("Période"), { target: { value: period.id } });
 
-    const scolarite = screen.getByRole("region", { name: /scolarite/i });
+    const scolarite = screen.getByRole("region", { name: /scolarité/i });
     expect(within(scolarite).getByLabelText("Élèves actifs : 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Bulletins générés : 1")).toBeInTheDocument();
 

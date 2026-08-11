@@ -59,6 +59,7 @@ import { useI18n } from "../shared/i18n-context";
 import { ResponsiveForm } from "../shared/components/responsive-form";
 import { useConfirmDialog } from "../shared/components/confirm-dialog";
 import { ResponsiveDataTable } from "../shared/components/responsive-data-table";
+import { ResponsiveKpiCard } from "../shared/components/responsive-dashboard";
 
 
 type RoomsScreenProps = {
@@ -401,10 +402,10 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
           ) : (
             <div className="teachers-detail-grid">
               <article className="module-overview-card teachers-identity-card"><span>{detail.code}</span><strong>{detail.name}</strong><small>{detail.roomTypeName || tr("Type non renseigné")} - {tr(statusLabel(detail.status))}</small><small>{detail.building || tr("Bâtiment non renseigné")} - {detail.location || tr("Localisation libre")}</small></article>
-              <article className="module-overview-card"><span>{tr("Capacité")}</span><strong>{detail.capacity}</strong><small>{tr("Examen: ")}{detail.examCapacity || "-"}</small></article>
-              <article className="module-overview-card"><span>{tr("Cursus")}</span><strong>{detail.isSharedBetweenCurricula ? tr("Partagée") : tr(trackLabel(detail.defaultTrack))}</strong><small>{tr("Compatibilité salle")}</small></article>
-              <article className="module-overview-card"><span>{tr("Affectations")}</span><strong>{detail.assignments.length}</strong><small>{tr("Historique et usage")}</small></article>
-              <article className="module-overview-card"><span>{tr("Disponibilités")}</span><strong>{detail.availabilities.length}</strong><small>{tr("Maintenance / réservations")}</small></article>
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Capacité")} value={detail.capacity} hint={<>{tr("Examen: ")}{detail.examCapacity || "-"}</>} priority="detail" />
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Cursus")} value={detail.isSharedBetweenCurricula ? tr("Partagée") : tr(trackLabel(detail.defaultTrack))} hint={tr("Compatibilité salle")} priority="detail" />
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Affectations")} value={detail.assignments.length} hint={tr("Historique et usage")} priority="detail" />
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Disponibilités")} value={detail.availabilities.length} hint={tr("Maintenance / réservations")} priority="detail" />
             </div>
           )}
         </section>

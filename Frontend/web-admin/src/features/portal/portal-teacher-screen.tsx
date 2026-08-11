@@ -13,6 +13,10 @@ import type { PortalApiClient, TeacherPortalData } from "./types/portal-teacher"
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
 import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import {
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../../shared/components/responsive-dashboard";
 import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 
 
@@ -115,32 +119,14 @@ export function PortalTeacherScreen({
               {tr("Recharger")}</button>
           </div>
         </div>
-        <div className="metrics-grid">
-          <article className="metric-card">
-            <span>{tr("Classes")}</span>
-            <strong>{data.overview?.classesCount ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Eleves suivis")}</span>
-            <strong>{data.overview?.studentsCount ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Notes saisies")}</span>
-            <strong>{data.overview?.gradesCount ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Justifs en attente")}</span>
-            <strong>{data.overview?.pendingJustifications ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Creneaux EDT")}</span>
-            <strong>{data.overview?.timetableSlotsCount ?? 0}</strong>
-          </article>
-          <article className="metric-card">
-            <span>{tr("Notifications")}</span>
-            <strong>{data.overview?.notificationsCount ?? 0}</strong>
-          </article>
-        </div>
+        <ResponsiveKpiGrid label={tr("Portail enseignant metier")}>
+          <ResponsiveKpiCard className="metric-card" label={tr("Classes")} value={data.overview?.classesCount ?? 0} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Eleves suivis")} value={data.overview?.studentsCount ?? 0} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Notes saisies")} value={data.overview?.gradesCount ?? 0} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Justifs en attente")} value={data.overview?.pendingJustifications ?? 0} tone={(data.overview?.pendingJustifications ?? 0) > 0 ? "warning" : "neutral"} />
+          <ResponsiveKpiCard className="metric-card" label={tr("Creneaux EDT")} value={data.overview?.timetableSlotsCount ?? 0} priority="secondary" />
+          <ResponsiveKpiCard className="metric-card" label={tr("Notifications")} value={data.overview?.notificationsCount ?? 0} priority="secondary" />
+        </ResponsiveKpiGrid>
         <ResponsiveFilterPanel title={tr("Filtres du portail enseignant")} activeCount={Object.values(filters).filter(Boolean).length}>
           <form
             className="filter-grid"

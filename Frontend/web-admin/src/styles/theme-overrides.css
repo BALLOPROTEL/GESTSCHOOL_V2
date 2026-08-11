@@ -861,7 +861,6 @@ code {
 
   .module-grid,
   .dashboard-modules .module-grid,
-  .dashboard-kpi-grid,
   .form-grid,
   .filter-grid {
     grid-template-columns: 1fr;

@@ -16,6 +16,11 @@ import type {
   TeacherOverview
 } from "../shared/types/app";
 import { ModuleIcon } from "../shared/components/module-icon";
+import {
+  ResponsiveChartCard,
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../shared/components/responsive-dashboard";
 import { translateUiString, type UiLanguage } from "../shared/i18n";
 
 type DashboardScreenProps = {
@@ -431,32 +436,29 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
         </div>
       </header>
 
-      <section className="dashboard-kpi-grid dashboard-kpi-grid-flex">
+      <ResponsiveKpiGrid className="dashboard-kpi-grid" label={t("Indicateurs clés du périmètre visible.")}>
         {overviewCards.map((card) => (
-          <article key={card.label} className="panel metric-card kpi-card kpi-card-flex">
-            <div className="kpi-card-head">
-              <span className="kpi-card-label">{t(card.label)}</span>
-              <span className="kpi-card-icon" aria-hidden="true">
-                <ModuleIcon name={card.icon} />
-              </span>
-            </div>
-            <strong>{card.value}</strong>
-            <small className="subtle">{t(card.hint)}</small>
-          </article>
+          <ResponsiveKpiCard
+            key={card.label}
+            className="panel metric-card kpi-card kpi-card-flex"
+            label={t(card.label)}
+            value={card.value}
+            hint={t(card.hint)}
+            icon={<ModuleIcon name={card.icon} />}
+          />
         ))}
-      </section>
+      </ResponsiveKpiGrid>
 
       <section className="dashboard-template-grid">
-        <article className="panel dashboard-panel-shell dashboard-visual-panel">
-          <div className="dashboard-visual-head">
-            <div>
-              <h3>{t("Recouvrement & encaissements")}</h3>
-              <p>{t("Lecture rapide issue des factures disponibles.")}</p>
-            </div>
-          </div>
-
+        <ResponsiveChartCard
+          className="panel dashboard-panel-shell dashboard-visual-panel"
+          title={t("Recouvrement & encaissements")}
+          description={t("Lecture rapide issue des factures disponibles.")}
+          chartLabel={t("Synthèse du recouvrement")}
+          summary={financeBars.map((item) => ({ label: t(item.label), value: item.formatted }))}
+        >
           {financeBars.length > 0 ? (
-            <div className="dashboard-bar-chart" aria-label={t("Synthèse du recouvrement")}>
+            <div className="dashboard-bar-chart">
               {financeBars.map((item) => {
                 const barHeight = Math.max(8, Math.round((item.value / maxFinanceBarValue) * 100));
 
@@ -480,16 +482,18 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
               <p>{t("Le backend ne fournit pas encore de synthèse financière exploitable pour ce profil.")}</p>
             </div>
           )}
-        </article>
+        </ResponsiveChartCard>
 
-        <article className="panel dashboard-panel-shell dashboard-visual-panel">
-          <div className="dashboard-visual-head">
-            <div>
-              <h3>{t("Suivi opérationnel")}</h3>
-              <p>{t("Indicateurs clés du périmètre visible.")}</p>
-            </div>
-          </div>
-
+        <ResponsiveChartCard
+          className="panel dashboard-panel-shell dashboard-visual-panel"
+          title={t("Suivi opérationnel")}
+          description={t("Indicateurs clés du périmètre visible.")}
+          chartLabel={t("Suivi opérationnel")}
+          summary={operationalSignals.map((item) => ({
+            label: t(item.label),
+            value: item.displayValue
+          }))}
+        >
           <div className="dashboard-signal-list">
             {operationalSignals.map((item) => {
               const barWidth =
@@ -511,7 +515,7 @@ export function DashboardScreen(props: DashboardScreenProps): JSX.Element {
               );
             })}
           </div>
-        </article>
+        </ResponsiveChartCard>
       </section>
 
       <section className="dashboard-main-grid dashboard-main-grid-summary">

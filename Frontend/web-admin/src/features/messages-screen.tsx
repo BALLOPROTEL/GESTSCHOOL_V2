@@ -2,6 +2,10 @@ import { useMemo, useState } from "react";
 
 import type { ScreenId } from "../shared/types/app";
 import { useI18n } from "../shared/i18n-context";
+import {
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../shared/components/responsive-dashboard";
 
 type MessageBubble = {
   id: string;
@@ -171,28 +175,12 @@ export function MessagesScreen(props: MessagesScreenProps): JSX.Element {
         </div>
         <p className="section-lead">
           {tr("Inbox equipe, lecture des priorites, fil actif et zone de composition deja cadres dans une\n          interface premium. Le branchement metier et l'envoi reel restent geles jusqu'a arbitrage.")}</p>
-        <div className="module-overview-grid">
-          <article className="module-overview-card">
-            <span>{tr("Conversations")}</span>
-            <strong>{conversationCount}</strong>
-            <small>{tr("Espaces de travail actifs")}</small>
-          </article>
-          <article className="module-overview-card">
-            <span>{tr("Messages")}</span>
-            <strong>{messageCount}</strong>
-            <small>{tr("Historique demo non persiste")}</small>
-          </article>
-          <article className="module-overview-card">
-            <span>{tr("Non lus")}</span>
-            <strong>{unreadCount}</strong>
-            <small>{tr("Priorites immediates")}</small>
-          </article>
-          <article className="module-overview-card">
-            <span>{tr("Participants")}</span>
-            <strong>{participantCount}</strong>
-            <small>{tr("Canaux equipes metier")}</small>
-          </article>
-        </div>
+        <ResponsiveKpiGrid label={tr("Synthèse")}>
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Conversations")} value={conversationCount} hint={tr("Espaces de travail actifs")} />
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Messages")} value={messageCount} hint={tr("Historique demo non persiste")} />
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Non lus")} value={unreadCount} hint={tr("Priorites immediates")} tone={unreadCount > 0 ? "warning" : "neutral"} />
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Participants")} value={participantCount} hint={tr("Canaux equipes metier")} />
+        </ResponsiveKpiGrid>
         <div className="module-inline-strip">
           <span className="module-inline-pill">{tr("Vue inbox premium")}</span>
           <span className="module-inline-pill">{tr("Canaux finances / scolarite / bulletins")}</span>

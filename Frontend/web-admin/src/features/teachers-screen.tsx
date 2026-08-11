@@ -69,6 +69,7 @@ import { ResponsiveForm } from "../shared/components/responsive-form";
 import { useConfirmDialog } from "../shared/components/confirm-dialog";
 import { toUiErrorMessage } from "../shared/services/api-errors";
 import { ResponsiveDataTable } from "../shared/components/responsive-data-table";
+import { ResponsiveKpiCard } from "../shared/components/responsive-dashboard";
 
 
 type TeachersScreenProps = {
@@ -609,11 +610,11 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
                 <small>{tr(teacherTypeLabel(detail.teacherType))} - {tr(teacherStatusLabel(detail.status))}</small>
                 <small>{detail.primaryPhone || tr("Téléphone non renseigné")} - {detail.email || tr("Email non renseigné")}</small>
               </article>
-              <article className="module-overview-card"><span>{tr("Compétences")}</span><strong>{detail.skills.length}</strong><small>{tr("Périmètres autorisés")}</small></article>
-              <article className="module-overview-card"><span>{tr("Affectations")}</span><strong>{detail.assignments.length}</strong><small>{tr("Historique complet")}</small></article>
-              <article className="module-overview-card"><span>{tr("Charge francophone")}</span><strong>{detail.francophoneWorkloadHoursTotal} {tr("h")}</strong><small>{detail.assignments.filter((item) => item.track === "FRANCOPHONE").length} {tr("affectation(s)")}</small></article>
-              <article className="module-overview-card"><span>{tr("Charge arabophone")}</span><strong>{detail.arabophoneWorkloadHoursTotal} {tr("h")}</strong><small>{detail.assignments.filter((item) => item.track === "ARABOPHONE").length} {tr("affectation(s)")}</small></article>
-              <article className="module-overview-card"><span>{tr("Documents")}</span><strong>{detail.documents.length}</strong><small>{tr("Pièces rattachées")}</small></article>
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Compétences")} value={detail.skills.length} hint={tr("Périmètres autorisés")} priority="detail" />
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Affectations")} value={detail.assignments.length} hint={tr("Historique complet")} priority="detail" />
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Charge francophone")} value={<>{detail.francophoneWorkloadHoursTotal} {tr("h")}</>} hint={<>{detail.assignments.filter((item) => item.track === "FRANCOPHONE").length} {tr("affectation(s)")}</>} priority="detail" />
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Charge arabophone")} value={<>{detail.arabophoneWorkloadHoursTotal} {tr("h")}</>} hint={<>{detail.assignments.filter((item) => item.track === "ARABOPHONE").length} {tr("affectation(s)")}</>} priority="detail" />
+              <ResponsiveKpiCard className="module-overview-card" label={tr("Documents")} value={detail.documents.length} hint={tr("Pièces rattachées")} priority="detail" />
             </div>
           )}
         </section>

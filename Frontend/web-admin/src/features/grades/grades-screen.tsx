@@ -19,6 +19,10 @@ import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
 import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import {
+  ResponsiveKpiCard,
+  ResponsiveKpiGrid
+} from "../../shared/components/responsive-dashboard";
 
 type GradesScreenProps = {
   api: GradesApiClient;
@@ -468,38 +472,14 @@ export function GradesScreen({
           </div>
           </form>
         </ResponsiveFilterPanel>
-        <div className="module-overview-grid">
-          <article className="module-overview-card">
-            <span>{tr("Notes saisies")}</span>
-            <strong>{contextGrades.length}</strong>
-            <small>{isOverviewContextReady ? tr("Dans le contexte choisi") : tr("Tous contextes")}</small>
-          </article>
-          <article className="module-overview-card">
-            <span>{tr("Élèves concernés")}</span>
-            <strong>{isOverviewContextReady ? filterStudents.length : students.length}</strong>
-            <small>{gradeFilters.studentId ? tr("Lecture ciblée") : tr("Dossiers concernés")}</small>
-          </article>
-          <article className="module-overview-card">
-            <span>{tr("Matières évaluées")}</span>
-            <strong>{contextSubjectCount}</strong>
-            <small>{contextSubjectCount > 0 ? tr("Matières avec notes") : tr("Aucune matière évaluée")}</small>
-          </article>
-          <article className="module-overview-card">
-            <span>{tr("Bulletins générés")}</span>
-            <strong>{contextReportCards.length}</strong>
-            <small>{tr("Bulletins PDF disponibles")}</small>
-          </article>
-          <article className="module-overview-card">
-            <span>{tr("Moyennes calculées")}</span>
-            <strong>{hasOverviewSummary ? classSummary?.students.length || 0 : 0}</strong>
-            <small>{hasOverviewSummary && summaryComputedAt ? <>{tr("Calculées le")} {formatDateTime(summaryComputedAt)}</> : tr("Moyennes non calculées")}</small>
-          </article>
-          <article className="module-overview-card">
-            <span>{tr("Notes manquantes")}</span>
-            <strong>{hasOverviewSummary ? contextMissingGrades : "-"}</strong>
-            <small>{hasOverviewSummary ? tr("Après calcul") : tr("À vérifier après calcul")}</small>
-          </article>
-        </div>
+        <ResponsiveKpiGrid label={tr("Vue d’ensemble")}>
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Notes saisies")} value={contextGrades.length} hint={isOverviewContextReady ? tr("Dans le contexte choisi") : tr("Tous contextes")} />
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Élèves concernés")} value={isOverviewContextReady ? filterStudents.length : students.length} hint={gradeFilters.studentId ? tr("Lecture ciblée") : tr("Dossiers concernés")} />
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Matières évaluées")} value={contextSubjectCount} hint={contextSubjectCount > 0 ? tr("Matières avec notes") : tr("Aucune matière évaluée")} />
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Bulletins générés")} value={contextReportCards.length} hint={tr("Bulletins PDF disponibles")} />
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Moyennes calculées")} value={hasOverviewSummary ? classSummary?.students.length || 0 : 0} hint={hasOverviewSummary && summaryComputedAt ? <>{tr("Calculées le")} {formatDateTime(summaryComputedAt)}</> : tr("Moyennes non calculées")} />
+          <ResponsiveKpiCard className="module-overview-card" label={tr("Notes manquantes")} value={hasOverviewSummary ? contextMissingGrades : "-"} hint={hasOverviewSummary ? tr("Après calcul") : tr("À vérifier après calcul")} tone={hasOverviewSummary && contextMissingGrades > 0 ? "warning" : "neutral"} />
+        </ResponsiveKpiGrid>
         <div className="module-inline-strip">
           <span className="module-inline-pill">{tr("Année : ")}{formatSchoolYearLabel(gradeFilters.schoolYearId)}</span>
           <span className="module-inline-pill">{tr("Classe : ")}{filterClass?.label || "-"}</span>
