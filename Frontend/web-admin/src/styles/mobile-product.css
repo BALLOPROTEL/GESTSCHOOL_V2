@@ -1,7 +1,3 @@
-/* Mobile product layer for GestSchool V3.
-   Keep desktop behavior intact, then make dense admin workflows usable
-   on phones with scrollable tables and matching light/dark structure. */
-
 .finance-mobile-heading {
   display: none;
 }
@@ -717,7 +713,7 @@
   }
 }
 
-@media (max-width: 1180px) and (min-width: 761px) {
+@media (min-width: 768px) and (max-width: 1279px) {
   .table-wrap table[data-responsive-table="true"] td:first-child {
     position: static !important;
     left: auto !important;
@@ -747,7 +743,7 @@
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1279px) {
   :root .page:not(.page-auth) :where(.module-header-badge, .v3-count-badge, .students-overview-status) {
     min-height: 1.9rem !important;
     padding: 0.28rem 0.68rem !important;

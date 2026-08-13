@@ -48,7 +48,7 @@ describe("responsive data source contract", () => {
     const breakpoints = [...css.matchAll(/@media\s*\(max-width:\s*(\d+)px\)/gu)].map(
       (match) => Number(match[1])
     );
-    expect([...new Set(breakpoints)].sort((left, right) => left - right)).toEqual([420, 760, 1023, 1180]);
+    expect([...new Set(breakpoints)].sort((left, right) => left - right)).toEqual([420, 767, 1279]);
     expect(css.match(/!important/gu)?.length || 0).toBeLessThanOrEqual(180);
   });
 });

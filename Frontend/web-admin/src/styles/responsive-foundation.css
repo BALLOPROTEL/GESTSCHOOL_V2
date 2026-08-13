@@ -37,13 +37,22 @@
   --mobile-touch-target: var(--gs-responsive-touch-target);
 }
 
-/* Compact desktop / large tablet: 1024-1279px. */
+/* Compact shell. */
 @media (min-width: 1024px) and (max-width: 1279px) {
   :root {
     --gs-responsive-gutter-inline: 1.25rem;
     --gs-responsive-gutter-block: 1.25rem;
     --gs-responsive-sidebar-width: 14rem;
     --gs-responsive-page-title-size: 1.875rem;
+    --gs-responsive-sidebar-brand-padding: 1rem;
+    --gs-responsive-sidebar-link-gap: 0.625rem;
+    --gs-responsive-sidebar-link-padding: 0.5rem;
+  }
+
+  .page:not(.page-auth) .app-sidebar-v2 .sidebar-link-copy > span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
   }
 }
 

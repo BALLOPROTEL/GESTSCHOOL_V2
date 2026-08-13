@@ -44,18 +44,29 @@ const viewports = {
   mobile390: { width: 390, height: 844 },
   mobile412: { width: 412, height: 915 },
   mobileLarge: { width: 414, height: 896 },
-  boundary767: { width: 767, height: 900 },
+  boundary767: { width: 767, height: 1024 },
   tabletPortrait: { width: 768, height: 1024 },
+  tabletTall: { width: 768, height: 1366 },
+  tablet800: { width: 800, height: 1280 },
   tablet820: { width: 820, height: 1180 },
-  boundary1023: { width: 1023, height: 1200 },
+  tablet834: { width: 834, height: 1194 },
+  tablet900: { width: 900, height: 1200 },
+  tablet1000: { width: 1000, height: 800 },
+  boundary1023: { width: 1023, height: 768 },
   compactPortrait: { width: 1024, height: 1366 },
   tabletLandscape: { width: 1024, height: 768 },
   tabletLandscape1180: { width: 1180, height: 820 },
+  tabletLandscape1194: { width: 1194, height: 834 },
+  compact1200: { width: 1200, height: 800 },
   boundary1279: { width: 1279, height: 800 },
   desktop1280: { width: 1280, height: 720 },
+  boundary1280: { width: 1280, height: 800 },
   desktop: { width: 1440, height: 900 },
   desktopLarge: { width: 1920, height: 1080 },
-  zoom200: { width: 720, height: 450 }
+  zoom200: { width: 720, height: 450 },
+  zoomTabletPortrait: { width: 384, height: 512 },
+  zoomTabletLandscape: { width: 512, height: 384 },
+  zoomTablet1180: { width: 590, height: 410 }
 };
 
 const allWorkflows = [
@@ -171,6 +182,42 @@ const responsiveBoundaryVariants = [
   { viewport: "boundary1279", theme: "light" },
   { viewport: "desktop1280", theme: "light" }
 ];
+const r7CoreVariants = [
+  { viewport: "tabletPortrait", theme: "light", r6Journey: true },
+  { viewport: "tablet820", theme: "dark", r6Journey: true },
+  { viewport: "compactPortrait", theme: "light", r6Journey: true },
+  { viewport: "tabletLandscape1180", theme: "dark", r6Journey: true },
+  { viewport: "boundary1279", theme: "light", r6Journey: true }
+];
+const r7PriorityVariants = [
+  { viewport: "tabletTall", theme: "light" },
+  { viewport: "tablet800", theme: "light" },
+  { viewport: "tablet834", theme: "dark" },
+  { viewport: "tablet900", theme: "light" },
+  { viewport: "tablet1000", theme: "dark" },
+  { viewport: "tabletLandscape", theme: "light" },
+  { viewport: "tabletLandscape1194", theme: "dark" },
+  { viewport: "compact1200", theme: "light" }
+];
+const r7PriorityKeys = new Set(["dashboard", "finance", "pilotage", "timetable"]);
+const r7LanguageKeys = new Set(["dashboard", "finance", "iam", "pilotage", "reference", "timetable"]);
+const r7RegressionVariants = [
+  { viewport: "mobileNarrow", theme: "light" },
+  { viewport: "mobile390", theme: "dark" },
+  { viewport: "mobile412", theme: "light" },
+  { viewport: "desktop1280", theme: "light" },
+  { viewport: "desktop", theme: "dark" }
+];
+const r7BoundaryVariants = [
+  { viewport: "boundary767", theme: "light" },
+  { viewport: "boundary1023", theme: "light" },
+  { viewport: "boundary1280", theme: "light" }
+];
+const r7ZoomVariants = [
+  { viewport: "zoomTabletPortrait", theme: "light" },
+  { viewport: "zoomTabletLandscape", theme: "dark" },
+  { viewport: "zoomTablet1180", theme: "light" }
+];
 
 const guard = createAuditGuard({
   mode,
@@ -216,6 +263,42 @@ const localizedCriticalContent = {
       required: ["Collection console"]
     }
   },
+  iam: {
+    ar: {
+      forbidden: ["Utilisateurs & droits", "Comptes utilisateurs", "Droits par profil"],
+      nav: /المستخدمون والصلاحيات/u,
+      required: ["حسابات المستخدمين", "الصلاحيات حسب الملف"]
+    },
+    en: {
+      forbidden: ["Utilisateurs & droits", "Comptes utilisateurs", "Droits par profil"],
+      nav: /Users & permissions/u,
+      required: ["User accounts", "Permissions by profile"]
+    }
+  },
+  pilotage: {
+    ar: {
+      forbidden: ["Pilotage"],
+      nav: /المتابعة/u,
+      required: ["المتابعة"]
+    },
+    en: {
+      forbidden: ["Pilotage"],
+      nav: /Overview/u,
+      required: ["Overview"]
+    }
+  },
+  reference: {
+    ar: {
+      forbidden: ["Référentiel", "Referentiel academique"],
+      nav: /المرجع/u,
+      required: ["السنة الدراسية"]
+    },
+    en: {
+      forbidden: ["Référentiel", "Referentiel academique"],
+      nav: /Reference/u,
+      required: ["School year"]
+    }
+  },
   grades: {
     ar: {
       forbidden: ["Notes & bulletins", "Saisie des notes", "Bulletins"],
@@ -238,6 +321,18 @@ const localizedCriticalContent = {
       forbidden: ["Élèves", "Ajouter un élève"],
       nav: /Students/u,
       required: ["Students", "Add student"]
+    }
+  },
+  timetable: {
+    ar: {
+      forbidden: ["Emploi du temps", "Grille d'emploi du temps"],
+      nav: /الجدول الدراسي/u,
+      required: ["الجدول الدراسي", "شبكة الجدول الدراسي"]
+    },
+    en: {
+      forbidden: ["Emploi du temps", "Grille d'emploi du temps"],
+      nav: /Timetable/u,
+      required: ["Timetable", "Timetable grid"]
     }
   }
 };
@@ -553,6 +648,81 @@ async function assertResponsiveShellContract(page, metadata) {
   for (const problem of problems) {
     guard.addFinding({
       type: "responsive-shell-contract",
+      message: problem,
+      metadata,
+      route: metadata.route
+    });
+  }
+}
+
+async function assertR7TabletContract(page, metadata) {
+  if (auditScope !== "r7") return;
+  const snapshot = await page.evaluate(() => {
+    const visible = (element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const screenHost = document.querySelector(".screen-host");
+    const hostRect = screenHost?.getBoundingClientRect();
+    const clippedSidebarLabels = [...document.querySelectorAll(".app-sidebar-v2 .sidebar-link-copy > span")]
+      .filter(visible)
+      .filter((element) => element.scrollWidth > element.clientWidth + 1)
+      .map((element) => element.textContent?.trim() || "label");
+    const tableProblems = [...document.querySelectorAll(".responsive-data-table-shell")]
+      .filter(visible)
+      .flatMap((shell) => {
+        const wrapper = shell.querySelector(".table-wrap");
+        const shellRect = shell.getBoundingClientRect();
+        if (!(wrapper instanceof HTMLElement)) return ["conteneur de table absent"];
+        const overflowX = getComputedStyle(wrapper).overflowX;
+        const locallyScrollable = wrapper.scrollWidth > wrapper.clientWidth + 1;
+        const problems = [];
+        if (hostRect && (shellRect.left < hostRect.left - 1 || shellRect.right > hostRect.right + 1)) {
+          problems.push(`table hors écran ${shellRect.left.toFixed(1)}..${shellRect.right.toFixed(1)}`);
+        }
+        if (locallyScrollable && !["auto", "scroll"].includes(overflowX)) {
+          problems.push(`scroll local non contenu (${overflowX})`);
+        }
+        return problems;
+      });
+    const workflowNavigationProblems = [...document.querySelectorAll(".workflow-navigation")]
+      .filter(visible)
+      .flatMap((navigation) => {
+        const style = getComputedStyle(navigation);
+        const active = navigation.querySelector("[aria-current='step'], [aria-selected='true'], .is-active");
+        const problems = [];
+        if (navigation.scrollWidth > navigation.clientWidth + 1 && !["auto", "scroll"].includes(style.overflowX)) {
+          problems.push(`navigation locale non scrollable (${style.overflowX})`);
+        }
+        if (active instanceof HTMLElement) {
+          const navRect = navigation.getBoundingClientRect();
+          const activeRect = active.getBoundingClientRect();
+          if (activeRect.right < navRect.left || activeRect.left > navRect.right) problems.push("onglet actif hors champ");
+        }
+        return problems;
+      });
+    return {
+      clippedSidebarLabels,
+      documentClientWidth: document.documentElement.clientWidth,
+      documentScrollWidth: document.documentElement.scrollWidth,
+      tableProblems,
+      workflowNavigationProblems
+    };
+  });
+
+  const problems = [
+    ...snapshot.tableProblems,
+    ...snapshot.workflowNavigationProblems,
+    ...snapshot.clippedSidebarLabels.map((label) => `libellé sidebar tronqué: ${label}`)
+  ];
+  if (snapshot.documentScrollWidth > snapshot.documentClientWidth + 1) {
+    problems.push(`overflow document ${snapshot.documentScrollWidth - snapshot.documentClientWidth}px`);
+  }
+  for (const problem of problems) {
+    guard.addFinding({
+      type: "r7-tablet-contract",
       message: problem,
       metadata,
       route: metadata.route
@@ -981,6 +1151,7 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     await openModule(page, workflow, language);
     await assertRequiredText(page, workflow, metadata);
     await assertResponsiveShellContract(page, metadata);
+    await assertR7TabletContract(page, metadata);
     await assertR6BusinessJourney(page, workflow, metadata);
     if (workflow.key === "dashboard") drawerScreenshot = await assertNavigationDrawerContract(page, metadata);
     formScreenshot = await assertResponsiveFormContract(page, metadata);
@@ -1152,38 +1323,60 @@ async function main() {
     if (mode === "integrated") {
       await runIntegratedSuite(browser);
     } else {
-      await runMockedAuthWorkflow(browser, "login", "fr", "light", "desktop");
-      await runMockedAuthWorkflow(browser, "forgot-password", "fr", "light", "mobileLarge");
-      await runMockedAuthWorkflow(browser, "activation-resend", "fr", "dark", "tabletPortrait");
-      await runMockedAuthWorkflow(browser, "activation-first-login", "fr", "light", "mobileLarge");
-      await runMockedAuthWorkflow(browser, "login", "en", "dark", "desktop");
-      await runMockedAuthWorkflow(browser, "login", "ar", "light", "mobileLarge");
-
-      const variants = auditScope === "ci" ? ciVariants : fullVariants;
-      const extraCritical = auditScope === "ci" ? ciCriticalVariants : criticalVariants;
-      for (const workflow of allWorkflows) {
-        for (const variant of variants) await executeModuleWorkflow(browser, workflow, variant);
-        if (criticalKeys.has(workflow.key)) {
-          for (const variant of extraCritical) await executeModuleWorkflow(browser, workflow, variant);
+      if (auditScope === "r7") {
+        for (const workflow of allWorkflows) {
+          for (const variant of r7CoreVariants) await executeModuleWorkflow(browser, workflow, variant);
         }
-      }
-      for (const workflow of allWorkflows.filter((item) => criticalKeys.has(item.key))) {
-        await executeModuleWorkflow(browser, workflow, { viewport: "desktop", theme: "dark" }, "en");
-        await executeModuleWorkflow(browser, workflow, { viewport: "tabletLandscape", theme: "light" }, "ar");
-      }
-      for (const workflow of allWorkflows.filter((item) => r6JourneyKeys.has(item.key))) {
-        for (const variant of r6JourneyVariants) await executeModuleWorkflow(browser, workflow, variant);
-      }
-      const dashboard = allWorkflows.find((workflow) => workflow.key === "dashboard");
-      if (!dashboard) throw new Error("Workflow dashboard absent de l'audit visuel.");
-      const responsiveVariants = auditScope === "ci" ? responsiveBoundaryVariants : responsiveReferenceVariants;
-      for (const variant of responsiveVariants) await executeModuleWorkflow(browser, dashboard, variant);
-      if (auditScope !== "ci") {
-        await executeModuleWorkflow(browser, dashboard, { viewport: "mobile412", theme: "dark" }, "ar");
-        await executeModuleWorkflow(browser, dashboard, { viewport: "tabletPortrait", theme: "light" }, "ar");
-        for (const variant of responsiveBoundaryVariants) {
-          if (responsiveReferenceVariants.some((candidate) => candidate.viewport === variant.viewport)) continue;
-          await executeModuleWorkflow(browser, dashboard, variant);
+        for (const workflow of allWorkflows.filter((item) => r7PriorityKeys.has(item.key))) {
+          for (const variant of r7PriorityVariants) await executeModuleWorkflow(browser, workflow, variant);
+        }
+        for (const workflow of allWorkflows.filter((item) => r7LanguageKeys.has(item.key))) {
+          await executeModuleWorkflow(browser, workflow, { viewport: "tablet820", theme: "light" }, "en");
+          await executeModuleWorkflow(browser, workflow, { viewport: "tabletLandscape1180", theme: "dark" }, "ar");
+        }
+        const dashboard = allWorkflows.find((workflow) => workflow.key === "dashboard");
+        const students = allWorkflows.find((workflow) => workflow.key === "students");
+        const finance = allWorkflows.find((workflow) => workflow.key === "finance");
+        if (!dashboard || !students || !finance) throw new Error("Workflows de non-régression R7 incomplets.");
+        for (const workflow of [dashboard, students, finance]) {
+          for (const variant of r7RegressionVariants) await executeModuleWorkflow(browser, workflow, variant);
+        }
+        for (const variant of r7BoundaryVariants) await executeModuleWorkflow(browser, dashboard, variant);
+        for (const variant of r7ZoomVariants) await executeModuleWorkflow(browser, dashboard, variant);
+      } else {
+        await runMockedAuthWorkflow(browser, "login", "fr", "light", "desktop");
+        await runMockedAuthWorkflow(browser, "forgot-password", "fr", "light", "mobileLarge");
+        await runMockedAuthWorkflow(browser, "activation-resend", "fr", "dark", "tabletPortrait");
+        await runMockedAuthWorkflow(browser, "activation-first-login", "fr", "light", "mobileLarge");
+        await runMockedAuthWorkflow(browser, "login", "en", "dark", "desktop");
+        await runMockedAuthWorkflow(browser, "login", "ar", "light", "mobileLarge");
+
+        const variants = auditScope === "ci" ? ciVariants : fullVariants;
+        const extraCritical = auditScope === "ci" ? ciCriticalVariants : criticalVariants;
+        for (const workflow of allWorkflows) {
+          for (const variant of variants) await executeModuleWorkflow(browser, workflow, variant);
+          if (criticalKeys.has(workflow.key)) {
+            for (const variant of extraCritical) await executeModuleWorkflow(browser, workflow, variant);
+          }
+        }
+        for (const workflow of allWorkflows.filter((item) => criticalKeys.has(item.key))) {
+          await executeModuleWorkflow(browser, workflow, { viewport: "desktop", theme: "dark" }, "en");
+          await executeModuleWorkflow(browser, workflow, { viewport: "tabletLandscape", theme: "light" }, "ar");
+        }
+        for (const workflow of allWorkflows.filter((item) => r6JourneyKeys.has(item.key))) {
+          for (const variant of r6JourneyVariants) await executeModuleWorkflow(browser, workflow, variant);
+        }
+        const dashboard = allWorkflows.find((workflow) => workflow.key === "dashboard");
+        if (!dashboard) throw new Error("Workflow dashboard absent de l'audit visuel.");
+        const responsiveVariants = auditScope === "ci" ? responsiveBoundaryVariants : responsiveReferenceVariants;
+        for (const variant of responsiveVariants) await executeModuleWorkflow(browser, dashboard, variant);
+        if (auditScope !== "ci") {
+          await executeModuleWorkflow(browser, dashboard, { viewport: "mobile412", theme: "dark" }, "ar");
+          await executeModuleWorkflow(browser, dashboard, { viewport: "tabletPortrait", theme: "light" }, "ar");
+          for (const variant of responsiveBoundaryVariants) {
+            if (responsiveReferenceVariants.some((candidate) => candidate.viewport === variant.viewport)) continue;
+            await executeModuleWorkflow(browser, dashboard, variant);
+          }
         }
       }
     }
