@@ -2254,3 +2254,28 @@ Validation evidence:
 - lockfile unchanged by both audits;
 - rebuilt API image, Trivy 0.70.0: zero fixed critical/high findings;
 - rebuilt worker image, Trivy 0.70.0: zero fixed critical/high findings.
+
+## CI advisory refresh - 2026-08-13
+
+GitHub Actions run `31729937038` was blocked only by the full development
+dependency audit after publication/update of `GHSA-2v37-7h3g-55p8`. The
+production audit and every functional, visual, E2E and container job passed.
+
+The affected chain is development-only:
+`Vite/Vitest -> PostCSS 8.5.23 -> nanoid 3.3.17`. The reviewed GitHub advisory
+states that the compatible Nano ID 3.x fix is `3.3.18`. The scoped override now
+maps only vulnerable Nano ID 3.x versions below `3.3.18` to `3.3.18`; no major
+upgrade, incompatible override or audit exception is introduced.
+
+The audit gate must continue to prove zero production advisories and zero
+unapproved critical/high advisories in the complete dependency graph.
+
+Validation after the compatible override:
+
+- frozen installation with pnpm `10.24.0`: passed;
+- audit policy tests: 7/7 passed;
+- frontend typecheck, lint, build and 209 tests: passed;
+- pnpm `11.13.1` production audit: zero advisories;
+- pnpm `11.13.1` full audit: no critical/high advisory, with only the known
+  low development advisory `GHSA-g7r4-m6w7-qqqr` on `esbuild@0.27.3`;
+- lockfile checksum before and after both audits: unchanged.
