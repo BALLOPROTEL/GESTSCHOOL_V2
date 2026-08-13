@@ -17,6 +17,7 @@ import { ResponsiveForm } from "../../shared/components/responsive-form";
 import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
 import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 import { RowActionMenu } from "../../shared/components/row-action-menu";
+import { WorkflowContextBar } from "../../shared/components/responsive-workflow";
 import { useEnrollmentsData } from "./hooks/use-enrollments-data";
 import type { EnrollmentsApiClient } from "./types/enrollments";
 
@@ -84,9 +85,6 @@ const renderRequiredLabel = (label: string): JSX.Element => (
   </span>
 );
 
-const pluralize = (count: number, singular: string, plural: string): string =>
-  `${count} ${count > 1 ? plural : singular}`;
-
 const formatDate = (value: string, locale: string): string => {
   if (!value) return "-";
   const date = new Date(`${value}T00:00:00`);
@@ -97,11 +95,14 @@ const formatDate = (value: string, locale: string): string => {
 const getStudentDisplayName = (student?: Student): string =>
   student?.fullName || `${student?.firstName || ""} ${student?.lastName || ""}`.trim();
 
-const getEnrollmentStudentName = (enrollment: Enrollment, student?: Student): string =>
-  enrollment.studentName || getStudentDisplayName(student) || "Élève à vérifier";
+const getEnrollmentStudentName = (
+  enrollment: Enrollment,
+  student?: Student,
+  fallback = "Élève à vérifier"
+): string => enrollment.studentName || getStudentDisplayName(student) || fallback;
 
-const getEnrollmentInitials = (enrollment: Enrollment, student?: Student): string => {
-  const source = getEnrollmentStudentName(enrollment, student);
+const getEnrollmentInitials = (enrollment: Enrollment, student?: Student, fallback?: string): string => {
+  const source = getEnrollmentStudentName(enrollment, student, fallback);
   const parts = source.trim().split(/\s+/u).filter(Boolean);
   if (parts.length === 0) return "IN";
   return `${parts[0]?.charAt(0) || ""}${parts[1]?.charAt(0) || parts[0]?.charAt(1) || ""}`.toUpperCase();
@@ -162,7 +163,7 @@ export function EnrollmentsScreen({
         const localClass = classById.get(item.classId);
         const localStudent = studentById.get(item.studentId);
         const schoolYear = item.schoolYearCode || schoolYearById.get(item.schoolYearId)?.code || "";
-        const studentName = getEnrollmentStudentName(item, localStudent);
+        const studentName = getEnrollmentStudentName(item, localStudent, t("Élève à vérifier"));
         const matricule = localStudent?.matricule || "";
         const classLabel = item.classLabel || localClass?.label || localClass?.code || "";
         const searchPayload = [
@@ -237,7 +238,7 @@ export function EnrollmentsScreen({
       <header className="enrollments-v3-page-header">
         <div>
           <h1>{t("Inscriptions")}</h1>
-          <p>Gérez les admissions, placements et rattachements académiques des élèves.</p>
+          <p>{t("Gérez les admissions, placements et rattachements académiques des élèves.")}</p>
         </div>
         {enrollmentWorkflowStep === "create" ? (
           <button type="button" className="button-ghost" onClick={showEnrollmentList}>
@@ -245,7 +246,7 @@ export function EnrollmentsScreen({
           </button>
         ) : (
           <button type="button" onClick={openEnrollmentForm}>
-            Nouvelle inscription
+            {t("Nouvelle inscription")}
           </button>
         )}
       </header>
@@ -259,15 +260,35 @@ export function EnrollmentsScreen({
         >
           <div className="enrollments-v3-table-head">
             <div>
-              <h2>{editingEnrollment ? "Modifier inscription" : "Nouvelle inscription"}</h2>
+              <h2>{t(editingEnrollment ? "Modifier inscription" : "Nouvelle inscription")}</h2>
               <p>
-                {editingEnrollment
+                {t(editingEnrollment
                   ? "Ajustez le placement, la date et le statut de l'inscription sélectionnée."
-                  : "Rattachez un élève à une année scolaire, un cursus et une classe."}
+                  : "Rattachez un élève à une année scolaire, un cursus et une classe.")}
               </p>
             </div>
-            <span className="students-overview-status">Placement académique</span>
+            <span className="students-overview-status">{t("Placement académique")}</span>
           </div>
+          <WorkflowContextBar
+            title="Contexte actif"
+            items={[
+              {
+                label: "Élève",
+                value: getStudentDisplayName(studentById.get(enrollmentForm.studentId)) || t("À sélectionner")
+              },
+              {
+                label: "Année scolaire",
+                value: schoolYearById.get(enrollmentForm.schoolYearId)?.code || t("À sélectionner")
+              },
+              {
+                label: "Classe",
+                value: classById.get(enrollmentForm.classId)?.label || t("À sélectionner")
+              },
+              { label: "Statut", value: t(formatEnrollmentStatusLabel(enrollmentForm.enrollmentStatus)) }
+            ]}
+            actionLabel="Voir la liste"
+            onAction={showEnrollmentList}
+          />
           <ResponsiveForm
             className="form-grid module-form enrollments-v3-form-grid"
             formTitle={t(editingEnrollment ? "Modifier inscription" : "Nouvelle inscription")}
@@ -276,14 +297,14 @@ export function EnrollmentsScreen({
             onSubmit={(event) => void submitEnrollment(event)}
           >
             <label>
-              {renderRequiredLabel("Année scolaire")}
+              {renderRequiredLabel(t("Année scolaire"))}
               <select
                 value={enrollmentForm.schoolYearId}
                 onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, schoolYearId: event.target.value }))}
                 required
               >
                 <option value="" disabled>
-                  {schoolYears.length > 0 ? "Choisir une année" : "Aucune année disponible"}
+                  {t(schoolYears.length > 0 ? "Choisir une année" : "Aucune année disponible")}
                 </option>
                 {schoolYears.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -294,7 +315,7 @@ export function EnrollmentsScreen({
               {fieldError(enrollmentErrors, "schoolYearId", t)}
             </label>
             <label>
-              {renderRequiredLabel("Classe")}
+              {renderRequiredLabel(t("Classe"))}
               <select
                 value={enrollmentForm.classId}
                 onChange={(event) => {
@@ -309,18 +330,18 @@ export function EnrollmentsScreen({
                 required
               >
                 <option value="" disabled>
-                  {classes.length > 0 ? "Choisir une classe" : "Aucune classe disponible"}
+                  {t(classes.length > 0 ? "Choisir une classe" : "Aucune classe disponible")}
                 </option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.code} - {item.label} ({formatAcademicTrackLabel(item.track)})
+                    {item.code} - {item.label} ({t(formatAcademicTrackLabel(item.track))})
                   </option>
                 ))}
               </select>
               {fieldError(enrollmentErrors, "classId", t)}
             </label>
             <label>
-              {renderRequiredLabel("Cursus")}
+              {renderRequiredLabel(t("Cursus"))}
               <select
                 value={enrollmentForm.track}
                 onChange={(event) =>
@@ -330,21 +351,21 @@ export function EnrollmentsScreen({
               >
                 {ACADEMIC_TRACK_OPTIONS.map((track) => (
                   <option key={track} value={track}>
-                    {formatAcademicTrackLabel(track)}
+                    {t(formatAcademicTrackLabel(track))}
                   </option>
                 ))}
               </select>
               {fieldError(enrollmentErrors, "track", t)}
             </label>
             <label>
-              {renderRequiredLabel("Élève")}
+              {renderRequiredLabel(t("Élève"))}
               <select
                 value={enrollmentForm.studentId}
                 onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, studentId: event.target.value }))}
                 required
               >
                 <option value="" disabled>
-                  {students.length > 0 ? "Choisir un élève" : "Aucun élève disponible"}
+                  {t(students.length > 0 ? "Choisir un élève" : "Aucun élève disponible")}
                 </option>
                 {students.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -355,7 +376,7 @@ export function EnrollmentsScreen({
               {fieldError(enrollmentErrors, "studentId", t)}
             </label>
             <label>
-              {renderRequiredLabel("Date d'inscription")}
+              {renderRequiredLabel(t("Date d'inscription"))}
               <input
                 type="date"
                 value={enrollmentForm.enrollmentDate}
@@ -365,7 +386,7 @@ export function EnrollmentsScreen({
               {fieldError(enrollmentErrors, "enrollmentDate", t)}
             </label>
             <label>
-              {renderRequiredLabel("Statut")}
+              {renderRequiredLabel(t("Statut"))}
               <select
                 value={enrollmentForm.enrollmentStatus}
                 onChange={(event) => setEnrollmentForm((prev) => ({ ...prev, enrollmentStatus: event.target.value }))}
@@ -373,20 +394,20 @@ export function EnrollmentsScreen({
               >
                 {ENROLLMENT_STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
-                    {formatEnrollmentStatusLabel(status)}
+                    {t(formatEnrollmentStatusLabel(status))}
                   </option>
                 ))}
               </select>
               {fieldError(enrollmentErrors, "enrollmentStatus", t)}
             </label>
             <div className="notice-card notice-info enrollments-v3-form-note">
-              <strong>Placement académique</strong>
-              <p>Le placement principal est déterminé automatiquement selon le contexte scolaire de l'élève.</p>
+              <strong>{t("Placement académique")}</strong>
+              <p>{t("Le placement principal est déterminé automatiquement selon le contexte scolaire de l'élève.")}</p>
             </div>
             <div className="actions span-2">
-              <button type="submit">{editingEnrollment ? "Mettre à jour" : "Créer inscription"}</button>
+              <button type="submit">{t(editingEnrollment ? "Mettre à jour" : "Créer inscription")}</button>
               <button type="button" className="button-ghost" onClick={showEnrollmentList}>
-                Voir la liste
+                {t("Voir la liste")}
               </button>
             </div>
           </ResponsiveForm>
@@ -450,7 +471,7 @@ export function EnrollmentsScreen({
                 <option value="">{t("Tous les statuts")}</option>
                 {ENROLLMENT_STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
-                    {formatEnrollmentStatusLabel(status)}
+                    {t(formatEnrollmentStatusLabel(status))}
                   </option>
                 ))}
               </select>
@@ -471,37 +492,39 @@ export function EnrollmentsScreen({
                 <h2>
                   {t("Liste des inscriptions")} ({displayedEnrollments.length})
                 </h2>
-                <p>{activeStudentCount} élève(s) actif(s), placements issus des dossiers validés.</p>
+                <p>
+                  {activeStudentCount} {t("élève(s) actif(s), placements issus des dossiers validés.")}
+                </p>
               </div>
               <span className="students-overview-status">
-                {pluralize(enrollments.length, "dossier", "dossiers")}
+                {t(`${enrollments.length} dossier(s)`)}
               </span>
             </div>
             <ResponsiveDataTable label={t("Liste des inscriptions")}>
               <table className="enrollments-v3-table" data-responsive-table="true">
                 <thead>
                   <tr>
-                    <th>Élève</th>
-                    <th>Année</th>
-                    <th>Classe / cursus</th>
-                    <th>Placement</th>
-                    <th>Date</th>
-                    <th>Statut</th>
-                    <th className="enrollments-v3-actions-heading" aria-label="Actions"></th>
+                    <th>{t("Élève")}</th>
+                    <th>{t("Année")}</th>
+                    <th>{t("Classe / cursus")}</th>
+                    <th>{t("Placement")}</th>
+                    <th>{t("Date")}</th>
+                    <th>{t("Statut")}</th>
+                    <th className="enrollments-v3-actions-heading" aria-label={t("Actions")}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayedEnrollments.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="empty-row">
-                        Aucune inscription trouvée.
+                        {t("Aucune inscription trouvée.")}
                       </td>
                     </tr>
                   ) : (
                     displayedEnrollments.map((item) => {
                       const localClass = classById.get(item.classId);
                       const localStudent = studentById.get(item.studentId);
-                      const studentName = getEnrollmentStudentName(item, localStudent);
+                      const studentName = getEnrollmentStudentName(item, localStudent, t("Élève à vérifier"));
                       const schoolYear = item.schoolYearCode || schoolYearById.get(item.schoolYearId)?.code || "-";
                       const classLabel = item.classLabel || localClass?.label || localClass?.code || "-";
 
@@ -509,10 +532,12 @@ export function EnrollmentsScreen({
                         <tr key={item.id}>
                           <td data-label={t("Élève")}>
                             <div className="enrollments-v3-student-cell">
-                              <span className="enrollments-v3-avatar">{getEnrollmentInitials(item, localStudent)}</span>
+                              <span className="enrollments-v3-avatar">
+                                {getEnrollmentInitials(item, localStudent, t("Élève à vérifier"))}
+                              </span>
                               <div>
                                 <strong>{studentName}</strong>
-                                <small>{localStudent?.matricule || "Matricule à compléter"}</small>
+                                <small>{localStudent?.matricule || t("Matricule à compléter")}</small>
                               </div>
                             </div>
                           </td>
@@ -522,18 +547,20 @@ export function EnrollmentsScreen({
                           <td data-label={t("Classe / cursus")}>
                             <div className="enrollments-v3-class-cell">
                               <strong>{classLabel}</strong>
-                              <span className="enrollments-v3-class-badge">{formatAcademicTrackLabel(item.track)}</span>
+                              <span className="enrollments-v3-class-badge">
+                                {t(formatAcademicTrackLabel(item.track))}
+                              </span>
                             </div>
                           </td>
                           <td data-label={t("Placement")} className="enrollments-v3-muted-cell">
-                            {formatPlacementTypeLabel(Boolean(item.isPrimary))}
+                            {t(formatPlacementTypeLabel(Boolean(item.isPrimary)))}
                           </td>
                           <td data-label={t("Date")} className="enrollments-v3-muted-cell">
                             {formatDate(item.enrollmentDate, locale)}
                           </td>
                           <td data-label={t("Statut")}>
                             <span className={getEnrollmentStatusClassName(item.enrollmentStatus)}>
-                              {formatEnrollmentStatusLabel(item.enrollmentStatus)}
+                              {t(formatEnrollmentStatusLabel(item.enrollmentStatus))}
                             </span>
                           </td>
                           <td data-label={t("Actions")}>
@@ -586,19 +613,25 @@ export function EnrollmentsScreen({
               </table>
             </ResponsiveDataTable>
             {selectedEnrollment ? (
-              <aside className="enrollments-v3-detail-panel" aria-label="Inscription consultée">
+              <aside className="enrollments-v3-detail-panel" aria-label={t("Inscription consultée")}>
                 <div className="table-header">
                   <div>
-                    <p className="section-kicker">Inscription consultée</p>
-                    <h3>{getEnrollmentStudentName(selectedEnrollment, studentById.get(selectedEnrollment.studentId))}</h3>
+                    <p className="section-kicker">{t("Inscription consultée")}</p>
+                    <h3>
+                      {getEnrollmentStudentName(
+                        selectedEnrollment,
+                        studentById.get(selectedEnrollment.studentId),
+                        t("Élève à vérifier")
+                      )}
+                    </h3>
                   </div>
                   <span className={getEnrollmentStatusClassName(selectedEnrollment.enrollmentStatus)}>
-                    {formatEnrollmentStatusLabel(selectedEnrollment.enrollmentStatus)}
+                    {t(formatEnrollmentStatusLabel(selectedEnrollment.enrollmentStatus))}
                   </span>
                 </div>
                 <div className="students-detail-grid">
                   <div>
-                    <span>Année</span>
+                    <span>{t("Année")}</span>
                     <strong>
                       {selectedEnrollment.schoolYearCode ||
                         schoolYearById.get(selectedEnrollment.schoolYearId)?.code ||
@@ -606,7 +639,7 @@ export function EnrollmentsScreen({
                     </strong>
                   </div>
                   <div>
-                    <span>Classe</span>
+                    <span>{t("Classe")}</span>
                     <strong>
                       {selectedEnrollment.classLabel ||
                         classById.get(selectedEnrollment.classId)?.label ||
@@ -614,12 +647,12 @@ export function EnrollmentsScreen({
                     </strong>
                   </div>
                   <div>
-                    <span>Cursus</span>
-                    <strong>{formatAcademicTrackLabel(selectedEnrollment.track)}</strong>
+                    <span>{t("Cursus")}</span>
+                    <strong>{t(formatAcademicTrackLabel(selectedEnrollment.track))}</strong>
                   </div>
                   <div>
-                    <span>Placement</span>
-                    <strong>{formatPlacementTypeLabel(Boolean(selectedEnrollment.isPrimary))}</strong>
+                    <span>{t("Placement")}</span>
+                    <strong>{t(formatPlacementTypeLabel(Boolean(selectedEnrollment.isPrimary)))}</strong>
                   </div>
                 </div>
               </aside>

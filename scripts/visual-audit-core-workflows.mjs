@@ -100,12 +100,28 @@ const responsiveFormOpeners = {
   enrollments: ".enrollments-v3-page-header > button",
   finance: ".workflow-tabs [role='tab']:nth-child(2)",
   grades: ".workflow-tabs [role='tab']:nth-child(2)",
+  iam: ".iam-v3-table-card .v3-table-head button",
   parents: ".workflow-tabs [role='tab']:nth-child(2)",
   profile: ".premium-profile-primary",
   rooms: ".rooms-v3-table-card .v3-table-head > button",
   students: ".students-v3-page-header > button",
   teachers: ".teachers-v3-page-header > button"
 };
+
+const r6JourneyKeys = new Set([
+  "iam",
+  "students",
+  "enrollments",
+  "finance",
+  "grades",
+  "attendance",
+  "timetable",
+  "pilotage"
+]);
+const r6JourneyVariants = [
+  { viewport: "mobile390", theme: "dark", r6Journey: true },
+  { viewport: "tablet820", theme: "light", r6Journey: true }
+];
 
 const fullVariants = [
   { viewport: "desktop", theme: "light" },
@@ -444,6 +460,7 @@ async function assertResponsiveShellContract(page, metadata) {
     const sidebar = document.querySelector(".app-sidebar-v2");
     const shell = document.querySelector(".app-shell");
     const content = document.querySelector(".app-shell-main");
+    const screenHost = document.querySelector(".screen-host");
     const mobileToggle = document.querySelector(".header-mobile-toggle");
     const railNavigationTrigger = document.querySelector(".sidebar-rail-navigation-trigger");
     const touchTargets = [...document.querySelectorAll(".global-header-shell button, .app-sidebar-v2 button")]
@@ -459,11 +476,35 @@ async function assertResponsiveShellContract(page, metadata) {
     const sidebarRect = sidebar?.getBoundingClientRect();
     const shellRect = shell?.getBoundingClientRect();
     const contentRect = content?.getBoundingClientRect();
+    const screenHostRect = screenHost?.getBoundingClientRect();
+    const layoutOverflow = screenHostRect
+      ? [...screenHost.querySelectorAll([
+          ".workflow-navigation",
+          ".workflow-body",
+          ".workflow-section",
+          ".students-v3-shell",
+          ".enrollments-v3-shell",
+          ".teachers-v3-shell",
+          ".iam-v3-shell",
+          ".rooms-screen-shell",
+          ".parents-screen-shell",
+          ".finance-v3-shell",
+          ".finance-screen-shell",
+          ".school-life-root"
+        ].join(", "))]
+          .filter(isVisible)
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            return Math.max(0, screenHostRect.left - rect.left, rect.right - screenHostRect.right);
+          })
+          .reduce((maximum, overflow) => Math.max(maximum, overflow), 0)
+      : 0;
     return {
       contentRight: contentRect?.right ?? 0,
       documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
       mobileToggleVisible: isVisible(mobileToggle),
       railNavigationTriggerVisible: isVisible(railNavigationTrigger),
+      layoutOverflow,
       shellLeft: shellRect?.left ?? 0,
       shellRight: shellRect?.right ?? 0,
       sidebarVisible: isVisible(sidebar),
@@ -476,6 +517,7 @@ async function assertResponsiveShellContract(page, metadata) {
   const problems = [];
   const near = (actual, expected, tolerance = 2) => Math.abs(actual - expected) <= tolerance;
   if (snapshot.documentOverflow > 1) problems.push(`overflow document ${snapshot.documentOverflow}px`);
+  if (snapshot.layoutOverflow > 1) problems.push(`overflow structurel ${snapshot.layoutOverflow}px`);
   if (snapshot.shellLeft < -1 || snapshot.shellRight > snapshot.viewportWidth + 1) {
     problems.push(`shell hors viewport (${snapshot.shellLeft.toFixed(1)}..${snapshot.shellRight.toFixed(1)})`);
   }
@@ -728,6 +770,7 @@ async function assertResponsiveFormContract(page, metadata) {
   await page.screenshot({ path: formScreenshot, fullPage: false });
   await page.keyboard.press("Escape");
   await dialog.waitFor({ state: "hidden" });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const closeState = await page.evaluate(() => ({
     focusRestored: document.activeElement?.matches(".responsive-form-trigger") ?? false,
     scrollLocked: document.documentElement.classList.contains("responsive-form-overlay-open")
@@ -771,6 +814,150 @@ async function assertFocusVisible(page, metadata) {
   }
 }
 
+async function selectWorkflowStep(page, stepId, label) {
+  const compactSelect = page.locator(".workflow-step-select select:visible").first();
+  if (await compactSelect.isVisible().catch(() => false)) {
+    await compactSelect.selectOption(stepId);
+  } else {
+    const tab = page.getByRole("tab", { name: label, exact: true }).first();
+    await tab.waitFor({ state: "visible" });
+    await tab.click();
+  }
+  await page.locator(`[data-step-id='${stepId}'][data-active-step='true']`).first().waitFor({ state: "visible" });
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        let stableFrames = 0;
+        let previousPosition = window.scrollY;
+        const checkPosition = () => {
+          const currentPosition = window.scrollY;
+          stableFrames = Math.abs(currentPosition - previousPosition) < 0.5 ? stableFrames + 1 : 0;
+          previousPosition = currentPosition;
+          if (stableFrames >= 3) {
+            resolve(undefined);
+            return;
+          }
+          requestAnimationFrame(checkPosition);
+        };
+        requestAnimationFrame(checkPosition);
+      })
+  );
+}
+
+async function clickFirstRowAction(page, scopeSelector, actionLabel) {
+  const trigger = page.locator(scopeSelector).locator("button[aria-haspopup='menu']:visible").first();
+  await trigger.waitFor({ state: "visible" });
+  await trigger.click();
+  const action = page.getByRole("menuitem", { name: actionLabel, exact: true }).first();
+  await action.waitFor({ state: "visible" });
+  await action.click();
+}
+
+async function assertR6BusinessJourney(page, workflow, metadata) {
+  if (!metadata.r6Journey) return;
+
+  if (workflow.key === "iam") {
+    await page.locator("#iam-accounts[data-active-step='true']").waitFor({ state: "visible" });
+    await clickFirstRowAction(page, "#iam-accounts[data-active-step='true']", "Modifier");
+    await page.locator("#iam-account-form[data-active-step='true']").waitFor({ state: "visible" });
+    await selectWorkflowStep(page, "accounts", "Comptes utilisateurs");
+    return;
+  }
+
+  if (workflow.key === "students") {
+    await page.locator(".students-v3-table-card").waitFor({ state: "visible" });
+    await clickFirstRowAction(page, ".students-v3-table-card", "Voir");
+    await page.locator(".students-detail-panel").waitFor({ state: "visible" });
+    await clickFirstRowAction(page, ".students-v3-table-card", "Modifier");
+    await page.getByRole("heading", { name: "Modifier le dossier" }).first().waitFor({ state: "visible" });
+    await page.getByRole("button", { name: "Voir la base élèves", exact: true }).click();
+    await page.locator(".students-v3-table-card").waitFor({ state: "visible" });
+    return;
+  }
+
+  if (workflow.key === "enrollments") {
+    await page.getByRole("button", { name: "Nouvelle inscription", exact: true }).click();
+    await page.locator("#enrollments-create[data-active-step='true']").waitFor({ state: "visible" });
+    const dialog = page.locator("form.responsive-form-surface[role='dialog']:visible").first();
+    if (await dialog.isVisible().catch(() => false)) await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Liste des inscriptions", exact: true }).click();
+    await page.locator("#enrollments-list[data-active-step='true']").waitFor({ state: "visible" });
+    return;
+  }
+
+  if (workflow.key === "finance") {
+    await selectWorkflowStep(page, "invoices", "Factures");
+    await clickFirstRowAction(page, "[data-step-id='invoices'][data-active-step='true']", "Enregistrer paiement");
+    await page.locator("[data-step-id='payments'][data-active-step='true']").first().waitFor({ state: "visible" });
+    await page.locator(".workflow-context-bar").waitFor({ state: "visible" });
+    await selectWorkflowStep(page, "overview", "Pilotage");
+    return;
+  }
+
+  if (workflow.key === "grades") {
+    await selectWorkflowStep(page, "entry", "Saisie des notes");
+    await page.locator(".workflow-context-bar").waitFor({ state: "visible" });
+    await selectWorkflowStep(page, "filters", "Vue d’ensemble");
+    return;
+  }
+
+  if (workflow.key === "attendance") {
+    await selectWorkflowStep(page, "journal", "Journal des absences");
+    await selectWorkflowStep(page, "validation", "Justificatifs & validation");
+    await page.locator(".workflow-context-bar").waitFor({ state: "visible" });
+    await selectWorkflowStep(page, "absences", "Absences");
+    return;
+  }
+
+  if (workflow.key === "timetable") {
+    await selectWorkflowStep(page, "grid", "Grille d'emploi du temps");
+    if ((page.viewportSize()?.width ?? 0) < 768) {
+      await page.locator(".timetable-list-view.is-active").waitFor({ state: "visible" });
+      await page.getByRole("button", { name: "Vue semaine", exact: true }).click();
+      await page.locator(".timetable-week-view.is-active").waitFor({ state: "visible" });
+      await page.getByRole("button", { name: "Vue liste", exact: true }).click();
+    } else {
+      await page.locator(".timetable-list-view").waitFor({ state: "visible" });
+      await page.locator(".timetable-week-view").waitFor({ state: "visible" });
+    }
+    await selectWorkflowStep(page, "timetable", "Emploi du temps");
+    return;
+  }
+
+  if (workflow.key === "pilotage") {
+    const section = page.locator(".workflow-disclosure").filter({ has: page.getByRole("heading", { name: "Vie scolaire" }) });
+    const toggle = section.getByRole("button", { name: "Afficher", exact: true });
+    if (await toggle.isVisible().catch(() => false)) await toggle.click();
+    await section.getByRole("button", { name: "Ouvrir absences", exact: true }).waitFor({ state: "visible" });
+  }
+}
+
+async function restoreR6JourneyLanding(page, workflow) {
+  if (workflow.key === "iam") {
+    await selectWorkflowStep(page, "accounts", "Comptes utilisateurs");
+  } else if (workflow.key === "students") {
+    const back = page.getByRole("button", { name: /Base élèves|Voir la base élèves/u }).first();
+    if (await back.isVisible().catch(() => false)) await back.click();
+  } else if (workflow.key === "enrollments") {
+    const dialog = page.locator("form.responsive-form-surface[role='dialog']:visible").first();
+    if (await dialog.isVisible().catch(() => false)) await page.keyboard.press("Escape");
+    const back = page.getByRole("button", { name: "Liste des inscriptions", exact: true });
+    if (await back.isVisible().catch(() => false)) await back.click();
+  } else if (workflow.key === "finance") {
+    await selectWorkflowStep(page, "overview", "Pilotage");
+  } else if (workflow.key === "grades") {
+    await selectWorkflowStep(page, "filters", "Vue d’ensemble");
+  } else if (workflow.key === "attendance") {
+    await selectWorkflowStep(page, "absences", "Absences");
+  } else if (workflow.key === "timetable") {
+    await selectWorkflowStep(page, "timetable", "Emploi du temps");
+  } else if (workflow.key === "pilotage") {
+    const section = page.locator(".workflow-disclosure").filter({ has: page.getByRole("heading", { name: "Vie scolaire" }) });
+    const toggle = section.getByRole("button", { name: "Réduire", exact: true });
+    if (await toggle.isVisible().catch(() => false)) await toggle.click();
+  }
+}
+
 async function executeModuleWorkflow(browser, workflow, variant, language = "fr") {
   const metadata = {
     workflow: workflow.key,
@@ -778,6 +965,7 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     viewport: variant.viewport,
     theme: variant.theme,
     language,
+    r6Journey: variant.r6Journey ?? false,
     reducedMotion: variant.reducedMotion ?? "no-preference"
   };
   const before = guard.blockingFindings().length;
@@ -793,8 +981,10 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     await openModule(page, workflow, language);
     await assertRequiredText(page, workflow, metadata);
     await assertResponsiveShellContract(page, metadata);
+    await assertR6BusinessJourney(page, workflow, metadata);
     if (workflow.key === "dashboard") drawerScreenshot = await assertNavigationDrawerContract(page, metadata);
     formScreenshot = await assertResponsiveFormContract(page, metadata);
+    if (metadata.r6Journey) await restoreR6JourneyLanding(page, workflow);
     if (criticalKeys.has(workflow.key)) await assertFocusVisible(page, metadata);
     if (language === "ar") {
       const direction = await page.locator("main.page").getAttribute("dir");
@@ -802,7 +992,8 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
         guard.addFinding({ type: "rtl-missing", message: `Direction arabe incorrecte: ${direction}.`, metadata, route: metadata.route });
       }
     }
-    screenshot = path.join(outputDir, `${safeName(`${workflow.key}-${variant.viewport}-${variant.theme}-${language}`)}.png`);
+    const screenshotKey = `${workflow.key}-${variant.viewport}-${variant.theme}-${language}${metadata.r6Journey ? "-r6-journey" : ""}`;
+    screenshot = path.join(outputDir, `${safeName(screenshotKey)}.png`);
     await guard.capture(page, screenshot, { fullPage: variant.viewport !== "desktop" });
     await restoreTopViewport(page);
     await guard.assertPageReady(page, {
@@ -979,6 +1170,9 @@ async function main() {
       for (const workflow of allWorkflows.filter((item) => criticalKeys.has(item.key))) {
         await executeModuleWorkflow(browser, workflow, { viewport: "desktop", theme: "dark" }, "en");
         await executeModuleWorkflow(browser, workflow, { viewport: "tabletLandscape", theme: "light" }, "ar");
+      }
+      for (const workflow of allWorkflows.filter((item) => r6JourneyKeys.has(item.key))) {
+        for (const variant of r6JourneyVariants) await executeModuleWorkflow(browser, workflow, variant);
       }
       const dashboard = allWorkflows.find((workflow) => workflow.key === "dashboard");
       if (!dashboard) throw new Error("Workflow dashboard absent de l'audit visuel.");

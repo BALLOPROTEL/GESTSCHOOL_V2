@@ -12,8 +12,58 @@ type WorkflowGuideProps = {
   className?: string;
 };
 
-export function WorkflowGuide(props: WorkflowGuideProps): JSX.Element {
+type WorkflowNavigationProps = Pick<
+  WorkflowGuideProps,
+  "title" | "steps" | "activeStepId" | "onStepChange"
+>;
+
+export function WorkflowNavigation({
+  title,
+  steps,
+  activeStepId,
+  onStepChange
+}: WorkflowNavigationProps): JSX.Element | null {
   const { t } = useI18n();
+  const activeStep = steps.find((step) => step.id === activeStepId) || steps[0];
+
+  if (!activeStep || steps.length <= 1) return null;
+
+  return (
+    <div className={`workflow-navigation ${steps.length > 4 ? "has-many-steps" : ""}`.trim()}>
+      <label className="workflow-step-select">
+        <span>{t("Étape du parcours")}</span>
+        <select
+          value={activeStep.id}
+          aria-label={t("Choisir une étape")}
+          onChange={(event) => onStepChange(event.target.value)}
+        >
+          {steps.map((step) => (
+            <option key={step.id} value={step.id}>
+              {t(step.title)}
+            </option>
+          ))}
+        </select>
+        {activeStep.hint ? <small>{t(activeStep.hint)}</small> : null}
+      </label>
+      <div className="workflow-tabs" role="tablist" aria-label={t(title)}>
+        {steps.map((step) => (
+          <button
+            key={step.id}
+            type="button"
+            role="tab"
+            aria-selected={step.id === activeStep.id}
+            className={`workflow-tab ${step.id === activeStep.id ? "is-active" : ""}`.trim()}
+            onClick={() => onStepChange(step.id)}
+          >
+            {t(step.title)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function WorkflowGuide(props: WorkflowGuideProps): JSX.Element {
   const { title, steps, activeStepId, onStepChange, children, className } = props;
   const activeStep = steps.find((step) => step.id === activeStepId) || steps[0];
 
@@ -55,22 +105,12 @@ export function WorkflowGuide(props: WorkflowGuideProps): JSX.Element {
 
   return (
     <section className={["workflow-shell workflow-shell-compact", className].filter(Boolean).join(" ")}>
-      {steps.length > 1 ? (
-        <div className="workflow-tabs" role="tablist" aria-label={t(title)}>
-          {steps.map((step) => (
-            <button
-              key={step.id}
-              type="button"
-              role="tab"
-              aria-selected={step.id === activeStep.id}
-              className={`workflow-tab ${step.id === activeStep.id ? "is-active" : ""}`.trim()}
-              onClick={() => onStepChange(step.id)}
-            >
-              {t(step.title)}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <WorkflowNavigation
+        title={title}
+        steps={steps}
+        activeStepId={activeStep.id}
+        onStepChange={onStepChange}
+      />
       <div className="workflow-body">{managedChildren}</div>
     </section>
   );

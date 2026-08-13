@@ -23,6 +23,7 @@ import {
   ResponsiveKpiCard,
   ResponsiveKpiGrid
 } from "../../shared/components/responsive-dashboard";
+import { WorkflowContextBar } from "../../shared/components/responsive-workflow";
 
 type GradesScreenProps = {
   api: GradesApiClient;
@@ -355,6 +356,17 @@ export function GradesScreen({
       activeStepId={gradesWorkflowStep}
       onStepChange={scrollToGrades}
     >
+      <WorkflowContextBar
+        title="Contexte actif"
+        items={[
+          { label: "Année scolaire", value: formatSchoolYearLabel(gradeFilters.schoolYearId) },
+          { label: "Classe", value: filterClass?.label || "-" },
+          { label: "Période", value: periodById.get(gradeFilters.academicPeriodId)?.label || "-" },
+          { label: "Cursus", value: tr(formatTrackLabel(gradeFilters.track)) }
+        ]}
+        actionLabel={gradesWorkflowStep === "filters" ? undefined : "Modifier le contexte"}
+        onAction={gradesWorkflowStep === "filters" ? undefined : () => scrollToGrades("filters")}
+      />
       <section
         id="grades-filters"
         data-step-id="filters"

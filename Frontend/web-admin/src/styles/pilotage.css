@@ -37,7 +37,7 @@
 }
 
 .pilotage-hero p,
-.pilotage-card__header p {
+.pilotage-card .workflow-disclosure-header p {
   max-width: 760px;
   margin: 8px 0 0;
   color: color-mix(in srgb, var(--flexadm-surface-copy-soft, #64748b) 88%, transparent);
@@ -65,7 +65,8 @@
   font-weight: 800;
 }
 
-.pilotage-eyebrow {
+.pilotage-eyebrow,
+.pilotage-card .workflow-disclosure-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -76,7 +77,8 @@
   text-transform: uppercase;
 }
 
-.pilotage-eyebrow::after {
+.pilotage-eyebrow::after,
+.pilotage-card .workflow-disclosure-eyebrow::after {
   content: "";
   width: 42px;
   height: 1px;
@@ -192,11 +194,16 @@
   border-radius: 18px;
 }
 
-.pilotage-card__header {
+.pilotage-card .workflow-disclosure-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.pilotage-card .workflow-disclosure-body {
+  display: grid;
+  gap: 14px;
 }
 
 .pilotage-card h3 {
@@ -206,6 +213,7 @@
 
 .pilotage-card__action {
   flex: 0 0 auto;
+  justify-self: end;
   min-height: 40px;
   white-space: nowrap;
 }
@@ -375,7 +383,7 @@
 }
 
 :root:not([data-theme="dark"]) .pilotage-hero p,
-:root:not([data-theme="dark"]) .pilotage-card__header p,
+:root:not([data-theme="dark"]) .pilotage-card .workflow-disclosure-header p,
 :root:not([data-theme="dark"]) .pilotage-hero__summary span,
 :root:not([data-theme="dark"]) .pilotage-quick-action span,
 :root:not([data-theme="dark"]) .pilotage-alert__body span,
@@ -430,7 +438,7 @@
 }
 
 :root[data-theme="dark"] .pilotage-hero p,
-:root[data-theme="dark"] .pilotage-card__header p,
+:root[data-theme="dark"] .pilotage-card .workflow-disclosure-header p,
 :root[data-theme="dark"] .pilotage-hero__summary span,
 :root[data-theme="dark"] .pilotage-quick-action span,
 :root[data-theme="dark"] .pilotage-alert__body span,
@@ -503,13 +511,14 @@
     border-radius: 14px;
   }
 
-  .pilotage-card__header,
+  .pilotage-card .workflow-disclosure-header,
   .pilotage-alert {
     grid-template-columns: 1fr;
   }
 
-  .pilotage-card__header {
+  .pilotage-card .workflow-disclosure-header {
     display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .pilotage-card__action,
@@ -517,9 +526,26 @@
     width: 100%;
   }
 
-  .pilotage-filters,
-  .pilotage-quick-actions {
+  .pilotage-card__action {
+    justify-self: stretch;
+  }
+
+  .pilotage-filters {
     grid-template-columns: 1fr;
+  }
+
+  .pilotage-quick-actions {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 12px;
+    scroll-snap-type: inline proximity;
+  }
+
+  .pilotage-quick-action {
+    flex: 0 0 min(16rem, 78vw);
+    min-height: 78px;
+    scroll-snap-align: start;
   }
 
   .pilotage-alert__count {

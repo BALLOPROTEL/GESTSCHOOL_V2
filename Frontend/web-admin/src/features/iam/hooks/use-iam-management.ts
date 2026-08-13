@@ -345,7 +345,7 @@ export const useIamManagement = ({
     }
     setUserErrors(errors);
     if (hasFieldErrors(errors)) {
-      focusFirstInlineErrorField("accounts");
+      focusFirstInlineErrorField("accountForm");
       return;
     }
 
@@ -428,7 +428,7 @@ export const useIamManagement = ({
       isActive: item.isActive
     });
     setUserErrors({});
-    setIamWorkflowStep("accounts");
+    setIamWorkflowStep("accountForm");
   };
 
   const deleteUserAccount = async (id: string): Promise<void> => {
@@ -525,9 +525,15 @@ export const useIamManagement = ({
     () => [
       {
         id: "accounts",
-        title: editingUserId ? "Édition compte" : "Comptes utilisateurs",
-        hint: "Créer, modifier et désactiver les comptes.",
+        title: "Comptes utilisateurs",
+        hint: "Rechercher, consulter et gérer les comptes.",
         done: users.length > 0
+      },
+      {
+        id: "accountForm",
+        title: editingUserId ? "Édition compte" : "Créer un compte",
+        hint: editingUserId ? "Modifier le compte sélectionné." : "Créer et rattacher un nouveau compte.",
+        done: false
       },
       {
         id: "permissions",

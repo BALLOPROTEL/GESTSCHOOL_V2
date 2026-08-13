@@ -8,6 +8,7 @@ import { ResponsiveForm } from "../../../shared/components/responsive-form";
 import { ResponsiveDataTable } from "../../../shared/components/responsive-data-table";
 import { ResponsiveFilterPanel } from "../../../shared/components/responsive-filter-panel";
 import { RowActionMenu } from "../../../shared/components/row-action-menu";
+import { WorkflowContextBar } from "../../../shared/components/responsive-workflow";
 
 
 type StudentsPanelProps = {
@@ -177,6 +178,25 @@ export function StudentsPanel(props: StudentsPanelProps): JSX.Element {
             </div>
             <p className="section-lead">
               {tr("Ce formulaire crée le dossier administratif de l’élève. Les classes et cursus sont gérés ensuite depuis les inscriptions.")}</p>
+            <WorkflowContextBar
+              title="Contexte actif"
+              items={[
+                {
+                  label: "Élève",
+                  value:
+                    [studentForm.firstName, studentForm.lastName].filter(Boolean).join(" ") ||
+                    tr("Nouvel élève")
+                },
+                { label: "Matricule", value: studentForm.matricule || "-" },
+                { label: "Statut", value: tr(formatStudentStatus(studentForm.status)) },
+                {
+                  label: "Classe",
+                  value: selectedStudent ? tr(formatPrimaryClass(selectedStudent)) : tr("Gérée par inscription")
+                }
+              ]}
+              actionLabel="Retour à la liste"
+              onAction={() => onStudentWorkflowStepChange("list")}
+            />
             <ResponsiveForm
               className="form-grid module-form students-form-grid"
               formTitle={editingStudentId ? tr("Modifier le dossier") : tr("Ajouter un élève")}

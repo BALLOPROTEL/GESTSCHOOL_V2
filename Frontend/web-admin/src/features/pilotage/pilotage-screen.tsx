@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import "../../styles/pilotage.css";
 import type {
@@ -25,6 +25,7 @@ import {
   ResponsiveKpiCard,
   ResponsiveKpiGrid
 } from "../../shared/components/responsive-dashboard";
+import { ResponsiveWorkflowDisclosure } from "../../shared/components/responsive-workflow";
 
 
 type PilotageScreenProps = {
@@ -149,7 +150,8 @@ function PilotageDomainCard({
   description,
   kpis,
   actionLabel,
-  onAction
+  onAction,
+  defaultOpen = false
 }: {
   title: string;
   eyebrow: string;
@@ -157,27 +159,26 @@ function PilotageDomainCard({
   kpis: KpiItem[];
   actionLabel: string;
   onAction: () => void;
+  defaultOpen?: boolean;
 }): JSX.Element {
   const { t: tr } = useI18n();
-  const titleId = useId();
   return (
-    <section className="pilotage-card" aria-labelledby={titleId}>
-      <div className="pilotage-card__header">
-        <div>
-          <span className="pilotage-eyebrow">{tr(eyebrow)}</span>
-          <h3 id={titleId}>{tr(title)}</h3>
-          <p>{tr(description)}</p>
-        </div>
-        <button type="button" className="button-ghost pilotage-card__action" onClick={onAction}>
-          {tr(actionLabel)}
-        </button>
-      </div>
+    <ResponsiveWorkflowDisclosure
+      className="pilotage-card"
+      title={title}
+      eyebrow={eyebrow}
+      description={description}
+      defaultOpen={defaultOpen}
+    >
+      <button type="button" className="button-ghost pilotage-card__action" onClick={onAction}>
+        {tr(actionLabel)}
+      </button>
       <ResponsiveKpiGrid desktopColumns={2} label={tr(title)} priority="secondary">
         {kpis.map((item) => (
           <PilotageKpiCard key={item.label} item={item} />
         ))}
       </ResponsiveKpiGrid>
-    </section>
+    </ResponsiveWorkflowDisclosure>
   );
 }
 
@@ -190,14 +191,13 @@ function PilotageAlertList({
 }): JSX.Element {
   const { t: tr } = useI18n();
   return (
-    <section className="pilotage-card pilotage-alerts" aria-labelledby="pilotage-alerts-title">
-      <div className="pilotage-card__header">
-        <div>
-          <span className="pilotage-eyebrow">{tr("Alertes")}</span>
-          <h3 id="pilotage-alerts-title">{tr("À traiter en priorité")}</h3>
-          <p>{tr("Chaque alerte renvoie vers le module qui permet de corriger la situation.")}</p>
-        </div>
-      </div>
+    <ResponsiveWorkflowDisclosure
+      className="pilotage-card pilotage-alerts"
+      title="À traiter en priorité"
+      eyebrow="Alertes"
+      description="Chaque alerte renvoie vers le module qui permet de corriger la situation."
+      defaultOpen
+    >
       <div className="pilotage-alert-list">
         {alerts.map((alert) => (
           <article key={alert.id} className={`pilotage-alert pilotage-alert--${alert.tone}`}>
@@ -214,7 +214,7 @@ function PilotageAlertList({
           </article>
         ))}
       </div>
-    </section>
+    </ResponsiveWorkflowDisclosure>
   );
 }
 
@@ -814,6 +814,7 @@ export function PilotageScreen(props: PilotageScreenProps): JSX.Element {
           kpis={schoolKpis}
           actionLabel="Ouvrir inscriptions"
           onAction={() => onSelectScreen("enrollments")}
+          defaultOpen
         />
         <PilotageDomainCard
           title="Vie scolaire"

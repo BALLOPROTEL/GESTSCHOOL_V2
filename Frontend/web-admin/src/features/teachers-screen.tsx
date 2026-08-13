@@ -70,6 +70,8 @@ import { useConfirmDialog } from "../shared/components/confirm-dialog";
 import { toUiErrorMessage } from "../shared/services/api-errors";
 import { ResponsiveDataTable } from "../shared/components/responsive-data-table";
 import { ResponsiveKpiCard } from "../shared/components/responsive-dashboard";
+import { WorkflowNavigation } from "../shared/components/workflow-guide";
+import { WorkflowContextBar } from "../shared/components/responsive-workflow";
 
 
 type TeachersScreenProps = {
@@ -470,11 +472,11 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     : documents;
 
   const teacherTabs = [
-    { id: "list", label: translate("Liste") },
-    { id: "skills", label: translate("Compétences") },
-    { id: "assignments", label: translate("Affectations") },
-    { id: "workloads", label: translate("Charges") },
-    { id: "documents", label: translate("Documents") }
+    { id: "list", title: "Liste", hint: "Rechercher et ouvrir une fiche enseignant." },
+    { id: "skills", title: "Compétences", hint: "Gérer les matières maîtrisées." },
+    { id: "assignments", title: "Affectations", hint: "Affecter classes, matières et périodes." },
+    { id: "workloads", title: "Charges", hint: "Contrôler la charge pédagogique." },
+    { id: "documents", title: "Documents", hint: "Consulter et ajouter les pièces enseignant." }
   ];
 
   return (
@@ -493,20 +495,33 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
         )}
       </header>
 
-      <nav className="teachers-v3-step-tabs" role="tablist" aria-label={translate("Navigation enseignants")}>
-        {teacherTabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeStep === tab.id}
-            className={activeStep === tab.id ? "is-active" : ""}
-            onClick={() => setActiveStep(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      {activeStep !== "form" && activeStep !== "detail" ? (
+        <WorkflowNavigation
+          title="Navigation enseignants"
+          steps={teacherTabs}
+          activeStepId={activeStep}
+          onStepChange={setActiveStep}
+        />
+      ) : null}
+
+      {activeStep !== "list" ? (
+        <WorkflowContextBar
+          title="Contexte actif"
+          items={[
+            {
+              label: "Enseignant",
+              value:
+                activeStep === "form" && !editingTeacherId
+                  ? tr("Nouvel enseignant")
+                  : selectedTeacher?.fullName || tr("À sélectionner")
+            },
+            { label: "Matricule", value: selectedTeacher?.matricule || "-" },
+            { label: "Statut", value: selectedTeacher ? tr(teacherStatusLabel(selectedTeacher.status)) : "-" }
+          ]}
+          actionLabel="Retour à la liste"
+          onAction={() => setActiveStep("list")}
+        />
+      ) : null}
 
       {activeStep === "list" ? (
         <TeachersSummarySection

@@ -1014,7 +1014,11 @@ describe("critical frontend flows", () => {
       "Lecture rapide issue des factures disponibles.",
       "Suivi opérationnel",
       "Indicateurs clés du périmètre visible.",
-      "Liste des inscriptions"
+      "Liste des inscriptions",
+      "élève(s) actif(s), placements issus des dossiers validés.",
+      "Matricule à compléter",
+      "Élève à vérifier",
+      "Inscription consultée"
     ];
 
     for (const source of criticalSources) {
@@ -1337,12 +1341,8 @@ describe("critical frontend flows", () => {
       />
     );
 
-    expect(screen.getByRole("heading", { name: "Créer l'utilisateur" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Créer l'utilisateur" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Comptes utilisateurs").length).toBeGreaterThan(0);
-    expect(screen.getByText("Rôle d'accès *")).toBeInTheDocument();
-    expect(screen.getByText("Rattachement métier")).toBeInTheDocument();
-    expect(screen.getByText("Envoyer l’email d’activation immédiatement")).toBeInTheDocument();
-    expect(screen.getByText("Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.")).toBeInTheDocument();
     expect(screen.getAllByText("En attente d’activation").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Actions parent.pending" }));
     expect(screen.getByRole("menuitem", { name: "Renvoyer l’activation" })).toBeInTheDocument();
@@ -1350,6 +1350,13 @@ describe("critical frontend flows", () => {
     expect(screen.queryByText(/tenant/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Droits API/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/routes/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Créer l'utilisateur" }));
+    expect(screen.getByRole("heading", { name: "Créer l'utilisateur" })).toBeInTheDocument();
+    expect(screen.getByText("Rôle d'accès *")).toBeInTheDocument();
+    expect(screen.getByText("Rattachement métier")).toBeInTheDocument();
+    expect(screen.getByText("Envoyer l’email d’activation immédiatement")).toBeInTheDocument();
+    expect(screen.getByText("Le mot de passe définitif est choisi par l’utilisateur depuis le lien d’activation sécurisé.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Droits par profil" }));
 

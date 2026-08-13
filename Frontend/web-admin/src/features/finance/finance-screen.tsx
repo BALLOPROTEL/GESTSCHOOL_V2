@@ -18,6 +18,7 @@ import {
   ResponsiveKpiGrid
 } from "../../shared/components/responsive-dashboard";
 import { RowActionMenu } from "../../shared/components/row-action-menu";
+import { WorkflowContextBar } from "../../shared/components/responsive-workflow";
 
 type FinanceScreenProps = {
   api: FinanceApiClient;
@@ -189,6 +190,25 @@ export function FinanceScreen({
         activeStepId={financeWorkflowStep}
         onStepChange={scrollToFinance}
       >
+      {financeWorkflowStep === "payments" ? (
+        <WorkflowContextBar
+          title="Contexte actif"
+          items={[
+            { label: "Facture", value: selectedPaymentInvoice?.invoiceNo || tr("À sélectionner") },
+            { label: "Élève", value: selectedPaymentInvoice?.studentName || "-" },
+            {
+              label: "Statut",
+              value: selectedPaymentInvoice ? tr(invoiceStatusLabel(selectedPaymentInvoice)) : "-"
+            },
+            {
+              label: "Reste à payer",
+              value: selectedPaymentInvoice ? formatMoney(selectedPaymentInvoice.remainingAmount) : "-"
+            }
+          ]}
+          actionLabel="Voir les factures"
+          onAction={() => scrollToFinance("invoices")}
+        />
+      ) : null}
       {financeWorkflowStep === "overview" ? (
         <section className="panel table-panel workflow-section module-modern module-overview-shell finance-screen-shell">
           <div className="table-header">

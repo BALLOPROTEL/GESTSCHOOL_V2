@@ -155,6 +155,7 @@ export function IamScreen({
     setIamWorkflowStep(stepId);
     const targetByStep: Record<string, string> = {
       accounts: "iam-accounts",
+      accountForm: "iam-account-form",
       permissions: "iam-permissions"
     };
     const target = targetByStep[stepId];
@@ -173,7 +174,7 @@ export function IamScreen({
       onStepChange={goToStep}
     >
       <div className="iam-v3-shell module-v3-shell">
-        <section id="iam-accounts" data-step-id="accounts" className="panel editor-panel workflow-section module-modern iam-v3-form-card">
+        <section id="iam-account-form" data-step-id="accountForm" className="panel editor-panel workflow-section module-modern iam-v3-form-card">
           <h2>{editingUserId ? tr("Modifier l'utilisateur") : tr("Créer l'utilisateur")}</h2>
           <ResponsiveForm
             className="iam-account-form"
@@ -397,14 +398,25 @@ export function IamScreen({
           </ResponsiveForm>
         </section>
 
-        <section data-step-id="accounts" className="panel table-panel workflow-section module-modern iam-v3-table-card">
+        <section id="iam-accounts" data-step-id="accounts" className="panel table-panel workflow-section module-modern iam-v3-table-card">
           <div className="v3-table-head">
             <div>
               <p className="section-kicker">{tr("Accès")}</p>
               <h2>{tr("Comptes utilisateurs")}</h2>
               <p>{tr("Profils, rattachements métier et sécurité d’accès.")}</p>
             </div>
-            <span className="v3-count-badge">{users.length} {tr("compte(s)")}</span>
+            <div className="module-inline-strip">
+              <span className="v3-count-badge">{users.length} {tr("compte(s)")}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  resetUserForm();
+                  goToStep("accountForm");
+                }}
+              >
+                {tr("Créer l'utilisateur")}
+              </button>
+            </div>
           </div>
           <ResponsiveDataTable label={tr("Comptes utilisateurs")}>
             <table data-responsive-table="true" data-testid="iam-users-table">
@@ -444,7 +456,7 @@ export function IamScreen({
                       <td data-label={tr("Rattachement")}>{formatUserAttachment(item)}</td>
                       <td data-label={tr("Statut")}>
                         <span className={`status-pill ${item.status === "PENDING_ACTIVATION" ? "is-warning" : item.isActive ? "is-success" : "is-muted"}`.trim()}>
-                          {formatUserStatusLabel(item.status || (item.isActive ? "ACTIVE" : "INACTIVE"))}
+                          {tr(formatUserStatusLabel(item.status || (item.isActive ? "ACTIVE" : "INACTIVE")))}
                         </span>
                       </td>
                       <td data-label={tr("Dernière mise à jour")}>{new Date(item.updatedAt).toLocaleString(locale)}</td>

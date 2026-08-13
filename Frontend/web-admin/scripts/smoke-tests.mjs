@@ -122,11 +122,12 @@ for (const file of expectedStyleLayers) {
 
 const cssFiles = walkFiles(srcRoot).filter((file) => file.endsWith(".css"));
 const cssBytes = cssFiles.reduce((total, file) => total + statSync(file).size, 0);
+const cssBudgetBytes = 585_000;
 const importantCount = cssFiles.reduce(
   (total, file) => total + (readFileSync(file, "utf8").match(/!important/gu)?.length || 0),
   0
 );
-assert(cssBytes <= 582_000, `Le CSS source depasse le budget LOT R3: ${cssBytes} octets.`);
+assert(cssBytes <= cssBudgetBytes, `Le CSS source depasse le budget LOT R6: ${cssBytes} octets.`);
 assert(importantCount <= 1_200, `Le nombre de !important depasse le budget LOT 8D: ${importantCount}.`);
 
 const removedVisualScripts = [

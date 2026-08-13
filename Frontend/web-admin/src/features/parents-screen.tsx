@@ -34,6 +34,7 @@ import {
 } from "./parents/parents-screen-model";
 import { useI18n } from "../shared/i18n-context";
 import { ResponsiveForm } from "../shared/components/responsive-form";
+import { WorkflowContextBar } from "../shared/components/responsive-workflow";
 import { useConfirmDialog } from "../shared/components/confirm-dialog";
 import { ResponsiveDataTable } from "../shared/components/responsive-data-table";
 
@@ -364,6 +365,21 @@ export function ParentsScreen({
               </div>
               <span className="students-overview-status">{tr("Dossier responsable")}</span>
             </div>
+            <WorkflowContextBar
+              title="Contexte actif"
+              items={[
+                {
+                  label: "Parent",
+                  value:
+                    [parentForm.firstName, parentForm.lastName].filter(Boolean).join(" ") ||
+                    tr("Nouveau responsable")
+                },
+                { label: "Rôle parental", value: tr(roleLabel(parentForm.parentalRole)) },
+                { label: "Statut", value: tr(statusLabel(parentForm.status)) }
+              ]}
+              actionLabel="Retour à la liste"
+              onAction={() => setActiveStep("list")}
+            />
             <ResponsiveForm
               className="module-form parents-form"
               formTitle={editingParentId ? tr("Modifier le responsable") : tr("Ajouter un responsable")}
@@ -524,6 +540,24 @@ export function ParentsScreen({
                 {relations.length === 1 ? "1 lien" : `${relations.length} liens`}
               </span>
             </div>
+            <WorkflowContextBar
+              title="Contexte actif"
+              items={[
+                {
+                  label: "Parent",
+                  value: parents.find((parent) => parent.id === linkForm.parentId)?.fullName || tr("À sélectionner")
+                },
+                {
+                  label: "Élève",
+                  value:
+                    students.find((student) => student.id === linkForm.studentId)?.fullName ||
+                    tr("À sélectionner")
+                },
+                { label: "Liens", value: relations.length }
+              ]}
+              actionLabel="Retour à la liste"
+              onAction={() => setActiveStep("list")}
+            />
             <ResponsiveForm
               className="form-grid module-form students-form-grid parents-links-form"
               formTitle={tr("Lier un responsable à un élève")}

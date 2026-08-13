@@ -122,6 +122,18 @@ describe("RowActionMenu", () => {
     fireEvent.scroll(window);
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
+
+  it("reste ouvert lors du défilement horizontal local du tableau", async () => {
+    renderWithLanguage(
+      <div data-testid="table-scroll-region">
+        <MenuHarness />
+      </div>
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Actions élève" }));
+    await screen.findByRole("menu");
+    fireEvent.scroll(screen.getByTestId("table-scroll-region"));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
 });
 
 describe("ResponsiveFilterPanel", () => {

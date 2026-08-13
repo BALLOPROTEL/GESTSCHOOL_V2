@@ -16,6 +16,7 @@ import { PilotageScreen } from "./pilotage-screen";
 
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(window, "matchMedia");
 });
 
 const schoolYear: SchoolYear = {
@@ -241,5 +242,33 @@ describe("PilotageScreen", () => {
     expect(onSelectScreen).toHaveBeenCalledWith("enrollments");
     expect(onSelectScreen).toHaveBeenCalledWith("finance");
     expect(onSelectScreen).toHaveBeenCalledWith("grades");
+  });
+
+  it("réduit les domaines secondaires sur mobile sans perdre leur contenu", () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn((query: string): MediaQueryList => ({
+        matches: query.includes("max-width: 767px"),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn()
+      }) as unknown as MediaQueryList)
+    });
+
+    renderPilotage();
+
+    const schoolLife = screen.getByRole("region", { name: /vie scolaire/i });
+    expect(within(schoolLife).getByRole("button", { name: "Afficher" })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+    expect(within(schoolLife).queryByLabelText("Notes saisies : Non disponible")).not.toBeVisible();
+
+    fireEvent.click(within(schoolLife).getByRole("button", { name: "Afficher" }));
+    expect(within(schoolLife).getByLabelText("Notes saisies : Non disponible")).toBeVisible();
   });
 });

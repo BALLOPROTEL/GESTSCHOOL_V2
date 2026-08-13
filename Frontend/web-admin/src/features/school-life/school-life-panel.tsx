@@ -51,6 +51,7 @@ import type {
 } from "./types/school-life";
 import { useI18n } from "../../shared/i18n-context";
 import { ResponsiveDataTable } from "../../shared/components/responsive-data-table";
+import { WorkflowContextBar } from "../../shared/components/responsive-workflow";
 
 
 type LoadWarningKey = "attendance" | "attachments" | "timetable" | "notifications";
@@ -124,6 +125,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   });
 
   const [timetableFilters, setTimetableFilters] = useState({ classId: "", dayOfWeek: "" });
+  const [timetableMobileView, setTimetableMobileView] = useState<"list" | "week">("list");
   const [timetableForm, setTimetableForm] = useState({
     classId: "",
     subjectId: "",
@@ -911,6 +913,23 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
       <section data-step-id="validation" className="panel editor-panel workflow-section module-modern">
         <h2>{tr("Justificatifs & validation")}</h2>
         <p className="section-lead">{tr("Centralisez validation et pieces justificatives sans ouvrir plusieurs ecrans.")}</p>
+        <WorkflowContextBar
+          title="Contexte actif"
+          items={[
+            { label: "Élève", value: selectedAttendance?.studentName || tr("À sélectionner") },
+            { label: "Date", value: selectedAttendance?.attendanceDate || "-" },
+            {
+              label: "Statut",
+              value: selectedAttendance ? labelFromMap(attendanceStatusLabels, selectedAttendance.status) : "-"
+            },
+            {
+              label: "Justificatifs",
+              value: selectedAttendance?.attachments?.length ?? attendanceAttachments.length
+            }
+          ]}
+          actionLabel="Voir le journal"
+          onAction={() => setAttendanceWorkflowStep("journal")}
+        />
         {renderLoadWarning("attachments", "Justificatifs indisponibles")}
         <h3>{tr("Validation")}</h3>
         <ResponsiveForm className="form-grid module-form" formTitle={tr("Enregistrer validation")} onSubmit={(event) => void submitAttendanceValidation(event)}>
@@ -1044,7 +1063,25 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           <div className="actions"><button type="submit">{tr("Filtrer")}</button><button type="button" className="button-ghost" onClick={() => void resetTimetableFilters()}>{tr("Reinitialiser")}</button></div>
           </form>
         </ResponsiveFilterPanel>
-        <ResponsiveDataTable className="table-wrap">
+        <div className="timetable-mobile-view-switch" role="group" aria-label={tr("Affichage emploi du temps")}>
+          <button
+            type="button"
+            className={timetableMobileView === "list" ? "is-active" : "button-ghost"}
+            aria-pressed={timetableMobileView === "list"}
+            onClick={() => setTimetableMobileView("list")}
+          >
+            {tr("Vue liste")}
+          </button>
+          <button
+            type="button"
+            className={timetableMobileView === "week" ? "is-active" : "button-ghost"}
+            aria-pressed={timetableMobileView === "week"}
+            onClick={() => setTimetableMobileView("week")}
+          >
+            {tr("Vue semaine")}
+          </button>
+        </div>
+        <ResponsiveDataTable className={`table-wrap timetable-list-view ${timetableMobileView === "list" ? "is-active" : ""}`.trim()}>
           <table data-responsive-table="true">
             <thead>
               <tr><th>{tr("Jour")}</th><th>{tr("Heure")}</th><th>{tr("Classe")}</th><th>{tr("Matiere")}</th><th>{tr("Salle")}</th><th>{tr("Enseignant")}</th><th>{tr("Action")}</th></tr>
@@ -1073,6 +1110,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
           </table>
         </ResponsiveDataTable>
 
+        <div className={`timetable-week-view ${timetableMobileView === "week" ? "is-active" : ""}`.trim()}>
         <h3>{tr("Vue hebdo")}</h3>
         <div className="day-grid">
           {(timetableGrid?.days || []).map((day) => (
@@ -1093,6 +1131,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
               )}
             </article>
           ))}
+        </div>
         </div>
       </section>
       </WorkflowGuide>
