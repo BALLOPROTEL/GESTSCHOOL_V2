@@ -146,7 +146,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
       {brandName && logoSrc ? (
         <button type="button" className="sidebar-brand" onClick={onBrandSelect}>
           <span className="sidebar-brand-logo">
-            <img src={logoSrc} alt={logoAlt || brandName} />
+            <img src={logoSrc} alt={logoAlt || brandName} width="256" height="221" />
           </span>
           <span className="sidebar-brand-copy">
             <strong>{brandName}</strong>

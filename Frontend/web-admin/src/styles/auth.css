@@ -15,7 +15,7 @@
   padding: clamp(1rem, 1.8vw, 1.6rem);
   border-radius: 2.25rem;
   overflow: hidden;
-  background: url("/pageDeConnexion.png") 24% center / cover no-repeat;
+  background: url("/page-de-connexion.webp") 24% center / cover no-repeat;
   box-shadow: 0 30px 70px rgba(2, 8, 23, 0.34);
 }
 

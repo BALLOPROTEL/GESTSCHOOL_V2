@@ -163,7 +163,9 @@ export function HeaderDropdownMenu(props: {
                     onOpenChange(null);
                   }}
                 >
-                  {item.iconSrc ? <img src={item.iconSrc} alt="" aria-hidden="true" /> : null}
+                  {item.iconSrc ? (
+                    <img src={item.iconSrc} alt="" aria-hidden="true" width="64" height="64" />
+                  ) : null}
                   <span>{t(item.label)}</span>
                   {item.helperText ? <small>{t(item.helperText)}</small> : null}
                 </button>

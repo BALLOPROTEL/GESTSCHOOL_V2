@@ -281,7 +281,7 @@ export function HeaderNavigation(props: HeaderNavigationProps): JSX.Element {
       <div className="global-header-row">
         <button type="button" className="global-brand" onClick={dashboard.onSelect}>
           <span className="global-brand-logo">
-            <img src={logoSrc} alt={logoAlt} />
+            <img src={logoSrc} alt={logoAlt} width="256" height="221" />
           </span>
           <span className="global-brand-copy">
             <strong>{brandName}</strong>

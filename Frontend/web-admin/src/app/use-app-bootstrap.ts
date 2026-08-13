@@ -82,16 +82,18 @@ export function useAppBootstrap({
 
     const bootstrapData = async (): Promise<void> => {
       try {
-        if (needReference) await loadReference();
-        if (needStudents) await loadStudents();
+        const loaders: BootstrapLoader[] = [];
+        if (needReference) loaders.push(loadReference);
+        if (needStudents) loaders.push(loadStudents);
         if (shouldLoadUsers(currentRole)) {
-          await loadUsers();
+          loaders.push(loadUsers);
         } else {
           setUsers([]);
         }
-        if (hasScreenAccess(currentRole, "enrollments")) await loadEnrollments();
-        if (hasScreenAccess(currentRole, "finance")) await loadFinance();
-        if (hasScreenAccess(currentRole, "grades")) await loadReportCards();
+        if (hasScreenAccess(currentRole, "enrollments")) loaders.push(loadEnrollments);
+        if (hasScreenAccess(currentRole, "finance")) loaders.push(loadFinance);
+        if (hasScreenAccess(currentRole, "grades")) loaders.push(loadReportCards);
+        await Promise.all(loaders.map((load) => load()));
         if (!cancelled) {
           bootstrappedSessionKeyRef.current = sessionKey;
         }

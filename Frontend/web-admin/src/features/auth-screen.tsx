@@ -334,7 +334,7 @@ function AuthToolbar(props: ToolbarProps): JSX.Element {
                   role="menuitemradio"
                   aria-checked={active}
                 >
-                  <img src={metadata.iconSrc} alt="" aria-hidden="true" />
+                  <img src={metadata.iconSrc} alt="" aria-hidden="true" width="64" height="64" />
                   <span>{translate(metadata.label)}</span>
                 </button>
               );

@@ -122,7 +122,7 @@ for (const file of expectedStyleLayers) {
 
 const cssFiles = walkFiles(srcRoot).filter((file) => file.endsWith(".css"));
 const cssBytes = cssFiles.reduce((total, file) => total + statSync(file).size, 0);
-const cssBudgetBytes = 585_000;
+const cssBudgetBytes = 586_000;
 const importantCount = cssFiles.reduce(
   (total, file) => total + (readFileSync(file, "utf8").match(/!important/gu)?.length || 0),
   0

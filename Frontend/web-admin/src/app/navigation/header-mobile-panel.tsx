@@ -104,7 +104,14 @@ export function HeaderMobilePanel(props: {
       <div className="header-mobile-panel-head">
         <div className="header-mobile-brand">
           <span className="global-brand-logo mobile">
-            <img src={brandLogoSrc} alt={logoAlt || ""} aria-hidden={!logoAlt} />
+            <img
+              src={brandLogoSrc}
+              alt={logoAlt || ""}
+              aria-hidden={!logoAlt}
+              width="256"
+              height="221"
+              loading="lazy"
+            />
           </span>
           <div>
             <strong>{brandName}</strong>
@@ -205,7 +212,9 @@ export function HeaderMobilePanel(props: {
                   onClose();
                 }}
               >
-                {item.iconSrc ? <img src={item.iconSrc} alt="" aria-hidden="true" /> : null}
+                {item.iconSrc ? (
+                  <img src={item.iconSrc} alt="" aria-hidden="true" width="64" height="64" />
+                ) : null}
                 <span>{t(item.label)}</span>
                 {item.helperText ? <small>{t(item.helperText)}</small> : null}
               </button>

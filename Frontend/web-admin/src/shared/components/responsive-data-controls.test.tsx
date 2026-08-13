@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Profiler, useState } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -87,6 +87,47 @@ describe("ResponsiveDataTable", () => {
       <ResponsiveDataTable><table><tbody /></table></ResponsiveDataTable>
     );
     expect(screen.getByRole("region")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("conserve un seul observer quand les lignes changent", async () => {
+    let observerCount = 0;
+    let renderCount = 0;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor() {
+          observerCount += 1;
+        }
+        observe(): void {}
+        disconnect(): void {}
+      }
+    );
+
+    const table = (rows: number) => (
+      <I18nProvider language="fr">
+        <Profiler id="responsive-data-table" onRender={() => { renderCount += 1; }}>
+          <ResponsiveDataTable label="Élèves">
+            <table>
+              <tbody>
+                {Array.from({ length: rows }, (_, index) => (
+                  <tr key={index}><td>{`Élève ${index + 1}`}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </ResponsiveDataTable>
+        </Profiler>
+      </I18nProvider>
+    );
+
+    const view = render(table(100));
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(100));
+    const commitsBeforeRowsChange = renderCount;
+
+    view.rerender(table(200));
+
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(200));
+    expect(renderCount - commitsBeforeRowsChange).toBeLessThanOrEqual(2);
+    expect(observerCount).toBe(1);
   });
 });
 

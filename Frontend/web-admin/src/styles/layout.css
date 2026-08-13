@@ -685,6 +685,15 @@ tbody td {
   min-width: 0;
 }
 
+.screen-loading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  min-block-size: max(18rem, calc(100dvh - var(--gs-responsive-header-height, 4.5rem) - 2rem));
+}
+
 .context-bar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

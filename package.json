@@ -8,6 +8,8 @@
     "dev:web": "pnpm --filter @gestschool/web-admin dev",
     "build:api": "pnpm --filter @gestschool/api build",
     "build:web": "pnpm --filter @gestschool/web-admin build",
+    "performance:audit:web": "node scripts/performance-audit-frontend.mjs",
+    "performance:budget:web": "node --test scripts/performance/frontend-assets.test.mjs && node scripts/performance/check-frontend-bundle.mjs",
     "visual:audit:core": "node scripts/visual-audit-core-workflows.mjs",
     "visual:audit:mocked": "VISUAL_AUDIT_MODE=mocked node scripts/visual-audit-core-workflows.mjs",
     "visual:audit:tablet": "VISUAL_AUDIT_MODE=mocked VISUAL_AUDIT_SCOPE=r7 node scripts/visual-audit-core-workflows.mjs",

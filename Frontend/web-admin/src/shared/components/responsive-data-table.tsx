@@ -59,7 +59,7 @@ export function ResponsiveDataTable({
     const table = container.querySelector("table");
     if (table) observer.observe(table);
     return () => observer.disconnect();
-  }, [children, updateScrollState]);
+  }, [updateScrollState]);
 
   const accessibleLabel = label || t("Tableau de données défilant");
   const extraClassNames = className?.split(/\s+/u).filter((name) => name && name !== "table-wrap") || [];

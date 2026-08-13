@@ -28,7 +28,14 @@ export function HeaderUtilityButton(props: {
       title={translatedLabel}
     >
       {imageSrc ? (
-        <img className="header-utility-image" src={imageSrc} alt="" aria-hidden="true" />
+        <img
+          className="header-utility-image"
+          src={imageSrc}
+          alt=""
+          aria-hidden="true"
+          width="64"
+          height="64"
+        />
       ) : icon ? (
         <span className="header-icon-glyph">
           <HeaderGlyph icon={icon} />
@@ -165,7 +172,9 @@ export function HeaderLanguagePanel(props: {
             }}
           >
             <span className="header-language-icon" aria-hidden="true">
-              {option.iconSrc ? <img src={option.iconSrc} alt="" /> : option.label.slice(0, 2).toUpperCase()}
+              {option.iconSrc ? (
+                <img src={option.iconSrc} alt="" width="64" height="64" />
+              ) : option.label.slice(0, 2).toUpperCase()}
             </span>
             <span className="header-language-copy">
               <strong>{t(option.label)}</strong>

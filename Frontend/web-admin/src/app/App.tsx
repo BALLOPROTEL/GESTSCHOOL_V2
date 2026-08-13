@@ -403,7 +403,7 @@ export function App(): JSX.Element {
               brandName={SCHOOL_NAME}
               groups={navigation.sidebarGroups}
               logoAlt={`Logo ${SCHOOL_NAME}`}
-              logoSrc="/logo.png"
+              logoSrc="/logo.webp"
               navigationOpen={navigationDrawer.isOpen}
               onBrandSelect={navigation.dashboardAction.onSelect}
               onOpenNavigation={navigationDrawer.openFrom}
@@ -421,7 +421,7 @@ export function App(): JSX.Element {
               <HeaderNavigation
                 brandName={SCHOOL_NAME}
                 logoAlt={`Logo ${SCHOOL_NAME}`}
-                logoSrc="/logo.png"
+                logoSrc="/logo.webp"
                 sidebarCollapsed={sidebarCollapsed}
                 searchPlaceholder="Rechercher un module, un écran, une action..."
                 searchValue={moduleQueryInput}
