@@ -52,8 +52,9 @@ Production API:
 - `GESTSCHOOL_PROCESS_ROLE=api`
 - `NOTIFICATIONS_WORKER_ENABLED=false`
 - `OUTBOX_IN_PROCESS_ENABLED=false`
-- `NOTIFICATIONS_EMAIL_PROVIDER=MOCK` until synchronous activation/reset email
-  is explicitly enabled
+- `NOTIFICATIONS_EMAIL_ENABLED=true`
+- `NOTIFICATIONS_EMAIL_PROVIDER=BREVO` for synchronous activation/reset email
+- `NOTIFICATIONS_SMS_ENABLED=false`
 - `NOTIFICATIONS_SMS_PROVIDER=MOCK`
 - `BREVO_WEBHOOK_ENABLED=false` until the callback is configured in Brevo
 
@@ -75,6 +76,12 @@ Activation and password-reset emails remain synchronous in the API because
 their one-use secrets are not encrypted for durable outbox storage. When real
 email is enabled, the API also needs the Brevo email credentials. These two
 flows are not moved to the worker in LOT 5B.
+
+The API email-only configuration deliberately disables both background
+strategies when no dedicated worker exists. Business outbox events are not
+delivered until the worker is provisioned, but activation and password-reset
+emails continue to use Brevo synchronously. Do not combine real email with the
+temporary `ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX` exception.
 
 ## Required Server Variables
 

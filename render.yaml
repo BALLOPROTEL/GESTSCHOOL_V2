@@ -68,15 +68,15 @@ services:
       - key: NOTIFICATIONS_WORKER_ENABLED
         value: "false"
       - key: NOTIFICATIONS_EMAIL_ENABLED
-        value: "false"
+        value: "true"
       - key: NOTIFICATIONS_SMS_ENABLED
         value: "false"
       - key: ALLOW_MOCK_NOTIFICATION_PROVIDERS_IN_RC
         value: "false"
       - key: OUTBOX_IN_PROCESS_ENABLED
-        value: "true"
+        value: "false"
       - key: ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX
-        value: "true"
+        value: "false"
       - key: OUTBOX_POLL_INTERVAL_MS
         value: "30000"
       - key: OUTBOX_BATCH_SIZE
@@ -100,7 +100,7 @@ services:
       - key: NOTIFY_RETRY_MAX_SECONDS
         value: "7200"
       - key: NOTIFICATIONS_EMAIL_PROVIDER
-        value: mock
+        value: BREVO
       - key: NOTIFICATIONS_SMS_PROVIDER
         value: mock
       - key: BREVO_API_KEY

@@ -55,6 +55,31 @@ Le demarrage echoue si un canal/provider reel est active, si la concurrence
 depasse un processus ou si le role change. Retirer cette exception avant la
 premiere donnee reelle et revenir a la matrice API/worker cible.
 
+### Email d'authentification sans worker
+
+Pour envoyer les activations de compte et les reinitialisations de mot de passe
+depuis l'API sans activer les notifications metier asynchrones :
+
+```env
+GESTSCHOOL_PROCESS_ROLE=api
+NOTIFICATIONS_WORKER_ENABLED=false
+OUTBOX_IN_PROCESS_ENABLED=false
+ALLOW_IN_PROCESS_OUTBOX_FOR_EMPTY_SANDBOX=false
+NOTIFICATIONS_EMAIL_ENABLED=true
+NOTIFICATIONS_EMAIL_PROVIDER=BREVO
+NOTIFICATIONS_SMS_ENABLED=false
+NOTIFICATIONS_SMS_PROVIDER=MOCK
+BREVO_WEBHOOK_ENABLED=false
+BREVO_SMS_DRY_RUN=true
+ALLOW_REAL_SMS=false
+```
+
+Cette configuration exige `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` verifie,
+`BREVO_SENDER_NAME` et `BREVO_TIMEOUT_MS`. La cle reste exclusivement dans
+Render. L'API doit etre redemarree apres l'enregistrement des variables. Sans
+worker dedie, le backlog outbox metier doit rester surveille et ne doit pas etre
+presente comme livre.
+
 ## Separation build, migration et demarrage
 
 Les commandes sont distinctes :
