@@ -51,7 +51,11 @@ export function SchoolYearsSection(): JSX.Element {
                 </p>
               </div>
               <div className="module-inline-strip">
-                <span className="module-inline-pill">{activeSchoolYear ? tr(`Active: ${formatSchoolYearOptionLabel(activeSchoolYear)}`) : tr("Aucune active")}</span>
+                <span className="module-inline-pill">
+                  {activeSchoolYear
+                    ? `${tr("Année scolaire active :")} ${formatSchoolYearOptionLabel(activeSchoolYear)}`
+                    : tr("Aucune active")}
+                </span>
                 <span className="module-inline-pill">{tr("Libelle unique par etablissement")}</span>
               </div>
             </div>
@@ -207,7 +211,7 @@ export function SchoolYearsSection(): JSX.Element {
                       <tr key={item.id}>
                         <td data-label={tr("Libelle")}>{item.label || item.code}</td>
                         <td data-label={tr("Code")}>{item.code}</td>
-                        <td data-label={tr("Dates")}>{item.startDate} {tr("au ")}{item.endDate}</td>
+                        <td data-label={tr("Dates")}>{item.startDate} {tr("au")} {item.endDate}</td>
                         <td data-label={tr("Statut")}>{tr(formatSchoolYearStatusLabel(item.status))}</td>
                         <td data-label={tr("Options")}>
                           <ReferenceActionMenu

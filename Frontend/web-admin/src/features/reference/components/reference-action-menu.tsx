@@ -1,6 +1,7 @@
 import { useState, type JSX } from "react";
 
 import { RowActionMenu } from "../../../shared/components/row-action-menu";
+import { useI18n } from "../../../shared/i18n-context";
 
 type ReferenceActionMenuProps = {
   deleteLabel?: string;
@@ -14,9 +15,10 @@ export function ReferenceActionMenu({
   onDelete
 }: ReferenceActionMenuProps): JSX.Element {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
 
   return (
-    <RowActionMenu label={label} open={open} onOpenChange={setOpen}>
+    <RowActionMenu label={t(label)} open={open} onOpenChange={setOpen}>
           <button
             type="button"
             role="menuitem"
@@ -26,7 +28,7 @@ export function ReferenceActionMenu({
               onDelete();
             }}
           >
-            {deleteLabel}
+            {t(deleteLabel)}
           </button>
     </RowActionMenu>
   );

@@ -53,7 +53,7 @@ export function LevelsSection(): JSX.Element {
               <div>
                 <h3>{tr("Niveau")}</h3>
                 <p className="section-lead">
-                  {tr("Classe pedagogique abstraite telle que CP1, 6e ou Terminale. Il ne faut pas la confondre\n                  avec la classe reelle d'affectation.")}</p>
+                  {tr("Classe pedagogique abstraite telle que CP1, 6e ou Terminale. Il ne faut pas la confondre avec la classe reelle d'affectation.")}</p>
               </div>
               <div className="module-inline-strip">
                 <span className="module-inline-pill">{levels.length} {tr("niveau(x)")}</span>

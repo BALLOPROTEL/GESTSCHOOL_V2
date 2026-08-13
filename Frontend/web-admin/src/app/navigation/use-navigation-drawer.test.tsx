@@ -53,7 +53,9 @@ describe("useNavigationDrawer", () => {
         <DrawerHarness />
       </StrictMode>
     );
-    fireEvent.click(getByRole("button", { name: "Ouvrir" }));
+    const trigger = getByRole("button", { name: "Ouvrir" });
+    fireEvent.click(trigger);
+    await waitFor(() => expect(getByRole("button", { name: "Fermer" })).toHaveFocus());
     await waitFor(() => expect(document.documentElement).toHaveClass("mobile-shell-open"));
     unmount();
     expect(document.documentElement).not.toHaveClass("mobile-shell-open");

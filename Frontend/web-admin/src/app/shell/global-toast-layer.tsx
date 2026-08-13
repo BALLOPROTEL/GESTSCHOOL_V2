@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 
-import { translateUiString, UI_MESSAGES, type UiLanguage } from "../../shared/i18n";
+import { translateUiString, UI_LANGUAGE_META, UI_MESSAGES, type UiLanguage } from "../../shared/i18n";
 
 type GlobalToastLayerProps = {
   error: string | null;
@@ -32,6 +32,7 @@ export function GlobalToastLayer(props: GlobalToastLayerProps): JSX.Element | nu
       className="toast-stack global-toast-layer"
       data-global-toast-layer="true"
       data-testid="global-toast-stack"
+      dir={UI_LANGUAGE_META[language].dir}
       aria-live="polite"
       aria-atomic="true"
       style={GLOBAL_TOAST_LAYER_STYLE}

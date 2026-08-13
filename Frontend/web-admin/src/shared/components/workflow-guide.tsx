@@ -52,8 +52,31 @@ export function WorkflowNavigation({
             type="button"
             role="tab"
             aria-selected={step.id === activeStep.id}
+            tabIndex={step.id === activeStep.id ? 0 : -1}
             className={`workflow-tab ${step.id === activeStep.id ? "is-active" : ""}`.trim()}
             onClick={() => onStepChange(step.id)}
+            onKeyDown={(event) => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              const tabs = Array.from(
+                event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role='tab']") || []
+              );
+              if (tabs.length === 0) return;
+              event.preventDefault();
+              const currentIndex = Math.max(0, tabs.indexOf(event.currentTarget));
+              const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
+              const forward = event.key === "ArrowRight" ? !rtl : rtl;
+              const nextIndex =
+                event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? tabs.length - 1
+                    : forward
+                      ? (currentIndex + 1) % tabs.length
+                      : (currentIndex - 1 + tabs.length) % tabs.length;
+              const nextStep = steps[nextIndex];
+              tabs[nextIndex]?.focus();
+              if (nextStep) onStepChange(nextStep.id);
+            }}
           >
             {t(step.title)}
           </button>

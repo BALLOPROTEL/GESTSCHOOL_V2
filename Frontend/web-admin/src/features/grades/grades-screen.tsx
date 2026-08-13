@@ -699,7 +699,7 @@ export function GradesScreen({
                                 score: event.target.checked ? "" : row?.score || ""
                               })
                             }
-                            aria-label={`Absent ${formatStudentName(student)}`}
+                            aria-label={`${tr("Absent")} ${formatStudentName(student)}`}
                           />
                         </td>
                         <td data-label={tr("Dispensé")}>
@@ -713,14 +713,14 @@ export function GradesScreen({
                                 score: event.target.checked ? "" : row?.score || ""
                               })
                             }
-                            aria-label={`Dispensé ${formatStudentName(student)}`}
+                            aria-label={`${tr("Dispensé")} ${formatStudentName(student)}`}
                           />
                         </td>
                         <td data-label={tr("Commentaire")}>
                           <input
                             value={row?.comment || ""}
                             onChange={(event) => updateGradeRow(student.id, { comment: event.target.value })}
-                            aria-label={`Commentaire ${formatStudentName(student)}`}
+                            aria-label={`${tr("Commentaire")} ${formatStudentName(student)}`}
                           />
                         </td>
                         <td data-label={tr("Statut")}>{row?.absent ? tr("Absent") : row?.exempted ? tr("Dispensé") : row?.score ? tr("Prêt") : tr("À saisir")}</td>

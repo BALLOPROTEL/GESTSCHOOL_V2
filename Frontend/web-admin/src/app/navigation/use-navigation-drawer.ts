@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 const DRAWER_FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -25,6 +25,7 @@ export type NavigationDrawerController = {
 export function useNavigationDrawer(): NavigationDrawerController {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const restoreFocusFrameRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
 
   const close = useCallback(() => setIsOpen(false), []);
@@ -39,20 +40,29 @@ export function useNavigationDrawer(): NavigationDrawerController {
     });
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) return undefined;
 
     const panel = panelRef.current;
     if (!panel) return undefined;
 
+    if (restoreFocusFrameRef.current !== null) {
+      window.cancelAnimationFrame(restoreFocusFrameRef.current);
+      restoreFocusFrameRef.current = null;
+    }
     document.documentElement.classList.add("mobile-shell-open");
-    const focusFrame = window.requestAnimationFrame(() => {
+    const focusInitialControl = () => {
+      if (panel.contains(document.activeElement)) return;
+      if (window.getComputedStyle(panel).visibility !== "visible") return;
       const initialFocus =
         panel.querySelector<HTMLElement>("[data-navigation-drawer-initial-focus]") ??
         focusableElements(panel)[0] ??
         panel;
       initialFocus.focus();
-    });
+    };
+    const initialFocusFrame = window.requestAnimationFrame(focusInitialControl);
+    const initialFocusFallback = window.setTimeout(focusInitialControl, 300);
+    panel.addEventListener("transitionend", focusInitialControl);
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -83,12 +93,19 @@ export function useNavigationDrawer(): NavigationDrawerController {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.cancelAnimationFrame(focusFrame);
+      window.cancelAnimationFrame(initialFocusFrame);
+      window.clearTimeout(initialFocusFallback);
+      panel.removeEventListener("transitionend", focusInitialControl);
       document.removeEventListener("keydown", handleKeyDown);
       document.documentElement.classList.remove("mobile-shell-open");
       const trigger = triggerRef.current;
       if (trigger?.isConnected) {
-        window.requestAnimationFrame(() => trigger.focus());
+        restoreFocusFrameRef.current = window.requestAnimationFrame(() => {
+          restoreFocusFrameRef.current = null;
+          if (!panel.isConnected || !panel.classList.contains("is-open")) {
+            trigger.focus();
+          }
+        });
       }
     };
   }, [close, isOpen]);

@@ -49,7 +49,7 @@ export function CyclesSection(): JSX.Element {
               <div>
                 <h3>{tr("Cycle")}</h3>
                 <p className="section-lead">
-                  {tr("Grand regroupement pedagogique tel que Primaire, College ou Lycee. Il sert de base a\n                  plusieurs niveaux.")}</p>
+                  {tr("Grand regroupement pedagogique tel que Primaire, College ou Lycee. Il sert de base a plusieurs niveaux.")}</p>
               </div>
               <div className="module-inline-strip">
                 <span className="module-inline-pill">{cycles.length} {tr("cycle(s)")}</span>

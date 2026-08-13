@@ -204,6 +204,7 @@ function ProfileHero(props: ProfilePageProps): JSX.Element {
           type="file"
           accept="image/jpeg,image/png,image/webp"
           className="sr-only"
+          aria-label={props.t("Changer la photo")}
           onChange={(event) => props.onAvatarFileSelected(event.target.files?.[0])}
         />
         <button

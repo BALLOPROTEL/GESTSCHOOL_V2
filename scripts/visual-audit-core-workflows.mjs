@@ -77,12 +77,12 @@ const allWorkflows = [
   { key: "enrollments", nav: /Inscriptions/u, required: ["Inscriptions", "Liste des inscriptions"] },
   { key: "finance", nav: /Comptabilité/u, required: ["Console de recouvrement"] },
   { key: "grades", nav: /Notes & bulletins/u, required: ["Vue d’ensemble", "Saisie des notes", "Bulletins"] },
-  { key: "attendance", nav: /Absences/u, required: ["Absences", "Journal des absences"] },
+  { key: "attendance", navigationId: "schoolLifeAttendance", nav: /Absences/u, required: ["Absences", "Journal des absences"] },
   { key: "rooms", nav: /Salles/u, required: ["Salles", "Ajouter une salle"] },
-  { key: "timetable", nav: /Emploi du temps/u, required: ["Emploi du temps", "Grille d'emploi du temps"] },
-  { key: "notifications", nav: /Notifications/u, required: ["Notifications", "Historique notifications"] },
+  { key: "timetable", navigationId: "schoolLifeTimetable", nav: /Emploi du temps/u, required: ["Emploi du temps", "Grille d'emploi du temps"] },
+  { key: "notifications", navigationId: "schoolLifeNotifications", nav: /Notifications/u, required: ["Notifications", "Historique notifications"] },
   { key: "reference", nav: /Référentiel/u, required: ["Annee scolaire"] },
-  { key: "pilotage", nav: /Pilotage/u, required: ["CONSOLE OPÉRATIONNELLE", "Scolarité", "Finance"] },
+  { key: "pilotage", navigationId: "schoolLifeOverview", nav: /Pilotage/u, required: ["CONSOLE OPÉRATIONNELLE", "Scolarité", "Finance"] },
   { key: "parents", nav: /Parents/u, required: ["Liste des responsables"] },
   { key: "reports", nav: /Rapports & conformité/u, required: ["Indicateurs executifs"] },
   { key: "profile", userAction: /Mon profil/u, required: ["Mon profil", "Informations personnelles", "Sécurité du compte"] },
@@ -218,6 +218,23 @@ const r7ZoomVariants = [
   { viewport: "zoomTabletLandscape", theme: "dark" },
   { viewport: "zoomTablet1180", theme: "light" }
 ];
+const r8CoreVariants = [
+  { viewport: "smallMobile", theme: "light" },
+  { viewport: "desktop1280", theme: "light" },
+  { viewport: "desktop", theme: "dark" }
+];
+const r8LanguageVariants = [
+  { language: "en", viewport: "desktop1280", theme: "dark" },
+  { language: "ar", viewport: "smallMobile", theme: "dark" },
+  { language: "ar", viewport: "tabletLandscape1180", theme: "light" }
+];
+const r8ZoomKeys = new Set(["dashboard", "iam", "students", "finance", "grades", "timetable", "reference", "pilotage"]);
+const r8ZoomVariants = [
+  { viewport: "desktop1280", theme: "light", zoomFactor: 2 },
+  { viewport: "desktop", theme: "dark", zoomFactor: 2 },
+  { viewport: "tabletLandscape", theme: "light", zoomFactor: 2 }
+];
+const r8ReducedMotionKeys = new Set(["dashboard", "finance", "timetable"]);
 
 const guard = createAuditGuard({
   mode,
@@ -265,14 +282,14 @@ const localizedCriticalContent = {
   },
   iam: {
     ar: {
-      forbidden: ["Utilisateurs & droits", "Comptes utilisateurs", "Droits par profil"],
+      forbidden: ["Utilisateurs & droits", "Comptes utilisateurs", "Droits par profil", "Profils, rattachements métier et sécurité d’accès."],
       nav: /المستخدمون والصلاحيات/u,
-      required: ["حسابات المستخدمين", "الصلاحيات حسب الملف"]
+      required: ["حسابات المستخدمين", "الصلاحيات حسب الملف", "ملفات التعريف والارتباطات المهنية وأمان الوصول."]
     },
     en: {
-      forbidden: ["Utilisateurs & droits", "Comptes utilisateurs", "Droits par profil"],
+      forbidden: ["Utilisateurs & droits", "Comptes utilisateurs", "Droits par profil", "Profils, rattachements métier et sécurité d’accès."],
       nav: /Users & permissions/u,
-      required: ["User accounts", "Permissions by profile"]
+      required: ["User accounts", "Permissions by profile", "Profiles, business links, and access security."]
     }
   },
   pilotage: {
@@ -289,14 +306,14 @@ const localizedCriticalContent = {
   },
   reference: {
     ar: {
-      forbidden: ["Référentiel", "Referentiel academique"],
+      forbidden: ["Référentiel", "Referentiel academique", "Annees", "Niveaux", "Base temporelle de tout le logiciel"],
       nav: /المرجع/u,
-      required: ["السنة الدراسية"]
+      required: ["السنة الدراسية", "السنوات الدراسية", "المستويات", "المرجع الزمني للتطبيق بأكمله"]
     },
     en: {
-      forbidden: ["Référentiel", "Referentiel academique"],
+      forbidden: ["Référentiel", "Referentiel academique", "Annees", "Niveaux", "Base temporelle de tout le logiciel"],
       nav: /Reference/u,
-      required: ["School year"]
+      required: ["School year", "School years", "Levels", "Time foundation for the entire application"]
     }
   },
   grades: {
@@ -321,6 +338,108 @@ const localizedCriticalContent = {
       forbidden: ["Élèves", "Ajouter un élève"],
       nav: /Students/u,
       required: ["Students", "Add student"]
+    }
+  },
+  teachers: {
+    ar: {
+      forbidden: ["Enseignants", "Base enseignants"],
+      nav: /المعلمون/u,
+      required: ["المعلمون", "دليل المعلمين"]
+    },
+    en: {
+      forbidden: ["Enseignants", "Base enseignants"],
+      nav: /Teachers/u,
+      required: ["Teachers", "Teacher directory"]
+    }
+  },
+  parents: {
+    ar: {
+      forbidden: ["Parents", "Liste des responsables"],
+      nav: /أولياء الأمور/u,
+      required: ["قائمة الأولياء"]
+    },
+    en: {
+      forbidden: ["Liste des responsables"],
+      nav: /Parents/u,
+      required: ["Guardian list"]
+    }
+  },
+  attendance: {
+    ar: {
+      forbidden: ["Absences", "Journal des absences"],
+      nav: /الغياب/u,
+      required: ["الغياب", "سجل الغياب"]
+    },
+    en: {
+      forbidden: ["Absences", "Journal des absences"],
+      nav: /Attendance/u,
+      required: ["Attendance", "Attendance log"]
+    }
+  },
+  rooms: {
+    ar: {
+      forbidden: ["Salles", "Ajouter une salle"],
+      nav: /القاعات/u,
+      required: ["القاعات", "إضافة قاعة"]
+    },
+    en: {
+      forbidden: ["Salles", "Ajouter une salle"],
+      nav: /Rooms/u,
+      required: ["Rooms", "Add room"]
+    }
+  },
+  notifications: {
+    ar: {
+      forbidden: ["Notifications", "Historique notifications"],
+      nav: /الإشعارات/u,
+      required: ["الإشعارات", "سجل الإشعارات"]
+    },
+    en: {
+      forbidden: ["Historique notifications"],
+      nav: /Notifications/u,
+      required: ["Notifications", "Notification history"]
+    }
+  },
+  reports: {
+    ar: {
+      forbidden: ["Rapports & conformité", "Indicateurs executifs"],
+      nav: /التقارير والامتثال/u,
+      required: ["المؤشرات التنفيذية"]
+    },
+    en: {
+      forbidden: ["Rapports & conformité", "Indicateurs executifs"],
+      nav: /Reports & compliance/u,
+      required: ["Executive indicators"]
+    }
+  },
+  profile: {
+    ar: {
+      forbidden: ["Mon profil", "Informations personnelles", "Sécurité du compte"],
+      required: ["ملفي الشخصي", "المعلومات الشخصية", "أمان الحساب"]
+    },
+    en: {
+      forbidden: ["Mon profil", "Informations personnelles", "Sécurité du compte"],
+      required: ["My profile", "Personal information", "Account security"]
+    }
+  },
+  preferences: {
+    ar: {
+      forbidden: ["Préférences", "Enregistrer les préférences"],
+      required: ["التفضيلات", "حفظ التفضيلات"]
+    },
+    en: {
+      forbidden: ["Préférences", "Enregistrer les préférences"],
+      required: ["Preferences", "Save preferences"]
+    }
+  },
+  activity: {
+    ar: {
+      forbidden: ["Journal d’activité"],
+      required: ["سجل النشاط"]
+    },
+    en: {
+      forbidden: ["Journal d’activité"],
+      required: ["Activity log"]
     }
   },
   timetable: {
@@ -377,7 +496,8 @@ async function createContext(browser, metadata) {
     },
     { keys: storageKeys, language: metadata.language, theme: metadata.theme }
   );
-  await context.addInitScript(() => {
+  await context.addInitScript((disableDeterministicStyles) => {
+    if (disableDeterministicStyles) return;
     const installDeterministicStyles = () => {
       if (document.querySelector("style[data-visual-audit='deterministic']")) return;
       const style = document.createElement("style");
@@ -387,8 +507,22 @@ async function createContext(browser, metadata) {
     };
     if (document.documentElement) installDeterministicStyles();
     else window.addEventListener("DOMContentLoaded", installDeterministicStyles, { once: true });
-  });
+  }, auditScope === "r8" && metadata.reducedMotion === "reduce");
   return context;
+}
+
+async function applyR8BrowserZoom(page, metadata) {
+  if (auditScope !== "r8" || !metadata.zoomFactor || metadata.zoomFactor === 1) return;
+  const baseViewport = viewports[metadata.viewport];
+  const session = await page.context().newCDPSession(page);
+  await session.send("Emulation.setDeviceMetricsOverride", {
+    deviceScaleFactor: metadata.zoomFactor,
+    height: Math.floor(baseViewport.height / metadata.zoomFactor),
+    mobile: false,
+    screenHeight: baseViewport.height,
+    screenWidth: baseViewport.width,
+    width: Math.floor(baseViewport.width / metadata.zoomFactor)
+  });
 }
 
 async function waitForStableShell(page) {
@@ -442,9 +576,9 @@ async function openModule(page, workflow, language = "fr") {
     const desktopTrigger = page.locator(".sidebar-user-card").first();
     if (await desktopTrigger.isVisible().catch(() => false)) {
       await desktopTrigger.click();
-      const desktopAction = page
-        .locator(".sidebar-user-dropdown .sidebar-user-action")
-        .filter({ hasText: workflow.userAction });
+      const desktopAction = page.locator(
+        `.sidebar-user-dropdown .sidebar-user-action[data-user-action-id='${workflow.key}']`
+      );
       if (!(await clickFirstVisible(desktopAction))) {
         throw new Error(`Action utilisateur absente pour ${workflow.key}.`);
       }
@@ -452,9 +586,9 @@ async function openModule(page, workflow, language = "fr") {
       const toggle = page.locator(".header-mobile-toggle").first();
       await toggle.click();
       await page.locator("#header-mobile-panel.is-open").waitFor({ state: "visible" });
-      const mobileAction = page
-        .locator("#header-mobile-panel .header-mobile-link")
-        .filter({ hasText: workflow.userAction });
+      const mobileAction = page.locator(
+        `#header-mobile-panel .header-mobile-link[data-user-action-id='${workflow.key}']`
+      );
       if (!(await clickFirstVisible(mobileAction))) {
         throw new Error(`Action utilisateur mobile absente pour ${workflow.key}.`);
       }
@@ -471,10 +605,11 @@ async function openModule(page, workflow, language = "fr") {
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     return;
   }
-  const localized = contentFor(workflow, language);
-  const nav = localized?.nav || workflow.nav;
+  const navigationId = workflow.navigationId || workflow.key;
   const previousText = await page.locator(".screen-host").innerText();
-  const desktopItem = page.locator(".app-sidebar-v2 .sidebar-link").filter({ hasText: nav });
+  const desktopItem = page.locator(
+    `.app-sidebar-v2 .sidebar-link[data-navigation-id='${navigationId}']`
+  );
   if (!(await clickFirstVisible(desktopItem))) {
     const toggle = page.locator(".header-mobile-toggle").first();
     if (!(await toggle.isVisible().catch(() => false))) {
@@ -482,7 +617,9 @@ async function openModule(page, workflow, language = "fr") {
     }
     await toggle.click();
     await page.locator("#header-mobile-panel.is-open").waitFor({ state: "visible" });
-    const mobileItem = page.locator("#header-mobile-panel .header-mobile-link").filter({ hasText: nav });
+    const mobileItem = page.locator(
+      `#header-mobile-panel .header-mobile-link[data-navigation-id='${navigationId}']`
+    );
     if (!(await clickFirstVisible(mobileItem))) {
       throw new Error(`Navigation mobile absente pour ${workflow.key}.`);
     }
@@ -730,6 +867,136 @@ async function assertR7TabletContract(page, metadata) {
   }
 }
 
+async function assertR8AccessibilityContract(page, metadata) {
+  if (auditScope !== "r8") return;
+  const snapshot = await page.evaluate(({ expectedZoom, language, reducedMotion }) => {
+    const visible = (element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      if (element.closest("[aria-hidden='true']")) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const accessibleName = (element) => {
+      const ariaLabel = element.getAttribute("aria-label")?.trim();
+      if (ariaLabel) return ariaLabel;
+      const labelledBy = element.getAttribute("aria-labelledby")
+        ?.split(/\s+/u)
+        .map((id) => document.getElementById(id)?.textContent?.trim() || "")
+        .filter(Boolean)
+        .join(" ");
+      if (labelledBy) return labelledBy;
+      if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
+        const labelText = [...element.labels].map((label) => label.textContent?.trim() || "").filter(Boolean).join(" ");
+        if (labelText) return labelText;
+      }
+      if (element instanceof HTMLImageElement && element.hasAttribute("alt")) return element.alt;
+      return element.textContent?.trim() || element.getAttribute("title")?.trim() || "";
+    };
+    const describe = (element) =>
+      `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}${element.className && typeof element.className === "string" ? `.${element.className.trim().replace(/\s+/gu, ".")}` : ""}`.slice(0, 180);
+    const interactive = [...document.querySelectorAll(
+      "button, a[href], input:not([type='hidden']), select, textarea, [role='tab'], [role='menuitem']"
+    )].filter(visible);
+    const unnamedInteractive = interactive.filter((element) => !accessibleName(element)).map(describe);
+    const unlabeledFields = [...document.querySelectorAll(".screen-host input:not([type='hidden']), .screen-host select, .screen-host textarea")]
+      .filter(visible)
+      .filter((element) => !accessibleName(element))
+      .map(describe);
+    const imagesWithoutAlt = [...document.querySelectorAll("img")]
+      .filter(visible)
+      .filter((image) => !image.hasAttribute("alt") && image.getAttribute("aria-hidden") !== "true")
+      .map(describe);
+    const ids = [...document.querySelectorAll("[id]")].map((element) => element.id).filter(Boolean);
+    const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+    const unnamedDialogs = [...document.querySelectorAll("[role='dialog'], [role='alertdialog']")]
+      .filter(visible)
+      .filter((dialog) => !accessibleName(dialog))
+      .map(describe);
+    const tableProblems = [...document.querySelectorAll(".screen-host table")]
+      .filter(visible)
+      .flatMap((table, index) => {
+        const cells = table.querySelectorAll("tbody td").length;
+        const headers = table.querySelectorAll("thead th").length;
+        return cells > 0 && headers === 0 ? [`table-${index + 1}: cellules sans en-têtes`] : [];
+      });
+    const tabProblems = [...document.querySelectorAll(".workflow-tabs[role='tablist']")]
+      .filter(visible)
+      .flatMap((tablist, index) => {
+        const tabs = [...tablist.querySelectorAll("[role='tab']")].filter(visible);
+        const tabStops = tabs.filter((tab) => tab.getAttribute("tabindex") === "0");
+        const selected = tabs.find((tab) => tab.getAttribute("aria-selected") === "true");
+        const problems = [];
+        if (tabStops.length !== 1) problems.push(`tabs-${index + 1}: ${tabStops.length} tab stops`);
+        if (selected && selected.getAttribute("tabindex") !== "0") problems.push(`tabs-${index + 1}: onglet actif hors tab stop`);
+        return problems;
+      });
+    const touchTargetProblems = window.innerWidth < 1280
+      ? [...document.querySelectorAll(
+          ".header-icon-button, .header-mobile-toggle, .sidebar-rail-navigation-trigger, .workflow-tab, .responsive-pagination button, .v3-more-button, .responsive-form-close, .confirm-dialog button"
+        )]
+          .filter(visible)
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            return { height: rect.height, label: accessibleName(element) || describe(element), width: rect.width };
+          })
+          .filter((target) => target.width < 43.5 || target.height < 43.5)
+      : [];
+    const parseDurations = (value) => value.split(",").map((part) => {
+      const normalized = part.trim();
+      return normalized.endsWith("ms") ? Number.parseFloat(normalized) : Number.parseFloat(normalized) * 1000;
+    });
+    const motionProblems = reducedMotion === "reduce"
+      ? [...document.querySelectorAll(
+          ".workflow-step-active, .responsive-chart-card, .responsive-kpi-card, .header-mobile-panel, .responsive-form-surface, .confirm-dialog"
+        )]
+          .filter(visible)
+          .filter((element) => {
+            const style = getComputedStyle(element);
+            return Math.max(...parseDurations(style.animationDuration), ...parseDurations(style.transitionDuration)) > 20;
+          })
+          .map(describe)
+      : [];
+    return {
+      direction: getComputedStyle(document.querySelector(".screen-host") || document.body).direction,
+      documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+      duplicateIds,
+      imagesWithoutAlt,
+      innerWidth: window.innerWidth,
+      motionProblems,
+      pixelRatio: window.devicePixelRatio,
+      tableProblems,
+      tabProblems,
+      touchTargetProblems,
+      unnamedDialogs,
+      unnamedInteractive,
+      unlabeledFields,
+      zoomExpected: expectedZoom,
+      language
+    };
+  }, { expectedZoom: metadata.zoomFactor || 1, language: metadata.language, reducedMotion: metadata.reducedMotion });
+
+  const problems = [];
+  if (snapshot.documentOverflow > 1) problems.push(`overflow document ${snapshot.documentOverflow}px`);
+  if (snapshot.unnamedInteractive.length) problems.push(`contrôles sans nom: ${snapshot.unnamedInteractive.join(" | ")}`);
+  if (snapshot.unlabeledFields.length) problems.push(`champs sans label: ${snapshot.unlabeledFields.join(" | ")}`);
+  if (snapshot.imagesWithoutAlt.length) problems.push(`images sans alt: ${snapshot.imagesWithoutAlt.join(" | ")}`);
+  if (snapshot.duplicateIds.length) problems.push(`ids dupliqués: ${snapshot.duplicateIds.join(" | ")}`);
+  if (snapshot.unnamedDialogs.length) problems.push(`dialogues sans nom: ${snapshot.unnamedDialogs.join(" | ")}`);
+  problems.push(...snapshot.tableProblems, ...snapshot.tabProblems);
+  if (snapshot.touchTargetProblems.length) {
+    problems.push(`cibles tactiles sous 44px: ${snapshot.touchTargetProblems.map((target) => `${target.label} (${target.width.toFixed(1)}x${target.height.toFixed(1)})`).join(" | ")}`);
+  }
+  if (snapshot.motionProblems.length) problems.push(`mouvements non réduits: ${snapshot.motionProblems.join(" | ")}`);
+  if (metadata.language === "ar" && snapshot.direction !== "rtl") problems.push(`direction RTL incorrecte (${snapshot.direction})`);
+  if (metadata.zoomFactor > 1 && Math.abs(snapshot.pixelRatio - metadata.zoomFactor) > 0.1) {
+    problems.push(`facteur de zoom CDP incorrect (${snapshot.pixelRatio})`);
+  }
+  for (const problem of problems) {
+    guard.addFinding({ type: "r8-accessibility-contract", message: problem, metadata, route: metadata.route });
+  }
+}
+
 async function assertNavigationDrawerContract(page, metadata) {
   const viewportWidth = page.viewportSize()?.width ?? 0;
   if (viewportWidth >= 1024) return;
@@ -751,6 +1018,10 @@ async function assertNavigationDrawerContract(page, metadata) {
   await trigger.click();
   const drawer = page.locator("#header-mobile-panel.is-open");
   await drawer.waitFor({ state: "visible" });
+  await page.waitForFunction(() => {
+    const panel = document.querySelector("#header-mobile-panel");
+    return Boolean(panel?.contains(document.activeElement));
+  });
   const openState = await page.evaluate(() => ({
     activeInside: Boolean(document.querySelector("#header-mobile-panel")?.contains(document.activeElement)),
     ariaModal: document.querySelector("#header-mobile-panel")?.getAttribute("aria-modal"),
@@ -1136,7 +1407,8 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
     theme: variant.theme,
     language,
     r6Journey: variant.r6Journey ?? false,
-    reducedMotion: variant.reducedMotion ?? "no-preference"
+    reducedMotion: variant.reducedMotion ?? "no-preference",
+    zoomFactor: variant.zoomFactor ?? 1
   };
   const before = guard.blockingFindings().length;
   const context = await createContext(browser, metadata);
@@ -1146,12 +1418,14 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
   let drawerScreenshot;
   let formScreenshot;
   try {
+    await applyR8BrowserZoom(page, metadata);
     await openApplication(page);
     guard.setMetadata(page, metadata);
     await openModule(page, workflow, language);
     await assertRequiredText(page, workflow, metadata);
     await assertResponsiveShellContract(page, metadata);
     await assertR7TabletContract(page, metadata);
+    await assertR8AccessibilityContract(page, metadata);
     await assertR6BusinessJourney(page, workflow, metadata);
     if (workflow.key === "dashboard") drawerScreenshot = await assertNavigationDrawerContract(page, metadata);
     formScreenshot = await assertResponsiveFormContract(page, metadata);
@@ -1163,7 +1437,7 @@ async function executeModuleWorkflow(browser, workflow, variant, language = "fr"
         guard.addFinding({ type: "rtl-missing", message: `Direction arabe incorrecte: ${direction}.`, metadata, route: metadata.route });
       }
     }
-    const screenshotKey = `${workflow.key}-${variant.viewport}-${variant.theme}-${language}${metadata.r6Journey ? "-r6-journey" : ""}`;
+    const screenshotKey = `${workflow.key}-${variant.viewport}-${variant.theme}-${language}${metadata.r6Journey ? "-r6-journey" : ""}${metadata.zoomFactor > 1 ? `-zoom-${metadata.zoomFactor}` : ""}`;
     screenshot = path.join(outputDir, `${safeName(screenshotKey)}.png`);
     await guard.capture(page, screenshot, { fullPage: variant.viewport !== "desktop" });
     await restoreTopViewport(page);
@@ -1323,7 +1597,24 @@ async function main() {
     if (mode === "integrated") {
       await runIntegratedSuite(browser);
     } else {
-      if (auditScope === "r7") {
+      if (auditScope === "r8") {
+        for (const workflow of allWorkflows) {
+          for (const variant of r8CoreVariants) await executeModuleWorkflow(browser, workflow, variant);
+          for (const variant of r8LanguageVariants) {
+            await executeModuleWorkflow(browser, workflow, variant, variant.language);
+          }
+        }
+        for (const workflow of allWorkflows.filter((item) => r8ZoomKeys.has(item.key))) {
+          for (const variant of r8ZoomVariants) await executeModuleWorkflow(browser, workflow, variant);
+        }
+        for (const workflow of allWorkflows.filter((item) => r8ReducedMotionKeys.has(item.key))) {
+          await executeModuleWorkflow(browser, workflow, {
+            viewport: "tabletPortrait",
+            theme: "dark",
+            reducedMotion: "reduce"
+          });
+        }
+      } else if (auditScope === "r7") {
         for (const workflow of allWorkflows) {
           for (const variant of r7CoreVariants) await executeModuleWorkflow(browser, workflow, variant);
         }

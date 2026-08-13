@@ -1,5 +1,6 @@
 import type { JSX } from "react";
 
+import { useI18n } from "../../../shared/i18n-context";
 import type {
   AcademicStage,
   FieldErrors,
@@ -22,15 +23,23 @@ export const fieldError = (
     </span>
   ) : null;
 
+function TranslatedFieldLabel(props: {
+  label: string;
+  options?: { required?: boolean; hint?: string };
+}): JSX.Element {
+  const { t } = useI18n();
+  return (
+    <span className="field-label-text">
+      {t(props.label)} {props.options?.required ? <span className="required-indicator" aria-hidden="true">*</span> : null}
+      {props.options?.hint ? <small>{t(props.options.hint)}</small> : null}
+    </span>
+  );
+}
+
 export const renderFieldLabel = (
   label: string,
   options?: { required?: boolean; hint?: string }
-): JSX.Element => (
-  <span className="field-label-text">
-    {label} {options?.required ? <span className="required-indicator">*</span> : null}
-    {options?.hint ? <small>{options.hint}</small> : null}
-  </span>
-);
+): JSX.Element => <TranslatedFieldLabel label={label} options={options} />;
 
 export const parseOptionalNumber = (value: string): number | undefined => {
   if (!value.trim()) return undefined;

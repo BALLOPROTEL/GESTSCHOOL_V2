@@ -163,7 +163,7 @@ export function SchoolLifePanel(props: SchoolLifePanelProps): JSX.Element {
   const renderLoadWarning = (key: LoadWarningKey, label: string): JSX.Element | null =>
     loadWarnings[key] ? (
       <div className="notice-card notice-info" role="status">
-        <strong>{label}</strong>
+        <strong>{tr(label)}</strong>
         <p>{tr("Les donnees sont temporairement indisponibles. Vous pouvez continuer a consulter l'ecran puis reessayer.")}</p>
       </div>
     ) : null;

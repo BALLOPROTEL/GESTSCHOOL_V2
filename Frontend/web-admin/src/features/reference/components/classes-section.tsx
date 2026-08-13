@@ -64,7 +64,7 @@ export function ClassesSection(): JSX.Element {
               <div>
                 <h3>{tr("Classe")}</h3>
                 <p className="section-lead">
-                  {tr("Instance reelle d'affectation pour une annee donnee, par exemple 6e A. Ici on separe\n                  volontairement le niveau abstrait de la classe concrete.")}</p>
+                  {tr("Instance reelle d'affectation pour une annee donnee, par exemple 6e A. Ici on separe volontairement le niveau abstrait de la classe concrete.")}</p>
               </div>
               <div className="module-inline-strip">
                 <span className="module-inline-pill">{classes.length} {tr("classe(s)")}</span>

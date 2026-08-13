@@ -141,6 +141,7 @@ export function HeaderMobilePanel(props: {
                 <button
                   key={item.id}
                   type="button"
+                  data-navigation-id={item.id}
                   className={`header-mobile-link ${item.active ? "is-active" : ""}`.trim()}
                   disabled={item.disabled}
                   role="menuitem"
@@ -166,6 +167,7 @@ export function HeaderMobilePanel(props: {
                     <button
                       key={item.id}
                       type="button"
+                      data-navigation-id={item.id}
                       className={`header-mobile-link ${item.active ? "is-active" : ""}`.trim()}
                       disabled={item.disabled}
                       role="menuitem"
@@ -195,6 +197,7 @@ export function HeaderMobilePanel(props: {
               <button
                 key={item.id}
                 type="button"
+                data-preference-id={item.id}
                 className="header-preference-button"
                 role="menuitem"
                 onClick={() => {
@@ -250,6 +253,7 @@ export function HeaderMobilePanel(props: {
               <button
                 key={item.id}
                 type="button"
+                data-user-action-id={item.id}
                 className="header-mobile-link"
                 aria-label={t(item.label)}
                 role="menuitem"

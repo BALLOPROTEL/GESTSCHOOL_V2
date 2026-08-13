@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useI18n } from "../../shared/i18n-context";
 import { HeaderFloatingPanel } from "./header-floating-panel";
 import type {
   HeaderNavigationAction,
@@ -12,6 +13,7 @@ export function HeaderActionButton(props: {
   className?: string;
 }): JSX.Element {
   const { action, className } = props;
+  const { t } = useI18n();
 
   return (
     <button
@@ -20,7 +22,7 @@ export function HeaderActionButton(props: {
       disabled={action.disabled}
       onClick={action.onSelect}
     >
-      <span>{action.label}</span>
+      <span>{t(action.label)}</span>
     </button>
   );
 }
@@ -35,6 +37,7 @@ export function HeaderDropdownMenu(props: {
   preferences?: HeaderPreferenceAction[];
 }): JSX.Element {
   const { id, label, items, openId, onOpenChange, extraGroups = [], preferences = [] } = props;
+  const { t } = useI18n();
   const isOpen = openId === id;
   const isActive =
     items.some((item) => item.active) ||
@@ -63,7 +66,7 @@ export function HeaderDropdownMenu(props: {
         aria-haspopup="menu"
         onClick={() => onOpenChange(isOpen ? null : id)}
       >
-        <span>{label}</span>
+        <span>{t(label)}</span>
         <span className={`header-nav-caret ${isOpen ? "is-open" : ""}`.trim()} aria-hidden="true">
           <svg viewBox="0 0 24 24">
             <path d="m6.7 9.3 5.3 5.4 5.3-5.4 1.4 1.4-6.7 6.6-6.7-6.6 1.4-1.4Z" />
@@ -72,9 +75,11 @@ export function HeaderDropdownMenu(props: {
       </button>
 
       <HeaderFloatingPanel
+        ariaLabel={t(label)}
         anchorRef={anchorRef}
         className="header-dropdown-menu"
         isOpen={isOpen}
+        onRequestClose={() => onOpenChange(null)}
         role="menu"
       >
         <div className="header-dropdown-section">
@@ -90,8 +95,8 @@ export function HeaderDropdownMenu(props: {
                 onOpenChange(null);
               }}
             >
-              <span>{item.label}</span>
-              {item.helperText ? <small>{item.helperText}</small> : null}
+              <span>{t(item.label)}</span>
+              {item.helperText ? <small>{t(item.helperText)}</small> : null}
             </button>
           ))}
         </div>
@@ -100,13 +105,14 @@ export function HeaderDropdownMenu(props: {
           <div key={group.id} className="header-dropdown-section">
             <button
               type="button"
+              role="menuitem"
               className={`header-dropdown-group-toggle ${
                 openGroupId === group.id ? "is-open" : ""
               } ${group.items.some((item) => item.active) ? "is-active" : ""}`.trim()}
               aria-expanded={openGroupId === group.id}
               onClick={() => setOpenGroupId((current) => (current === group.id ? null : group.id))}
             >
-              <span>{group.label}</span>
+              <span>{t(group.label)}</span>
               <span
                 className={`header-group-caret ${openGroupId === group.id ? "is-open" : ""}`.trim()}
                 aria-hidden="true"
@@ -130,8 +136,8 @@ export function HeaderDropdownMenu(props: {
                       onOpenChange(null);
                     }}
                   >
-                    <span>{item.label}</span>
-                    {item.helperText ? <small>{item.helperText}</small> : null}
+                    <span>{t(item.label)}</span>
+                    {item.helperText ? <small>{t(item.helperText)}</small> : null}
                   </button>
                 ))}
               </div>
@@ -142,14 +148,15 @@ export function HeaderDropdownMenu(props: {
         {preferences.length > 0 ? (
           <div className="header-dropdown-section header-dropdown-preferences">
             <div className="header-dropdown-title">
-              <span>Préférences</span>
-              <small>Langue et thème</small>
+              <span>{t("Préférences")}</span>
+              <small>{t("Langue et thème")}</small>
             </div>
             <div className="header-preferences-grid">
               {preferences.map((item) => (
                 <button
                   key={item.id}
                   type="button"
+                  role="menuitem"
                   className="header-preference-button"
                   onClick={() => {
                     item.onSelect();
@@ -157,8 +164,8 @@ export function HeaderDropdownMenu(props: {
                   }}
                 >
                   {item.iconSrc ? <img src={item.iconSrc} alt="" aria-hidden="true" /> : null}
-                  <span>{item.label}</span>
-                  {item.helperText ? <small>{item.helperText}</small> : null}
+                  <span>{t(item.label)}</span>
+                  {item.helperText ? <small>{t(item.helperText)}</small> : null}
                 </button>
               ))}
             </div>

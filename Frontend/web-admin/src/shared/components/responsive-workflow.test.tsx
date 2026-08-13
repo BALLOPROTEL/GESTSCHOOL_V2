@@ -62,6 +62,60 @@ describe("responsive workflow primitives", () => {
     expect(onStepChange).toHaveBeenCalledWith("documents");
   });
 
+  it("utilise un tab stop unique et les flèches en LTR", () => {
+    const onStepChange = vi.fn();
+    render(
+      <I18nProvider language="fr">
+        <WorkflowNavigation
+          title="Enseignants"
+          activeStepId="list"
+          onStepChange={onStepChange}
+          steps={[
+            { id: "list", title: "Liste", hint: "Consulter" },
+            { id: "skills", title: "Compétences", hint: "Gérer" },
+            { id: "assignments", title: "Affectations", hint: "Gérer" }
+          ]}
+        />
+      </I18nProvider>
+    );
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((tab) => tab.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]);
+    tabs[0].focus();
+    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
+    expect(tabs[1]).toHaveFocus();
+    expect(onStepChange).toHaveBeenCalledWith("skills");
+    fireEvent.keyDown(tabs[1], { key: "End" });
+    expect(tabs[2]).toHaveFocus();
+    expect(onStepChange).toHaveBeenLastCalledWith("assignments");
+  });
+
+  it("inverse les flèches horizontales en RTL", () => {
+    const onStepChange = vi.fn();
+    render(
+      <I18nProvider language="ar">
+        <div dir="rtl">
+          <WorkflowNavigation
+            title="Enseignants"
+            activeStepId="skills"
+            onStepChange={onStepChange}
+            steps={[
+              { id: "list", title: "Liste", hint: "Consulter" },
+              { id: "skills", title: "Compétences", hint: "Gérer" },
+              { id: "assignments", title: "Affectations", hint: "Gérer" }
+            ]}
+          />
+        </div>
+      </I18nProvider>
+    );
+
+    const tabs = screen.getAllByRole("tab");
+    tabs[1].focus();
+    fireEvent.keyDown(tabs[1], { key: "ArrowRight" });
+    expect(tabs[0]).toHaveFocus();
+    expect(onStepChange).toHaveBeenCalledWith("list");
+  });
+
   it("conserve le contexte, la traduction arabe et une action explicite", () => {
     const onAction = vi.fn();
     render(

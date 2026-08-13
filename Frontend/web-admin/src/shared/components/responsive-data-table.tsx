@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 
 import { useI18n } from "../i18n-context";
 
@@ -26,6 +26,7 @@ export function ResponsiveDataTable({
   ...props
 }: ResponsiveDataTableProps): JSX.Element {
   const { t } = useI18n();
+  const hintId = useId();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollState, setScrollState] = useState(INITIAL_SCROLL_STATE);
 
@@ -71,6 +72,7 @@ export function ResponsiveDataTable({
         className={["table-wrap", "responsive-data-table", ...extraClassNames].join(" ")}
         role="region"
         aria-label={accessibleLabel}
+        aria-describedby={scrollState.scrollable ? hintId : undefined}
         tabIndex={scrollState.scrollable ? 0 : undefined}
         data-scrollable={scrollState.scrollable ? "true" : "false"}
         data-at-start={scrollState.atStart ? "true" : "false"}
@@ -79,7 +81,7 @@ export function ResponsiveDataTable({
       >
         {children}
       </div>
-      <p className="responsive-data-table-hint" aria-hidden={!scrollState.scrollable}>
+      <p id={hintId} className="responsive-data-table-hint" aria-hidden={!scrollState.scrollable}>
         <span aria-hidden="true">↔</span>
         {t("Faites défiler le tableau horizontalement")}
       </p>

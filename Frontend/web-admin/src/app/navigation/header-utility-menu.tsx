@@ -56,6 +56,7 @@ export function HeaderUtilityDropdown(props: {
   onOpenChange: (value: string | null) => void;
 }): JSX.Element {
   const { active, badge, children, className, icon, id, imageSrc, label, onOpenChange, openId } = props;
+  const { t } = useI18n();
   const isOpen = openId === id;
   const anchorRef = useRef<HTMLDivElement | null>(null);
 
@@ -74,10 +75,12 @@ export function HeaderUtilityDropdown(props: {
       />
       <HeaderFloatingPanel
         align="end"
+        ariaLabel={t(label)}
         anchorRef={anchorRef}
         className={`header-dropdown-menu header-utility-panel ${className || ""}`}
         isOpen={isOpen}
-        role="menu"
+        onRequestClose={() => onOpenChange(null)}
+        role="region"
       >
         {children}
       </HeaderFloatingPanel>

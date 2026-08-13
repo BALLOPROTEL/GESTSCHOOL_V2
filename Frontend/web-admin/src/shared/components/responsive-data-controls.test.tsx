@@ -68,7 +68,9 @@ describe("ResponsiveDataTable", () => {
     fireEvent.scroll(region);
     await waitFor(() => expect(region).toHaveAttribute("data-scrollable", "true"));
     expect(region).toHaveAttribute("tabindex", "0");
-    expect(screen.getByText("Faites défiler le tableau horizontalement")).toHaveAttribute("aria-hidden", "false");
+    const hint = screen.getByText("Faites défiler le tableau horizontalement");
+    expect(hint).toHaveAttribute("aria-hidden", "false");
+    expect(region).toHaveAttribute("aria-describedby", hint.id);
     expect(document.documentElement.scrollWidth).toBe(document.documentElement.clientWidth);
   });
 
@@ -78,6 +80,13 @@ describe("ResponsiveDataTable", () => {
       "ar"
     );
     expect(screen.getByText("مرر الجدول أفقياً")).toBeInTheDocument();
+  });
+
+  it("ne référence pas l'aide lorsque le tableau ne défile pas", () => {
+    renderWithLanguage(
+      <ResponsiveDataTable><table><tbody /></table></ResponsiveDataTable>
+    );
+    expect(screen.getByRole("region")).not.toHaveAttribute("aria-describedby");
   });
 });
 

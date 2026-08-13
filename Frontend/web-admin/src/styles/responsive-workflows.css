@@ -7,6 +7,10 @@
   max-width: 100%;
 }
 
+.workflow-tab {
+  min-height: 44px;
+}
+
 .workflow-context-bar {
   display: flex;
   align-items: center;

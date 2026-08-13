@@ -289,7 +289,7 @@ export function PeriodsSection(): JSX.Element {
                         <td data-label={tr("Annee")}>{formatSchoolYearOptionLabel(schoolYearById.get(item.schoolYearId))}</td>
                         <td data-label={tr("Periode")}>{item.label} ({item.code})</td>
                         <td data-label={tr("Type")}>{tr(formatPeriodTypeLabel(item.periodType))}</td>
-                        <td data-label={tr("Dates")}>{item.startDate} {tr("au ")}{item.endDate}</td>
+                        <td data-label={tr("Dates")}>{item.startDate} {tr("au")} {item.endDate}</td>
                         <td data-label={tr("Statut")}>{tr(formatReferenceStatusLabel(item.status))}</td>
                         <td data-label={tr("Action")}>
                           <ReferenceActionMenu

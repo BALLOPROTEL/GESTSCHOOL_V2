@@ -488,7 +488,7 @@
 
   :root .page:not(.page-auth) .workflow-tab,
   :root .page:not(.page-auth) .workflow-shell .workflow-tab {
-    min-height: 2.65rem !important;
+    min-height: 44px !important;
     flex: 0 0 auto;
     scroll-snap-align: start;
     border: 1px solid var(--mobile-card-border) !important;

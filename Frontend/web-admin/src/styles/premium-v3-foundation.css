@@ -874,10 +874,10 @@
 }
 
 :root:not([data-theme="dark"]) .page:not(.page-auth) .header-workspace-toggle {
-  width: 2.5rem;
-  height: 2.5rem;
-  min-width: 2.5rem;
-  min-height: 2.5rem;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-color: transparent;
   background: transparent;
 }
@@ -908,8 +908,8 @@
 :root:not([data-theme="dark"]) .page:not(.page-auth) .header-icon-button,
 :root:not([data-theme="dark"]) .page:not(.page-auth) .header-user-trigger,
 :root:not([data-theme="dark"]) .page:not(.page-auth) .header-mobile-toggle {
-  min-width: 2.5rem;
-  min-height: 2.5rem;
+  min-width: 44px;
+  min-height: 44px;
   border-color: var(--gs-v3-border);
   border-radius: 0.5rem;
   background: var(--gs-v3-surface);
@@ -1314,10 +1314,10 @@
 }
 
 :root[data-theme="dark"] .page:not(.page-auth) .header-workspace-toggle {
-  width: 2.5rem;
-  height: 2.5rem;
-  min-width: 2.5rem;
-  min-height: 2.5rem;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-color: transparent;
   background: transparent;
 }
@@ -1344,8 +1344,8 @@
 :root[data-theme="dark"] .page:not(.page-auth) .header-icon-button,
 :root[data-theme="dark"] .page:not(.page-auth) .header-user-trigger,
 :root[data-theme="dark"] .page:not(.page-auth) .header-mobile-toggle {
-  min-width: 2.5rem;
-  min-height: 2.5rem;
+  min-width: 44px;
+  min-height: 44px;
   border-color: rgba(148, 163, 184, 0.28);
   border-radius: 0.5rem;
   background: #111827;

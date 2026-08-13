@@ -49,6 +49,7 @@ describe("GlobalToastLayer", () => {
     );
 
     expect(screen.getByText("معلومة")).toBeInTheDocument();
+    expect(screen.getByTestId("global-toast-stack")).toHaveAttribute("dir", "rtl");
     expect(screen.getByText(/وضع المعاينة المحلية مفعل/u)).toBeInTheDocument();
     expect(screen.queryByText("Fermer")).not.toBeInTheDocument();
     expect(screen.queryByText(/Mode aperçu local/u)).not.toBeInTheDocument();

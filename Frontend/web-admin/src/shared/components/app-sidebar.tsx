@@ -186,6 +186,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
                 <button
                   key={item.id}
                   type="button"
+                  data-navigation-id={item.id}
                   className={`sidebar-link ${item.active ? "is-active" : ""}`.trim()}
                   aria-current={item.active ? "page" : undefined}
                   aria-label={t(item.label)}
@@ -263,6 +264,7 @@ export function AppSidebar(props: AppSidebarProps): JSX.Element {
                     <button
                       key={action.id}
                       type="button"
+                      data-user-action-id={action.id}
                       className="sidebar-user-action"
                       role="menuitem"
                       onClick={() => handleUserAction(action)}

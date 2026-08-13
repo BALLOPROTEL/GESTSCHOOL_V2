@@ -298,7 +298,7 @@ describe("HeaderNavigation", () => {
     expect(billingAction).not.toHaveBeenCalled();
   });
 
-  it("ferme le sélecteur de langue avec Escape", () => {
+  it("navigue au clavier dans le sélecteur de langue et restaure le focus", async () => {
     const { container } = render(
       <HeaderNavigation
         brandName="Al Manarat"
@@ -327,10 +327,17 @@ describe("HeaderNavigation", () => {
       />
     );
 
-    fireEvent.click(container.querySelector<HTMLButtonElement>(".header-language-dropdown .header-icon-button")!);
+    const trigger = container.querySelector<HTMLButtonElement>(".header-language-dropdown .header-icon-button")!;
+    fireEvent.click(trigger);
     expect(document.body.querySelector(".header-floating-panel.header-language-dropdown")).not.toBeNull();
 
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(document.body.querySelector(".header-floating-panel.header-language-dropdown")).toBeNull();
+    const options = Array.from(document.body.querySelectorAll<HTMLButtonElement>(".header-language-option"));
+    await waitFor(() => expect(options[0]).toHaveFocus());
+    fireEvent.keyDown(options[0], { key: "ArrowDown" });
+    expect(options[1]).toHaveFocus();
+
+    fireEvent.keyDown(options[1], { key: "Escape" });
+    await waitFor(() => expect(document.body.querySelector(".header-floating-panel.header-language-dropdown")).toBeNull());
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
