@@ -6,12 +6,18 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  MaxLength
+  MaxLength,
 } from "class-validator";
 
-export const PARENT_ROLE_VALUES = ["PERE", "MERE", "TUTEUR", "AUTRE"] as const;
+import { PARENT_RELATION_CODES } from "../parent-relations";
+
+export const PARENT_ROLE_VALUES = PARENT_RELATION_CODES;
 export const PARENT_STATUS_VALUES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const;
-export const PARENT_LINK_STATUS_VALUES = ["ACTIVE", "INACTIVE", "ARCHIVED"] as const;
+export const PARENT_LINK_STATUS_VALUES = [
+  "ACTIVE",
+  "INACTIVE",
+  "ARCHIVED",
+] as const;
 
 export class CreateParentDto {
   @ApiProperty({ enum: PARENT_ROLE_VALUES, example: "PERE" })
@@ -83,7 +89,9 @@ export class CreateParentDto {
   @IsUUID("all")
   establishmentId?: string;
 
-  @ApiPropertyOptional({ description: "Compte utilisateur portail parent optionnel." })
+  @ApiPropertyOptional({
+    description: "Compte utilisateur portail parent optionnel.",
+  })
   @IsOptional()
   @IsUUID("all")
   userId?: string;
@@ -152,4 +160,6 @@ export class CreateParentStudentLinkDto {
   comment?: string;
 }
 
-export class UpdateParentStudentLinkDto extends PartialType(CreateParentStudentLinkDto) {}
+export class UpdateParentStudentLinkDto extends PartialType(
+  CreateParentStudentLinkDto,
+) {}

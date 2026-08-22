@@ -6,11 +6,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from "@nestjs/common";
-import {
-  AdmissionCaseMode,
-  AdmissionCaseStatus,
-  Prisma,
-} from "@prisma/client";
+import { AdmissionCaseMode, AdmissionCaseStatus, Prisma } from "@prisma/client";
 import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
 
@@ -42,8 +38,20 @@ import {
   AdmissionStudentSectionDto,
   CancelAdmissionCaseDto,
   CreateAdmissionCaseDto,
+  ReopenAdmissionCaseDto,
   UpdateAdmissionCaseSectionDto,
 } from "./dto/admission-cases.dto";
+
+const EDITABLE_ADMISSION_FAILURE_CODES = new Set([
+  "ADMISSION_CASE_NOT_READY",
+  "CLASS_NOT_AVAILABLE",
+  "PLACEMENT_CONFLICT",
+  "STUDENT_DUPLICATE_SUSPECTED",
+  "MATRICULE_CONFLICT",
+  "GUARDIAN_DUPLICATE_SUSPECTED",
+  "GUARDIAN_REQUIRED",
+  "PRIMARY_GUARDIAN_CONFLICT",
+]);
 
 const admissionCaseSelect = {
   id: true,
@@ -222,6 +230,7 @@ export class AdmissionCasesService {
       section,
       nextDraft,
       prerequisites,
+      actor.role,
     );
     const readiness = this.evaluateReadiness(current, nextDraft, prerequisites);
     const nextStatus = readiness.ready
@@ -311,6 +320,85 @@ export class AdmissionCasesService {
       this.prerequisitesService.getPrerequisites(tenantId, actor.role),
     ]);
     return this.toView(updated, prerequisites);
+  }
+
+  async reopenFailed(
+    tenantId: string,
+    actor: AdmissionActor,
+    id: string,
+    payload: ReopenAdmissionCaseDto,
+  ): Promise<AdmissionCaseView> {
+    const [current, prerequisites] = await Promise.all([
+      this.requireCase(tenantId, id),
+      this.prerequisitesService.getPrerequisites(tenantId, actor.role),
+    ]);
+    if (current.status !== AdmissionCaseStatus.FAILED) {
+      throw new ConflictException({
+        code: "ADMISSION_INVALID_TRANSITION",
+        message: "Only a failed admission case can be reopened.",
+      });
+    }
+    if (current.version !== payload.expectedVersion) {
+      throw this.versionConflict();
+    }
+    if (
+      !current.failureCode ||
+      !EDITABLE_ADMISSION_FAILURE_CODES.has(current.failureCode)
+    ) {
+      throw new ConflictException({
+        code: "ADMISSION_RETRY_REQUIRED",
+        message:
+          "This admission must be retried with the existing idempotency key.",
+      });
+    }
+
+    const draft = this.parseStoredDraftData(current.draftData);
+    const readiness = this.evaluateReadiness(current, draft, prerequisites);
+    const nextStatus = readiness.ready
+      ? AdmissionCaseStatus.READY
+      : AdmissionCaseStatus.DRAFT;
+    const reopenedAt = new Date();
+    const changed = await this.prisma.$transaction(async (transaction) => {
+      const result = await transaction.admissionCase.updateMany({
+        where: {
+          id,
+          tenantId,
+          status: AdmissionCaseStatus.FAILED,
+          version: payload.expectedVersion,
+        },
+        data: {
+          status: nextStatus,
+          finalizationIdempotencyKey: null,
+          finalizationPayloadHash: null,
+          reservedMatricule: null,
+          finalizationResult: Prisma.DbNull,
+          finalizationStartedAt: null,
+          finalizationLeaseToken: null,
+          finalizationLeaseExpiresAt: null,
+          failedAt: null,
+          failureCode: null,
+          failureMessage: null,
+          version: { increment: 1 },
+          updatedByUserId: actor.id,
+          updatedAt: reopenedAt,
+        },
+      });
+      if (result.count !== 1) return false;
+      await this.auditService.recordLog(
+        {
+          tenantId,
+          userId: actor.id,
+          action: "ADMISSION_CASE_REOPENED",
+          resource: "admission_cases",
+          resourceId: id,
+          payload: { previousFailureCode: current.failureCode, nextStatus },
+        },
+        transaction,
+      );
+      return true;
+    });
+    if (!changed) throw this.versionConflict();
+    return this.toView(await this.requireCase(tenantId, id), prerequisites);
   }
 
   private async requireCase(
@@ -425,12 +513,16 @@ export class AdmissionCasesService {
       case "STUDENT":
         return {
           ...current,
-          STUDENT: this.validateDto(AdmissionStudentSectionDto, raw),
+          STUDENT: this.normalizeStudentDraft(
+            this.validateDto(AdmissionStudentSectionDto, raw),
+          ),
         };
       case "GUARDIANS":
         return {
           ...current,
-          GUARDIANS: this.validateDto(AdmissionGuardiansSectionDto, raw),
+          GUARDIANS: this.normalizeGuardiansDraft(
+            this.validateDto(AdmissionGuardiansSectionDto, raw),
+          ),
         };
       case "ACADEMICS":
         return {
@@ -542,8 +634,18 @@ export class AdmissionCasesService {
     section: AdmissionCaseMutableSection,
     draft: AdmissionDraftData,
     prerequisites: AdmissionPrerequisitesResponse,
+    actorRole: UserRole,
   ): Promise<void> {
     if (section === "GUARDIANS" && draft.GUARDIANS) {
+      if (
+        mode === AdmissionCaseMode.RE_ENROLLMENT &&
+        (draft.GUARDIANS.guardians?.length ?? 0) > 0
+      ) {
+        throw this.badRequest(
+          "ADMISSION_MODE_INVALID",
+          "Re-enrollment reuses existing guardian relations.",
+        );
+      }
       await this.validateGuardians(tenantId, draft.GUARDIANS);
     }
     if (section === "ACADEMICS" && draft.ACADEMICS) {
@@ -562,6 +664,31 @@ export class AdmissionCasesService {
         "ADMISSION_MODE_INVALID",
         "Re-enrollment reuses the existing student identity.",
       );
+    }
+    if (section === "STUDENT" && mode === AdmissionCaseMode.NEW_ADMISSION) {
+      const student = draft.STUDENT;
+      const matriculeMode = this.resolveMatriculeMode(student);
+      if (matriculeMode === "AUTO" && this.hasText(student?.matricule)) {
+        throw this.badRequest(
+          "ADMISSION_SECTION_INVALID",
+          "Automatic matricule mode cannot include a manual matricule.",
+        );
+      }
+      if (matriculeMode === "MANUAL") {
+        if (!this.hasText(student?.matricule)) {
+          throw this.badRequest(
+            "ADMISSION_SECTION_INVALID",
+            "Manual matricule mode requires a matricule.",
+          );
+        }
+        if (actorRole !== UserRole.ADMIN) {
+          throw new ForbiddenException({
+            code: "MATRICULE_OVERRIDE_FORBIDDEN",
+            message:
+              "Manual matricule override is restricted to administrators.",
+          });
+        }
+      }
     }
   }
 
@@ -686,10 +813,10 @@ export class AdmissionCasesService {
       row.mode === AdmissionCaseMode.RE_ENROLLMENT
         ? Boolean(
             row.studentId &&
-              row.student &&
-              !row.student.deletedAt &&
-              !row.student.archivedAt &&
-              row.student.status !== "ARCHIVED",
+            row.student &&
+            !row.student.deletedAt &&
+            !row.student.archivedAt &&
+            row.student.status !== "ARCHIVED",
           )
         : this.isNewStudentComplete(draft.STUDENT);
     const academicsComplete = this.isAcademicsComplete(
@@ -715,6 +842,23 @@ export class AdmissionCasesService {
         scope: "STUDENT",
       });
     }
+    const guardiansComplete =
+      row.mode === AdmissionCaseMode.RE_ENROLLMENT
+        ? true
+        : this.areGuardiansComplete(draft.GUARDIANS);
+    if (row.mode === AdmissionCaseMode.NEW_ADMISSION && !guardiansComplete) {
+      const guardians = draft.GUARDIANS?.guardians ?? [];
+      blockingIssues.push({
+        code:
+          guardians.length === 0
+            ? "GUARDIAN_REQUIRED"
+            : guardians.filter((guardian) => guardian.isPrimaryContact).length >
+                1
+              ? "PRIMARY_GUARDIAN_CONFLICT"
+              : "PRIMARY_GUARDIAN_REQUIRED",
+        scope: "GUARDIANS",
+      });
+    }
     if (!academicsComplete) {
       blockingIssues.push({
         code: "ADMISSION_ACADEMICS_SECTION_INCOMPLETE",
@@ -724,7 +868,7 @@ export class AdmissionCasesService {
 
     const completion: AdmissionCaseCompletion = {
       STUDENT: studentComplete,
-      GUARDIANS: this.areGuardiansComplete(draft.GUARDIANS),
+      GUARDIANS: guardiansComplete,
       ACADEMICS: academicsComplete,
       FINANCE: this.isFinanceComplete(draft.FINANCE, prerequisites),
       DOCUMENTS: false,
@@ -739,11 +883,13 @@ export class AdmissionCasesService {
   }
 
   private isNewStudentComplete(section?: AdmissionStudentDraft): boolean {
+    const matriculeMode = this.resolveMatriculeMode(section);
     return Boolean(
-      this.hasText(section?.matricule) &&
-        this.hasText(section?.firstName) &&
-        this.hasText(section?.lastName) &&
-        section?.sex,
+      (matriculeMode === "AUTO" || this.hasText(section?.matricule)) &&
+      this.hasText(section?.firstName) &&
+      this.hasText(section?.lastName) &&
+      section?.sex &&
+      section.birthDate,
     );
   }
 
@@ -768,11 +914,11 @@ export class AdmissionCasesService {
     );
     return Boolean(
       prerequisites.schoolYear?.id === section.schoolYearId &&
-        level?.cycleId === section.cycleId &&
-        level.track === section.track &&
-        classroom?.schoolYearId === section.schoolYearId &&
-        classroom.levelId === section.levelId &&
-        classroom.track === section.track,
+      level?.cycleId === section.cycleId &&
+      level.track === section.track &&
+      classroom?.schoolYearId === section.schoolYearId &&
+      classroom.levelId === section.levelId &&
+      classroom.track === section.track,
     );
   }
 
@@ -780,7 +926,8 @@ export class AdmissionCasesService {
     const guardians = section?.guardians;
     return Boolean(
       guardians?.length &&
-        guardians.every((guardian) => this.isGuardianComplete(guardian)),
+      guardians.every((guardian) => this.isGuardianComplete(guardian)) &&
+      guardians.filter((guardian) => guardian.isPrimaryContact).length === 1,
     );
   }
 
@@ -791,9 +938,9 @@ export class AdmissionCasesService {
     }
     return Boolean(
       guardian.parentalRole &&
-        this.hasText(guardian.firstName) &&
-        this.hasText(guardian.lastName) &&
-        this.hasText(guardian.primaryPhone),
+      this.hasText(guardian.firstName) &&
+      this.hasText(guardian.lastName) &&
+      this.hasText(guardian.primaryPhone),
     );
   }
 
@@ -805,12 +952,47 @@ export class AdmissionCasesService {
     if (section.disposition !== "IMMEDIATE") return true;
     return Boolean(
       section.feePlanId &&
-        prerequisites.feePlans.some((item) => item.id === section.feePlanId),
+      prerequisites.feePlans.some((item) => item.id === section.feePlanId),
     );
   }
 
   private hasText(value?: string): boolean {
     return Boolean(value?.trim());
+  }
+
+  private resolveMatriculeMode(
+    section?: AdmissionStudentDraft,
+  ): "AUTO" | "MANUAL" {
+    return (
+      section?.matriculeMode ??
+      (this.hasText(section?.matricule) ? "MANUAL" : "AUTO")
+    );
+  }
+
+  private normalizeStudentDraft(
+    section: AdmissionStudentDraft,
+  ): AdmissionStudentDraft {
+    const mode = this.resolveMatriculeMode(section);
+    return {
+      ...section,
+      matriculeMode: mode,
+      matricule:
+        mode === "MANUAL" && section.matricule
+          ? section.matricule.trim().toUpperCase()
+          : undefined,
+    };
+  }
+
+  private normalizeGuardiansDraft(
+    section: AdmissionGuardiansDraft,
+  ): AdmissionGuardiansDraft {
+    const guardians = section.guardians ?? [];
+    if (guardians.length !== 1 || guardians[0].isPrimaryContact !== undefined) {
+      return section;
+    }
+    return {
+      guardians: [{ ...guardians[0], isPrimaryContact: true }],
+    };
   }
 
   private uniqueIssues(issues: AdmissionCaseIssue[]): AdmissionCaseIssue[] {
@@ -844,20 +1026,28 @@ export class AdmissionCasesService {
       schoolYearId: row.schoolYearId,
       sections: { ...draft, DOCUMENTS: null },
       completion: readiness.completion,
-      ready:
-        row.status !== AdmissionCaseStatus.CANCELLED && readiness.ready,
+      ready: row.status !== AdmissionCaseStatus.CANCELLED && readiness.ready,
       blockingIssues: readiness.blockingIssues,
       warnings: readiness.warnings,
-      finalizationResult: this.parseFinalizationResult(
-        row.finalizationResult,
-      ),
+      finalizationResult: this.parseFinalizationResult(row.finalizationResult),
       confirmedAt: row.confirmedAt?.toISOString() ?? null,
       failedAt: row.failedAt?.toISOString() ?? null,
       failureCode: row.failureCode,
+      recoveryAction: this.recoveryAction(row),
       cancelledAt: row.cancelledAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  private recoveryAction(
+    row: Pick<AdmissionCaseRow, "status" | "failureCode">,
+  ): AdmissionCaseView["recoveryAction"] {
+    if (row.status !== AdmissionCaseStatus.FAILED || !row.failureCode)
+      return null;
+    return EDITABLE_ADMISSION_FAILURE_CODES.has(row.failureCode)
+      ? "EDIT_AND_REVALIDATE"
+      : "RETRY";
   }
 
   private parseFinalizationResult(

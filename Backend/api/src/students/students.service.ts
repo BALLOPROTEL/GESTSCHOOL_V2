@@ -1,12 +1,18 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { AcademicPlacementStatus, Prisma } from "@prisma/client";
 
 import {
   DELETION_ERROR_CODES,
   deletionConflict,
-  rethrowDeleteConstraint
+  rethrowDeleteConstraint,
 } from "../common/deletion-conflict";
 import { PrismaService } from "../database/prisma.service";
+import { normalizeMatricule } from "../common/identity-normalization";
 import { CreateStudentDto } from "./dto/create-student.dto";
 import { UpdateStudentDto } from "./dto/update-student.dto";
 
@@ -100,12 +106,15 @@ export type StudentView = {
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(tenantId: string, filters: StudentFilters = {}): Promise<StudentView[]> {
+  async list(
+    tenantId: string,
+    filters: StudentFilters = {},
+  ): Promise<StudentView[]> {
     const where = this.buildWhere(tenantId, filters);
     const students = await this.prisma.student.findMany({
       where,
       include: this.includeRelations(),
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }]
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
 
     return students.map((student) => this.toView(student));
@@ -116,9 +125,9 @@ export class StudentsService {
       where: {
         id,
         tenantId,
-        deletedAt: null
+        deletedAt: null,
       },
-      include: this.includeRelations()
+      include: this.includeRelations(),
     });
 
     if (!student) {
@@ -128,13 +137,16 @@ export class StudentsService {
     return this.toView(student);
   }
 
-  async create(tenantId: string, payload: CreateStudentDto): Promise<StudentView> {
+  async create(
+    tenantId: string,
+    payload: CreateStudentDto,
+  ): Promise<StudentView> {
     this.assertDates(payload);
 
     try {
       const student = await this.prisma.student.create({
         data: this.buildStudentCreateData(tenantId, payload),
-        include: this.includeRelations()
+        include: this.includeRelations(),
       });
 
       return this.toView(student);
@@ -147,7 +159,7 @@ export class StudentsService {
   async createForAdmission(
     tenantId: string,
     payload: CreateStudentDto,
-    transaction: Prisma.TransactionClient
+    transaction: Prisma.TransactionClient,
   ): Promise<{ id: string }> {
     this.assertDates(payload);
     await this.assertNoAdmissionDuplicate(tenantId, payload, transaction);
@@ -155,7 +167,7 @@ export class StudentsService {
     try {
       return await transaction.student.create({
         data: this.buildStudentCreateData(tenantId, payload),
-        select: { id: true }
+        select: { id: true },
       });
     } catch (error: unknown) {
       if (
@@ -163,18 +175,72 @@ export class StudentsService {
         error.code === "P2002"
       ) {
         throw new ConflictException({
-          code: "STUDENT_DUPLICATE_SUSPECTED",
-          message: "A student with the same matricule already exists."
+          code: "MATRICULE_CONFLICT",
+          message: "A student with the same matricule already exists.",
         });
       }
       throw error;
     }
   }
 
+  async allocateAdmissionMatricule(
+    tenantId: string,
+    schoolYearId: string,
+    transaction: Prisma.TransactionClient,
+  ): Promise<string> {
+    const schoolYear = await transaction.schoolYear.findFirst({
+      where: { id: schoolYearId, tenantId },
+      select: { startDate: true },
+    });
+    if (!schoolYear) {
+      throw new ConflictException({
+        code: "ADMISSION_ACADEMIC_SELECTION_INVALID",
+        message: "School year is not available for matricule generation.",
+      });
+    }
+    const academicYear = schoolYear.startDate.getUTCFullYear();
+    for (let collision = 0; collision < 100; collision += 1) {
+      const allocated = await transaction.$queryRaw<
+        Array<{ sequence: number }>
+      >(Prisma.sql`
+        INSERT INTO "student_matricule_counters" (
+          "tenant_id", "academic_year", "next_value", "updated_at"
+        )
+        VALUES (${tenantId}::uuid, ${academicYear}, 2, CURRENT_TIMESTAMP)
+        ON CONFLICT ("tenant_id", "academic_year") DO UPDATE
+        SET
+          "next_value" = "student_matricule_counters"."next_value" + 1,
+          "updated_at" = CURRENT_TIMESTAMP
+        WHERE "student_matricule_counters"."next_value" <= 999999
+        RETURNING "next_value" - 1 AS "sequence"
+      `);
+      const sequence = allocated[0]?.sequence;
+      if (!sequence) {
+        throw new ConflictException({
+          code: "MATRICULE_SEQUENCE_EXHAUSTED",
+          message: "Automatic matricule sequence is exhausted.",
+        });
+      }
+      const candidate = `GST-${academicYear}-${String(sequence).padStart(6, "0")}`;
+      const exists = await transaction.student.findFirst({
+        where: {
+          tenantId,
+          matricule: { equals: candidate, mode: "insensitive" },
+        },
+        select: { id: true },
+      });
+      if (!exists) return candidate;
+    }
+    throw new ConflictException({
+      code: "MATRICULE_CONFLICT",
+      message: "Automatic matricule could not be allocated.",
+    });
+  }
+
   async update(
     tenantId: string,
     id: string,
-    payload: UpdateStudentDto
+    payload: UpdateStudentDto,
   ): Promise<StudentView> {
     this.assertDates(payload);
 
@@ -182,8 +248,8 @@ export class StudentsService {
       where: {
         id,
         tenantId,
-        deletedAt: null
-      }
+        deletedAt: null,
+      },
     });
 
     if (!existing) {
@@ -199,7 +265,9 @@ export class StudentsService {
           lastName: payload.lastName?.trim(),
           sex: payload.sex,
           birthDate:
-            payload.birthDate !== undefined ? this.toDateOrNull(payload.birthDate) : undefined,
+            payload.birthDate !== undefined
+              ? this.toDateOrNull(payload.birthDate)
+              : undefined,
           birthPlace: this.optionalEmptyToNull(payload.birthPlace),
           nationality: this.optionalEmptyToNull(payload.nationality),
           address: this.optionalEmptyToNull(payload.address),
@@ -208,10 +276,16 @@ export class StudentsService {
           photoUrl: this.optionalEmptyToNull(payload.photoUrl),
           establishmentId: payload.establishmentId,
           admissionDate:
-            payload.admissionDate !== undefined ? this.toDateOrNull(payload.admissionDate) : undefined,
-          administrativeNotes: this.optionalEmptyToNull(payload.administrativeNotes),
+            payload.admissionDate !== undefined
+              ? this.toDateOrNull(payload.admissionDate)
+              : undefined,
+          administrativeNotes: this.optionalEmptyToNull(
+            payload.administrativeNotes,
+          ),
           internalId: this.optionalEmptyToNull(payload.internalId),
-          birthCertificateNo: this.optionalEmptyToNull(payload.birthCertificateNo),
+          birthCertificateNo: this.optionalEmptyToNull(
+            payload.birthCertificateNo,
+          ),
           specialNeeds: this.optionalEmptyToNull(payload.specialNeeds),
           primaryLanguage: this.optionalEmptyToNull(payload.primaryLanguage),
           status: payload.status,
@@ -221,9 +295,9 @@ export class StudentsService {
               : payload.status === "ARCHIVED"
                 ? existing.archivedAt || new Date()
                 : null,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
-        include: this.includeRelations()
+        include: this.includeRelations(),
       });
 
       return this.toView(updated);
@@ -238,14 +312,14 @@ export class StudentsService {
       where: {
         id,
         tenantId,
-        deletedAt: null
+        deletedAt: null,
       },
       data: {
         status: "ARCHIVED",
         archivedAt: new Date(),
         deletedAt: new Date(),
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     if (result.count === 0) {
@@ -258,35 +332,62 @@ export class StudentsService {
       await this.prisma.$transaction(async (transaction) => {
         const student = await transaction.student.findFirst({
           where: { id, tenantId },
-          select: { id: true, userId: true }
+          select: { id: true, userId: true },
         });
         if (!student) throw new NotFoundException("Student not found.");
 
         if (student.userId) {
           throw deletionConflict(
             DELETION_ERROR_CODES.linkedAccount,
-            "Detach the student portal account before deleting the student profile."
+            "Detach the student portal account before deleting the student profile.",
           );
         }
 
-        const [enrollments, placements, invoices, grades, reportCards, attendance, parentLinks] =
-          await Promise.all([
-            transaction.enrollment.count({ where: { tenantId, studentId: student.id } }),
-            transaction.studentTrackPlacement.count({ where: { tenantId, studentId: student.id } }),
-            transaction.invoice.count({ where: { tenantId, studentId: student.id } }),
-            transaction.gradeEntry.count({ where: { tenantId, studentId: student.id } }),
-            transaction.reportCard.count({ where: { tenantId, studentId: student.id } }),
-            transaction.attendance.count({ where: { tenantId, studentId: student.id } }),
-            transaction.parentStudentLink.count({ where: { tenantId, studentId: student.id } })
-          ]);
+        const [
+          enrollments,
+          placements,
+          invoices,
+          grades,
+          reportCards,
+          attendance,
+          parentLinks,
+        ] = await Promise.all([
+          transaction.enrollment.count({
+            where: { tenantId, studentId: student.id },
+          }),
+          transaction.studentTrackPlacement.count({
+            where: { tenantId, studentId: student.id },
+          }),
+          transaction.invoice.count({
+            where: { tenantId, studentId: student.id },
+          }),
+          transaction.gradeEntry.count({
+            where: { tenantId, studentId: student.id },
+          }),
+          transaction.reportCard.count({
+            where: { tenantId, studentId: student.id },
+          }),
+          transaction.attendance.count({
+            where: { tenantId, studentId: student.id },
+          }),
+          transaction.parentStudentLink.count({
+            where: { tenantId, studentId: student.id },
+          }),
+        ]);
 
         if (
-          enrollments + placements + invoices + grades + reportCards + attendance + parentLinks >
+          enrollments +
+            placements +
+            invoices +
+            grades +
+            reportCards +
+            attendance +
+            parentLinks >
           0
         ) {
           throw deletionConflict(
             DELETION_ERROR_CODES.restricted,
-            "The student profile has academic, financial, attendance or family history that must be retained."
+            "The student profile has academic, financial, attendance or family history that must be retained.",
           );
         }
 
@@ -295,17 +396,20 @@ export class StudentsService {
     } catch (error: unknown) {
       rethrowDeleteConstraint(
         error,
-        "The student profile is still referenced by history that must be retained."
+        "The student profile is still referenced by history that must be retained.",
       );
       throw error;
     }
   }
 
-  private buildWhere(tenantId: string, filters: StudentFilters): Prisma.StudentWhereInput {
+  private buildWhere(
+    tenantId: string,
+    filters: StudentFilters,
+  ): Prisma.StudentWhereInput {
     const includeArchived = filters.includeArchived === "true";
     const where: Prisma.StudentWhereInput = {
       tenantId,
-      ...(includeArchived ? {} : { deletedAt: null, archivedAt: null })
+      ...(includeArchived ? {} : { deletedAt: null, archivedAt: null }),
     };
 
     if (filters.status) {
@@ -319,17 +423,25 @@ export class StudentsService {
         { firstName: { contains: search, mode: "insensitive" } },
         { lastName: { contains: search, mode: "insensitive" } },
         { phone: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } }
+        { email: { contains: search, mode: "insensitive" } },
       ];
     }
 
     if (filters.track || filters.classId) {
       where.trackPlacements = {
         some: {
-          placementStatus: { in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED] },
-          track: filters.track === "FRANCOPHONE" || filters.track === "ARABOPHONE" ? filters.track : undefined,
-          classId: filters.classId || undefined
-        }
+          placementStatus: {
+            in: [
+              AcademicPlacementStatus.ACTIVE,
+              AcademicPlacementStatus.COMPLETED,
+            ],
+          },
+          track:
+            filters.track === "FRANCOPHONE" || filters.track === "ARABOPHONE"
+              ? filters.track
+              : undefined,
+          classId: filters.classId || undefined,
+        },
       };
     }
 
@@ -342,23 +454,33 @@ export class StudentsService {
         where: { status: "ACTIVE", archivedAt: null },
         include: {
           parentProfile: true,
-          parent: true
+          parent: true,
         },
-        orderBy: [{ isPrimaryContact: "desc" as const }, { isPrimary: "desc" as const }, { createdAt: "asc" as const }]
+        orderBy: [
+          { isPrimaryContact: "desc" as const },
+          { isPrimary: "desc" as const },
+          { createdAt: "asc" as const },
+        ],
       },
       trackPlacements: {
         where: {
           placementStatus: {
-            in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
-          }
+            in: [
+              AcademicPlacementStatus.ACTIVE,
+              AcademicPlacementStatus.COMPLETED,
+            ],
+          },
         },
         include: {
           schoolYear: true,
           level: true,
-          classroom: true
+          classroom: true,
         },
-        orderBy: [{ isPrimary: "desc" as const }, { createdAt: "asc" as const }]
-      }
+        orderBy: [
+          { isPrimary: "desc" as const },
+          { createdAt: "asc" as const },
+        ],
+      },
     };
   }
 
@@ -373,7 +495,7 @@ export class StudentsService {
       levelId: placement.levelId,
       levelLabel: placement.level.label,
       classId: placement.classId || undefined,
-      classLabel: placement.classroom?.label
+      classLabel: placement.classroom?.label,
     }));
 
     return {
@@ -420,11 +542,11 @@ export class StudentsService {
           financialResponsible: link.financialResponsible,
           emergencyContact: link.emergencyContact,
           pickupAuthorized: link.pickupAuthorized ?? undefined,
-          status: link.status
+          status: link.status,
         };
       }),
       createdAt: student.createdAt.toISOString(),
-      updatedAt: student.updatedAt.toISOString()
+      updatedAt: student.updatedAt.toISOString(),
     };
   }
 
@@ -440,40 +562,49 @@ export class StudentsService {
   private async assertNoAdmissionDuplicate(
     tenantId: string,
     payload: CreateStudentDto,
-    transaction: Prisma.TransactionClient
+    transaction: Prisma.TransactionClient,
   ): Promise<void> {
-    const duplicate = await transaction.student.findFirst({
+    const normalizedMatricule = normalizeMatricule(payload.matricule);
+    const exactMatricule = await transaction.student.findFirst({
       where: {
         tenantId,
         deletedAt: null,
-        OR: [
-          { matricule: payload.matricule.trim() },
-          ...(payload.birthDate
-            ? [{
-                firstName: { equals: payload.firstName.trim(), mode: "insensitive" as const },
-                lastName: { equals: payload.lastName.trim(), mode: "insensitive" as const },
-                birthDate: new Date(payload.birthDate)
-              }]
-            : [])
-        ]
+        matricule: { equals: normalizedMatricule, mode: "insensitive" },
       },
-      select: { id: true }
+      select: { id: true },
     });
-    if (duplicate) {
+    if (exactMatricule) {
+      throw new ConflictException({
+        code: "MATRICULE_CONFLICT",
+        message: "A student with the same matricule already exists.",
+      });
+    }
+    if (!payload.birthDate) return;
+    const duplicateIdentity = await transaction.student.findFirst({
+      where: {
+        tenantId,
+        deletedAt: null,
+        firstName: { equals: payload.firstName.trim(), mode: "insensitive" },
+        lastName: { equals: payload.lastName.trim(), mode: "insensitive" },
+        birthDate: new Date(payload.birthDate),
+      },
+      select: { id: true },
+    });
+    if (duplicateIdentity) {
       throw new ConflictException({
         code: "STUDENT_DUPLICATE_SUSPECTED",
-        message: "A potentially duplicate student already exists."
+        message: "A potentially duplicate student already exists.",
       });
     }
   }
 
   private buildStudentCreateData(
     tenantId: string,
-    payload: CreateStudentDto
+    payload: CreateStudentDto,
   ): Prisma.StudentUncheckedCreateInput {
     return {
       tenantId,
-      matricule: payload.matricule.trim(),
+      matricule: normalizeMatricule(payload.matricule),
       firstName: payload.firstName.trim(),
       lastName: payload.lastName.trim(),
       sex: payload.sex,
@@ -493,7 +624,7 @@ export class StudentsService {
       primaryLanguage: this.emptyToNull(payload.primaryLanguage),
       status: payload.status || "ACTIVE",
       archivedAt: payload.status === "ARCHIVED" ? new Date() : null,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
   }
 
@@ -522,5 +653,4 @@ export class StudentsService {
       throw new ConflictException("Matricule already exists for this tenant.");
     }
   }
-
 }

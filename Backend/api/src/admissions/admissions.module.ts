@@ -8,6 +8,7 @@ import { StudentsModule } from "../students/students.module";
 import { AdmissionCasesController } from "./admission-cases.controller";
 import { AdmissionCasesService } from "./admission-cases.service";
 import { AdmissionFinalizationService } from "./admission-finalization.service";
+import { AdmissionIdentitySearchService } from "./admission-identity-search.service";
 import { AdmissionPrerequisitesController } from "./admission-prerequisites.controller";
 import { AdmissionPrerequisitesService } from "./admission-prerequisites.service";
 
@@ -23,6 +24,7 @@ import { AdmissionPrerequisitesService } from "./admission-prerequisites.service
   providers: [
     AdmissionCasesService,
     AdmissionFinalizationService,
+    AdmissionIdentitySearchService,
     AdmissionPrerequisitesService,
   ],
 })

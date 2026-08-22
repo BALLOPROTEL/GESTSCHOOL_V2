@@ -39,8 +39,10 @@ import {
 } from "./admission-cases.types";
 import { AdmissionPrerequisitesService } from "./admission-prerequisites.service";
 import { FinalizeAdmissionCaseDto } from "./dto/admission-cases.dto";
+import { normalizeMatricule } from "../common/identity-normalization";
 
 const FINALIZATION_LEASE_MS = 2 * 60 * 1000;
+const SERIALIZATION_RETRY_LIMIT = 8;
 
 const finalizationCaseSelect = {
   id: true,
@@ -53,6 +55,7 @@ const finalizationCaseSelect = {
   studentId: true,
   finalizationIdempotencyKey: true,
   finalizationPayloadHash: true,
+  reservedMatricule: true,
   finalizationResult: true,
   finalizationLeaseToken: true,
   finalizationLeaseExpiresAt: true,
@@ -130,7 +133,8 @@ export class AdmissionFinalizationService {
     if ("result" in reservation) return reservation.result;
 
     try {
-      return await this.executeFinalization(
+      await this.reserveAutomaticMatricule(tenantId, reservation);
+      return await this.executeFinalizationWithRetry(
         tenantId,
         actor,
         reservation,
@@ -142,7 +146,63 @@ export class AdmissionFinalizationService {
     }
   }
 
+  private async executeFinalizationWithRetry(
+    tenantId: string,
+    actor: AdmissionActor,
+    reservation: Reservation,
+  ): Promise<AdmissionFinalizationResult> {
+    for (let attempt = 1; attempt <= SERIALIZATION_RETRY_LIMIT; attempt += 1) {
+      try {
+        return await this.executeFinalization(tenantId, actor, reservation);
+      } catch (error: unknown) {
+        if (!this.isSerializationFailure(error)) throw error;
+        if (attempt === SERIALIZATION_RETRY_LIMIT) {
+          throw new ConflictException({
+            code: "ADMISSION_RETRY_REQUIRED",
+            message: "Admission finalization must be retried.",
+          });
+        }
+        await this.serializationBackoff(attempt);
+      }
+    }
+    throw new ConflictException({
+      code: "ADMISSION_RETRY_REQUIRED",
+      message: "Admission finalization must be retried.",
+    });
+  }
+
   private async reserve(
+    tenantId: string,
+    admissionCaseId: string,
+    expectedVersion: number,
+    idempotencyKey: string,
+  ): Promise<Reservation | { result: AdmissionFinalizationResult }> {
+    for (let attempt = 1; attempt <= SERIALIZATION_RETRY_LIMIT; attempt += 1) {
+      try {
+        return await this.reserveOnce(
+          tenantId,
+          admissionCaseId,
+          expectedVersion,
+          idempotencyKey,
+        );
+      } catch (error: unknown) {
+        if (!this.isSerializationFailure(error)) throw error;
+        if (attempt === SERIALIZATION_RETRY_LIMIT) {
+          throw new ConflictException({
+            code: "ADMISSION_RETRY_REQUIRED",
+            message: "Admission finalization must be retried.",
+          });
+        }
+        await this.serializationBackoff(attempt);
+      }
+    }
+    throw new ConflictException({
+      code: "ADMISSION_RETRY_REQUIRED",
+      message: "Admission finalization must be retried.",
+    });
+  }
+
+  private async reserveOnce(
     tenantId: string,
     admissionCaseId: string,
     expectedVersion: number,
@@ -194,7 +254,9 @@ export class AdmissionFinalizationService {
           if (row.version !== expectedVersion) throw this.versionConflict();
 
           const leaseToken = randomUUID();
-          const leaseExpiresAt = new Date(now.getTime() + FINALIZATION_LEASE_MS);
+          const leaseExpiresAt = new Date(
+            now.getTime() + FINALIZATION_LEASE_MS,
+          );
           const changed = await transaction.admissionCase.updateMany({
             where: {
               id: row.id,
@@ -231,12 +293,6 @@ export class AdmissionFinalizationService {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (error: unknown) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2034"
-      ) {
-        throw this.versionConflict();
-      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
@@ -280,27 +336,30 @@ export class AdmissionFinalizationService {
         const academics = this.requireAcademics(draft.ACADEMICS);
         await this.assertAcademicSelection(tenantId, academics, transaction);
 
-        const studentId =
+        const student =
           admissionCase.mode === AdmissionCaseMode.NEW_ADMISSION
-            ? await this.createStudent(tenantId, draft, transaction)
+            ? await this.createStudent(
+                tenantId,
+                actor,
+                draft,
+                admissionCase.reservedMatricule,
+                transaction,
+              )
             : await this.requireExistingStudent(
                 tenantId,
                 admissionCase.studentId,
+                draft,
                 transaction,
               );
+        const studentId = student.id;
         this.checkpoint("AFTER_STUDENT");
 
         const guardianIds: string[] = [];
         const parentStudentLinkIds: string[] = [];
-        const guardians = draft.GUARDIANS?.guardians ?? [];
-        if (
-          guardians.filter((guardian) => guardian.isPrimaryContact).length > 1
-        ) {
-          throw new BadRequestException({
-            code: "ADMISSION_SECTION_INVALID",
-            message: "Only one primary guardian is allowed.",
-          });
-        }
+        const guardians = this.resolveGuardiansForMode(
+          admissionCase.mode,
+          draft,
+        );
         for (const guardian of guardians) {
           const parent = await this.resolveGuardian(
             tenantId,
@@ -318,28 +377,33 @@ export class AdmissionFinalizationService {
           this.checkpoint("AFTER_PARENT_STUDENT_LINK");
         }
 
-        const placement = await this.academicStructureService.createTrackPlacementForAdmission(
-          tenantId,
-          {
-            studentId,
-            schoolYearId: academics.schoolYearId,
-            levelId: academics.levelId,
-            classId: academics.classId,
-            track: academics.track,
-            placementStatus: AcademicPlacementStatus.ACTIVE,
-            startDate:
-              draft.STUDENT?.admissionDate ??
-              (await transaction.schoolYear.findUniqueOrThrow({
-                where: { id: academics.schoolYearId },
-                select: { startDate: true },
-              })).startDate.toISOString().slice(0, 10),
-          },
-          transaction,
-          {
-            afterPlacement: () => this.checkpoint("AFTER_PLACEMENT"),
-            afterEnrollment: () => this.checkpoint("AFTER_ENROLLMENT"),
-          },
-        );
+        const placement =
+          await this.academicStructureService.createTrackPlacementForAdmission(
+            tenantId,
+            {
+              studentId,
+              schoolYearId: academics.schoolYearId,
+              levelId: academics.levelId,
+              classId: academics.classId,
+              track: academics.track,
+              placementStatus: AcademicPlacementStatus.ACTIVE,
+              startDate:
+                draft.STUDENT?.admissionDate ??
+                (
+                  await transaction.schoolYear.findUniqueOrThrow({
+                    where: { id: academics.schoolYearId },
+                    select: { startDate: true },
+                  })
+                ).startDate
+                  .toISOString()
+                  .slice(0, 10),
+            },
+            transaction,
+            {
+              afterPlacement: () => this.checkpoint("AFTER_PLACEMENT"),
+              afterEnrollment: () => this.checkpoint("AFTER_ENROLLMENT"),
+            },
+          );
 
         this.checkpoint("BEFORE_AUDIT_OUTBOX");
         const confirmedAt = new Date();
@@ -348,6 +412,7 @@ export class AdmissionFinalizationService {
           admissionCaseId: admissionCase.id,
           status: "CONFIRMED",
           studentId,
+          studentMatricule: student.matricule,
           placementId: placement.placementId,
           enrollmentId: placement.enrollmentId,
           guardianIds,
@@ -428,23 +493,50 @@ export class AdmissionFinalizationService {
 
   private async createStudent(
     tenantId: string,
+    actor: AdmissionActor,
     draft: AdmissionDraftData,
+    reservedMatricule: string | null,
     transaction: Prisma.TransactionClient,
-  ): Promise<string> {
+  ): Promise<{ id: string; matricule: string }> {
     const student = draft.STUDENT;
     if (
-      !student?.matricule?.trim() ||
+      !student ||
       !student.firstName?.trim() ||
       !student.lastName?.trim() ||
-      !student.sex
+      !student.sex ||
+      !student.birthDate
     ) {
       throw new ConflictException({
         code: "ADMISSION_CASE_NOT_READY",
         message: "Student section is incomplete.",
       });
     }
+    const matriculeMode =
+      student.matriculeMode ?? (student.matricule?.trim() ? "MANUAL" : "AUTO");
+    if (matriculeMode === "MANUAL" && actor.role !== UserRole.ADMIN) {
+      throw new ForbiddenException({
+        code: "MATRICULE_OVERRIDE_FORBIDDEN",
+        message: "Manual matricule override is restricted to administrators.",
+      });
+    }
+    const matricule =
+      matriculeMode === "AUTO"
+        ? normalizeMatricule(reservedMatricule ?? undefined)
+        : normalizeMatricule(student.matricule);
+    if (!matricule) {
+      if (matriculeMode === "AUTO") {
+        throw new InternalServerErrorException({
+          code: "ADMISSION_MATRICULE_RESERVATION_MISSING",
+          message: "Admission matricule reservation is unavailable.",
+        });
+      }
+      throw new BadRequestException({
+        code: "ADMISSION_SECTION_INVALID",
+        message: "Manual matricule is required.",
+      });
+    }
     const payload: CreateStudentDto = {
-      matricule: student.matricule,
+      matricule,
       firstName: student.firstName,
       lastName: student.lastName,
       sex: student.sex,
@@ -462,24 +554,30 @@ export class AdmissionFinalizationService {
       primaryLanguage: student.primaryLanguage,
       status: "ACTIVE",
     };
-    return (
-      await this.studentsService.createForAdmission(
-        tenantId,
-        payload,
-        transaction,
-      )
-    ).id;
+    const created = await this.studentsService.createForAdmission(
+      tenantId,
+      payload,
+      transaction,
+    );
+    return { id: created.id, matricule };
   }
 
   private async requireExistingStudent(
     tenantId: string,
     studentId: string | null,
+    draft: AdmissionDraftData,
     transaction: Prisma.TransactionClient,
-  ): Promise<string> {
+  ): Promise<{ id: string; matricule: string }> {
     if (!studentId) {
       throw new ConflictException({
         code: "ADMISSION_EXISTING_STUDENT_UNAVAILABLE",
         message: "Existing student is unavailable.",
+      });
+    }
+    if (draft.STUDENT && Object.keys(draft.STUDENT).length > 0) {
+      throw new BadRequestException({
+        code: "ADMISSION_MODE_INVALID",
+        message: "Re-enrollment cannot modify the existing student identity.",
       });
     }
     const student = await transaction.student.findFirst({
@@ -490,7 +588,7 @@ export class AdmissionFinalizationService {
         archivedAt: null,
         status: { not: "ARCHIVED" },
       },
-      select: { id: true },
+      select: { id: true, matricule: true },
     });
     if (!student) {
       throw new ConflictException({
@@ -498,7 +596,38 @@ export class AdmissionFinalizationService {
         message: "Existing student is unavailable.",
       });
     }
-    return student.id;
+    return student;
+  }
+
+  private resolveGuardiansForMode(
+    mode: AdmissionCaseMode,
+    draft: AdmissionDraftData,
+  ): AdmissionGuardianDraft[] {
+    const guardians = draft.GUARDIANS?.guardians ?? [];
+    if (mode === AdmissionCaseMode.RE_ENROLLMENT) {
+      if (guardians.length > 0) {
+        throw new BadRequestException({
+          code: "ADMISSION_MODE_INVALID",
+          message: "Re-enrollment reuses existing guardian relations.",
+        });
+      }
+      return [];
+    }
+    if (guardians.length === 0) {
+      throw new BadRequestException({
+        code: "GUARDIAN_REQUIRED",
+        message: "At least one guardian is required for a new admission.",
+      });
+    }
+    if (
+      guardians.filter((guardian) => guardian.isPrimaryContact).length !== 1
+    ) {
+      throw new ConflictException({
+        code: "PRIMARY_GUARDIAN_CONFLICT",
+        message: "Exactly one primary guardian is required.",
+      });
+    }
+    return guardians;
   }
 
   private async resolveGuardian(
@@ -658,6 +787,67 @@ export class AdmissionFinalizationService {
     });
   }
 
+  private async reserveAutomaticMatricule(
+    tenantId: string,
+    reservation: Reservation,
+  ): Promise<void> {
+    if (reservation.row.mode !== AdmissionCaseMode.NEW_ADMISSION) return;
+    const draft = this.admissionCasesService.parseStoredDraftData(
+      reservation.row.draftData,
+    );
+    const student = draft.STUDENT;
+    const matriculeMode =
+      student?.matriculeMode ??
+      (student?.matricule?.trim() ? "MANUAL" : "AUTO");
+    if (matriculeMode !== "AUTO") return;
+    const academics = this.requireAcademics(draft.ACADEMICS);
+
+    await this.prisma.$transaction(
+      async (transaction) => {
+        const current = await transaction.admissionCase.findFirst({
+          where: {
+            id: reservation.row.id,
+            tenantId,
+            status: AdmissionCaseStatus.FINALIZING,
+            finalizationLeaseToken: reservation.leaseToken,
+            finalizationPayloadHash: reservation.payloadHash,
+          },
+          select: { reservedMatricule: true },
+        });
+        if (!current) {
+          throw new ConflictException({
+            code: "ADMISSION_FINALIZATION_LEASE_LOST",
+            message: "Admission finalization lease is no longer owned.",
+          });
+        }
+        if (current.reservedMatricule) return;
+
+        const matricule = await this.studentsService.allocateAdmissionMatricule(
+          tenantId,
+          academics.schoolYearId,
+          transaction,
+        );
+        const changed = await transaction.admissionCase.updateMany({
+          where: {
+            id: reservation.row.id,
+            tenantId,
+            status: AdmissionCaseStatus.FINALIZING,
+            finalizationLeaseToken: reservation.leaseToken,
+            reservedMatricule: null,
+          },
+          data: { reservedMatricule: matricule, updatedAt: new Date() },
+        });
+        if (changed.count !== 1) {
+          throw new ConflictException({
+            code: "ADMISSION_FINALIZATION_LEASE_LOST",
+            message: "Admission finalization lease is no longer owned.",
+          });
+        }
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+    );
+  }
+
   private assertSameIdempotency(
     row: FinalizationCaseRow,
     idempotencyKey: string,
@@ -696,15 +886,16 @@ export class AdmissionFinalizationService {
       return `{${Object.keys(object)
         .sort()
         .map(
-          (key) =>
-            `${JSON.stringify(key)}:${this.canonicalJson(object[key])}`,
+          (key) => `${JSON.stringify(key)}:${this.canonicalJson(object[key])}`,
         )
         .join(",")}}`;
     }
     return JSON.stringify(value) ?? "null";
   }
 
-  private parseResult(value: Prisma.JsonValue | null): AdmissionFinalizationResult {
+  private parseResult(
+    value: Prisma.JsonValue | null,
+  ): AdmissionFinalizationResult {
     if (!value || Array.isArray(value) || typeof value !== "object") {
       throw new InternalServerErrorException({
         code: "ADMISSION_FINALIZATION_RESULT_CORRUPTED",
@@ -728,7 +919,10 @@ export class AdmissionFinalizationService {
     return value as unknown as AdmissionFinalizationResult;
   }
 
-  private normalizeError(error: unknown): { code: string; error: HttpException } {
+  private normalizeError(error: unknown): {
+    code: string;
+    error: HttpException;
+  } {
     if (error instanceof HttpException) {
       const response = error.getResponse();
       const code =
@@ -747,6 +941,19 @@ export class AdmissionFinalizationService {
         message: "Admission finalization failed.",
       }),
     };
+  }
+
+  private isSerializationFailure(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2034"
+    );
+  }
+
+  private async serializationBackoff(attempt: number): Promise<void> {
+    const delayMs =
+      Math.min(100, attempt * 10) + Math.floor(Math.random() * 10);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 
   private notFound(): NotFoundException {

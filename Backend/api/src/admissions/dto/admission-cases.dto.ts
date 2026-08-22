@@ -32,8 +32,9 @@ import {
   type AdmissionGuardiansDraft,
   type AdmissionStudentDraft,
 } from "../admission-cases.types";
+import { PARENT_RELATION_CODES } from "../../parents/parent-relations";
 
-const PARENT_ROLE_VALUES = ["PERE", "MERE", "TUTEUR", "AUTRE"] as const;
+const PARENT_ROLE_VALUES = PARENT_RELATION_CODES;
 
 export class CreateAdmissionCaseDto {
   @ApiProperty({ enum: AdmissionCaseMode })
@@ -91,6 +92,13 @@ export class CancelAdmissionCaseDto {
   expectedVersion!: number;
 }
 
+export class ReopenAdmissionCaseDto {
+  @ApiProperty({ minimum: 1 })
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number;
+}
+
 export class FinalizeAdmissionCaseDto {
   @ApiProperty({ minimum: 1 })
   @IsInt()
@@ -105,6 +113,10 @@ export class FinalizeAdmissionCaseDto {
 }
 
 export class AdmissionStudentSectionDto implements AdmissionStudentDraft {
+  @IsOptional()
+  @IsIn(["AUTO", "MANUAL"])
+  matriculeMode?: "AUTO" | "MANUAL";
+
   @IsOptional()
   @IsString()
   @MaxLength(30)

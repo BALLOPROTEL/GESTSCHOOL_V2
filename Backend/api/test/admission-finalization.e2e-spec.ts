@@ -93,7 +93,7 @@ describe("Admission transactional finalization (e2e)", () => {
 
   const newStudentDraft = (
     suffix: string,
-    guardians: AdmissionGuardianDraft[] = [],
+    guardians?: AdmissionGuardianDraft[],
   ): AdmissionDraftData => ({
     STUDENT: {
       matricule: `ADM-${sequence}-${suffix}`.slice(0, 30),
@@ -103,7 +103,7 @@ describe("Admission transactional finalization (e2e)", () => {
       birthDate: `2015-01-${String((sequence % 27) + 1).padStart(2, "0")}`,
       admissionDate: "2026-08-20",
     },
-    GUARDIANS: { guardians },
+    GUARDIANS: { guardians: guardians ?? [newGuardian(suffix)] },
     ACADEMICS: academics(),
     FINANCE: { disposition: "DEFERRED" },
   });
@@ -270,7 +270,7 @@ describe("Admission transactional finalization (e2e)", () => {
     await context.prisma.student.create({
       data: {
         tenantId: TENANT_ID,
-        matricule: duplicateDraft.STUDENT!.matricule!,
+        matricule: `EXISTING-${studentSuffix}`.slice(0, 30),
         firstName: duplicateDraft.STUDENT!.firstName!,
         lastName: duplicateDraft.STUDENT!.lastName!,
         sex: duplicateDraft.STUDENT!.sex!,
@@ -322,7 +322,7 @@ describe("Admission transactional finalization (e2e)", () => {
           source: "EXISTING_GUARDIAN",
           parentId: baseline.businessParentId,
           relationType: "PERE",
-          isPrimaryContact: false,
+          isPrimaryContact: true,
           legalGuardian: true,
         },
       ]),

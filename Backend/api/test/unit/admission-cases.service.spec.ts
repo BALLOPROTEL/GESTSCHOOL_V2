@@ -1,7 +1,4 @@
-import {
-  AdmissionCaseMode,
-  AdmissionCaseStatus,
-} from "@prisma/client";
+import { AdmissionCaseMode, AdmissionCaseStatus } from "@prisma/client";
 
 import { AuditService } from "../../src/audit/audit.service";
 import { AdmissionCasesService } from "../../src/admissions/admission-cases.service";
@@ -201,7 +198,22 @@ describe("AdmissionCasesService", () => {
 
   it("recalculates DRAFT to READY and updates with id+tenant+version atomically", async () => {
     const { prisma, service } = createMocks();
-    const current = row({ draftData: { ACADEMICS: academics } });
+    const guardianSection = {
+      guardians: [
+        {
+          source: "NEW_GUARDIAN" as const,
+          parentalRole: "TUTEUR" as const,
+          firstName: "Guardian",
+          lastName: "Draft",
+          primaryPhone: "+22370000000",
+          relationType: "TUTEUR" as const,
+          isPrimaryContact: true,
+        },
+      ],
+    };
+    const current = row({
+      draftData: { ACADEMICS: academics, GUARDIANS: guardianSection },
+    });
     const updated = row({
       version: 2,
       status: AdmissionCaseStatus.READY,
@@ -210,10 +222,13 @@ describe("AdmissionCasesService", () => {
         ACADEMICS: academics,
         STUDENT: {
           matricule: "DRAFT-001",
+          matriculeMode: "MANUAL",
           firstName: "Draft",
           lastName: "Student",
           sex: "F",
+          birthDate: "2015-01-10",
         },
+        GUARDIANS: guardianSection,
       },
     });
     prisma.admissionCase.findFirst
@@ -230,9 +245,11 @@ describe("AdmissionCasesService", () => {
         expectedVersion: 1,
         data: {
           matricule: "DRAFT-001",
+          matriculeMode: "MANUAL",
           firstName: "Draft",
           lastName: "Student",
           sex: "F",
+          birthDate: "2015-01-10",
         },
       },
     );

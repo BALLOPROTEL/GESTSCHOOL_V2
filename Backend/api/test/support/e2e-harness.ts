@@ -364,6 +364,7 @@ export async function ensureCanonicalTimetableResources(
 }
 
 export async function cleanDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.studentMatriculeCounter.deleteMany({});
   await prisma.userSecurityToken.deleteMany({});
   await prisma.refreshToken.deleteMany({});
   await prisma.iamAuditLog.deleteMany({});

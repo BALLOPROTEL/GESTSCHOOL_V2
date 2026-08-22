@@ -8,6 +8,7 @@ import {
   type AdmissionPrerequisiteIssue,
   type AdmissionPrerequisiteIssueCode,
 } from "./admission-prerequisites.types";
+import { type ParentRelationCode } from "../parents/parent-relations";
 
 export const ADMISSION_CASE_CONTRACT_VERSION = "1" as const;
 export const ADMISSION_DRAFT_PAYLOAD_VERSION = 1 as const;
@@ -20,14 +21,14 @@ export const AdmissionCaseSection = {
   FINANCE: "FINANCE",
 } as const;
 
-export const ADMISSION_CASE_MUTABLE_SECTIONS = Object.values(
-  AdmissionCaseSection,
-);
+export const ADMISSION_CASE_MUTABLE_SECTIONS =
+  Object.values(AdmissionCaseSection);
 
 export type AdmissionCaseMutableSection =
   (typeof AdmissionCaseSection)[keyof typeof AdmissionCaseSection];
 
 export type AdmissionStudentDraft = {
+  matriculeMode?: "AUTO" | "MANUAL";
   matricule?: string;
   firstName?: string;
   lastName?: string;
@@ -49,7 +50,7 @@ export type AdmissionStudentDraft = {
 export type AdmissionGuardianDraft = {
   source?: "EXISTING_GUARDIAN" | "NEW_GUARDIAN";
   parentId?: string;
-  parentalRole?: "PERE" | "MERE" | "TUTEUR" | "AUTRE";
+  parentalRole?: ParentRelationCode;
   firstName?: string;
   lastName?: string;
   sex?: "M" | "F";
@@ -60,7 +61,7 @@ export type AdmissionGuardianDraft = {
   profession?: string;
   identityDocumentType?: string;
   identityDocumentNumber?: string;
-  relationType?: "PERE" | "MERE" | "TUTEUR" | "AUTRE";
+  relationType?: ParentRelationCode;
   isPrimaryContact?: boolean;
   livesWithStudent?: boolean;
   pickupAuthorized?: boolean;
@@ -97,6 +98,9 @@ export type AdmissionDraftData = {
 
 export const ADMISSION_CASE_ISSUE_CODES = [
   "ADMISSION_STUDENT_SECTION_INCOMPLETE",
+  "GUARDIAN_REQUIRED",
+  "PRIMARY_GUARDIAN_REQUIRED",
+  "PRIMARY_GUARDIAN_CONFLICT",
   "ADMISSION_EXISTING_STUDENT_UNAVAILABLE",
   "ADMISSION_ACADEMICS_SECTION_INCOMPLETE",
   "ADMISSION_ACADEMIC_SELECTION_INVALID",
@@ -108,7 +112,7 @@ export type AdmissionCaseIssueCode =
 
 export type AdmissionCaseIssue = {
   code: AdmissionCaseIssueCode | AdmissionPrerequisiteIssueCode;
-  scope: AdmissionPrerequisiteIssue["scope"] | "STUDENT";
+  scope: AdmissionPrerequisiteIssue["scope"] | "STUDENT" | "GUARDIANS";
 };
 
 export type AdmissionCaseCompletion = {
@@ -137,6 +141,7 @@ export type AdmissionCaseView = {
   confirmedAt: string | null;
   failedAt: string | null;
   failureCode: string | null;
+  recoveryAction: "EDIT_AND_REVALIDATE" | "RETRY" | null;
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -147,6 +152,7 @@ export type AdmissionFinalizationResult = {
   admissionCaseId: string;
   status: "CONFIRMED";
   studentId: string;
+  studentMatricule: string;
   placementId: string;
   enrollmentId: string;
   guardianIds: string[];
@@ -154,6 +160,54 @@ export type AdmissionFinalizationResult = {
   invoiceIds: [];
   confirmedAt: string;
   version: number;
+};
+
+export type AdmissionIdentityMatchKind =
+  | "EXACT_MATCH"
+  | "POSSIBLE_MATCH"
+  | "NO_MATCH";
+
+export type AdmissionStudentSearchMatch = {
+  id: string;
+  matchKind: Exclude<AdmissionIdentityMatchKind, "NO_MATCH">;
+  signals: Array<
+    "MATRICULE" | "IDENTITY_AND_BIRTH_DATE" | "NAME" | "PHONE" | "EMAIL"
+  >;
+  blocksCreation: boolean;
+  matricule: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string | null;
+  status: string;
+  phoneHint: string | null;
+  emailHint: string | null;
+};
+
+export type AdmissionStudentSearchResult = {
+  matchKind: AdmissionIdentityMatchKind;
+  code: "STUDENT_EXACT_MATCH" | "STUDENT_DUPLICATE_SUSPECTED" | null;
+  matches: AdmissionStudentSearchMatch[];
+};
+
+export type AdmissionGuardianSearchMatch = {
+  id: string;
+  matchKind: "POSSIBLE_MATCH";
+  signals: Array<"IDENTITY_DOCUMENT" | "PHONE" | "EMAIL" | "NAME">;
+  blocksCreation: boolean;
+  firstName: string;
+  lastName: string;
+  parentalRole: ParentRelationCode;
+  status: string;
+  phoneHint: string;
+  emailHint: string | null;
+  identityDocumentType: string | null;
+  identityDocumentHint: string | null;
+};
+
+export type AdmissionGuardianSearchResult = {
+  matchKind: "POSSIBLE_MATCH" | "NO_MATCH";
+  code: "GUARDIAN_DUPLICATE_SUSPECTED" | null;
+  matches: AdmissionGuardianSearchMatch[];
 };
 
 export type AdmissionCasePage = {

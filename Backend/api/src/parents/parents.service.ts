@@ -2,15 +2,19 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  NotFoundException
+  NotFoundException,
 } from "@nestjs/common";
 import { AcademicPlacementStatus, Prisma } from "@prisma/client";
 
 import { AuditService } from "../audit/audit.service";
 import {
+  normalizeIdentityText,
+  normalizePhone,
+} from "../common/identity-normalization";
+import {
   DELETION_ERROR_CODES,
   deletionConflict,
-  rethrowDeleteConstraint
+  rethrowDeleteConstraint,
 } from "../common/deletion-conflict";
 import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "../security/roles.enum";
@@ -18,7 +22,7 @@ import {
   CreateParentDto,
   CreateParentStudentLinkDto,
   UpdateParentDto,
-  UpdateParentStudentLinkDto
+  UpdateParentStudentLinkDto,
 } from "./dto/parents.dto";
 
 type ParentFilters = {
@@ -143,15 +147,18 @@ export type ParentStudentRelationView = {
 export class ParentsService {
   constructor(
     private readonly auditService: AuditService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
   ) {}
 
-  async listParents(tenantId: string, filters: ParentFilters = {}): Promise<ParentView[]> {
+  async listParents(
+    tenantId: string,
+    filters: ParentFilters = {},
+  ): Promise<ParentView[]> {
     const where = this.buildParentWhere(tenantId, filters);
     const rows = await this.prisma.parent.findMany({
       where,
       include: this.parentInclude(),
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }]
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
 
     return rows.map((row) => this.parentView(row));
@@ -160,7 +167,7 @@ export class ParentsService {
   async getParent(tenantId: string, id: string): Promise<ParentView> {
     const row = await this.prisma.parent.findFirst({
       where: { id, tenantId },
-      include: this.parentInclude()
+      include: this.parentInclude(),
     });
 
     if (!row) {
@@ -173,7 +180,7 @@ export class ParentsService {
   async createParent(
     tenantId: string,
     actorUserId: string,
-    payload: CreateParentDto
+    payload: CreateParentDto,
   ): Promise<ParentView> {
     if (payload.userId) {
       await this.requirePortalUser(tenantId, payload.userId);
@@ -183,7 +190,7 @@ export class ParentsService {
       const created = await this.prisma.$transaction(async (transaction) => {
         const row = await transaction.parent.create({
           data: this.buildParentCreateData(tenantId, payload),
-          include: this.parentInclude()
+          include: this.parentInclude(),
         });
 
         await this.auditService.enqueueLog(
@@ -196,10 +203,10 @@ export class ParentsService {
             payload: {
               parentalRole: row.parentalRole,
               userId: row.userId,
-              status: row.status
-            }
+              status: row.status,
+            },
           },
-          transaction
+          transaction,
         );
 
         return row;
@@ -207,7 +214,10 @@ export class ParentsService {
 
       return this.parentView(created);
     } catch (error: unknown) {
-      this.handleKnownPrismaConflict(error, "Parent portal account is already linked.");
+      this.handleKnownPrismaConflict(
+        error,
+        "Parent portal account is already linked.",
+      );
       throw error;
     }
   }
@@ -215,33 +225,33 @@ export class ParentsService {
   async createParentForAdmission(
     tenantId: string,
     payload: CreateParentDto,
-    transaction: Prisma.TransactionClient
+    transaction: Prisma.TransactionClient,
   ): Promise<{ id: string; userId: string | null }> {
     await this.assertNoAdmissionDuplicate(tenantId, payload, transaction);
     return transaction.parent.create({
       data: this.buildParentCreateData(tenantId, payload),
-      select: { id: true, userId: true }
+      select: { id: true, userId: true },
     });
   }
 
   async requireParentForAdmission(
     tenantId: string,
     parentId: string,
-    transaction: Prisma.TransactionClient
+    transaction: Prisma.TransactionClient,
   ): Promise<{ id: string; userId: string | null }> {
     const parent = await transaction.parent.findFirst({
       where: {
         id: parentId,
         tenantId,
         status: "ACTIVE",
-        archivedAt: null
+        archivedAt: null,
       },
-      select: { id: true, userId: true }
+      select: { id: true, userId: true },
     });
     if (!parent) {
       throw new ConflictException({
         code: "GUARDIAN_NOT_AVAILABLE",
-        message: "Guardian is not available for this admission."
+        message: "Guardian is not available for this admission.",
       });
     }
     return parent;
@@ -250,16 +260,26 @@ export class ParentsService {
   async createLinkForAdmission(
     tenantId: string,
     payload: CreateParentStudentLinkDto,
-    transaction: Prisma.TransactionClient
+    transaction: Prisma.TransactionClient,
   ): Promise<{ id: string }> {
     const [parent, student, existing] = await Promise.all([
       transaction.parent.findFirst({
-        where: { id: payload.parentId, tenantId, status: "ACTIVE", archivedAt: null },
-        select: { id: true, userId: true }
+        where: {
+          id: payload.parentId,
+          tenantId,
+          status: "ACTIVE",
+          archivedAt: null,
+        },
+        select: { id: true, userId: true },
       }),
       transaction.student.findFirst({
-        where: { id: payload.studentId, tenantId, deletedAt: null, archivedAt: null },
-        select: { id: true }
+        where: {
+          id: payload.studentId,
+          tenantId,
+          deletedAt: null,
+          archivedAt: null,
+        },
+        select: { id: true },
       }),
       transaction.parentStudentLink.findFirst({
         where: {
@@ -267,15 +287,15 @@ export class ParentsService {
           parentId: payload.parentId,
           studentId: payload.studentId,
           status: "ACTIVE",
-          archivedAt: null
+          archivedAt: null,
         },
-        select: { id: true }
-      })
+        select: { id: true },
+      }),
     ]);
     if (!parent || !student) {
       throw new ConflictException({
         code: "ADMISSION_RELATION_NOT_AVAILABLE",
-        message: "Guardian or student is not available for this admission."
+        message: "Guardian or student is not available for this admission.",
       });
     }
     if (existing) return existing;
@@ -286,14 +306,14 @@ export class ParentsService {
           tenantId,
           studentId: payload.studentId,
           isPrimaryContact: true,
-          archivedAt: null
+          archivedAt: null,
         },
-        select: { id: true }
+        select: { id: true },
       });
       if (primary) {
         throw new ConflictException({
-          code: "GUARDIAN_PRIMARY_CONTACT_CONFLICT",
-          message: "A primary guardian already exists for this student."
+          code: "PRIMARY_GUARDIAN_CONFLICT",
+          message: "A primary guardian already exists for this student.",
         });
       }
     }
@@ -316,18 +336,24 @@ export class ParentsService {
           emergencyContact: payload.emergencyContact ?? false,
           status: "ACTIVE",
           comment: this.emptyToNull(payload.comment),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
-        select: { id: true }
+        select: { id: true },
       });
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
       ) {
+        if (payload.isPrimaryContact) {
+          throw new ConflictException({
+            code: "PRIMARY_GUARDIAN_CONFLICT",
+            message: "A primary guardian already exists for this student.",
+          });
+        }
         throw new ConflictException({
           code: "GUARDIAN_LINK_CONFLICT",
-          message: "Guardian relation conflicts with existing data."
+          message: "Guardian relation conflicts with existing data.",
         });
       }
       throw error;
@@ -338,9 +364,11 @@ export class ParentsService {
     tenantId: string,
     actorUserId: string,
     id: string,
-    payload: UpdateParentDto
+    payload: UpdateParentDto,
   ): Promise<ParentView> {
-    const existing = await this.prisma.parent.findFirst({ where: { id, tenantId } });
+    const existing = await this.prisma.parent.findFirst({
+      where: { id, tenantId },
+    });
     if (!existing) {
       throw new NotFoundException("Parent not found.");
     }
@@ -362,8 +390,12 @@ export class ParentsService {
             email: this.optionalEmptyToNull(payload.email),
             address: this.optionalEmptyToNull(payload.address),
             profession: this.optionalEmptyToNull(payload.profession),
-            identityDocumentType: this.optionalEmptyToNull(payload.identityDocumentType),
-            identityDocumentNumber: this.optionalEmptyToNull(payload.identityDocumentNumber),
+            identityDocumentType: this.optionalEmptyToNull(
+              payload.identityDocumentType,
+            ),
+            identityDocumentNumber: this.optionalEmptyToNull(
+              payload.identityDocumentNumber,
+            ),
             status: payload.status,
             establishmentId: payload.establishmentId,
             userId: payload.userId,
@@ -374,9 +406,9 @@ export class ParentsService {
                 : payload.status === "ARCHIVED"
                   ? existing.archivedAt || new Date()
                   : null,
-            updatedAt: new Date()
+            updatedAt: new Date(),
           },
-          include: this.parentInclude()
+          include: this.parentInclude(),
         });
 
         await this.auditService.enqueueLog(
@@ -388,10 +420,10 @@ export class ParentsService {
             resourceId: row.id,
             payload: {
               status: row.status,
-              userId: row.userId
-            }
+              userId: row.userId,
+            },
           },
-          transaction
+          transaction,
         );
 
         return row;
@@ -399,14 +431,21 @@ export class ParentsService {
 
       return this.parentView(updated);
     } catch (error: unknown) {
-      this.handleKnownPrismaConflict(error, "Parent portal account is already linked.");
+      this.handleKnownPrismaConflict(
+        error,
+        "Parent portal account is already linked.",
+      );
       throw error;
     }
   }
 
-  async archiveParent(tenantId: string, actorUserId: string, id: string): Promise<void> {
+  async archiveParent(
+    tenantId: string,
+    actorUserId: string,
+    id: string,
+  ): Promise<void> {
     const existing = await this.prisma.parent.findFirst({
-      where: { id, tenantId, archivedAt: null }
+      where: { id, tenantId, archivedAt: null },
     });
     if (!existing) {
       throw new NotFoundException("Parent not found.");
@@ -418,15 +457,15 @@ export class ParentsService {
         data: {
           status: "ARCHIVED",
           archivedAt: new Date(),
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
       await transaction.parentStudentLink.updateMany({
         where: { tenantId, parentId: existing.id, archivedAt: null },
         data: {
           status: "INACTIVE",
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
       await this.auditService.enqueueLog(
         {
@@ -434,36 +473,40 @@ export class ParentsService {
           userId: actorUserId,
           action: "PARENT_ARCHIVED",
           resource: "parents",
-          resourceId: existing.id
+          resourceId: existing.id,
         },
-        transaction
+        transaction,
       );
     });
   }
 
-  async deleteParent(tenantId: string, actorUserId: string, id: string): Promise<void> {
+  async deleteParent(
+    tenantId: string,
+    actorUserId: string,
+    id: string,
+  ): Promise<void> {
     try {
       await this.prisma.$transaction(async (transaction) => {
         const parent = await transaction.parent.findFirst({
           where: { id, tenantId },
-          select: { id: true, userId: true }
+          select: { id: true, userId: true },
         });
         if (!parent) throw new NotFoundException("Parent not found.");
 
         if (parent.userId) {
           throw deletionConflict(
             DELETION_ERROR_CODES.linkedAccount,
-            "Detach the parent portal account before deleting the parent profile."
+            "Detach the parent portal account before deleting the parent profile.",
           );
         }
 
         const links = await transaction.parentStudentLink.count({
-          where: { tenantId, parentId: parent.id }
+          where: { tenantId, parentId: parent.id },
         });
         if (links > 0) {
           throw deletionConflict(
             DELETION_ERROR_CODES.restricted,
-            "The parent profile has family relationships that must be retained."
+            "The parent profile has family relationships that must be retained.",
           );
         }
 
@@ -473,37 +516,46 @@ export class ParentsService {
             userId: actorUserId,
             action: "PARENT_DELETED",
             resource: "parents",
-            resourceId: parent.id
+            resourceId: parent.id,
           },
-          transaction
+          transaction,
         );
         await transaction.parent.delete({ where: { id: parent.id } });
       });
     } catch (error: unknown) {
       rethrowDeleteConstraint(
         error,
-        "The parent profile is still referenced by history that must be retained."
+        "The parent profile is still referenced by history that must be retained.",
       );
       throw error;
     }
   }
 
-  async listLinks(tenantId: string, filters: LinkFilters = {}): Promise<ParentStudentRelationView[]> {
+  async listLinks(
+    tenantId: string,
+    filters: LinkFilters = {},
+  ): Promise<ParentStudentRelationView[]> {
     const rows = await this.prisma.parentStudentLink.findMany({
       where: this.buildLinkWhere(tenantId, filters),
       include: this.linkInclude(),
-      orderBy: [{ isPrimaryContact: "desc" }, { createdAt: "desc" }]
+      orderBy: [{ isPrimaryContact: "desc" }, { createdAt: "desc" }],
     });
 
     return rows.map((row) => this.linkView(row));
   }
 
-  async listStudentParents(tenantId: string, studentId: string): Promise<ParentStudentRelationView[]> {
+  async listStudentParents(
+    tenantId: string,
+    studentId: string,
+  ): Promise<ParentStudentRelationView[]> {
     await this.requireStudent(tenantId, studentId);
     return this.listLinks(tenantId, { studentId });
   }
 
-  async listParentChildren(tenantId: string, parentId: string): Promise<ParentStudentRelationView[]> {
+  async listParentChildren(
+    tenantId: string,
+    parentId: string,
+  ): Promise<ParentStudentRelationView[]> {
     await this.requireParent(tenantId, parentId);
     return this.listLinks(tenantId, { parentId });
   }
@@ -511,7 +563,7 @@ export class ParentsService {
   async createLink(
     tenantId: string,
     actorUserId: string,
-    payload: CreateParentStudentLinkDto
+    payload: CreateParentStudentLinkDto,
   ): Promise<ParentStudentRelationView> {
     const parent = await this.requireParent(tenantId, payload.parentId);
     const student = await this.requireStudent(tenantId, payload.studentId);
@@ -520,7 +572,7 @@ export class ParentsService {
     await this.assertNoDuplicateLink(
       tenantId,
       payload.parentId,
-      payload.studentId
+      payload.studentId,
     );
 
     try {
@@ -531,8 +583,8 @@ export class ParentsService {
             data: {
               isPrimary: false,
               isPrimaryContact: false,
-              updatedAt: new Date()
-            }
+              updatedAt: new Date(),
+            },
           });
         }
 
@@ -553,9 +605,9 @@ export class ParentsService {
             emergencyContact: payload.emergencyContact ?? false,
             status: payload.status || "ACTIVE",
             comment: this.emptyToNull(payload.comment),
-            updatedAt: new Date()
+            updatedAt: new Date(),
           },
-          include: this.linkInclude()
+          include: this.linkInclude(),
         });
 
         await this.auditService.enqueueLog(
@@ -570,10 +622,10 @@ export class ParentsService {
               parentUserId: row.parentUserId,
               studentId: row.studentId,
               relationType: row.relationType,
-              isPrimaryContact: row.isPrimaryContact
-            }
+              isPrimaryContact: row.isPrimaryContact,
+            },
           },
-          transaction
+          transaction,
         );
 
         return row;
@@ -581,7 +633,10 @@ export class ParentsService {
 
       return this.linkView(created);
     } catch (error: unknown) {
-      this.handleKnownPrismaConflict(error, "Parent/student relation already exists or another primary contact is active.");
+      this.handleKnownPrismaConflict(
+        error,
+        "Parent/student relation already exists or another primary contact is active.",
+      );
       throw error;
     }
   }
@@ -590,10 +645,10 @@ export class ParentsService {
     tenantId: string,
     actorUserId: string,
     id: string,
-    payload: UpdateParentStudentLinkDto
+    payload: UpdateParentStudentLinkDto,
   ): Promise<ParentStudentRelationView> {
     const existing = await this.prisma.parentStudentLink.findFirst({
-      where: { id, tenantId, archivedAt: null }
+      where: { id, tenantId, archivedAt: null },
     });
     if (!existing) {
       throw new NotFoundException("Parent/student link not found.");
@@ -601,7 +656,11 @@ export class ParentsService {
 
     const parentId = payload.parentId || existing.parentId;
     const studentId = payload.studentId || existing.studentId;
-    const relationType = payload.relationType || existing.relationType || existing.relationship || "AUTRE";
+    const relationType =
+      payload.relationType ||
+      existing.relationType ||
+      existing.relationship ||
+      "AUTRE";
     if (!parentId) {
       throw new BadRequestException("Parent business profile is required.");
     }
@@ -610,7 +669,12 @@ export class ParentsService {
     const student = await this.requireStudent(tenantId, studentId);
     this.assertParentSelectable(parent);
     this.assertStudentSelectable(student);
-    await this.assertNoDuplicateLink(tenantId, parentId, studentId, existing.id);
+    await this.assertNoDuplicateLink(
+      tenantId,
+      parentId,
+      studentId,
+      existing.id,
+    );
 
     try {
       const updated = await this.prisma.$transaction(async (transaction) => {
@@ -620,13 +684,13 @@ export class ParentsService {
               tenantId,
               studentId,
               archivedAt: null,
-              NOT: { id: existing.id }
+              NOT: { id: existing.id },
             },
             data: {
               isPrimary: false,
               isPrimaryContact: false,
-              updatedAt: new Date()
-            }
+              updatedAt: new Date(),
+            },
           });
         }
 
@@ -653,9 +717,9 @@ export class ParentsService {
             emergencyContact: payload.emergencyContact,
             status: payload.status,
             comment: this.optionalEmptyToNull(payload.comment),
-            updatedAt: new Date()
+            updatedAt: new Date(),
           },
-          include: this.linkInclude()
+          include: this.linkInclude(),
         });
 
         await this.auditService.enqueueLog(
@@ -669,10 +733,10 @@ export class ParentsService {
               parentId: row.parentId,
               studentId: row.studentId,
               relationType: row.relationType,
-              status: row.status
-            }
+              status: row.status,
+            },
           },
-          transaction
+          transaction,
         );
 
         return row;
@@ -680,14 +744,21 @@ export class ParentsService {
 
       return this.linkView(updated);
     } catch (error: unknown) {
-      this.handleKnownPrismaConflict(error, "Parent/student relation already exists or another primary contact is active.");
+      this.handleKnownPrismaConflict(
+        error,
+        "Parent/student relation already exists or another primary contact is active.",
+      );
       throw error;
     }
   }
 
-  async archiveLink(tenantId: string, actorUserId: string, id: string): Promise<void> {
+  async archiveLink(
+    tenantId: string,
+    actorUserId: string,
+    id: string,
+  ): Promise<void> {
     const existing = await this.prisma.parentStudentLink.findFirst({
-      where: { id, tenantId, archivedAt: null }
+      where: { id, tenantId, archivedAt: null },
     });
     if (!existing) {
       throw new NotFoundException("Parent/student link not found.");
@@ -699,8 +770,8 @@ export class ParentsService {
         data: {
           status: "ARCHIVED",
           archivedAt: new Date(),
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
 
       await this.auditService.enqueueLog(
@@ -709,18 +780,21 @@ export class ParentsService {
           userId: actorUserId,
           action: "PARENT_STUDENT_LINK_ARCHIVED",
           resource: "parent_student_links",
-          resourceId: existing.id
+          resourceId: existing.id,
         },
-        transaction
+        transaction,
       );
     });
   }
 
-  private buildParentWhere(tenantId: string, filters: ParentFilters): Prisma.ParentWhereInput {
+  private buildParentWhere(
+    tenantId: string,
+    filters: ParentFilters,
+  ): Prisma.ParentWhereInput {
     const includeArchived = filters.includeArchived === "true";
     const where: Prisma.ParentWhereInput = {
       tenantId,
-      ...(includeArchived ? {} : { archivedAt: null })
+      ...(includeArchived ? {} : { archivedAt: null }),
     };
 
     if (filters.status) {
@@ -733,8 +807,8 @@ export class ParentsService {
       where.studentLinks = {
         some: {
           studentId: filters.studentId,
-          archivedAt: null
-        }
+          archivedAt: null,
+        },
       };
     }
     if (filters.search?.trim()) {
@@ -744,28 +818,35 @@ export class ParentsService {
         { lastName: { contains: search, mode: "insensitive" } },
         { primaryPhone: { contains: search, mode: "insensitive" } },
         { secondaryPhone: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } }
+        { email: { contains: search, mode: "insensitive" } },
       ];
     }
 
     return where;
   }
 
-  private buildLinkWhere(tenantId: string, filters: LinkFilters): Prisma.ParentStudentLinkWhereInput {
+  private buildLinkWhere(
+    tenantId: string,
+    filters: LinkFilters,
+  ): Prisma.ParentStudentLinkWhereInput {
     const includeArchived = filters.includeArchived === "true";
     const where: Prisma.ParentStudentLinkWhereInput = {
       tenantId,
-      ...(includeArchived ? {} : { archivedAt: null })
+      ...(includeArchived ? {} : { archivedAt: null }),
     };
 
     if (filters.parentId) where.parentId = filters.parentId;
     if (filters.studentId) where.studentId = filters.studentId;
     if (filters.relationType) where.relationType = filters.relationType;
     if (filters.status) where.status = filters.status;
-    if (filters.isPrimaryContact !== undefined) where.isPrimaryContact = filters.isPrimaryContact === "true";
-    if (filters.legalGuardian !== undefined) where.legalGuardian = filters.legalGuardian === "true";
-    if (filters.financialResponsible !== undefined) where.financialResponsible = filters.financialResponsible === "true";
-    if (filters.emergencyContact !== undefined) where.emergencyContact = filters.emergencyContact === "true";
+    if (filters.isPrimaryContact !== undefined)
+      where.isPrimaryContact = filters.isPrimaryContact === "true";
+    if (filters.legalGuardian !== undefined)
+      where.legalGuardian = filters.legalGuardian === "true";
+    if (filters.financialResponsible !== undefined)
+      where.financialResponsible = filters.financialResponsible === "true";
+    if (filters.emergencyContact !== undefined)
+      where.emergencyContact = filters.emergencyContact === "true";
 
     return where;
   }
@@ -776,8 +857,11 @@ export class ParentsService {
       studentLinks: {
         where: { archivedAt: null },
         include: { student: true },
-        orderBy: [{ isPrimaryContact: "desc" as const }, { createdAt: "asc" as const }]
-      }
+        orderBy: [
+          { isPrimaryContact: "desc" as const },
+          { createdAt: "asc" as const },
+        ],
+      },
     };
   }
 
@@ -785,8 +869,8 @@ export class ParentsService {
     return {
       parentProfile: {
         include: {
-          user: true
-        }
+          user: true,
+        },
       },
       parent: true,
       student: {
@@ -794,24 +878,30 @@ export class ParentsService {
           trackPlacements: {
             where: {
               placementStatus: {
-                in: [AcademicPlacementStatus.ACTIVE, AcademicPlacementStatus.COMPLETED]
-              }
+                in: [
+                  AcademicPlacementStatus.ACTIVE,
+                  AcademicPlacementStatus.COMPLETED,
+                ],
+              },
             },
             include: {
               schoolYear: true,
               level: true,
-              classroom: true
+              classroom: true,
             },
-            orderBy: [{ isPrimary: "desc" as const }, { createdAt: "asc" as const }]
-          }
-        }
-      }
+            orderBy: [
+              { isPrimary: "desc" as const },
+              { createdAt: "asc" as const },
+            ],
+          },
+        },
+      },
     };
   }
 
   private async requireParent(tenantId: string, id: string) {
     const parent = await this.prisma.parent.findFirst({
-      where: { id, tenantId }
+      where: { id, tenantId },
     });
     if (!parent) {
       throw new NotFoundException("Parent not found.");
@@ -821,7 +911,7 @@ export class ParentsService {
 
   private async requireStudent(tenantId: string, id: string) {
     const student = await this.prisma.student.findFirst({
-      where: { id, tenantId, deletedAt: null }
+      where: { id, tenantId, deletedAt: null },
     });
     if (!student) {
       throw new NotFoundException("Student not found.");
@@ -831,7 +921,7 @@ export class ParentsService {
 
   private async requirePortalUser(tenantId: string, id: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id, tenantId, deletedAt: null }
+      where: { id, tenantId, deletedAt: null },
     });
     if (!user || user.role !== UserRole.PARENT) {
       throw new ConflictException("Parent portal user not found.");
@@ -839,14 +929,27 @@ export class ParentsService {
     return user;
   }
 
-  private assertParentSelectable(parent: { archivedAt: Date | null; status: string }): void {
+  private assertParentSelectable(parent: {
+    archivedAt: Date | null;
+    status: string;
+  }): void {
     if (parent.archivedAt || parent.status !== "ACTIVE") {
-      throw new ConflictException("Archived or inactive parent cannot be linked.");
+      throw new ConflictException(
+        "Archived or inactive parent cannot be linked.",
+      );
     }
   }
 
-  private assertStudentSelectable(student: { archivedAt: Date | null; deletedAt: Date | null; status: string }): void {
-    if (student.archivedAt || student.deletedAt || student.status === "ARCHIVED") {
+  private assertStudentSelectable(student: {
+    archivedAt: Date | null;
+    deletedAt: Date | null;
+    status: string;
+  }): void {
+    if (
+      student.archivedAt ||
+      student.deletedAt ||
+      student.status === "ARCHIVED"
+    ) {
       throw new ConflictException("Archived student cannot be linked.");
     }
   }
@@ -855,7 +958,7 @@ export class ParentsService {
     tenantId: string,
     parentId: string,
     studentId: string,
-    excludeId?: string
+    excludeId?: string,
   ): Promise<void> {
     const existing = await this.prisma.parentStudentLink.findFirst({
       where: {
@@ -863,8 +966,8 @@ export class ParentsService {
         parentId,
         studentId,
         archivedAt: null,
-        ...(excludeId ? { NOT: { id: excludeId } } : {})
-      }
+        ...(excludeId ? { NOT: { id: excludeId } } : {}),
+      },
     });
 
     if (existing) {
@@ -873,7 +976,9 @@ export class ParentsService {
   }
 
   private parentView(row: ParentWithRelations): ParentView {
-    const activeLinks = row.studentLinks.filter((link) => link.status === "ACTIVE");
+    const activeLinks = row.studentLinks.filter(
+      (link) => link.status === "ACTIVE",
+    );
     return {
       id: row.id,
       tenantId: row.tenantId,
@@ -895,10 +1000,12 @@ export class ParentsService {
       userUsername: row.user?.username,
       notes: row.notes || undefined,
       childrenCount: activeLinks.length,
-      primaryChildrenCount: activeLinks.filter((link) => link.isPrimaryContact || link.isPrimary).length,
+      primaryChildrenCount: activeLinks.filter(
+        (link) => link.isPrimaryContact || link.isPrimary,
+      ).length,
       archivedAt: row.archivedAt?.toISOString(),
       createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString()
+      updatedAt: row.updatedAt.toISOString(),
     };
   }
 
@@ -913,7 +1020,7 @@ export class ParentsService {
       levelId: placement.levelId,
       levelLabel: placement.level.label,
       classId: placement.classId || undefined,
-      classLabel: placement.classroom?.label
+      classLabel: placement.classroom?.label,
     }));
     const parentName = row.parentProfile
       ? `${row.parentProfile.firstName} ${row.parentProfile.lastName}`.trim()
@@ -940,10 +1047,12 @@ export class ParentsService {
       parentUsername: row.parentProfile?.user?.username || row.parent?.username,
       studentMatricule: row.student.matricule,
       studentName: `${row.student.firstName} ${row.student.lastName}`.trim(),
-      studentTracks: [...new Set(placements.map((placement) => placement.track))],
+      studentTracks: [
+        ...new Set(placements.map((placement) => placement.track)),
+      ],
       studentPlacements: placements,
       createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString()
+      updatedAt: row.updatedAt.toISOString(),
     };
   }
 
@@ -954,7 +1063,7 @@ export class ParentsService {
 
   private buildParentCreateData(
     tenantId: string,
-    payload: CreateParentDto
+    payload: CreateParentDto,
   ): Prisma.ParentUncheckedCreateInput {
     return {
       tenantId,
@@ -974,37 +1083,52 @@ export class ParentsService {
       userId: payload.userId,
       notes: this.emptyToNull(payload.notes),
       archivedAt: payload.status === "ARCHIVED" ? new Date() : null,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
   }
 
   private async assertNoAdmissionDuplicate(
     tenantId: string,
     payload: CreateParentDto,
-    transaction: Prisma.TransactionClient
+    transaction: Prisma.TransactionClient,
   ): Promise<void> {
-    const identityDocumentNumber = this.emptyToNull(payload.identityDocumentNumber);
-    const duplicate = await transaction.parent.findFirst({
-      where: {
-        tenantId,
-        archivedAt: null,
-        OR: [
-          {
-            firstName: { equals: payload.firstName.trim(), mode: "insensitive" },
-            lastName: { equals: payload.lastName.trim(), mode: "insensitive" },
-            primaryPhone: payload.primaryPhone.trim()
-          },
-          ...(identityDocumentNumber
-            ? [{ identityDocumentNumber }]
-            : [])
-        ]
-      },
-      select: { id: true }
-    });
-    if (duplicate) {
+    const firstName = normalizeIdentityText(payload.firstName);
+    const lastName = normalizeIdentityText(payload.lastName);
+    const phone = normalizePhone(payload.primaryPhone);
+    const identityDocumentNumber = normalizeIdentityText(
+      payload.identityDocumentNumber,
+    );
+    const identityDocumentType = normalizeIdentityText(
+      payload.identityDocumentType,
+    );
+    const duplicate = await transaction.$queryRaw<
+      Array<{ id: string }>
+    >(Prisma.sql`
+      SELECT "id"
+      FROM "parents"
+      WHERE "tenant_id" = ${tenantId}::uuid
+        AND "archived_at" IS NULL
+        AND (
+          (
+            lower(regexp_replace(btrim("first_name"), '\\s+', ' ', 'g')) = ${firstName}
+            AND lower(regexp_replace(btrim("last_name"), '\\s+', ' ', 'g')) = ${lastName}
+            AND regexp_replace("primary_phone", '[^0-9]', '', 'g') = ${phone}
+          )
+          OR (
+            ${identityDocumentNumber} <> ''
+            AND lower(btrim(coalesce("identity_document_number", ''))) = ${identityDocumentNumber}
+            AND (
+              ${identityDocumentType} = ''
+              OR lower(btrim(coalesce("identity_document_type", ''))) = ${identityDocumentType}
+            )
+          )
+        )
+      LIMIT 1
+    `);
+    if (duplicate.length > 0) {
       throw new ConflictException({
         code: "GUARDIAN_DUPLICATE_SUSPECTED",
-        message: "A potentially duplicate guardian already exists."
+        message: "A potentially duplicate guardian already exists.",
       });
     }
   }

@@ -16,6 +16,7 @@ const result: AdmissionFinalizationResult = {
   admissionCaseId: "10000000-0000-4000-8000-000000000001",
   status: "CONFIRMED",
   studentId: "10000000-0000-4000-8000-000000000002",
+  studentMatricule: "GST-2026-000001",
   placementId: "10000000-0000-4000-8000-000000000003",
   enrollmentId: "10000000-0000-4000-8000-000000000004",
   guardianIds: [],
@@ -49,7 +50,12 @@ const baseRow: TestFinalizationRow = {
   version: 3,
   payloadVersion: 1,
   draftData: {
-    STUDENT: { matricule: "UNIT-001", firstName: "Unit", lastName: "Test", sex: "F" },
+    STUDENT: {
+      matricule: "UNIT-001",
+      firstName: "Unit",
+      lastName: "Test",
+      sex: "F",
+    },
     ACADEMICS: { schoolYearId: "year", classId: "class" },
   } as Prisma.JsonValue,
   studentId: null,
@@ -74,8 +80,9 @@ function createService(row: TestFinalizationRow) {
     admissionCase: {
       findFirst: jest.fn().mockResolvedValue({ mode: row.mode }),
     },
-    $transaction: jest.fn(async (callback: (client: typeof transaction) => unknown) =>
-      callback(transaction),
+    $transaction: jest.fn(
+      async (callback: (client: typeof transaction) => unknown) =>
+        callback(transaction),
     ),
   };
   const prerequisites = {
@@ -109,14 +116,24 @@ describe("AdmissionFinalizationService", () => {
       ...baseRow,
       draftData: {
         ACADEMICS: { classId: "class", schoolYearId: "year" },
-        STUDENT: { sex: "F", lastName: "Test", firstName: "Unit", matricule: "UNIT-001" },
+        STUDENT: {
+          sex: "F",
+          lastName: "Test",
+          firstName: "Unit",
+          matricule: "UNIT-001",
+        },
       },
     });
     const changed = internals.hashLogicalPayload({
       ...baseRow,
       draftData: {
-        ...baseRow.draftData as Prisma.JsonObject,
-        STUDENT: { matricule: "UNIT-002", firstName: "Unit", lastName: "Test", sex: "F" },
+        ...(baseRow.draftData as Prisma.JsonObject),
+        STUDENT: {
+          matricule: "UNIT-002",
+          firstName: "Unit",
+          lastName: "Test",
+          sex: "F",
+        },
       },
     });
 
@@ -127,8 +144,13 @@ describe("AdmissionFinalizationService", () => {
 
   it("returns the exact persisted result for a confirmed idempotent retry", async () => {
     const initial = createService(baseRow);
-    const hash = (initial as unknown as FinalizationInternals).hashLogicalPayload(baseRow);
-    const service = createService({ ...baseRow, finalizationPayloadHash: hash });
+    const hash = (
+      initial as unknown as FinalizationInternals
+    ).hashLogicalPayload(baseRow);
+    const service = createService({
+      ...baseRow,
+      finalizationPayloadHash: hash,
+    });
 
     await expect(
       service.finalize(
@@ -142,8 +164,13 @@ describe("AdmissionFinalizationService", () => {
 
   it("rejects a contradictory key after confirmation without domain writes", async () => {
     const initial = createService(baseRow);
-    const hash = (initial as unknown as FinalizationInternals).hashLogicalPayload(baseRow);
-    const service = createService({ ...baseRow, finalizationPayloadHash: hash });
+    const hash = (
+      initial as unknown as FinalizationInternals
+    ).hashLogicalPayload(baseRow);
+    const service = createService({
+      ...baseRow,
+      finalizationPayloadHash: hash,
+    });
 
     await expect(
       service.finalize(

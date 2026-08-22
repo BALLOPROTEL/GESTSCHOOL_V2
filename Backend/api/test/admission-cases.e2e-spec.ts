@@ -81,7 +81,7 @@ describe("Admission cases (e2e)", () => {
       .send({
         expectedVersion: 1,
         data: {
-          matricule: "DRAFT-NEW-001",
+          matriculeMode: "AUTO",
           firstName: "Draft",
           lastName: "Student",
           sex: "F",
@@ -93,14 +93,41 @@ describe("Admission cases (e2e)", () => {
     expect(studentSaved.body).toMatchObject({
       status: AdmissionCaseStatus.DRAFT,
       version: 2,
-      completion: { STUDENT: true, ACADEMICS: false },
+      completion: { STUDENT: true, GUARDIANS: false, ACADEMICS: false },
+    });
+
+    const guardiansSaved = await request(context.app.getHttpServer())
+      .patch(`/api/v1/admission-cases/${created.body.id}/sections/GUARDIANS`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        expectedVersion: 2,
+        data: {
+          guardians: [
+            {
+              source: "EXISTING_GUARDIAN",
+              parentId: baseline.businessParentId,
+              relationType: "PERE",
+            },
+          ],
+        },
+      })
+      .expect(200);
+    expect(guardiansSaved.body).toMatchObject({
+      status: AdmissionCaseStatus.DRAFT,
+      version: 3,
+      completion: { STUDENT: true, GUARDIANS: true, ACADEMICS: false },
+      sections: {
+        GUARDIANS: {
+          guardians: [expect.objectContaining({ isPrimaryContact: true })],
+        },
+      },
     });
 
     const academicsSaved = await request(context.app.getHttpServer())
       .patch(`/api/v1/admission-cases/${created.body.id}/sections/ACADEMICS`)
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
-        expectedVersion: 2,
+        expectedVersion: 3,
         data: {
           schoolYearId: baseline.schoolYearId,
           cycleId: baseline.cycleId,
@@ -113,7 +140,7 @@ describe("Admission cases (e2e)", () => {
 
     expect(academicsSaved.body).toMatchObject({
       status: AdmissionCaseStatus.READY,
-      version: 3,
+      version: 4,
       ready: true,
       completion: { STUDENT: true, ACADEMICS: true },
     });
@@ -125,10 +152,10 @@ describe("Admission cases (e2e)", () => {
 
     expect(resumed.body).toMatchObject({
       id: created.body.id,
-      version: 3,
+      version: 4,
       status: AdmissionCaseStatus.READY,
       sections: {
-        STUDENT: { matricule: "DRAFT-NEW-001" },
+        STUDENT: { matriculeMode: "AUTO" },
         ACADEMICS: { classId: baseline.classId },
       },
     });
@@ -144,9 +171,13 @@ describe("Admission cases (e2e)", () => {
   });
 
   it("allows only one of two concurrent PATCH requests with the same version", async () => {
-    const admissionCase = await context.prisma.admissionCase.findFirstOrThrow({
-      where: { tenantId: TENANT_ID, mode: AdmissionCaseMode.NEW_ADMISSION },
-      orderBy: { createdAt: "desc" },
+    const created = await request(context.app.getHttpServer())
+      .post("/api/v1/admission-cases")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ mode: AdmissionCaseMode.NEW_ADMISSION })
+      .expect(201);
+    const admissionCase = await context.prisma.admissionCase.findUniqueOrThrow({
+      where: { id: created.body.id as string },
     });
 
     const [financeResponse, guardianResponse] = await Promise.all([

@@ -27,6 +27,7 @@ import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
 import { AdmissionCasesService } from "./admission-cases.service";
 import { AdmissionFinalizationService } from "./admission-finalization.service";
+import { AdmissionIdentitySearchService } from "./admission-identity-search.service";
 import {
   AdmissionCaseSection,
   type AdmissionCaseMutableSection,
@@ -38,8 +39,13 @@ import {
   CancelAdmissionCaseDto,
   CreateAdmissionCaseDto,
   FinalizeAdmissionCaseDto,
+  ReopenAdmissionCaseDto,
   UpdateAdmissionCaseSectionDto,
 } from "./dto/admission-cases.dto";
+import {
+  AdmissionGuardianSearchQueryDto,
+  AdmissionStudentSearchQueryDto,
+} from "./dto/admission-identity-search.dto";
 
 @ApiTags("Admissions")
 @ApiBearerAuth("bearer")
@@ -53,6 +59,7 @@ export class AdmissionCasesController {
   constructor(
     private readonly service: AdmissionCasesService,
     private readonly finalizationService: AdmissionFinalizationService,
+    private readonly identitySearchService: AdmissionIdentitySearchService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -81,6 +88,46 @@ export class AdmissionCasesController {
     );
   }
 
+  @Get("search/students")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermissions({ resource: "students", action: "read" })
+  @ApiOperation({
+    summary: "Search potential student matches before admission",
+  })
+  searchStudents(
+    @Req() request: { user?: AuthenticatedUser },
+    @Query() query: AdmissionStudentSearchQueryDto,
+    @Headers("x-tenant-id") tenantHeader?: string,
+  ) {
+    const user = request.user!;
+    const tenantId = resolveTenantContext(
+      this.configService,
+      user,
+      tenantHeader,
+    );
+    return this.identitySearchService.searchStudents(tenantId, query);
+  }
+
+  @Get("search/guardians")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermissions({ resource: "parents", action: "read" })
+  @ApiOperation({
+    summary: "Search potential guardian matches before admission",
+  })
+  searchGuardians(
+    @Req() request: { user?: AuthenticatedUser },
+    @Query() query: AdmissionGuardianSearchQueryDto,
+    @Headers("x-tenant-id") tenantHeader?: string,
+  ) {
+    const user = request.user!;
+    const tenantId = resolveTenantContext(
+      this.configService,
+      user,
+      tenantHeader,
+    );
+    return this.identitySearchService.searchGuardians(tenantId, query);
+  }
+
   @Post(":id/finalize")
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermissions(
@@ -101,6 +148,33 @@ export class AdmissionCasesController {
       tenantHeader,
     );
     return this.finalizationService.finalize(
+      tenantId,
+      { id: user.sub, role: user.role },
+      id,
+      body,
+    );
+  }
+
+  @Post(":id/reopen")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermissions(
+    { resource: "enrollments", action: "create" },
+    { resource: "reference", action: "read" },
+  )
+  @ApiOperation({ summary: "Reopen a correctable failed admission case" })
+  reopen(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() body: ReopenAdmissionCaseDto,
+    @Headers("x-tenant-id") tenantHeader?: string,
+  ): Promise<AdmissionCaseView> {
+    const user = request.user!;
+    const tenantId = resolveTenantContext(
+      this.configService,
+      user,
+      tenantHeader,
+    );
+    return this.service.reopenFailed(
       tenantId,
       { id: user.sub, role: user.role },
       id,
