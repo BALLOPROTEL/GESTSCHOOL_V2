@@ -368,6 +368,7 @@ export async function cleanDatabase(prisma: PrismaService): Promise<void> {
   await prisma.refreshToken.deleteMany({});
   await prisma.iamAuditLog.deleteMany({});
   await prisma.outboxEvent.deleteMany({});
+  await prisma.admissionCase.deleteMany({});
   await prisma.parentStudentLink.deleteMany({});
   await prisma.parent.deleteMany({});
   await prisma.rolePermission.deleteMany({});

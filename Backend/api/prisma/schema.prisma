@@ -45,6 +45,24 @@ enum ReportCardMode {
   @@map("report_card_mode")
 }
 
+enum AdmissionCaseMode {
+  NEW_ADMISSION
+  RE_ENROLLMENT
+
+  @@map("admission_case_mode")
+}
+
+enum AdmissionCaseStatus {
+  DRAFT
+  READY
+  FINALIZING
+  CONFIRMED
+  FAILED
+  CANCELLED
+
+  @@map("admission_case_status")
+}
+
 model Student {
   id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId    String      @map("tenant_id") @db.Uuid
@@ -80,6 +98,7 @@ model Student {
   notifications Notification[]
   parentLinks ParentStudentLink[]
   trackPlacements StudentTrackPlacement[]
+  admissionCases AdmissionCase[]
   user        User?       @relation("StudentUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, matricule], map: "students_tenant_id_matricule_key")
@@ -125,6 +144,8 @@ model User {
   parentLinks ParentStudentLink[] @relation("ParentStudentLinks")
   parentProfile Parent? @relation("ParentUser")
   studentProfile Student? @relation("StudentUser")
+  admissionCasesCreated AdmissionCase[] @relation("AdmissionCaseCreatedBy")
+  admissionCasesUpdated AdmissionCase[] @relation("AdmissionCaseUpdatedBy")
 
   @@unique([tenantId, username], map: "users_tenant_id_username_key")
   @@unique([tenantId, email], map: "users_tenant_id_email_key")
@@ -200,10 +221,40 @@ model SchoolYear {
   roomAvailabilities RoomAvailability[]
   trackPlacements StudentTrackPlacement[]
   pedagogicalRules PedagogicalRule[]
+  admissionCases AdmissionCase[]
 
   @@unique([tenantId, code], map: "school_years_tenant_id_code_key")
   @@unique([tenantId, label], map: "school_years_tenant_id_label_key")
   @@map("school_years")
+}
+
+model AdmissionCase {
+  id                         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                   String              @map("tenant_id") @db.Uuid
+  mode                       AdmissionCaseMode
+  status                     AdmissionCaseStatus @default(DRAFT)
+  version                    Int                 @default(1)
+  payloadVersion             Int                 @default(1) @map("payload_version")
+  draftData                  Json                @default("{}") @map("draft_data")
+  studentId                  String?             @map("student_id") @db.Uuid
+  schoolYearId               String?             @map("school_year_id") @db.Uuid
+  createdByUserId            String?             @map("created_by_user_id") @db.Uuid
+  updatedByUserId            String?             @map("updated_by_user_id") @db.Uuid
+  finalizationIdempotencyKey String?             @map("finalization_idempotency_key") @db.VarChar(200)
+  finalizationPayloadHash    String?             @map("finalization_payload_hash") @db.Char(64)
+  cancelledAt                DateTime?           @map("cancelled_at") @db.Timestamptz(6)
+  createdAt                  DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  student                    Student?            @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  schoolYear                 SchoolYear?         @relation(fields: [schoolYearId], references: [id], onDelete: SetNull)
+  createdByUser              User?               @relation("AdmissionCaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedByUser              User?               @relation("AdmissionCaseUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, finalizationIdempotencyKey], map: "uq_admission_cases_tenant_finalize_key")
+  @@index([tenantId, status, updatedAt], map: "idx_admission_cases_tenant_status_updated")
+  @@index([tenantId, studentId], map: "idx_admission_cases_tenant_student")
+  @@index([tenantId, schoolYearId], map: "idx_admission_cases_tenant_school_year")
+  @@map("admission_cases")
 }
 
 model Cycle {
