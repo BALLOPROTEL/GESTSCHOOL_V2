@@ -4,6 +4,7 @@ export const SCHOOL_LIFE_ATTENDANCE_ALERT_REQUESTED =
   "school-life.attendance-alert.requested";
 export const FINANCE_PAYMENT_RECORDED = "finance.payment-recorded";
 export const AUDIT_LOG_REQUESTED = "iam.audit-log.requested";
+export const ADMISSION_CONFIRMED = "admission.confirmed";
 
 export type AttendanceAlertRequestedPayload = {
   attendanceId: string;

@@ -182,26 +182,7 @@ export class ParentsService {
     try {
       const created = await this.prisma.$transaction(async (transaction) => {
         const row = await transaction.parent.create({
-          data: {
-            tenantId,
-            parentalRole: payload.parentalRole,
-            firstName: payload.firstName.trim(),
-            lastName: payload.lastName.trim(),
-            sex: payload.sex,
-            primaryPhone: payload.primaryPhone.trim(),
-            secondaryPhone: this.emptyToNull(payload.secondaryPhone),
-            email: this.emptyToNull(payload.email),
-            address: this.emptyToNull(payload.address),
-            profession: this.emptyToNull(payload.profession),
-            identityDocumentType: this.emptyToNull(payload.identityDocumentType),
-            identityDocumentNumber: this.emptyToNull(payload.identityDocumentNumber),
-            status: payload.status || "ACTIVE",
-            establishmentId: payload.establishmentId,
-            userId: payload.userId,
-            notes: this.emptyToNull(payload.notes),
-            archivedAt: payload.status === "ARCHIVED" ? new Date() : null,
-            updatedAt: new Date()
-          },
+          data: this.buildParentCreateData(tenantId, payload),
           include: this.parentInclude()
         });
 
@@ -227,6 +208,128 @@ export class ParentsService {
       return this.parentView(created);
     } catch (error: unknown) {
       this.handleKnownPrismaConflict(error, "Parent portal account is already linked.");
+      throw error;
+    }
+  }
+
+  async createParentForAdmission(
+    tenantId: string,
+    payload: CreateParentDto,
+    transaction: Prisma.TransactionClient
+  ): Promise<{ id: string; userId: string | null }> {
+    await this.assertNoAdmissionDuplicate(tenantId, payload, transaction);
+    return transaction.parent.create({
+      data: this.buildParentCreateData(tenantId, payload),
+      select: { id: true, userId: true }
+    });
+  }
+
+  async requireParentForAdmission(
+    tenantId: string,
+    parentId: string,
+    transaction: Prisma.TransactionClient
+  ): Promise<{ id: string; userId: string | null }> {
+    const parent = await transaction.parent.findFirst({
+      where: {
+        id: parentId,
+        tenantId,
+        status: "ACTIVE",
+        archivedAt: null
+      },
+      select: { id: true, userId: true }
+    });
+    if (!parent) {
+      throw new ConflictException({
+        code: "GUARDIAN_NOT_AVAILABLE",
+        message: "Guardian is not available for this admission."
+      });
+    }
+    return parent;
+  }
+
+  async createLinkForAdmission(
+    tenantId: string,
+    payload: CreateParentStudentLinkDto,
+    transaction: Prisma.TransactionClient
+  ): Promise<{ id: string }> {
+    const [parent, student, existing] = await Promise.all([
+      transaction.parent.findFirst({
+        where: { id: payload.parentId, tenantId, status: "ACTIVE", archivedAt: null },
+        select: { id: true, userId: true }
+      }),
+      transaction.student.findFirst({
+        where: { id: payload.studentId, tenantId, deletedAt: null, archivedAt: null },
+        select: { id: true }
+      }),
+      transaction.parentStudentLink.findFirst({
+        where: {
+          tenantId,
+          parentId: payload.parentId,
+          studentId: payload.studentId,
+          status: "ACTIVE",
+          archivedAt: null
+        },
+        select: { id: true }
+      })
+    ]);
+    if (!parent || !student) {
+      throw new ConflictException({
+        code: "ADMISSION_RELATION_NOT_AVAILABLE",
+        message: "Guardian or student is not available for this admission."
+      });
+    }
+    if (existing) return existing;
+
+    if (payload.isPrimaryContact) {
+      const primary = await transaction.parentStudentLink.findFirst({
+        where: {
+          tenantId,
+          studentId: payload.studentId,
+          isPrimaryContact: true,
+          archivedAt: null
+        },
+        select: { id: true }
+      });
+      if (primary) {
+        throw new ConflictException({
+          code: "GUARDIAN_PRIMARY_CONTACT_CONFLICT",
+          message: "A primary guardian already exists for this student."
+        });
+      }
+    }
+
+    try {
+      return await transaction.parentStudentLink.create({
+        data: {
+          tenantId,
+          parentId: parent.id,
+          parentUserId: parent.userId,
+          studentId: student.id,
+          relationship: payload.relationType,
+          relationType: payload.relationType,
+          isPrimary: payload.isPrimaryContact ?? false,
+          isPrimaryContact: payload.isPrimaryContact ?? false,
+          livesWithStudent: payload.livesWithStudent,
+          pickupAuthorized: payload.pickupAuthorized,
+          legalGuardian: payload.legalGuardian ?? false,
+          financialResponsible: payload.financialResponsible ?? false,
+          emergencyContact: payload.emergencyContact ?? false,
+          status: "ACTIVE",
+          comment: this.emptyToNull(payload.comment),
+          updatedAt: new Date()
+        },
+        select: { id: true }
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictException({
+          code: "GUARDIAN_LINK_CONFLICT",
+          message: "Guardian relation conflicts with existing data."
+        });
+      }
       throw error;
     }
   }
@@ -847,6 +950,63 @@ export class ParentsService {
   private emptyToNull(value?: string): string | null {
     const normalized = value?.trim();
     return normalized ? normalized : null;
+  }
+
+  private buildParentCreateData(
+    tenantId: string,
+    payload: CreateParentDto
+  ): Prisma.ParentUncheckedCreateInput {
+    return {
+      tenantId,
+      parentalRole: payload.parentalRole,
+      firstName: payload.firstName.trim(),
+      lastName: payload.lastName.trim(),
+      sex: payload.sex,
+      primaryPhone: payload.primaryPhone.trim(),
+      secondaryPhone: this.emptyToNull(payload.secondaryPhone),
+      email: this.emptyToNull(payload.email),
+      address: this.emptyToNull(payload.address),
+      profession: this.emptyToNull(payload.profession),
+      identityDocumentType: this.emptyToNull(payload.identityDocumentType),
+      identityDocumentNumber: this.emptyToNull(payload.identityDocumentNumber),
+      status: payload.status || "ACTIVE",
+      establishmentId: payload.establishmentId,
+      userId: payload.userId,
+      notes: this.emptyToNull(payload.notes),
+      archivedAt: payload.status === "ARCHIVED" ? new Date() : null,
+      updatedAt: new Date()
+    };
+  }
+
+  private async assertNoAdmissionDuplicate(
+    tenantId: string,
+    payload: CreateParentDto,
+    transaction: Prisma.TransactionClient
+  ): Promise<void> {
+    const identityDocumentNumber = this.emptyToNull(payload.identityDocumentNumber);
+    const duplicate = await transaction.parent.findFirst({
+      where: {
+        tenantId,
+        archivedAt: null,
+        OR: [
+          {
+            firstName: { equals: payload.firstName.trim(), mode: "insensitive" },
+            lastName: { equals: payload.lastName.trim(), mode: "insensitive" },
+            primaryPhone: payload.primaryPhone.trim()
+          },
+          ...(identityDocumentNumber
+            ? [{ identityDocumentNumber }]
+            : [])
+        ]
+      },
+      select: { id: true }
+    });
+    if (duplicate) {
+      throw new ConflictException({
+        code: "GUARDIAN_DUPLICATE_SUSPECTED",
+        message: "A potentially duplicate guardian already exists."
+      });
+    }
   }
 
   private optionalEmptyToNull(value?: string): string | null | undefined {

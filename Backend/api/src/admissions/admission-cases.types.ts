@@ -11,6 +11,7 @@ import {
 
 export const ADMISSION_CASE_CONTRACT_VERSION = "1" as const;
 export const ADMISSION_DRAFT_PAYLOAD_VERSION = 1 as const;
+export const ADMISSION_FINALIZATION_RESULT_VERSION = "1" as const;
 
 export const AdmissionCaseSection = {
   STUDENT: "STUDENT",
@@ -132,9 +133,27 @@ export type AdmissionCaseView = {
   ready: boolean;
   blockingIssues: AdmissionCaseIssue[];
   warnings: AdmissionCaseIssue[];
+  finalizationResult: AdmissionFinalizationResult | null;
+  confirmedAt: string | null;
+  failedAt: string | null;
+  failureCode: string | null;
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AdmissionFinalizationResult = {
+  contractVersion: typeof ADMISSION_FINALIZATION_RESULT_VERSION;
+  admissionCaseId: string;
+  status: "CONFIRMED";
+  studentId: string;
+  placementId: string;
+  enrollmentId: string;
+  guardianIds: string[];
+  parentStudentLinkIds: string[];
+  invoiceIds: [];
+  confirmedAt: string;
+  version: number;
 };
 
 export type AdmissionCasePage = {

@@ -26,6 +26,7 @@ import { RequirePermissions } from "../security/permissions.decorator";
 import { Roles } from "../security/roles.decorator";
 import { UserRole } from "../security/roles.enum";
 import { AdmissionCasesService } from "./admission-cases.service";
+import { AdmissionFinalizationService } from "./admission-finalization.service";
 import {
   AdmissionCaseSection,
   type AdmissionCaseMutableSection,
@@ -36,6 +37,7 @@ import {
   AdmissionCaseListQueryDto,
   CancelAdmissionCaseDto,
   CreateAdmissionCaseDto,
+  FinalizeAdmissionCaseDto,
   UpdateAdmissionCaseSectionDto,
 } from "./dto/admission-cases.dto";
 
@@ -50,6 +52,7 @@ import {
 export class AdmissionCasesController {
   constructor(
     private readonly service: AdmissionCasesService,
+    private readonly finalizationService: AdmissionFinalizationService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -74,6 +77,33 @@ export class AdmissionCasesController {
     return this.service.create(
       tenantId,
       { id: user.sub, role: user.role },
+      body,
+    );
+  }
+
+  @Post(":id/finalize")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermissions(
+    { resource: "enrollments", action: "create" },
+    { resource: "reference", action: "read" },
+  )
+  @ApiOperation({ summary: "Finalize an admission case transactionally" })
+  finalize(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() body: FinalizeAdmissionCaseDto,
+    @Headers("x-tenant-id") tenantHeader?: string,
+  ) {
+    const user = request.user!;
+    const tenantId = resolveTenantContext(
+      this.configService,
+      user,
+      tenantHeader,
+    );
+    return this.finalizationService.finalize(
+      tenantId,
+      { id: user.sub, role: user.role },
+      id,
       body,
     );
   }

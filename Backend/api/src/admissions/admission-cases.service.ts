@@ -55,6 +55,10 @@ const admissionCaseSelect = {
   draftData: true,
   studentId: true,
   schoolYearId: true,
+  finalizationResult: true,
+  confirmedAt: true,
+  failedAt: true,
+  failureCode: true,
   cancelledAt: true,
   createdAt: true,
   updatedAt: true,
@@ -208,7 +212,7 @@ export class AdmissionCasesService {
     }
 
     const nextDraft = this.replaceSection(
-      this.deserializeDraftData(current.draftData),
+      this.parseStoredDraftData(current.draftData),
       section,
       payload.data,
     );
@@ -466,7 +470,7 @@ export class AdmissionCasesService {
     return value;
   }
 
-  private deserializeDraftData(value: Prisma.JsonValue): AdmissionDraftData {
+  parseStoredDraftData(value: Prisma.JsonValue): AdmissionDraftData {
     if (!value || Array.isArray(value) || typeof value !== "object") {
       throw new InternalServerErrorException({
         code: "ADMISSION_DRAFT_CORRUPTED",
@@ -827,7 +831,7 @@ export class AdmissionCasesService {
         message: "Stored admission draft version is unsupported.",
       });
     }
-    const draft = this.deserializeDraftData(row.draftData);
+    const draft = this.parseStoredDraftData(row.draftData);
     const readiness = this.evaluateReadiness(row, draft, prerequisites);
     return {
       contractVersion: ADMISSION_CASE_CONTRACT_VERSION,
@@ -844,9 +848,28 @@ export class AdmissionCasesService {
         row.status !== AdmissionCaseStatus.CANCELLED && readiness.ready,
       blockingIssues: readiness.blockingIssues,
       warnings: readiness.warnings,
+      finalizationResult: this.parseFinalizationResult(
+        row.finalizationResult,
+      ),
+      confirmedAt: row.confirmedAt?.toISOString() ?? null,
+      failedAt: row.failedAt?.toISOString() ?? null,
+      failureCode: row.failureCode,
       cancelledAt: row.cancelledAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  private parseFinalizationResult(
+    value: Prisma.JsonValue | null | undefined,
+  ): AdmissionCaseView["finalizationResult"] {
+    if (value == null) return null;
+    if (Array.isArray(value) || typeof value !== "object") {
+      throw new InternalServerErrorException({
+        code: "ADMISSION_FINALIZATION_RESULT_CORRUPTED",
+        message: "Stored admission finalization result is invalid.",
+      });
+    }
+    return value as AdmissionCaseView["finalizationResult"];
   }
 }

@@ -133,36 +133,40 @@ export class StudentsService {
 
     try {
       const student = await this.prisma.student.create({
-        data: {
-          tenantId,
-          matricule: payload.matricule.trim(),
-          firstName: payload.firstName.trim(),
-          lastName: payload.lastName.trim(),
-          sex: payload.sex,
-          birthDate: this.toDateOrNull(payload.birthDate),
-          birthPlace: this.emptyToNull(payload.birthPlace),
-          nationality: this.emptyToNull(payload.nationality),
-          address: this.emptyToNull(payload.address),
-          phone: this.emptyToNull(payload.phone),
-          email: this.emptyToNull(payload.email),
-          photoUrl: this.emptyToNull(payload.photoUrl),
-          establishmentId: payload.establishmentId,
-          admissionDate: this.toDateOrNull(payload.admissionDate),
-          administrativeNotes: this.emptyToNull(payload.administrativeNotes),
-          internalId: this.emptyToNull(payload.internalId),
-          birthCertificateNo: this.emptyToNull(payload.birthCertificateNo),
-          specialNeeds: this.emptyToNull(payload.specialNeeds),
-          primaryLanguage: this.emptyToNull(payload.primaryLanguage),
-          status: payload.status || "ACTIVE",
-          archivedAt: payload.status === "ARCHIVED" ? new Date() : null,
-          updatedAt: new Date()
-        },
+        data: this.buildStudentCreateData(tenantId, payload),
         include: this.includeRelations()
       });
 
       return this.toView(student);
     } catch (error: unknown) {
       this.handleStudentConflict(error);
+      throw error;
+    }
+  }
+
+  async createForAdmission(
+    tenantId: string,
+    payload: CreateStudentDto,
+    transaction: Prisma.TransactionClient
+  ): Promise<{ id: string }> {
+    this.assertDates(payload);
+    await this.assertNoAdmissionDuplicate(tenantId, payload, transaction);
+
+    try {
+      return await transaction.student.create({
+        data: this.buildStudentCreateData(tenantId, payload),
+        select: { id: true }
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictException({
+          code: "STUDENT_DUPLICATE_SUSPECTED",
+          message: "A student with the same matricule already exists."
+        });
+      }
       throw error;
     }
   }
@@ -431,6 +435,66 @@ export class StudentsService {
     if (payload.admissionDate && new Date(payload.admissionDate) > new Date()) {
       throw new BadRequestException("Admission date cannot be in the future.");
     }
+  }
+
+  private async assertNoAdmissionDuplicate(
+    tenantId: string,
+    payload: CreateStudentDto,
+    transaction: Prisma.TransactionClient
+  ): Promise<void> {
+    const duplicate = await transaction.student.findFirst({
+      where: {
+        tenantId,
+        deletedAt: null,
+        OR: [
+          { matricule: payload.matricule.trim() },
+          ...(payload.birthDate
+            ? [{
+                firstName: { equals: payload.firstName.trim(), mode: "insensitive" as const },
+                lastName: { equals: payload.lastName.trim(), mode: "insensitive" as const },
+                birthDate: new Date(payload.birthDate)
+              }]
+            : [])
+        ]
+      },
+      select: { id: true }
+    });
+    if (duplicate) {
+      throw new ConflictException({
+        code: "STUDENT_DUPLICATE_SUSPECTED",
+        message: "A potentially duplicate student already exists."
+      });
+    }
+  }
+
+  private buildStudentCreateData(
+    tenantId: string,
+    payload: CreateStudentDto
+  ): Prisma.StudentUncheckedCreateInput {
+    return {
+      tenantId,
+      matricule: payload.matricule.trim(),
+      firstName: payload.firstName.trim(),
+      lastName: payload.lastName.trim(),
+      sex: payload.sex,
+      birthDate: this.toDateOrNull(payload.birthDate),
+      birthPlace: this.emptyToNull(payload.birthPlace),
+      nationality: this.emptyToNull(payload.nationality),
+      address: this.emptyToNull(payload.address),
+      phone: this.emptyToNull(payload.phone),
+      email: this.emptyToNull(payload.email),
+      photoUrl: this.emptyToNull(payload.photoUrl),
+      establishmentId: payload.establishmentId,
+      admissionDate: this.toDateOrNull(payload.admissionDate),
+      administrativeNotes: this.emptyToNull(payload.administrativeNotes),
+      internalId: this.emptyToNull(payload.internalId),
+      birthCertificateNo: this.emptyToNull(payload.birthCertificateNo),
+      specialNeeds: this.emptyToNull(payload.specialNeeds),
+      primaryLanguage: this.emptyToNull(payload.primaryLanguage),
+      status: payload.status || "ACTIVE",
+      archivedAt: payload.status === "ARCHIVED" ? new Date() : null,
+      updatedAt: new Date()
+    };
   }
 
   private toDateString(value: Date | null): string | undefined {

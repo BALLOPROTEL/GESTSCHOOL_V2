@@ -20,6 +20,7 @@ import {
   IsUUID,
   Max,
   MaxLength,
+  MinLength,
   Min,
   ValidateNested,
 } from "class-validator";
@@ -88,6 +89,19 @@ export class CancelAdmissionCaseDto {
   @IsInt()
   @Min(1)
   expectedVersion!: number;
+}
+
+export class FinalizeAdmissionCaseDto {
+  @ApiProperty({ minimum: 1 })
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number;
+
+  @ApiProperty({ minLength: 8, maxLength: 200 })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(200)
+  idempotencyKey!: string;
 }
 
 export class AdmissionStudentSectionDto implements AdmissionStudentDraft {

@@ -197,6 +197,134 @@ export class AcademicStructureService {
     }
   }
 
+  async createTrackPlacementForAdmission(
+    tenantId: string,
+    payload: UpsertTrackPlacementPayload,
+    transaction: Prisma.TransactionClient,
+    checkpoints?: {
+      afterPlacement?: () => void;
+      afterEnrollment?: () => void;
+    }
+  ): Promise<{ placementId: string; enrollmentId: string }> {
+    const track = this.normalizeTrack(payload.track);
+    const placementStatus = this.normalizePlacementStatus(payload.placementStatus);
+    const [student, schoolYear, level, classroom] = await Promise.all([
+      this.requireStudent(tenantId, payload.studentId, transaction),
+      this.requireSchoolYear(tenantId, payload.schoolYearId, transaction),
+      this.requireLevel(tenantId, payload.levelId, transaction),
+      payload.classId
+        ? this.requireClassroomContext(tenantId, payload.classId, transaction)
+        : Promise.resolve(null)
+    ]);
+
+    if (student.archivedAt || student.status === "ARCHIVED") {
+      throw new ConflictException({
+        code: "ADMISSION_EXISTING_STUDENT_UNAVAILABLE",
+        message: "Student is not available for enrollment."
+      });
+    }
+    if (schoolYear.status !== "ACTIVE" || !schoolYear.isActive) {
+      throw new ConflictException({
+        code: "ADMISSION_ACADEMIC_SELECTION_INVALID",
+        message: "School year is not active."
+      });
+    }
+    if (level.status !== "ACTIVE" || level.track !== track) {
+      throw new ConflictException({
+        code: "ADMISSION_ACADEMIC_SELECTION_INVALID",
+        message: "Level is not active for the selected curriculum."
+      });
+    }
+    if (
+      !classroom ||
+      classroom.status !== "ACTIVE" ||
+      classroom.schoolYearId !== schoolYear.id ||
+      classroom.levelId !== level.id ||
+      classroom.track !== track ||
+      classroom.level.cycle.schoolYearId !== schoolYear.id ||
+      classroom.level.cycle.status !== "ACTIVE"
+    ) {
+      throw new ConflictException({
+        code: "CLASS_NOT_AVAILABLE",
+        message: "Class is not available for this admission."
+      });
+    }
+
+    const existing = await transaction.studentTrackPlacement.findFirst({
+      where: {
+        tenantId,
+        studentId: student.id,
+        schoolYearId: schoolYear.id,
+        track
+      },
+      select: { id: true }
+    });
+    if (existing) {
+      throw new ConflictException({
+        code: "PLACEMENT_CONFLICT",
+        message: "A placement already exists for this student and school year."
+      });
+    }
+
+    try {
+      const placement = await transaction.studentTrackPlacement.create({
+        data: {
+          tenantId,
+          studentId: student.id,
+          schoolYearId: schoolYear.id,
+          track,
+          levelId: level.id,
+          classId: classroom.id,
+          placementStatus,
+          isPrimary: false,
+          startDate: payload.startDate ? new Date(payload.startDate) : schoolYear.startDate,
+          endDate: payload.endDate ? new Date(payload.endDate) : null,
+          updatedAt: new Date()
+        },
+        select: { id: true }
+      });
+      checkpoints?.afterPlacement?.();
+      const enrollment = await transaction.enrollment.create({
+        data: {
+          tenantId,
+          schoolYearId: schoolYear.id,
+          studentId: student.id,
+          classId: classroom.id,
+          track,
+          enrollmentDate: payload.startDate
+            ? new Date(payload.startDate)
+            : schoolYear.startDate,
+          enrollmentStatus: this.toLegacyEnrollmentStatus(placementStatus),
+          updatedAt: new Date()
+        },
+        select: { id: true }
+      });
+      checkpoints?.afterEnrollment?.();
+      await transaction.studentTrackPlacement.update({
+        where: { id: placement.id },
+        data: { legacyEnrollmentId: enrollment.id, updatedAt: new Date() }
+      });
+      await this.rebalanceStudentYearPlacementPriority(
+        tenantId,
+        student.id,
+        schoolYear.id,
+        transaction
+      );
+      return { placementId: placement.id, enrollmentId: enrollment.id };
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new ConflictException({
+          code: "PLACEMENT_CONFLICT",
+          message: "A placement already exists for this student and school year."
+        });
+      }
+      throw error;
+    }
+  }
+
   private async upsertTrackPlacementUnsafe(
     tenantId: string,
     payload: UpsertTrackPlacementPayload,

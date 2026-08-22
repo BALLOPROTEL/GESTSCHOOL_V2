@@ -242,6 +242,14 @@ model AdmissionCase {
   updatedByUserId            String?             @map("updated_by_user_id") @db.Uuid
   finalizationIdempotencyKey String?             @map("finalization_idempotency_key") @db.VarChar(200)
   finalizationPayloadHash    String?             @map("finalization_payload_hash") @db.Char(64)
+  finalizationResult         Json?               @map("finalization_result")
+  finalizationStartedAt      DateTime?           @map("finalization_started_at") @db.Timestamptz(6)
+  finalizationLeaseToken     String?             @map("finalization_lease_token") @db.Uuid
+  finalizationLeaseExpiresAt DateTime?           @map("finalization_lease_expires_at") @db.Timestamptz(6)
+  confirmedAt                DateTime?           @map("confirmed_at") @db.Timestamptz(6)
+  failedAt                   DateTime?           @map("failed_at") @db.Timestamptz(6)
+  failureCode                String?             @map("failure_code") @db.VarChar(80)
+  failureMessage             String?             @map("failure_message") @db.VarChar(500)
   cancelledAt                DateTime?           @map("cancelled_at") @db.Timestamptz(6)
   createdAt                  DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                  DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
@@ -254,6 +262,7 @@ model AdmissionCase {
   @@index([tenantId, status, updatedAt], map: "idx_admission_cases_tenant_status_updated")
   @@index([tenantId, studentId], map: "idx_admission_cases_tenant_student")
   @@index([tenantId, schoolYearId], map: "idx_admission_cases_tenant_school_year")
+  @@index([status, finalizationLeaseExpiresAt], map: "idx_admission_cases_finalize_lease")
   @@map("admission_cases")
 }
 
