@@ -21,6 +21,8 @@ import {
 } from "@nestjs/swagger";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
+import { AdmissionAcademicPolicyService } from "../academic-structure/admission-academic-policy.service";
+import { type AdmissionAcademicOptionsResponse } from "../academic-structure/admission-academic-policy.types";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermissions } from "../security/permissions.decorator";
 import { Roles } from "../security/roles.decorator";
@@ -36,6 +38,7 @@ import {
 } from "./admission-cases.types";
 import {
   AdmissionCaseListQueryDto,
+  AdmissionAcademicOptionsQueryDto,
   CancelAdmissionCaseDto,
   CreateAdmissionCaseDto,
   FinalizeAdmissionCaseDto,
@@ -60,6 +63,7 @@ export class AdmissionCasesController {
     private readonly service: AdmissionCasesService,
     private readonly finalizationService: AdmissionFinalizationService,
     private readonly identitySearchService: AdmissionIdentitySearchService,
+    private readonly academicPolicy: AdmissionAcademicPolicyService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -86,6 +90,29 @@ export class AdmissionCasesController {
       { id: user.sub, role: user.role },
       body,
     );
+  }
+
+  @Get("academic-options")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermissions(
+    { resource: "enrollments", action: "read" },
+    { resource: "reference", action: "read" },
+  )
+  @ApiOperation({
+    summary: "List progressive academic options for an admission",
+  })
+  academicOptions(
+    @Req() request: { user?: AuthenticatedUser },
+    @Query() query: AdmissionAcademicOptionsQueryDto,
+    @Headers("x-tenant-id") tenantHeader?: string,
+  ): Promise<AdmissionAcademicOptionsResponse> {
+    const user = request.user!;
+    const tenantId = resolveTenantContext(
+      this.configService,
+      user,
+      tenantHeader,
+    );
+    return this.academicPolicy.getOptions(tenantId, query);
   }
 
   @Get("search/students")

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { AdmissionPrerequisitesService } from "../../src/admissions/admission-prerequisites.service";
+import { AdmissionAcademicPolicyService } from "../../src/academic-structure/admission-academic-policy.service";
 import { PrismaService } from "../../src/database/prisma.service";
 import { UserRole } from "../../src/security/roles.enum";
 
@@ -24,12 +25,17 @@ const ACTIVE_LEVEL = {
 const ACTIVE_CLASS = {
   id: "30000000-0000-4000-8000-000000000001",
   schoolYearId: ACTIVE_YEAR.id,
+  cycleId: ACTIVE_LEVEL.cycleId,
   levelId: ACTIVE_LEVEL.id,
   code: "6E-A",
   label: "Sixieme A",
   track: "FRANCOPHONE" as const,
   capacity: 35,
   actualCapacity: 20,
+  currentEnrollmentCount: 20,
+  placesRemaining: 15,
+  capacityStatus: "AVAILABLE" as const,
+  _count: { trackPlacements: 20 },
 };
 const FEE_PLAN = {
   id: "40000000-0000-4000-8000-000000000001",
@@ -56,12 +62,16 @@ const createPrismaMock = (): PrismaMock => ({
   rolePermission: { findMany: jest.fn().mockResolvedValue([]) },
 });
 
+const createService = (prisma: PrismaMock): AdmissionPrerequisitesService =>
+  new AdmissionPrerequisitesService(
+    prisma as unknown as PrismaService,
+    new AdmissionAcademicPolicyService(prisma as unknown as PrismaService),
+  );
+
 describe("AdmissionPrerequisitesService", () => {
   it("returns a compact, stable and ready payload for a configured tenant", async () => {
     const prisma = createPrismaMock();
-    const service = new AdmissionPrerequisitesService(
-      prisma as unknown as PrismaService,
-    );
+    const service = createService(prisma);
 
     const result = await service.getPrerequisites(TENANT_ID, UserRole.ADMIN);
 
@@ -108,9 +118,7 @@ describe("AdmissionPrerequisitesService", () => {
   it("blocks when no active school year exists and avoids cascading queries", async () => {
     const prisma = createPrismaMock();
     prisma.schoolYear.findMany.mockResolvedValue([]);
-    const service = new AdmissionPrerequisitesService(
-      prisma as unknown as PrismaService,
-    );
+    const service = createService(prisma);
 
     const result = await service.getPrerequisites(TENANT_ID, UserRole.ADMIN);
 
@@ -127,9 +135,7 @@ describe("AdmissionPrerequisitesService", () => {
   it("blocks when the active hierarchy has no available class", async () => {
     const prisma = createPrismaMock();
     prisma.classroom.findMany.mockResolvedValue([]);
-    const service = new AdmissionPrerequisitesService(
-      prisma as unknown as PrismaService,
-    );
+    const service = createService(prisma);
 
     const result = await service.getPrerequisites(TENANT_ID, UserRole.ADMIN);
 
@@ -140,15 +146,13 @@ describe("AdmissionPrerequisitesService", () => {
     });
     expect(result.levels).toHaveLength(1);
     expect(result.classes).toEqual([]);
-    expect(result.tracks).toEqual([]);
+    expect(result.tracks).toEqual(["FRANCOPHONE"]);
   });
 
   it("reports missing fee plans as a warning because finance policy is not modeled", async () => {
     const prisma = createPrismaMock();
     prisma.feePlan.findMany.mockResolvedValue([]);
-    const service = new AdmissionPrerequisitesService(
-      prisma as unknown as PrismaService,
-    );
+    const service = createService(prisma);
 
     const result = await service.getPrerequisites(TENANT_ID, UserRole.ADMIN);
 
@@ -167,9 +171,7 @@ describe("AdmissionPrerequisitesService", () => {
       { resource: "parents", action: "create", allowed: false },
       { resource: "finance", action: "create", allowed: true },
     ]);
-    const service = new AdmissionPrerequisitesService(
-      prisma as unknown as PrismaService,
-    );
+    const service = createService(prisma);
 
     const result = await service.getPrerequisites(
       TENANT_ID,
@@ -194,9 +196,7 @@ describe("AdmissionPrerequisitesService", () => {
     prisma.rolePermission.findMany.mockResolvedValue([
       { resource: "enrollments", action: "create", allowed: false },
     ]);
-    const service = new AdmissionPrerequisitesService(
-      prisma as unknown as PrismaService,
-    );
+    const service = createService(prisma);
 
     const result = await service.getPrerequisites(TENANT_ID, UserRole.ADMIN);
 
@@ -210,9 +210,7 @@ describe("AdmissionPrerequisitesService", () => {
 
   it("enforces tenant and active hierarchy filters on every catalog query", async () => {
     const prisma = createPrismaMock();
-    const service = new AdmissionPrerequisitesService(
-      prisma as unknown as PrismaService,
-    );
+    const service = createService(prisma);
 
     await service.getPrerequisites(TENANT_ID, UserRole.ADMIN);
 
@@ -266,9 +264,7 @@ describe("AdmissionPrerequisitesService", () => {
     prisma.classroom.findMany.mockResolvedValue([
       { ...ACTIVE_CLASS, track: "ARABOPHONE" },
     ]);
-    const service = new AdmissionPrerequisitesService(
-      prisma as unknown as PrismaService,
-    );
+    const service = createService(prisma);
 
     const result = await service.getPrerequisites(TENANT_ID, UserRole.ADMIN);
 

@@ -519,10 +519,23 @@ describe("Admission transactional finalization (e2e)", () => {
         placementStatus: "ACTIVE",
       },
     });
+    const alternativeClass = await context.prisma.classroom.create({
+      data: {
+        tenantId: TENANT_ID,
+        schoolYearId: baseline.schoolYearId,
+        levelId: baseline.levelId,
+        track: "FRANCOPHONE",
+        code: next("ALT-CLASS").slice(0, 30),
+        label: next("Alternative class").slice(0, 100),
+        status: "ACTIVE",
+      },
+    });
     const placementCase = await createReadyCase({
       mode: AdmissionCaseMode.RE_ENROLLMENT,
       studentId: conflictStudent.id,
-      draftData: { ACADEMICS: academics() },
+      draftData: {
+        ACADEMICS: academics({ classId: alternativeClass.id }),
+      },
     });
     const beforePlacement = await businessCounts();
     const placementConflict = await finalize(
@@ -532,6 +545,16 @@ describe("Admission transactional finalization (e2e)", () => {
     ).expect(409);
     expect(placementConflict.body.code).toBe("PLACEMENT_CONFLICT");
     await expect(businessCounts()).resolves.toEqual(beforePlacement);
+    await expect(
+      context.prisma.studentTrackPlacement.findFirstOrThrow({
+        where: {
+          tenantId: TENANT_ID,
+          studentId: conflictStudent.id,
+          schoolYearId: baseline.schoolYearId,
+          track: "FRANCOPHONE",
+        },
+      }),
+    ).resolves.toMatchObject({ classId: baseline.classId });
 
     const disabledSuffix = next("DISABLED");
     const disabledCase = await createReadyCase({
@@ -612,7 +635,7 @@ describe("Admission transactional finalization (e2e)", () => {
       1,
       `cross-tenant-${crossCase.id}`,
     ).expect(409);
-    expect(crossTenant.body.code).toBe("CLASS_NOT_AVAILABLE");
+    expect(crossTenant.body.code).toBe("SCHOOL_YEAR_NOT_AVAILABLE");
     await expect(businessCounts()).resolves.toEqual(beforeCrossTenant);
   });
 

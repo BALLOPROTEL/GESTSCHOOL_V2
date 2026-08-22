@@ -17,6 +17,8 @@ import {
 } from "@prisma/client";
 
 import { AcademicStructureService } from "../academic-structure/academic-structure.service";
+import { AdmissionAcademicPolicyService } from "../academic-structure/admission-academic-policy.service";
+import { type CompleteAdmissionAcademicSelection } from "../academic-structure/admission-academic-policy.types";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../database/prisma.service";
 import { OutboxService } from "../outbox/outbox.service";
@@ -90,6 +92,7 @@ export class AdmissionFinalizationService {
     private readonly prerequisitesService: AdmissionPrerequisitesService,
     private readonly studentsService: StudentsService,
     private readonly parentsService: ParentsService,
+    private readonly academicPolicy: AdmissionAcademicPolicyService,
     private readonly academicStructureService: AcademicStructureService,
     private readonly auditService: AuditService,
     private readonly outboxService: OutboxService,
@@ -334,7 +337,11 @@ export class AdmissionFinalizationService {
           admissionCase.draftData,
         );
         const academics = this.requireAcademics(draft.ACADEMICS);
-        await this.assertAcademicSelection(tenantId, academics, transaction);
+        await this.academicPolicy.assertCompleteSelection(
+          tenantId,
+          academics,
+          transaction,
+        );
 
         const student =
           admissionCase.mode === AdmissionCaseMode.NEW_ADMISSION
@@ -383,6 +390,7 @@ export class AdmissionFinalizationService {
             {
               studentId,
               schoolYearId: academics.schoolYearId,
+              cycleId: academics.cycleId,
               levelId: academics.levelId,
               classId: academics.classId,
               track: academics.track,
@@ -705,7 +713,7 @@ export class AdmissionFinalizationService {
 
   private requireAcademics(
     academics?: AdmissionAcademicsDraft,
-  ): Required<AdmissionAcademicsDraft> {
+  ): CompleteAdmissionAcademicSelection {
     if (
       !academics?.schoolYearId ||
       !academics.cycleId ||
@@ -718,49 +726,7 @@ export class AdmissionFinalizationService {
         message: "Academic section is incomplete.",
       });
     }
-    return academics as Required<AdmissionAcademicsDraft>;
-  }
-
-  private async assertAcademicSelection(
-    tenantId: string,
-    academics: Required<AdmissionAcademicsDraft>,
-    transaction: Prisma.TransactionClient,
-  ): Promise<void> {
-    const classroom = await transaction.classroom.findFirst({
-      where: {
-        id: academics.classId,
-        tenantId,
-        schoolYearId: academics.schoolYearId,
-        levelId: academics.levelId,
-        track: academics.track,
-        status: "ACTIVE",
-        schoolYear: {
-          is: { tenantId, status: "ACTIVE", isActive: true },
-        },
-        level: {
-          is: {
-            tenantId,
-            cycleId: academics.cycleId,
-            track: academics.track,
-            status: "ACTIVE",
-            cycle: {
-              is: {
-                tenantId,
-                schoolYearId: academics.schoolYearId,
-                status: "ACTIVE",
-              },
-            },
-          },
-        },
-      },
-      select: { id: true },
-    });
-    if (!classroom) {
-      throw new ConflictException({
-        code: "CLASS_NOT_AVAILABLE",
-        message: "Class is no longer available for this admission.",
-      });
-    }
+    return academics as CompleteAdmissionAcademicSelection;
   }
 
   private async markFailed(

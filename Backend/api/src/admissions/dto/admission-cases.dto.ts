@@ -74,6 +74,28 @@ export class AdmissionCaseListQueryDto {
   status?: AdmissionCaseStatus;
 }
 
+export class AdmissionAcademicOptionsQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  schoolYearId?: string;
+
+  @ApiPropertyOptional({ enum: AcademicTrack })
+  @IsOptional()
+  @IsEnum(AcademicTrack)
+  track?: AcademicTrack;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  cycleId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID("all")
+  levelId?: string;
+}
+
 export class UpdateAdmissionCaseSectionDto {
   @ApiProperty({ minimum: 1 })
   @IsInt()

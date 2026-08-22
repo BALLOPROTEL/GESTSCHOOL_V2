@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../database/prisma.service";
+import { AdmissionAcademicPolicyService } from "../academic-structure/admission-academic-policy.service";
 import {
   hasPermission,
   type PermissionRequirement,
@@ -10,9 +11,7 @@ import { UserRole } from "../security/roles.enum";
 import {
   ADMISSION_MODES,
   ADMISSION_PREREQUISITES_CONTRACT_VERSION,
-  type AdmissionClassPrerequisite,
   type AdmissionFeePlanPrerequisite,
-  type AdmissionLevelPrerequisite,
   type AdmissionMode,
   type AdmissionPermissionKey,
   type AdmissionPrerequisiteIssue,
@@ -56,37 +55,30 @@ const MODE_REQUIREMENTS: Record<AdmissionMode, AdmissionPermissionKey[]> = {
 
 @Injectable()
 export class AdmissionPrerequisitesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly academicPolicy: AdmissionAcademicPolicyService,
+  ) {}
 
   async getPrerequisites(
     tenantId: string,
     role: UserRole,
   ): Promise<AdmissionPrerequisitesResponse> {
-    const [activeSchoolYears, permissions] = await Promise.all([
-      this.prisma.schoolYear.findMany({
-        where: { tenantId, status: "ACTIVE", isActive: true },
-        orderBy: [{ isDefault: "desc" }, { startDate: "desc" }],
-        select: {
-          id: true,
-          code: true,
-          label: true,
-          startDate: true,
-          endDate: true,
-        },
-      }),
+    const [catalog, permissions] = await Promise.all([
+      this.academicPolicy.getPrerequisiteCatalog(tenantId),
       this.resolvePermissions(tenantId, role),
     ]);
 
     const blockingIssues: AdmissionPrerequisiteIssue[] = [];
     const warnings: AdmissionPrerequisiteIssue[] = [];
-    const schoolYear = activeSchoolYears[0] ?? null;
+    const schoolYear = catalog.schoolYear;
 
-    if (!schoolYear) {
+    if (catalog.schoolYears.length === 0) {
       blockingIssues.push({
         code: "ADMISSION_ACTIVE_SCHOOL_YEAR_MISSING",
         scope: "ACADEMIC",
       });
-    } else if (activeSchoolYears.length > 1) {
+    } else if (catalog.schoolYears.length > 1) {
       blockingIssues.push({
         code: "ADMISSION_MULTIPLE_ACTIVE_SCHOOL_YEARS",
         scope: "ACADEMIC",
@@ -117,103 +109,27 @@ export class AdmissionPrerequisitesService {
       });
     }
 
-    const levelRows = await this.prisma.level.findMany({
-      where: {
-        tenantId,
-        status: "ACTIVE",
-        cycle: {
-          is: {
-            tenantId,
-            schoolYearId: schoolYear.id,
-            status: "ACTIVE",
-          },
-        },
-      },
-      orderBy: [{ cycle: { sortOrder: "asc" } }, { sortOrder: "asc" }],
-      select: {
-        id: true,
-        cycleId: true,
-        code: true,
-        label: true,
-        track: true,
-        sortOrder: true,
-        cycle: {
-          select: { code: true, label: true },
-        },
-      },
-    });
-    const levels: AdmissionLevelPrerequisite[] = levelRows.map((level) => ({
-      id: level.id,
-      cycleId: level.cycleId,
-      cycleCode: level.cycle.code,
-      cycleLabel: level.cycle.label,
-      code: level.code,
-      label: level.label,
-      track: level.track,
-      sortOrder: level.sortOrder,
-    }));
-    const levelById = new Map(levels.map((level) => [level.id, level]));
-
-    const classRows = await this.prisma.classroom.findMany({
-      where: {
-        tenantId,
-        schoolYearId: schoolYear.id,
-        status: "ACTIVE",
-        levelId: { in: levels.map((level) => level.id) },
-      },
-      orderBy: [{ label: "asc" }],
-      select: {
-        id: true,
-        schoolYearId: true,
-        levelId: true,
-        code: true,
-        label: true,
-        track: true,
-        capacity: true,
-        actualCapacity: true,
-      },
-    });
-    const invalidClassCount = classRows.filter(
-      (classroom) =>
-        levelById.get(classroom.levelId)?.track !== classroom.track,
-    ).length;
-    const classes: AdmissionClassPrerequisite[] = classRows
-      .filter(
-        (classroom) =>
-          levelById.get(classroom.levelId)?.track === classroom.track,
-      )
-      .map((classroom) => ({
-        id: classroom.id,
-        schoolYearId: classroom.schoolYearId,
-        levelId: classroom.levelId,
-        code: classroom.code,
-        label: classroom.label,
-        track: classroom.track,
-        capacity: classroom.capacity ?? undefined,
-        actualCapacity: classroom.actualCapacity ?? undefined,
-      }));
-
     const feePlans = permissions.canReadFeePlans
       ? await this.listFeePlans(
           tenantId,
           schoolYear.id,
-          levels.map((level) => level.id),
+          catalog.levels.map((level) => level.id),
         )
       : [];
 
-    if (levels.length === 0) {
+    if (catalog.levels.length === 0) {
       blockingIssues.push({
         code: "ADMISSION_ACTIVE_LEVEL_MISSING",
         scope: "ACADEMIC",
       });
     }
-    if (classes.length === 0) {
+    if (catalog.classes.length === 0) {
       blockingIssues.push({
         code: "ADMISSION_ACTIVE_CLASS_MISSING",
         scope: "ACADEMIC",
       });
     }
-    if (invalidClassCount > 0) {
+    if (catalog.invalidClassCount > 0) {
       warnings.push({
         code: "ADMISSION_REFERENCE_INCONSISTENCY",
         scope: "ACADEMIC",
@@ -231,23 +147,15 @@ export class AdmissionPrerequisitesService {
       });
     }
 
-    const tracks = [
-      ...new Set(classes.map((classroom) => classroom.track)),
-    ].sort();
-
     return this.buildResponse({
       tenantId,
       permissions,
       blockingIssues,
       warnings,
-      schoolYear: {
-        ...schoolYear,
-        startDate: this.toDateOnly(schoolYear.startDate),
-        endDate: this.toDateOnly(schoolYear.endDate),
-      },
-      tracks,
-      levels,
-      classes,
+      schoolYear,
+      tracks: catalog.tracks,
+      levels: catalog.levels,
+      classes: catalog.classes,
       feePlans,
     });
   }
@@ -385,9 +293,5 @@ export class AdmissionPrerequisitesService {
 
   private decimalToNumber(value: Prisma.Decimal): number {
     return Number(value.toString());
-  }
-
-  private toDateOnly(value: Date): string {
-    return value.toISOString().slice(0, 10);
   }
 }

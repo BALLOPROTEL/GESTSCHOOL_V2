@@ -11,6 +11,7 @@ import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
 
 import { AuditService } from "../audit/audit.service";
+import { AdmissionAcademicPolicyService } from "../academic-structure/admission-academic-policy.service";
 import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "../security/roles.enum";
 import {
@@ -44,6 +45,10 @@ import {
 
 const EDITABLE_ADMISSION_FAILURE_CODES = new Set([
   "ADMISSION_CASE_NOT_READY",
+  "ACADEMIC_CONTEXT_INVALID",
+  "SCHOOL_YEAR_NOT_AVAILABLE",
+  "TRACK_NOT_AVAILABLE",
+  "LEVEL_NOT_AVAILABLE",
   "CLASS_NOT_AVAILABLE",
   "PLACEMENT_CONFLICT",
   "STUDENT_DUPLICATE_SUSPECTED",
@@ -95,6 +100,7 @@ export class AdmissionCasesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly prerequisitesService: AdmissionPrerequisitesService,
+    private readonly academicPolicy: AdmissionAcademicPolicyService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -649,7 +655,7 @@ export class AdmissionCasesService {
       await this.validateGuardians(tenantId, draft.GUARDIANS);
     }
     if (section === "ACADEMICS" && draft.ACADEMICS) {
-      this.validateAcademics(draft.ACADEMICS, prerequisites);
+      await this.academicPolicy.assertDraftSelection(tenantId, draft.ACADEMICS);
     }
     if (section === "FINANCE" && draft.FINANCE) {
       this.validateFinance(draft.FINANCE, prerequisites);
@@ -734,48 +740,6 @@ export class AdmissionCasesService {
         "One or more guardians are unavailable.",
       );
     }
-  }
-
-  private validateAcademics(
-    section: AdmissionAcademicsDraft,
-    prerequisites: AdmissionPrerequisitesResponse,
-  ): void {
-    if (
-      section.schoolYearId &&
-      section.schoolYearId !== prerequisites.schoolYear?.id
-    ) {
-      throw this.invalidAcademicSelection();
-    }
-    const level = section.levelId
-      ? prerequisites.levels.find((item) => item.id === section.levelId)
-      : undefined;
-    if (section.levelId && !level) throw this.invalidAcademicSelection();
-    if (section.cycleId && level && section.cycleId !== level.cycleId) {
-      throw this.invalidAcademicSelection();
-    }
-    const classroom = section.classId
-      ? prerequisites.classes.find((item) => item.id === section.classId)
-      : undefined;
-    if (section.classId && !classroom) throw this.invalidAcademicSelection();
-    if (
-      classroom &&
-      ((section.schoolYearId &&
-        classroom.schoolYearId !== section.schoolYearId) ||
-        (section.levelId && classroom.levelId !== section.levelId) ||
-        (section.track && classroom.track !== section.track))
-    ) {
-      throw this.invalidAcademicSelection();
-    }
-    if (level && section.track && level.track !== section.track) {
-      throw this.invalidAcademicSelection();
-    }
-  }
-
-  private invalidAcademicSelection(): BadRequestException {
-    return this.badRequest(
-      "ADMISSION_ACADEMIC_SELECTION_INVALID",
-      "Academic selection is not available for this tenant.",
-    );
   }
 
   private validateFinance(
@@ -897,29 +861,11 @@ export class AdmissionCasesService {
     section: AdmissionAcademicsDraft | undefined,
     prerequisites: AdmissionPrerequisitesResponse,
   ): boolean {
-    if (
-      !section?.schoolYearId ||
-      !section.cycleId ||
-      !section.levelId ||
-      !section.classId ||
-      !section.track
-    ) {
-      return false;
-    }
-    const level = prerequisites.levels.find(
-      (item) => item.id === section.levelId,
-    );
-    const classroom = prerequisites.classes.find(
-      (item) => item.id === section.classId,
-    );
-    return Boolean(
-      prerequisites.schoolYear?.id === section.schoolYearId &&
-      level?.cycleId === section.cycleId &&
-      level.track === section.track &&
-      classroom?.schoolYearId === section.schoolYearId &&
-      classroom.levelId === section.levelId &&
-      classroom.track === section.track,
-    );
+    return this.academicPolicy.isCompleteSelectionAvailable(section, {
+      schoolYear: prerequisites.schoolYear,
+      levels: prerequisites.levels,
+      classes: prerequisites.classes,
+    });
   }
 
   private areGuardiansComplete(section?: AdmissionGuardiansDraft): boolean {

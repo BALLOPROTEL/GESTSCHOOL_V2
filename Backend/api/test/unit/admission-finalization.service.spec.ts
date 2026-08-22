@@ -104,6 +104,7 @@ function createService(row: TestFinalizationRow) {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 }
 

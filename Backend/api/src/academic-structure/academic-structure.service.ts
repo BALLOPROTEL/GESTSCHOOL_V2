@@ -15,6 +15,7 @@ import {
 
 import { PrismaService } from "../database/prisma.service";
 import { AcademicStructureRuleValidator } from "./academic-structure-rule-validator.service";
+import { AdmissionAcademicPolicyService } from "./admission-academic-policy.service";
 
 type PrismaClientLike = PrismaService | Prisma.TransactionClient;
 
@@ -103,6 +104,7 @@ type PedagogicalRuleView = {
 type UpsertTrackPlacementPayload = {
   studentId: string;
   schoolYearId: string;
+  cycleId?: string;
   track?: AcademicTrack | string;
   levelId: string;
   classId?: string;
@@ -139,7 +141,8 @@ type TimetableRuleCheckPayload = {
 export class AcademicStructureService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ruleValidator: AcademicStructureRuleValidator
+    private readonly ruleValidator: AcademicStructureRuleValidator,
+    private readonly admissionAcademicPolicy: AdmissionAcademicPolicyService
   ) {}
 
   async listTrackPlacements(
@@ -208,14 +211,27 @@ export class AcademicStructureService {
   ): Promise<{ placementId: string; enrollmentId: string }> {
     const track = this.normalizeTrack(payload.track);
     const placementStatus = this.normalizePlacementStatus(payload.placementStatus);
-    const [student, schoolYear, level, classroom] = await Promise.all([
+    if (!payload.cycleId || !payload.classId) {
+      throw new ConflictException({
+        code: "ACADEMIC_CONTEXT_INVALID",
+        message: "Academic selection is incomplete."
+      });
+    }
+    const [student, academicContext] = await Promise.all([
       this.requireStudent(tenantId, payload.studentId, transaction),
-      this.requireSchoolYear(tenantId, payload.schoolYearId, transaction),
-      this.requireLevel(tenantId, payload.levelId, transaction),
-      payload.classId
-        ? this.requireClassroomContext(tenantId, payload.classId, transaction)
-        : Promise.resolve(null)
+      this.admissionAcademicPolicy.assertCompleteSelection(
+        tenantId,
+        {
+          schoolYearId: payload.schoolYearId,
+          cycleId: payload.cycleId,
+          track,
+          levelId: payload.levelId,
+          classId: payload.classId
+        },
+        transaction
+      )
     ]);
+    const { schoolYear, level, classroom } = academicContext;
 
     if (student.archivedAt || student.status === "ARCHIVED") {
       throw new ConflictException({
@@ -223,33 +239,6 @@ export class AcademicStructureService {
         message: "Student is not available for enrollment."
       });
     }
-    if (schoolYear.status !== "ACTIVE" || !schoolYear.isActive) {
-      throw new ConflictException({
-        code: "ADMISSION_ACADEMIC_SELECTION_INVALID",
-        message: "School year is not active."
-      });
-    }
-    if (level.status !== "ACTIVE" || level.track !== track) {
-      throw new ConflictException({
-        code: "ADMISSION_ACADEMIC_SELECTION_INVALID",
-        message: "Level is not active for the selected curriculum."
-      });
-    }
-    if (
-      !classroom ||
-      classroom.status !== "ACTIVE" ||
-      classroom.schoolYearId !== schoolYear.id ||
-      classroom.levelId !== level.id ||
-      classroom.track !== track ||
-      classroom.level.cycle.schoolYearId !== schoolYear.id ||
-      classroom.level.cycle.status !== "ACTIVE"
-    ) {
-      throw new ConflictException({
-        code: "CLASS_NOT_AVAILABLE",
-        message: "Class is not available for this admission."
-      });
-    }
-
     const existing = await transaction.studentTrackPlacement.findFirst({
       where: {
         tenantId,

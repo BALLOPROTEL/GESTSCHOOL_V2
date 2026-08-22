@@ -1,5 +1,11 @@
 import { type AcademicTrack } from "@prisma/client";
 
+import {
+  type AdmissionAcademicClass,
+  type AdmissionAcademicLevel,
+  type AdmissionAcademicSchoolYear,
+} from "../academic-structure/admission-academic-policy.types";
+
 export const ADMISSION_PREREQUISITES_CONTRACT_VERSION = "1" as const;
 
 export const ADMISSION_MODES = ["NEW_ADMISSION", "RE_ENROLLMENT"] as const;
@@ -57,35 +63,11 @@ export type AdmissionPrerequisitePermissions = {
   modes: Record<AdmissionMode, AdmissionModeEligibility>;
 };
 
-export type AdmissionSchoolYearPrerequisite = {
-  id: string;
-  code: string;
-  label: string;
-  startDate: string;
-  endDate: string;
-};
+export type AdmissionSchoolYearPrerequisite = AdmissionAcademicSchoolYear;
 
-export type AdmissionLevelPrerequisite = {
-  id: string;
-  cycleId: string;
-  cycleCode: string;
-  cycleLabel: string;
-  code: string;
-  label: string;
-  track: AcademicTrack;
-  sortOrder: number;
-};
+export type AdmissionLevelPrerequisite = AdmissionAcademicLevel;
 
-export type AdmissionClassPrerequisite = {
-  id: string;
-  schoolYearId: string;
-  levelId: string;
-  code: string;
-  label: string;
-  track: AcademicTrack;
-  capacity?: number;
-  actualCapacity?: number;
-};
+export type AdmissionClassPrerequisite = AdmissionAcademicClass;
 
 export type AdmissionFeePlanPrerequisite = {
   id: string;

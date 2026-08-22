@@ -1,6 +1,7 @@
 import { AdmissionCaseMode, AdmissionCaseStatus } from "@prisma/client";
 
 import { AuditService } from "../../src/audit/audit.service";
+import { AdmissionAcademicPolicyService } from "../../src/academic-structure/admission-academic-policy.service";
 import { AdmissionCasesService } from "../../src/admissions/admission-cases.service";
 import { AdmissionPrerequisitesService } from "../../src/admissions/admission-prerequisites.service";
 import { type AdmissionPrerequisitesResponse } from "../../src/admissions/admission-prerequisites.types";
@@ -47,10 +48,13 @@ const prerequisites: AdmissionPrerequisitesResponse = {
     {
       id: CLASS_ID,
       schoolYearId: YEAR_ID,
+      cycleId: CYCLE_ID,
       levelId: LEVEL_ID,
       code: "CP1-A",
       label: "CP1 A",
       track: "FRANCOPHONE",
+      currentEnrollmentCount: 0,
+      capacityStatus: "UNBOUNDED",
     },
   ],
   feePlans: [],
@@ -131,13 +135,33 @@ const createMocks = () => {
   const prerequisiteService = {
     getPrerequisites: jest.fn().mockResolvedValue(prerequisites),
   };
+  const academicPolicy = {
+    assertDraftSelection: jest.fn().mockResolvedValue(undefined),
+    isCompleteSelectionAvailable: jest.fn(
+      (section: typeof academics | undefined) =>
+        Boolean(
+          section?.schoolYearId === YEAR_ID &&
+          section.cycleId === CYCLE_ID &&
+          section.levelId === LEVEL_ID &&
+          section.classId === CLASS_ID &&
+          section.track === "FRANCOPHONE",
+        ),
+    ),
+  };
   const auditService = { recordLog: jest.fn().mockResolvedValue(undefined) };
   const service = new AdmissionCasesService(
     prisma as unknown as PrismaService,
     prerequisiteService as unknown as AdmissionPrerequisitesService,
+    academicPolicy as unknown as AdmissionAcademicPolicyService,
     auditService as unknown as AuditService,
   );
-  return { prisma, prerequisiteService, auditService, service };
+  return {
+    prisma,
+    prerequisiteService,
+    academicPolicy,
+    auditService,
+    service,
+  };
 };
 
 const actor = { id: ACTOR_ID, role: UserRole.ADMIN };
