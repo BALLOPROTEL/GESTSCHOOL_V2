@@ -13,6 +13,11 @@ import { Prisma, type User } from "@prisma/client";
 
 import { AuditService } from "../audit/audit.service";
 import { AuthService } from "../auth/auth.service";
+import {
+  DELETION_ERROR_CODES,
+  deletionConflict,
+  rethrowDeleteConstraint
+} from "../common/deletion-conflict";
 import { findPasswordPolicyViolation } from "../common/password-policy";
 import { PrismaService } from "../database/prisma.service";
 import {
@@ -890,48 +895,41 @@ export class UsersService {
 
   async remove(tenantId: string, actorUserId: string, id: string): Promise<void> {
     if (id === actorUserId) {
-      throw new ConflictException("You cannot delete your own account.");
+      throw deletionConflict(
+        DELETION_ERROR_CODES.self,
+        "The authenticated account cannot delete itself."
+      );
     }
 
     const existing = await this.requireUser(tenantId, id);
-    const now = new Date();
+    const avatarReference = this.avatarStorageReference(existing);
 
-    await this.prisma.$transaction(async (transaction) => {
-      await transaction.user.update({
-        where: { id: existing.id },
-        data: {
-          isActive: false,
-          status: "ARCHIVED",
-          disabledAt: now,
-          deletedAt: now,
-          updatedAt: now
-        }
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        await this.auditService.enqueueLog(
+          {
+            tenantId,
+            userId: actorUserId,
+            action: "USER_DELETED",
+            resource: "users",
+            resourceId: existing.id
+          },
+          transaction
+        );
+
+        await transaction.user.delete({ where: { id: existing.id } });
       });
-
-      await transaction.refreshToken.updateMany({
-        where: {
-          userId: existing.id,
-          revokedAt: null
-        },
-        data: {
-          revokedAt: now
-        }
-      });
-
-      await this.auditService.enqueueLog(
-        {
-          tenantId,
-          userId: actorUserId,
-          action: "USER_DELETED",
-          resource: "users",
-          resourceId: existing.id,
-          payload: {
-            username: existing.username
-          }
-        },
-        transaction
+    } catch (error: unknown) {
+      rethrowDeleteConstraint(
+        error,
+        "The user account is still referenced by data that must be retained."
       );
-    });
+      throw error;
+    }
+
+    if (avatarReference) {
+      await this.deleteStoredObjectAfterFailure(avatarReference, "deleted user avatar");
+    }
   }
 
   async sendActivation(

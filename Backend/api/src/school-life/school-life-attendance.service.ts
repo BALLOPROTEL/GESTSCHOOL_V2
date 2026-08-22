@@ -18,6 +18,11 @@ import {
 
 import { AcademicStructureService } from "../academic-structure/academic-structure.service";
 import { AuditService } from "../audit/audit.service";
+import {
+  DELETION_ERROR_CODES,
+  deletionConflict,
+  rethrowDeleteConstraint
+} from "../common/deletion-conflict";
 import { PrismaService } from "../database/prisma.service";
 import { ReferenceService } from "../reference/reference.service";
 import {
@@ -467,11 +472,20 @@ export class SchoolLifeAttendanceService {
       where: { tenantId, attendanceId: id }
     });
     if (attachmentCount > 0) {
-      throw new ConflictException(
-        "Supprimez d'abord les justificatifs associés avant de supprimer cette absence."
+      throw deletionConflict(
+        DELETION_ERROR_CODES.restricted,
+        "The attendance record has attachments that must be removed explicitly."
       );
     }
-    await this.prisma.attendance.delete({ where: { id } });
+    try {
+      await this.prisma.attendance.delete({ where: { id } });
+    } catch (error: unknown) {
+      rethrowDeleteConstraint(
+        error,
+        "The attendance record still has attachments that must be removed explicitly."
+      );
+      throw error;
+    }
   }
 
   async listAttendanceAttachments(

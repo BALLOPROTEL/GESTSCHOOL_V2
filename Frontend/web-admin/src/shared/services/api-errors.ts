@@ -9,6 +9,9 @@ const API_ERROR_CODES: Record<string, UiMessageToken> = {
   AUTH_SESSION_EXPIRED: UI_MESSAGES.authenticationRequired,
   BAD_REQUEST: UI_MESSAGES.badRequest,
   CONFLICT: UI_MESSAGES.conflict,
+  ENTITY_DELETE_LINKED_ACCOUNT: UI_MESSAGES.deleteLinkedAccount,
+  ENTITY_DELETE_RESTRICTED: UI_MESSAGES.deleteRestricted,
+  ENTITY_REQUIRES_ARCHIVE: UI_MESSAGES.archiveRequired,
   FORBIDDEN: UI_MESSAGES.forbidden,
   INTERNAL_ERROR: UI_MESSAGES.serverError,
   NOT_FOUND: UI_MESSAGES.notFound,
@@ -20,6 +23,7 @@ const API_ERROR_CODES: Record<string, UiMessageToken> = {
   REFERENCE_SCHOOL_YEAR_IN_USE: UI_MESSAGES.schoolYearInUse,
   REFERENCE_SUBJECT_IN_USE: UI_MESSAGES.subjectInUse,
   UNAUTHORIZED: UI_MESSAGES.authenticationRequired,
+  USER_DELETE_SELF_FORBIDDEN: UI_MESSAGES.deleteSelf,
   VALIDATION_ERROR: UI_MESSAGES.validationError
 };
 

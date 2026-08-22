@@ -19,6 +19,7 @@ import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger
 import { AcademicTrack } from "@prisma/client";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
+import { DELETION_ERROR_CODES, deletionConflict } from "../common/deletion-conflict";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
 import { Roles } from "../security/roles.decorator";
@@ -150,7 +151,25 @@ export class RoomsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("rooms", "delete")
-  async archiveAssignment(
+  @ApiOperation({ summary: "Reject ambiguous assignment deletion; use the archive endpoint" })
+  async rejectAssignmentDeletion(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    this.getTenantId(request.user, tenantHeader);
+    throw deletionConflict(
+      DELETION_ERROR_CODES.archiveRequired,
+      `Room assignment ${id} must be archived through the explicit archive endpoint.`
+    );
+  }
+
+  @Post("assignments/:id/archive")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("rooms", "delete")
+  @ApiOperation({ summary: "Archive room assignment" })
+  async archiveAssignmentExplicitly(
     @Req() request: { user?: AuthenticatedUser },
     @Param("id", new ParseUUIDPipe()) id: string,
     @Headers("x-tenant-id") tenantHeader?: string
@@ -260,7 +279,25 @@ export class RoomsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("rooms", "delete")
-  async archiveRoom(
+  @ApiOperation({ summary: "Reject ambiguous room deletion; use the archive endpoint" })
+  async rejectRoomDeletion(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    this.getTenantId(request.user, tenantHeader);
+    throw deletionConflict(
+      DELETION_ERROR_CODES.archiveRequired,
+      `Room ${id} must be archived through the explicit archive endpoint.`
+    );
+  }
+
+  @Post(":id/archive")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("rooms", "delete")
+  @ApiOperation({ summary: "Archive room" })
+  async archiveRoomExplicitly(
     @Req() request: { user?: AuthenticatedUser },
     @Param("id", new ParseUUIDPipe()) id: string,
     @Headers("x-tenant-id") tenantHeader?: string

@@ -33,6 +33,8 @@ import {
   round3
 } from "./grades.utils";
 
+type PrismaClientLike = PrismaService | Prisma.TransactionClient;
+
 @Injectable()
 export class GradesReportCardsService {
   constructor(
@@ -248,10 +250,14 @@ export class GradesReportCardsService {
   async syncReportCardsForClassPeriod(
     tenantId: string,
     classId: string,
-    academicPeriodId: string
+    academicPeriodId: string,
+    transaction?: Prisma.TransactionClient
   ): Promise<void> {
-    const classroom = await this.referenceService.requireClassroom(tenantId, classId);
-    const impactedPlacements = await this.prisma.studentTrackPlacement.findMany({
+    const client: PrismaClientLike = transaction || this.prisma;
+    const classroom = await client.classroom.findFirst({ where: { id: classId, tenantId } });
+    if (!classroom) throw new NotFoundException("Class not found.");
+
+    const impactedPlacements = await client.studentTrackPlacement.findMany({
       where: {
         tenantId,
         classId,
@@ -273,14 +279,15 @@ export class GradesReportCardsService {
           placement.studentId,
           classroom.schoolYearId,
           academicPeriodId,
-          false
+          false,
+          transaction
         );
       } catch (error) {
         if (!this.isSkippableAutoSyncError(error)) {
           throw error;
         }
 
-        await this.prisma.reportCard.deleteMany({
+        await client.reportCard.deleteMany({
           where: {
             tenantId,
             studentId: placement.studentId,
@@ -296,16 +303,19 @@ export class GradesReportCardsService {
     studentId: string,
     schoolYearId: string,
     academicPeriodId: string,
-    publish: boolean
+    publish: boolean,
+    transaction?: Prisma.TransactionClient
   ): Promise<ReportCardView[]> {
+    const client: PrismaClientLike = transaction || this.prisma;
     const drafts = await this.buildStudentReportCardDrafts(
       tenantId,
       studentId,
       schoolYearId,
-      academicPeriodId
+      academicPeriodId,
+      transaction
     );
 
-    const existingRows = await this.prisma.reportCard.findMany({
+    const existingRows = await client.reportCard.findMany({
       where: {
         tenantId,
         studentId,
@@ -323,10 +333,10 @@ export class GradesReportCardsService {
       )
       .map((row) => row.id);
 
-    const savedRows = await this.prisma.$transaction(async (transaction) => {
+    const saveRows = async (writeClient: Prisma.TransactionClient) => {
       const saved = await Promise.all(
         drafts.map((draft) =>
-          transaction.reportCard.upsert({
+          writeClient.reportCard.upsert({
             where: {
               tenantId_placementId_academicPeriodId: {
                 tenantId,
@@ -386,7 +396,7 @@ export class GradesReportCardsService {
       );
 
       if (obsoleteIds.length > 0) {
-        await transaction.reportCard.deleteMany({
+        await writeClient.reportCard.deleteMany({
           where: {
             id: { in: obsoleteIds }
           }
@@ -394,7 +404,10 @@ export class GradesReportCardsService {
       }
 
       return saved;
-    });
+    };
+    const savedRows = transaction
+      ? await saveRows(transaction)
+      : await this.prisma.$transaction(saveRows);
 
     return savedRows.map((row) => this.reportCardView(row));
   }
@@ -402,16 +415,22 @@ export class GradesReportCardsService {
   private async buildClassSummary(
     tenantId: string,
     classId: string,
-    academicPeriodId: string
+    academicPeriodId: string,
+    transaction?: Prisma.TransactionClient
   ): Promise<ClassSummaryView> {
-    const classroom = await this.referenceService.requireClassroom(tenantId, classId);
-    const period = await this.referenceService.requireAcademicPeriod(tenantId, academicPeriodId);
+    const client: PrismaClientLike = transaction || this.prisma;
+    const classroom = await client.classroom.findFirst({ where: { id: classId, tenantId } });
+    if (!classroom) throw new NotFoundException("Class not found.");
+    const period = await client.academicPeriod.findFirst({
+      where: { id: academicPeriodId, tenantId }
+    });
+    if (!period) throw new NotFoundException("Academic period not found.");
 
     if (classroom.schoolYearId !== period.schoolYearId) {
       throw new ConflictException("Classroom and period must belong to the same school year.");
     }
 
-    const placements = await this.prisma.studentTrackPlacement.findMany({
+    const placements = await client.studentTrackPlacement.findMany({
       where: {
         tenantId,
         classId,
@@ -443,7 +462,7 @@ export class GradesReportCardsService {
       });
     }
 
-    const gradeRows = await this.prisma.gradeEntry.findMany({
+    const gradeRows = await client.gradeEntry.findMany({
       where: {
         tenantId,
         academicPeriodId,
@@ -580,12 +599,14 @@ export class GradesReportCardsService {
     tenantId: string,
     studentId: string,
     schoolYearId: string,
-    academicPeriodId: string
+    academicPeriodId: string,
+    transaction?: Prisma.TransactionClient
   ): Promise<ReportCardDraft[]> {
     const strategy = await this.academicStructureService.resolveReportCardStrategy(
       tenantId,
       studentId,
-      schoolYearId
+      schoolYearId,
+      transaction
     );
 
     if (strategy.placements.length === 0) {
@@ -602,7 +623,7 @@ export class GradesReportCardsService {
     if (strategy.mode === ReportCardMode.PRIMARY_COMBINED) {
       const sections = await Promise.all(
         reportablePlacements.map((placement) =>
-          this.buildPlacementReportSection(tenantId, placement, academicPeriodId)
+          this.buildPlacementReportSection(tenantId, placement, academicPeriodId, transaction)
         )
       );
 
@@ -664,7 +685,8 @@ export class GradesReportCardsService {
         const section = await this.buildPlacementReportSection(
           tenantId,
           placement,
-          academicPeriodId
+          academicPeriodId,
+          transaction
         );
         if (!section.placementId) {
           throw new ConflictException("Report card generation requires a canonical placement.");
@@ -724,7 +746,8 @@ export class GradesReportCardsService {
       academicStage?: AcademicStage;
       studentId: string;
     },
-    academicPeriodId: string
+    academicPeriodId: string,
+    transaction?: Prisma.TransactionClient
   ): Promise<
     ReportCardSectionView & {
       birthDate?: string;
@@ -741,7 +764,8 @@ export class GradesReportCardsService {
     const summary = await this.buildClassSummary(
       tenantId,
       placement.classId,
-      academicPeriodId
+      academicPeriodId,
+      transaction
     );
     const target =
       summary.students.find((item) => item.placementId === placement.id) ||
@@ -755,10 +779,11 @@ export class GradesReportCardsService {
       throw new ConflictException("Report card generation requires at least one grade for this period.");
     }
 
-    const period = await this.referenceService.requireAcademicPeriod(
-      tenantId,
-      academicPeriodId
-    );
+    const client: PrismaClientLike = transaction || this.prisma;
+    const period = await client.academicPeriod.findFirst({
+      where: { id: academicPeriodId, tenantId }
+    });
+    if (!period) throw new NotFoundException("Academic period not found.");
 
     return {
       placementId: target.placementId,

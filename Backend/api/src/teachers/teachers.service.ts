@@ -48,6 +48,10 @@ export class TeachersService {
     return this.teachersDirectoryService.archiveTeacher(tenantId, actorUserId, id);
   }
 
+  deleteTeacher(tenantId: string, actorUserId: string, id: string) {
+    return this.teachersDirectoryService.deleteTeacher(tenantId, actorUserId, id);
+  }
+
   listSkills(tenantId: string, teacherId?: string) {
     return this.teachersSkillsService.listSkills(tenantId, teacherId);
   }

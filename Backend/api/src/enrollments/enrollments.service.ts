@@ -162,8 +162,11 @@ export class EnrollmentsService {
   }
 
   async removePlacement(tenantId: string, id: string): Promise<void> {
-    await this.academicStructureService.deleteTrackPlacement(tenantId, id, {
-      deleteLegacyEnrollment: true
+    await this.prisma.$transaction(async (transaction) => {
+      await this.academicStructureService.deleteTrackPlacement(tenantId, id, {
+        transaction,
+        deleteLegacyEnrollment: true
+      });
     });
   }
 
@@ -176,8 +179,11 @@ export class EnrollmentsService {
     });
 
     if (placement) {
-      await this.academicStructureService.deleteTrackPlacement(tenantId, placement.id, {
-        deleteLegacyEnrollment: true
+      await this.prisma.$transaction(async (transaction) => {
+        await this.academicStructureService.deleteTrackPlacement(tenantId, placement.id, {
+          transaction,
+          deleteLegacyEnrollment: true
+        });
       });
       return;
     }

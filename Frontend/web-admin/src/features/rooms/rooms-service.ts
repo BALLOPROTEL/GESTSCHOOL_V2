@@ -119,3 +119,8 @@ export const deleteRoomResource = async (api: ApiClient, path: string): Promise<
   const response = await api(path, { method: "DELETE" });
   if (!response.ok) throw new Error(await parseApiError(response));
 };
+
+export const archiveRoomResource = async (api: ApiClient, path: string): Promise<void> => {
+  const response = await api(path, { method: "POST" });
+  if (!response.ok) throw new Error(await parseApiError(response));
+};

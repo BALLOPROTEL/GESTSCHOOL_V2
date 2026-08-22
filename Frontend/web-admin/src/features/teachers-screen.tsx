@@ -25,6 +25,7 @@ import {
   createTeacherAssignment,
   createTeacherDocument,
   createTeacherSkill,
+  archiveTeacherResource,
   deleteTeacherResource,
   downloadTeacherDocument,
   fetchTeacherDetail,
@@ -427,11 +428,16 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
     setActiveStep("form");
   };
 
-  const archiveResource = async (path: string, successMessage: string, confirmMessage?: string): Promise<void> => {
+  const mutateResource = async (
+    path: string,
+    successMessage: string,
+    confirmMessage: string,
+    operation: "archive" | "delete"
+  ): Promise<void> => {
     if (confirmMessage) {
       const accepted = await confirmAction({
         description: translate(confirmMessage),
-        confirmLabel: translate("Archiver"),
+        confirmLabel: translate(operation === "archive" ? "Archiver" : "Supprimer"),
         tone: "danger"
       });
       if (!accepted) return;
@@ -441,7 +447,8 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
       return;
     }
     try {
-      await deleteTeacherResource(api, path);
+      if (operation === "archive") await archiveTeacherResource(api, path);
+      else await deleteTeacherResource(api, path);
     } catch (error) {
       onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
       return;
@@ -539,7 +546,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           filters={filters}
           loading={loading}
           onArchiveTeacher={(teacherId) =>
-            void archiveResource(`/teachers/${teacherId}`, UI_MESSAGES.archived, UI_MESSAGES.confirmArchive)
+            void mutateResource(`/teachers/${teacherId}/archive`, UI_MESSAGES.archived, UI_MESSAGES.confirmArchive, "archive")
           }
           onEditTeacher={editTeacher}
           onFilter={() => void loadTeachers()}
@@ -654,7 +661,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Enseignant")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Cycle")}</th><th>{tr("Niveau")}</th><th>{tr("Qualification")}</th><th>{tr("Statut")}</th><th>{tr("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherSkills.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune compétence enregistrée.")}</td></tr> : selectedTeacherSkills.map((skill) => (
-                <tr key={skill.id}><td data-label={tr("Enseignant")}>{skill.teacherName}</td><td data-label={tr("Matière")}>{skill.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(skill.track))}</td><td data-label={tr("Cycle")}>{skill.cycleLabel || tr("Tous")}</td><td data-label={tr("Niveau")}>{skill.levelLabel || tr("Tous")}</td><td data-label={tr("Qualification")}>{skill.qualification || "-"}</td><td data-label={tr("Statut")}><span className={statusPillClass(skill.status)}>{tr(teacherStatusLabel(skill.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/skills/${skill.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{tr("Supprimer")}</button></td></tr>
+                <tr key={skill.id}><td data-label={tr("Enseignant")}>{skill.teacherName}</td><td data-label={tr("Matière")}>{skill.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(skill.track))}</td><td data-label={tr("Cycle")}>{skill.cycleLabel || tr("Tous")}</td><td data-label={tr("Niveau")}>{skill.levelLabel || tr("Tous")}</td><td data-label={tr("Qualification")}>{skill.qualification || "-"}</td><td data-label={tr("Statut")}><span className={statusPillClass(skill.status)}>{tr(teacherStatusLabel(skill.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void mutateResource(`/teachers/skills/${skill.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete, "delete")}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </ResponsiveDataTable>
@@ -684,7 +691,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Enseignant")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Classe")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Charge horaire")}</th><th>{tr("Titulaire")}</th><th>{tr("Statut")}</th><th>{tr("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherAssignments.length === 0 ? <tr><td colSpan={10} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedTeacherAssignments.map((item) => (
-                <tr key={item.id}><td data-label={tr("Enseignant")}>{item.teacherName}</td><td data-label={tr("Matière")}>{item.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Classe")}>{item.classLabel}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Charge horaire")}>{item.workloadHours ?? 0} {tr("h")}</td><td data-label={tr("Titulaire")}>{item.isHomeroomTeacher ? tr("Oui") : tr("Non")}</td><td data-label={tr("Statut")}><span className={statusPillClass(item.status)}>{tr(teacherStatusLabel(item.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/assignments/${item.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{tr("Supprimer")}</button></td></tr>
+                <tr key={item.id}><td data-label={tr("Enseignant")}>{item.teacherName}</td><td data-label={tr("Matière")}>{item.subjectLabel}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Classe")}>{item.classLabel}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Charge horaire")}>{item.workloadHours ?? 0} {tr("h")}</td><td data-label={tr("Titulaire")}>{item.isHomeroomTeacher ? tr("Oui") : tr("Non")}</td><td data-label={tr("Statut")}><span className={statusPillClass(item.status)}>{tr(teacherStatusLabel(item.status))}</span></td><td data-label={tr("Actions")}><button type="button" className="button-ghost" onClick={() => void mutateResource(`/teachers/assignments/${item.id}/archive`, UI_MESSAGES.archived, UI_MESSAGES.confirmArchive, "archive")}>{tr("Archiver")}</button></td></tr>
               ))}</tbody>
             </table>
           </ResponsiveDataTable>
@@ -758,7 +765,7 @@ export function TeachersScreen(props: TeachersScreenProps): JSX.Element {
           <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{translate("Enseignant")}</th><th>{translate("Type")}</th><th>{translate("Nom du document")}</th><th>{translate("Ajouté le")}</th><th>{translate("Statut")}</th><th>{translate("Actions")}</th></tr></thead>
               <tbody>{selectedTeacherDocuments.length === 0 ? <tr><td colSpan={6} className="empty-row">{translate("Aucun document enregistré.")}</td></tr> : selectedTeacherDocuments.map((document) => (
-                <tr key={document.id}><td data-label={translate("Enseignant")}>{document.teacherName}</td><td data-label={translate("Type")}>{translateDocumentType(document.documentType)}</td><td data-label={translate("Nom du document")}><button type="button" className="button-link" onClick={() => void downloadDocument(document)}>{document.documentName || document.originalName}</button></td><td data-label={translate("Ajouté le")}>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td data-label={translate("Statut")}><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td data-label={translate("Actions")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/teachers/documents/${document.id}`, UI_MESSAGES.deleted, UI_MESSAGES.confirmDelete)}>{translate("Supprimer")}</button></td></tr>
+                <tr key={document.id}><td data-label={translate("Enseignant")}>{document.teacherName}</td><td data-label={translate("Type")}>{translateDocumentType(document.documentType)}</td><td data-label={translate("Nom du document")}><button type="button" className="button-link" onClick={() => void downloadDocument(document)}>{document.documentName || document.originalName}</button></td><td data-label={translate("Ajouté le")}>{new Date(document.uploadedAt).toLocaleDateString(locale)}</td><td data-label={translate("Statut")}><span className={statusPillClass(document.status)}>{translate(teacherStatusLabel(document.status))}</span></td><td data-label={translate("Actions")}><button type="button" className="button-ghost" onClick={() => void mutateResource(`/teachers/documents/${document.id}/archive`, UI_MESSAGES.archived, UI_MESSAGES.confirmArchive, "archive")}>{translate("Archiver")}</button></td></tr>
               ))}</tbody>
             </table>
           </ResponsiveDataTable>

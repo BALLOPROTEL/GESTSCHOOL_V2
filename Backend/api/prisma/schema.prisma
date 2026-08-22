@@ -162,7 +162,7 @@ model RefreshToken {
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([tokenHash], map: "refresh_tokens_token_hash_key")
   @@index([userId], map: "idx_refresh_tokens_user_id")
@@ -406,8 +406,8 @@ model StudentTrackPlacement {
   endDate            DateTime?               @map("end_date") @db.Date
   createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime                @default(now()) @map("updated_at") @db.Timestamptz(6)
-  student            Student                 @relation(fields: [studentId], references: [id])
-  schoolYear         SchoolYear              @relation(fields: [schoolYearId], references: [id])
+  student            Student                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  schoolYear         SchoolYear              @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
   level              Level                   @relation(fields: [levelId], references: [id])
   classroom          Classroom?              @relation(fields: [classId], references: [id])
   legacyEnrollment   Enrollment?             @relation("LegacyEnrollmentPlacement", fields: [legacyEnrollmentId], references: [id], onDelete: SetNull)
@@ -627,7 +627,7 @@ model AttendanceAttachment {
   uploadedByUserId String?   @map("uploaded_by_user_id") @db.Uuid
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
-  attendance       Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  attendance       Attendance @relation(fields: [attendanceId], references: [id], onDelete: Restrict)
 
   @@index([tenantId, attendanceId], map: "idx_atta_tenant_attendance")
   @@index([tenantId, createdAt], map: "idx_atta_tenant_created_at")
@@ -737,7 +737,7 @@ model Notification {
   lastReplayedByUserId String?                       @map("last_replayed_by_user_id") @db.Uuid
   createdAt           DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime                       @default(now()) @map("updated_at") @db.Timestamptz(6)
-  student             Student?                       @relation(fields: [studentId], references: [id])
+  student             Student?                       @relation(fields: [studentId], references: [id], onDelete: SetNull)
   deliveryAttempts    NotificationDeliveryAttempt[]
   providerCallbacks   NotificationProviderCallback[]
 
@@ -922,7 +922,7 @@ model TeacherDocument {
   uploadedBy     String?   @map("uploaded_by") @db.Uuid
   status         String    @default("ACTIVE") @db.VarChar(20)
   archivedAt     DateTime? @map("archived_at") @db.Timestamptz(6)
-  teacher        Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacher        Teacher   @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   uploadedByUser User?     @relation("TeacherDocumentUploads", fields: [uploadedBy], references: [id], onDelete: SetNull)
 
   @@index([tenantId, teacherId, status], map: "idx_teacher_documents_tenant_teacher_status")
@@ -1056,8 +1056,8 @@ model ParentStudentLink {
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
   archivedAt   DateTime? @map("archived_at") @db.Timestamptz(6)
   parent       User?    @relation("ParentStudentLinks", fields: [parentUserId], references: [id], onDelete: SetNull)
-  parentProfile Parent? @relation(fields: [parentId], references: [id], onDelete: SetNull)
-  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parentProfile Parent? @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
 
   // Active profile/user links and the primary-contact invariant use SQL-only partial unique indexes.
   @@index([tenantId, parentId], map: "idx_parent_links_tenant_parent_profile")

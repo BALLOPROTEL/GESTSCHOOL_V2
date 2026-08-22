@@ -7,6 +7,11 @@ import {
 import { AcademicPlacementStatus, Prisma } from "@prisma/client";
 
 import { AuditService } from "../audit/audit.service";
+import {
+  DELETION_ERROR_CODES,
+  deletionConflict,
+  rethrowDeleteConstraint
+} from "../common/deletion-conflict";
 import { PrismaService } from "../database/prisma.service";
 import { UserRole } from "../security/roles.enum";
 import {
@@ -331,6 +336,53 @@ export class ParentsService {
         transaction
       );
     });
+  }
+
+  async deleteParent(tenantId: string, actorUserId: string, id: string): Promise<void> {
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        const parent = await transaction.parent.findFirst({
+          where: { id, tenantId },
+          select: { id: true, userId: true }
+        });
+        if (!parent) throw new NotFoundException("Parent not found.");
+
+        if (parent.userId) {
+          throw deletionConflict(
+            DELETION_ERROR_CODES.linkedAccount,
+            "Detach the parent portal account before deleting the parent profile."
+          );
+        }
+
+        const links = await transaction.parentStudentLink.count({
+          where: { tenantId, parentId: parent.id }
+        });
+        if (links > 0) {
+          throw deletionConflict(
+            DELETION_ERROR_CODES.restricted,
+            "The parent profile has family relationships that must be retained."
+          );
+        }
+
+        await this.auditService.enqueueLog(
+          {
+            tenantId,
+            userId: actorUserId,
+            action: "PARENT_DELETED",
+            resource: "parents",
+            resourceId: parent.id
+          },
+          transaction
+        );
+        await transaction.parent.delete({ where: { id: parent.id } });
+      });
+    } catch (error: unknown) {
+      rethrowDeleteConstraint(
+        error,
+        "The parent profile is still referenced by history that must be retained."
+      );
+      throw error;
+    }
   }
 
   async listLinks(tenantId: string, filters: LinkFilters = {}): Promise<ParentStudentRelationView[]> {

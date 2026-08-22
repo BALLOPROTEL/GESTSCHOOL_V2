@@ -247,7 +247,7 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN)
   @RequirePermission("users", "delete")
-  @ApiOperation({ summary: "Soft delete one user and revoke tokens" })
+  @ApiOperation({ summary: "Permanently delete one user and its authentication tokens" })
   async remove(
     @Req() request: { user?: AuthenticatedUser },
     @Param("id", new ParseUUIDPipe()) id: string,

@@ -49,8 +49,8 @@ export const saveStudent = async (
   return (await response.json()) as Student;
 };
 
-export const removeStudent = async (api: StudentsApiClient, studentId: string): Promise<void> => {
-  const response = await api(`/students/${studentId}`, { method: "DELETE" });
+export const archiveStudent = async (api: StudentsApiClient, studentId: string): Promise<void> => {
+  const response = await api(`/students/${studentId}/archive`, { method: "POST" });
   if (!response.ok) {
     throw new Error(await parseStudentsError(response));
   }

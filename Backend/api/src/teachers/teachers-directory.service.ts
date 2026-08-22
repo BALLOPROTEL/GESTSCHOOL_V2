@@ -9,6 +9,11 @@ import {
 
 import { PrismaService } from "../database/prisma.service";
 import {
+  DELETION_ERROR_CODES,
+  deletionConflict,
+  rethrowDeleteConstraint
+} from "../common/deletion-conflict";
+import {
   CreateTeacherDto,
   UpdateTeacherDto
 } from "./dto/teachers.dto";
@@ -207,6 +212,53 @@ export class TeachersDirectoryService {
     await this.teachersSupportService.logAudit(tenantId, actorUserId, "TEACHER_ARCHIVED", "teachers", existing.id, {
       matricule: existing.matricule
     });
+  }
+
+  async deleteTeacher(tenantId: string, actorUserId: string, id: string): Promise<void> {
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        const teacher = await transaction.teacher.findFirst({
+          where: { id, tenantId },
+          select: { id: true, userId: true }
+        });
+        if (!teacher) throw new NotFoundException("Teacher not found.");
+
+        if (teacher.userId) {
+          throw deletionConflict(
+            DELETION_ERROR_CODES.linkedAccount,
+            "Detach the teacher portal account before deleting the teacher profile."
+          );
+        }
+
+        const [assignments, documents] = await Promise.all([
+          transaction.teacherAssignment.count({ where: { tenantId, teacherId: teacher.id } }),
+          transaction.teacherDocument.count({ where: { tenantId, teacherId: teacher.id } })
+        ]);
+        if (assignments + documents > 0) {
+          throw deletionConflict(
+            DELETION_ERROR_CODES.restricted,
+            "The teacher profile has assignments or stored documents that must be retained."
+          );
+        }
+
+        await this.teachersSupportService.logAudit(
+          tenantId,
+          actorUserId,
+          "TEACHER_DELETED",
+          "teachers",
+          teacher.id,
+          undefined,
+          transaction
+        );
+        await transaction.teacher.delete({ where: { id: teacher.id } });
+      });
+    } catch (error: unknown) {
+      rethrowDeleteConstraint(
+        error,
+        "The teacher profile is still referenced by history that must be retained."
+      );
+      throw error;
+    }
   }
 
   async listWorkloads(tenantId: string, schoolYearId?: string, track?: AcademicTrack): Promise<TeacherWorkloadView[]> {

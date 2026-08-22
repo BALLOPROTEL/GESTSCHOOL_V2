@@ -6,7 +6,7 @@ import { toUiErrorMessage } from "../../../shared/services/api-errors";
 import type { FieldErrors, Student } from "../../../shared/types/app";
 import { focusFirstInlineErrorField, hasFieldErrors, today } from "../../../shared/utils/form-ui";
 import { useConfirmDialog } from "../../../shared/components/confirm-dialog";
-import { fetchStudents, removeStudent, saveStudent } from "../services/students-service";
+import { archiveStudent, fetchStudents, saveStudent } from "../services/students-service";
 import { DEFAULT_ESTABLISHMENT_VALUE, type StudentForm, type StudentsApiClient } from "../types/students";
 
 type UseStudentsDataOptions = {
@@ -212,7 +212,7 @@ export const useStudentsData = ({
     }
 
     try {
-      await removeStudent(api, studentId);
+      await archiveStudent(api, studentId);
       if (editingStudentId === studentId) resetStudentForm();
       if (selectedStudentId === studentId) setSelectedStudentId(null);
       onNotice(UI_MESSAGES.studentArchived);

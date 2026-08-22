@@ -17,6 +17,7 @@ import { ConfigService } from "@nestjs/config";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
+import { DELETION_ERROR_CODES, deletionConflict } from "../common/deletion-conflict";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
 import { Roles } from "../security/roles.decorator";
@@ -137,8 +138,25 @@ export class ParentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("parents", "delete")
-  @ApiOperation({ summary: "Archive parent/student business relation" })
-  async archiveLink(
+  @ApiOperation({ summary: "Reject ambiguous link deletion; use the archive endpoint" })
+  async rejectLinkDeletion(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    this.getTenantId(request.user, tenantHeader);
+    throw deletionConflict(
+      DELETION_ERROR_CODES.archiveRequired,
+      `Parent/student link ${id} must be archived through the explicit archive endpoint.`
+    );
+  }
+
+  @Post("links/:id/archive")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("parents", "delete")
+  @ApiOperation({ summary: "Archive one parent/student link" })
+  async archiveLinkExplicitly(
     @Req() request: { user?: AuthenticatedUser },
     @Param("id", new ParseUUIDPipe()) id: string,
     @Headers("x-tenant-id") tenantHeader?: string
@@ -222,7 +240,7 @@ export class ParentsController {
     );
   }
 
-  @Delete(":id")
+  @Post(":id/archive")
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("parents", "delete")
@@ -234,6 +252,20 @@ export class ParentsController {
   ): Promise<void> {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     await this.parentsService.archiveParent(tenantId, this.getActorUserId(request.user), id);
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("parents", "delete")
+  @ApiOperation({ summary: "Permanently delete an unreferenced parent profile" })
+  async deleteParent(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    await this.parentsService.deleteParent(tenantId, this.getActorUserId(request.user), id);
   }
 
   private getTenantId(

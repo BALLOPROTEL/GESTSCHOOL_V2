@@ -144,3 +144,8 @@ export const deleteTeacherResource = async (api: ApiClient, path: string): Promi
   const response = await api(path, { method: "DELETE" });
   if (!response.ok) throw new Error(await parseApiError(response));
 };
+
+export const archiveTeacherResource = async (api: ApiClient, path: string): Promise<void> => {
+  const response = await api(path, { method: "POST" });
+  if (!response.ok) throw new Error(await parseApiError(response));
+};

@@ -24,6 +24,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { AcademicTrack } from "@prisma/client";
 
 import { resolveTenantContext } from "../common/tenant-context.util";
+import { DELETION_ERROR_CODES, deletionConflict } from "../common/deletion-conflict";
 import { type UploadedFile as BufferedUpload } from "../storage/file-validation.service";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermission } from "../security/permissions.decorator";
@@ -208,8 +209,25 @@ export class TeachersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("teachers", "delete")
+  @ApiOperation({ summary: "Reject ambiguous assignment deletion; use the archive endpoint" })
+  async rejectAssignmentDeletion(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    this.getTenantId(request.user, tenantHeader);
+    throw deletionConflict(
+      DELETION_ERROR_CODES.archiveRequired,
+      `Teacher assignment ${id} must be archived through the explicit archive endpoint.`
+    );
+  }
+
+  @Post("assignments/:id/archive")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("teachers", "delete")
   @ApiOperation({ summary: "Archive teacher assignment" })
-  async archiveAssignment(
+  async archiveAssignmentExplicitly(
     @Req() request: { user?: AuthenticatedUser },
     @Param("id", new ParseUUIDPipe()) id: string,
     @Headers("x-tenant-id") tenantHeader?: string
@@ -290,8 +308,25 @@ export class TeachersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("teacherDocument", "delete")
+  @ApiOperation({ summary: "Reject ambiguous document deletion; use the archive endpoint" })
+  async rejectDocumentDeletion(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    this.getTenantId(request.user, tenantHeader);
+    throw deletionConflict(
+      DELETION_ERROR_CODES.archiveRequired,
+      `Teacher document ${id} must be archived through the explicit archive endpoint.`
+    );
+  }
+
+  @Post("documents/:id/archive")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("teacherDocument", "delete")
   @ApiOperation({ summary: "Archive teacher document" })
-  async archiveDocument(
+  async archiveDocumentExplicitly(
     @Req() request: { user?: AuthenticatedUser },
     @Param("id", new ParseUUIDPipe()) id: string,
     @Headers("x-tenant-id") tenantHeader?: string
@@ -340,7 +375,7 @@ export class TeachersController {
     return this.teachersService.updateTeacher(tenantId, this.getActorUserId(request.user), id, body);
   }
 
-  @Delete(":id")
+  @Post(":id/archive")
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("teachers", "delete")
@@ -352,6 +387,20 @@ export class TeachersController {
   ): Promise<void> {
     const tenantId = this.getTenantId(request.user, tenantHeader);
     await this.teachersService.archiveTeacher(tenantId, this.getActorUserId(request.user), id);
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("teachers", "delete")
+  @ApiOperation({ summary: "Permanently delete an unreferenced teacher" })
+  async deleteTeacher(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    await this.teachersService.deleteTeacher(tenantId, this.getActorUserId(request.user), id);
   }
 
   private getActorUserId(user: AuthenticatedUser | undefined): string {

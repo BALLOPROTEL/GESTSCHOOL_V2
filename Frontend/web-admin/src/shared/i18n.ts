@@ -106,6 +106,26 @@ const UI_MESSAGE_CATALOG = {
     en: "Unable to delete this item.",
     ar: "تعذر حذف هذا العنصر."
   },
+  "ui.error.deleteRestricted": {
+    fr: "Suppression interdite : des données métier ou historiques liées doivent être conservées.",
+    en: "Deletion is not allowed because related business or historical data must be retained.",
+    ar: "لا يُسمح بالحذف لأن البيانات المرتبطة أو التاريخية يجب الاحتفاظ بها."
+  },
+  "ui.error.deleteLinkedAccount": {
+    fr: "Détachez d'abord le compte utilisateur lié avant de supprimer cette fiche.",
+    en: "Detach the linked user account before deleting this record.",
+    ar: "افصل حساب المستخدم المرتبط قبل حذف هذا السجل."
+  },
+  "ui.error.deleteSelf": {
+    fr: "Vous ne pouvez pas supprimer votre propre compte.",
+    en: "You cannot delete your own account.",
+    ar: "لا يمكنك حذف حسابك الخاص."
+  },
+  "ui.error.archiveRequired": {
+    fr: "Cet élément doit être archivé et ne peut pas être supprimé directement.",
+    en: "This item must be archived and cannot be deleted directly.",
+    ar: "يجب أرشفة هذا العنصر ولا يمكن حذفه مباشرة."
+  },
   "ui.error.download": {
     fr: "Téléchargement impossible.",
     en: "Unable to download the file.",
@@ -477,6 +497,10 @@ export const UI_MESSAGES = {
   loadError: "ui.error.load",
   saveError: "ui.error.save",
   deleteError: "ui.error.delete",
+  deleteRestricted: "ui.error.deleteRestricted",
+  deleteLinkedAccount: "ui.error.deleteLinkedAccount",
+  deleteSelf: "ui.error.deleteSelf",
+  archiveRequired: "ui.error.archiveRequired",
   downloadError: "ui.error.download",
   uploadError: "ui.error.upload",
   readOnly: "ui.error.readOnly",

@@ -1,6 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { AcademicPlacementStatus, Prisma } from "@prisma/client";
 
+import {
+  DELETION_ERROR_CODES,
+  deletionConflict,
+  rethrowDeleteConstraint
+} from "../common/deletion-conflict";
 import { PrismaService } from "../database/prisma.service";
 import { CreateStudentDto } from "./dto/create-student.dto";
 import { UpdateStudentDto } from "./dto/update-student.dto";
@@ -224,7 +229,7 @@ export class StudentsService {
     }
   }
 
-  async remove(tenantId: string, id: string): Promise<void> {
+  async archive(tenantId: string, id: string): Promise<void> {
     const result = await this.prisma.student.updateMany({
       where: {
         id,
@@ -241,6 +246,54 @@ export class StudentsService {
 
     if (result.count === 0) {
       throw new NotFoundException("Student not found.");
+    }
+  }
+
+  async remove(tenantId: string, id: string): Promise<void> {
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        const student = await transaction.student.findFirst({
+          where: { id, tenantId },
+          select: { id: true, userId: true }
+        });
+        if (!student) throw new NotFoundException("Student not found.");
+
+        if (student.userId) {
+          throw deletionConflict(
+            DELETION_ERROR_CODES.linkedAccount,
+            "Detach the student portal account before deleting the student profile."
+          );
+        }
+
+        const [enrollments, placements, invoices, grades, reportCards, attendance, parentLinks] =
+          await Promise.all([
+            transaction.enrollment.count({ where: { tenantId, studentId: student.id } }),
+            transaction.studentTrackPlacement.count({ where: { tenantId, studentId: student.id } }),
+            transaction.invoice.count({ where: { tenantId, studentId: student.id } }),
+            transaction.gradeEntry.count({ where: { tenantId, studentId: student.id } }),
+            transaction.reportCard.count({ where: { tenantId, studentId: student.id } }),
+            transaction.attendance.count({ where: { tenantId, studentId: student.id } }),
+            transaction.parentStudentLink.count({ where: { tenantId, studentId: student.id } })
+          ]);
+
+        if (
+          enrollments + placements + invoices + grades + reportCards + attendance + parentLinks >
+          0
+        ) {
+          throw deletionConflict(
+            DELETION_ERROR_CODES.restricted,
+            "The student profile has academic, financial, attendance or family history that must be retained."
+          );
+        }
+
+        await transaction.student.delete({ where: { id: student.id } });
+      });
+    } catch (error: unknown) {
+      rethrowDeleteConstraint(
+        error,
+        "The student profile is still referenced by history that must be retained."
+      );
+      throw error;
     }
   }
 

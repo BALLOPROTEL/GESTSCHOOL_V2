@@ -117,7 +117,7 @@ export class StudentsController {
     return this.studentsService.update(tenantId, id, body);
   }
 
-  @Delete(":id")
+  @Post(":id/archive")
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
   @RequirePermission("students", "delete")
@@ -126,7 +126,21 @@ export class StudentsController {
     required: false,
     description: "Optional tenant UUID override for development."
   })
-  @ApiOperation({ summary: "Soft delete student" })
+  @ApiOperation({ summary: "Archive student" })
+  async archive(
+    @Req() request: { user?: AuthenticatedUser },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Headers("x-tenant-id") tenantHeader?: string
+  ): Promise<void> {
+    const tenantId = this.getTenantId(request.user, tenantHeader);
+    await this.studentsService.archive(tenantId, id);
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermission("students", "delete")
+  @ApiOperation({ summary: "Permanently delete an unreferenced student" })
   async remove(
     @Req() request: { user?: AuthenticatedUser },
     @Param("id", new ParseUUIDPipe()) id: string,

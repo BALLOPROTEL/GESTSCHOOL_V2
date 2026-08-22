@@ -265,17 +265,20 @@ export class GradesEntryService {
       throw new NotFoundException("Grade not found.");
     }
 
-    await this.prisma.gradeEntry.delete({
-      where: {
-        id: row.id
-      }
-    });
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.gradeEntry.delete({
+        where: {
+          id: row.id
+        }
+      });
 
-    await this.gradesReportCardsService.syncReportCardsForClassPeriod(
-      tenantId,
-      row.classId,
-      row.academicPeriodId
-    );
+      await this.gradesReportCardsService.syncReportCardsForClassPeriod(
+        tenantId,
+        row.classId,
+        row.academicPeriodId,
+        transaction
+      );
+    });
 
     return { deleted: true };
   }

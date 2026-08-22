@@ -21,6 +21,15 @@ describe("localized API errors", () => {
     );
   });
 
+  it.each([
+    ["ENTITY_DELETE_LINKED_ACCOUNT", UI_MESSAGES.deleteLinkedAccount],
+    ["ENTITY_DELETE_RESTRICTED", UI_MESSAGES.deleteRestricted],
+    ["ENTITY_REQUIRES_ARCHIVE", UI_MESSAGES.archiveRequired],
+    ["USER_DELETE_SELF_FORBIDDEN", UI_MESSAGES.deleteSelf]
+  ] as const)("mappe le code de suppression stable %s", async (code, expected) => {
+    await expect(parseApiError(jsonResponse(409, { code }))).resolves.toBe(expected);
+  });
+
   it("ne présente jamais un message backend arbitraire", async () => {
     const backendMessage = "Internal provider rejected the request for user@example.test";
 

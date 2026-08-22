@@ -20,6 +20,7 @@ import { UI_MESSAGES } from "../shared/i18n";
 import { RoomsListSection } from "./rooms/components/rooms-list-section";
 import { toUiErrorMessage } from "../shared/services/api-errors";
 import {
+  archiveRoomResource,
   createRoomAssignment,
   createRoomAvailability,
   createRoomType,
@@ -310,13 +311,18 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
     setActiveStep("form");
   };
 
-  const archiveResource = async (path: string, successMessage: string): Promise<void> => {
+  const mutateResource = async (
+    path: string,
+    successMessage: string,
+    operation: "archive" | "delete"
+  ): Promise<void> => {
     if (!remoteEnabled) {
       onNotice(UI_MESSAGES.previewNotPersisted);
       return;
     }
     try {
-      await deleteRoomResource(api, path);
+      if (operation === "archive") await archiveRoomResource(api, path);
+      else await deleteRoomResource(api, path);
     } catch (error) {
       onError(toUiErrorMessage(error, UI_MESSAGES.deleteError));
       return;
@@ -346,7 +352,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
               confirmLabel: tr("Archiver"),
               tone: "danger"
             });
-            if (accepted) await archiveResource(`/rooms/${roomId}`, UI_MESSAGES.deleted);
+            if (accepted) await mutateResource(`/rooms/${roomId}/archive`, UI_MESSAGES.archived, "archive");
           }}
           onEditRoom={editRoom}
           onFilter={() => void loadRooms()}
@@ -433,7 +439,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
           <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Type")}</th><th>{tr("Classe")}</th><th>{tr("Matière")}</th><th>{tr("Cursus")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Statut")}</th><th>{tr("Action")}</th></tr></thead>
               <tbody>{selectedAssignments.length === 0 ? <tr><td colSpan={9} className="empty-row">{tr("Aucune affectation enregistrée.")}</td></tr> : selectedAssignments.map((item) => (
-                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Type")}>{tr(assignmentTypeLabel(item.assignmentType))}</td><td data-label={tr("Classe")}>{item.classLabel || item.levelLabel || item.cycleLabel || "-"}</td><td data-label={tr("Matière")}>{item.subjectLabel || "-"}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(item.status))}</span></td><td data-label={tr("Action")}><button type="button" className="button-ghost" onClick={() => void archiveResource(`/rooms/assignments/${item.id}`, UI_MESSAGES.archived)}>{tr("Archiver")}</button></td></tr>
+                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Type")}>{tr(assignmentTypeLabel(item.assignmentType))}</td><td data-label={tr("Classe")}>{item.classLabel || item.levelLabel || item.cycleLabel || "-"}</td><td data-label={tr("Matière")}>{item.subjectLabel || "-"}</td><td data-label={tr("Cursus")}>{tr(trackLabel(item.track))}</td><td data-label={tr("Année")}>{item.schoolYearCode}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Statut")}><span className="status-pill">{tr(statusLabel(item.status))}</span></td><td data-label={tr("Action")}><button type="button" className="button-ghost" onClick={() => void mutateResource(`/rooms/assignments/${item.id}/archive`, UI_MESSAGES.archived, "archive")}>{tr("Archiver")}</button></td></tr>
               ))}</tbody>
             </table>
           </ResponsiveDataTable>
@@ -457,7 +463,7 @@ export function RoomsScreen(props: RoomsScreenProps): JSX.Element {
           <ResponsiveDataTable className="table-wrap">
             <table data-responsive-table="true"><thead><tr><th>{tr("Salle")}</th><th>{tr("Jour")}</th><th>{tr("Début")}</th><th>{tr("Fin")}</th><th>{tr("Type")}</th><th>{tr("Année")}</th><th>{tr("Période")}</th><th>{tr("Action")}</th></tr></thead>
               <tbody>{selectedAvailabilities.length === 0 ? <tr><td colSpan={8} className="empty-row">{tr("Aucune indisponibilité enregistrée.")}</td></tr> : selectedAvailabilities.map((item) => (
-                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Jour")}>{tr(dayLabel(item.dayOfWeek))}</td><td data-label={tr("Début")}>{item.startTime || "-"}</td><td data-label={tr("Fin")}>{item.endTime || "-"}</td><td data-label={tr("Type")}>{tr(availabilityTypeLabel(item.availabilityType))}</td><td data-label={tr("Année")}>{item.schoolYearCode || "-"}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Action")}><button type="button" className="button-danger" onClick={() => void archiveResource(`/rooms/availabilities/${item.id}`, UI_MESSAGES.deleted)}>{tr("Supprimer")}</button></td></tr>
+                <tr key={item.id}><td data-label={tr("Salle")}>{item.roomLabel}</td><td data-label={tr("Jour")}>{tr(dayLabel(item.dayOfWeek))}</td><td data-label={tr("Début")}>{item.startTime || "-"}</td><td data-label={tr("Fin")}>{item.endTime || "-"}</td><td data-label={tr("Type")}>{tr(availabilityTypeLabel(item.availabilityType))}</td><td data-label={tr("Année")}>{item.schoolYearCode || "-"}</td><td data-label={tr("Période")}>{item.periodLabel || "-"}</td><td data-label={tr("Action")}><button type="button" className="button-danger" onClick={() => void mutateResource(`/rooms/availabilities/${item.id}`, UI_MESSAGES.deleted, "delete")}>{tr("Supprimer")}</button></td></tr>
               ))}</tbody>
             </table>
           </ResponsiveDataTable>

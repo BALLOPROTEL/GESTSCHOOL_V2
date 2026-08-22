@@ -41,7 +41,7 @@ export const saveParent = async (
 };
 
 export const archiveParentRecord = async (api: ApiClient, parentId: string): Promise<void> => {
-  const response = await api(`/parents/${parentId}`, { method: "DELETE" });
+  const response = await api(`/parents/${parentId}/archive`, { method: "POST" });
   if (!response.ok) throw new Error(await parseApiError(response));
 };
 
@@ -57,6 +57,6 @@ export const createParentStudentLink = async (
 };
 
 export const archiveParentStudentLink = async (api: ApiClient, linkId: string): Promise<void> => {
-  const response = await api(`/parents/links/${linkId}`, { method: "DELETE" });
+  const response = await api(`/parents/links/${linkId}/archive`, { method: "POST" });
   if (!response.ok) throw new Error(await parseApiError(response));
 };
