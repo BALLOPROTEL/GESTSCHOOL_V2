@@ -193,7 +193,7 @@ describe("Teachers + rooms management flows (e2e)", () => {
     expect(workloads.body.some((item: { teacherId: string }) => item.teacherId === teacher.body.id)).toBe(true);
 
     await request(context.app.getHttpServer())
-      .delete(`/api/v1/teachers/documents/${document.body.id}`)
+      .post(`/api/v1/teachers/documents/${document.body.id}/archive`)
       .set("Authorization", `Bearer ${adminTokens.accessToken}`)
       .expect(204);
 
