@@ -7,6 +7,7 @@ import {
 import { ConfigModule } from "@nestjs/config";
 
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { AdmissionsModule } from "./admissions/admissions.module";
 import { AcademicStructureModule } from "./academic-structure/academic-structure.module";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
@@ -53,6 +54,7 @@ import { UsersModule } from "./users/users.module";
     SecurityModule,
     HealthModule,
     AnalyticsModule,
+    AdmissionsModule,
     AuthModule,
     StudentsModule,
     ReferenceModule,
