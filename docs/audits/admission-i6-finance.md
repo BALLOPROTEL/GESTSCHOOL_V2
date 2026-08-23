@@ -310,4 +310,3 @@ Validations executees :
 5. Ne pas presenter d'exemption, remise, service ou echeancier tant que le
    backend les declare non supportes.
 6. Conserver la confirmation scolaire independante de tout paiement externe.
-
