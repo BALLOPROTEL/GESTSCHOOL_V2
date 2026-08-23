@@ -1,7 +1,7 @@
 # LOT I4 - Identite eleve, responsables et matricule
 
-Date de validation locale : 2026-08-23  
-Perimetre : backend admission uniquement, PostgreSQL 16.14 jetable.  
+Date de validation locale : 2026-08-23
+Perimetre : backend admission uniquement, PostgreSQL 16.14 jetable.
 Production, finance, documents, notifications et frontend : non modifies.
 
 ## A. Politique matricule

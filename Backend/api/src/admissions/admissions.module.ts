@@ -11,6 +11,7 @@ import { AdmissionFinalizationService } from "./admission-finalization.service";
 import { AdmissionIdentitySearchService } from "./admission-identity-search.service";
 import { AdmissionPrerequisitesController } from "./admission-prerequisites.controller";
 import { AdmissionPrerequisitesService } from "./admission-prerequisites.service";
+import { AdmissionFinancePolicyService } from "./admission-finance-policy.service";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AdmissionPrerequisitesService } from "./admission-prerequisites.service
     AdmissionFinalizationService,
     AdmissionIdentitySearchService,
     AdmissionPrerequisitesService,
+    AdmissionFinancePolicyService,
   ],
 })
 export class AdmissionsModule {}

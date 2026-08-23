@@ -90,7 +90,7 @@ export type AdmissionPrerequisitesResponse = {
   levels: AdmissionLevelPrerequisite[];
   classes: AdmissionClassPrerequisite[];
   feePlans: AdmissionFeePlanPrerequisite[];
-  financePolicy: "UNCONFIGURED";
+  financePolicy: "OPTIONAL";
   permissions: AdmissionPrerequisitePermissions;
   blockingIssues: AdmissionPrerequisiteIssue[];
   warnings: AdmissionPrerequisiteIssue[];

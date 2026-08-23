@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { AdmissionPrerequisitesService } from "../../src/admissions/admission-prerequisites.service";
 import { AdmissionAcademicPolicyService } from "../../src/academic-structure/admission-academic-policy.service";
+import { AdmissionFinancePolicyService } from "../../src/admissions/admission-finance-policy.service";
 import { PrismaService } from "../../src/database/prisma.service";
 import { UserRole } from "../../src/security/roles.enum";
 
@@ -66,6 +67,7 @@ const createService = (prisma: PrismaMock): AdmissionPrerequisitesService =>
   new AdmissionPrerequisitesService(
     prisma as unknown as PrismaService,
     new AdmissionAcademicPolicyService(prisma as unknown as PrismaService),
+    new AdmissionFinancePolicyService(prisma as unknown as PrismaService),
   );
 
 describe("AdmissionPrerequisitesService", () => {
@@ -103,7 +105,7 @@ describe("AdmissionPrerequisitesService", () => {
         endDate: "2027-06-30",
       },
       tracks: ["FRANCOPHONE"],
-      financePolicy: "UNCONFIGURED",
+      financePolicy: "OPTIONAL",
       blockingIssues: [],
       warnings: [],
       ready: true,
@@ -157,7 +159,7 @@ describe("AdmissionPrerequisitesService", () => {
     const result = await service.getPrerequisites(TENANT_ID, UserRole.ADMIN);
 
     expect(result.ready).toBe(true);
-    expect(result.financePolicy).toBe("UNCONFIGURED");
+    expect(result.financePolicy).toBe("OPTIONAL");
     expect(result.warnings).toContainEqual({
       code: "ADMISSION_FEE_PLAN_NOT_AVAILABLE",
       scope: "FINANCE",

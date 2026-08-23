@@ -105,7 +105,7 @@ describe("Admission transactional finalization (e2e)", () => {
     },
     GUARDIANS: { guardians: guardians ?? [newGuardian(suffix)] },
     ACADEMICS: academics(),
-    FINANCE: { disposition: "DEFERRED" },
+    FINANCE: { mode: "DEFERRED" },
   });
 
   const newGuardian = (suffix: string): AdmissionGuardianDraft => ({
@@ -237,7 +237,7 @@ describe("Admission transactional finalization (e2e)", () => {
       data: {
         draftData: {
           ...(persisted.draftData as Prisma.JsonObject),
-          FINANCE: { disposition: "DEFERRED", note: "changed-after-confirmation" },
+          FINANCE: { mode: "DEFERRED", note: "changed-after-confirmation" },
         },
       },
     });
@@ -259,7 +259,7 @@ describe("Admission transactional finalization (e2e)", () => {
     const immutable = await request(context.app.getHttpServer())
       .patch(`/api/v1/admission-cases/${admissionCase.id}/sections/FINANCE`)
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ expectedVersion: 3, data: { disposition: "IMMEDIATE" } })
+      .send({ expectedVersion: 3, data: { mode: "FEE_PLAN" } })
       .expect(409);
     expect(immutable.body.code).toBe("ADMISSION_INVALID_TRANSITION");
   });

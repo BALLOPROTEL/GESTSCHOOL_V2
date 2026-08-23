@@ -188,7 +188,7 @@ describe("Admission cases (e2e)", () => {
         .set("Authorization", `Bearer ${adminToken}`)
         .send({
           expectedVersion: admissionCase.version,
-          data: { disposition: "DEFERRED" },
+          data: { mode: "DEFERRED" },
         }),
       request(context.app.getHttpServer())
         .patch(

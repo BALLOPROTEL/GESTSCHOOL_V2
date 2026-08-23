@@ -23,6 +23,7 @@ import {
 import { resolveTenantContext } from "../common/tenant-context.util";
 import { AdmissionAcademicPolicyService } from "../academic-structure/admission-academic-policy.service";
 import { type AdmissionAcademicOptionsResponse } from "../academic-structure/admission-academic-policy.types";
+import { type AdmissionFinanceOptionsResponse } from "./admission-finance-policy.types";
 import { type AuthenticatedUser } from "../security/authenticated-user.interface";
 import { RequirePermissions } from "../security/permissions.decorator";
 import { Roles } from "../security/roles.decorator";
@@ -39,6 +40,7 @@ import {
 import {
   AdmissionCaseListQueryDto,
   AdmissionAcademicOptionsQueryDto,
+  AdmissionFinanceOptionsQueryDto,
   CancelAdmissionCaseDto,
   CreateAdmissionCaseDto,
   FinalizeAdmissionCaseDto,
@@ -113,6 +115,31 @@ export class AdmissionCasesController {
       tenantHeader,
     );
     return this.academicPolicy.getOptions(tenantId, query);
+  }
+
+  @Get("finance-options")
+  @Roles(UserRole.ADMIN, UserRole.SCOLARITE)
+  @RequirePermissions(
+    { resource: "enrollments", action: "read" },
+    { resource: "reference", action: "read" },
+  )
+  @ApiOperation({ summary: "List compatible finance options for an admission" })
+  financeOptions(
+    @Req() request: { user?: AuthenticatedUser },
+    @Query() query: AdmissionFinanceOptionsQueryDto,
+    @Headers("x-tenant-id") tenantHeader?: string,
+  ): Promise<AdmissionFinanceOptionsResponse> {
+    const user = request.user!;
+    const tenantId = resolveTenantContext(
+      this.configService,
+      user,
+      tenantHeader,
+    );
+    return this.service.getFinanceOptions(
+      tenantId,
+      user.role,
+      query.admissionCaseId,
+    );
   }
 
   @Get("search/students")

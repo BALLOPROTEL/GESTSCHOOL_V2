@@ -9,6 +9,11 @@ import {
   type AdmissionPrerequisiteIssueCode,
 } from "./admission-prerequisites.types";
 import { type ParentRelationCode } from "../parents/parent-relations";
+import {
+  type AdmissionFinalFinanceResult,
+  type AdmissionFinanceIssueCode,
+  type AdmissionFinanceMode,
+} from "./admission-finance-policy.types";
 
 export const ADMISSION_CASE_CONTRACT_VERSION = "1" as const;
 export const ADMISSION_DRAFT_PAYLOAD_VERSION = 1 as const;
@@ -84,7 +89,7 @@ export type AdmissionAcademicsDraft = {
 };
 
 export type AdmissionFinanceDraft = {
-  disposition?: "IMMEDIATE" | "DEFERRED" | "EXEMPT_OR_SPECIAL";
+  mode?: AdmissionFinanceMode;
   feePlanId?: string;
   note?: string;
 };
@@ -111,7 +116,10 @@ export type AdmissionCaseIssueCode =
   (typeof ADMISSION_CASE_ISSUE_CODES)[number];
 
 export type AdmissionCaseIssue = {
-  code: AdmissionCaseIssueCode | AdmissionPrerequisiteIssueCode;
+  code:
+    | AdmissionCaseIssueCode
+    | AdmissionPrerequisiteIssueCode
+    | AdmissionFinanceIssueCode;
   scope: AdmissionPrerequisiteIssue["scope"] | "STUDENT" | "GUARDIANS";
 };
 
@@ -157,6 +165,7 @@ export type AdmissionFinalizationResult = {
   enrollmentId: string;
   guardianIds: string[];
   parentStudentLinkIds: string[];
+  finance: AdmissionFinalFinanceResult;
   invoiceIds: [];
   confirmedAt: string;
   version: number;

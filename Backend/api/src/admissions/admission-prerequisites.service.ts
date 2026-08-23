@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../database/prisma.service";
 import { AdmissionAcademicPolicyService } from "../academic-structure/admission-academic-policy.service";
+import { AdmissionFinancePolicyService } from "./admission-finance-policy.service";
+import { ADMISSION_FINANCE_POLICY } from "./admission-finance-policy.types";
 import {
   hasPermission,
   type PermissionRequirement,
@@ -11,7 +12,6 @@ import { UserRole } from "../security/roles.enum";
 import {
   ADMISSION_MODES,
   ADMISSION_PREREQUISITES_CONTRACT_VERSION,
-  type AdmissionFeePlanPrerequisite,
   type AdmissionMode,
   type AdmissionPermissionKey,
   type AdmissionPrerequisiteIssue,
@@ -58,6 +58,7 @@ export class AdmissionPrerequisitesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly academicPolicy: AdmissionAcademicPolicyService,
+    private readonly financePolicy: AdmissionFinancePolicyService,
   ) {}
 
   async getPrerequisites(
@@ -110,7 +111,7 @@ export class AdmissionPrerequisitesService {
     }
 
     const feePlans = permissions.canReadFeePlans
-      ? await this.listFeePlans(
+      ? await this.financePolicy.listPlansForLevels(
           tenantId,
           schoolYear.id,
           catalog.levels.map((level) => level.id),
@@ -225,40 +226,6 @@ export class AdmissionPrerequisitesService {
     };
   }
 
-  private async listFeePlans(
-    tenantId: string,
-    schoolYearId: string,
-    levelIds: string[],
-  ): Promise<AdmissionFeePlanPrerequisite[]> {
-    if (levelIds.length === 0) return [];
-
-    const rows = await this.prisma.feePlan.findMany({
-      where: {
-        tenantId,
-        schoolYearId,
-        levelId: { in: levelIds },
-      },
-      orderBy: [{ levelId: "asc" }, { label: "asc" }],
-      select: {
-        id: true,
-        schoolYearId: true,
-        levelId: true,
-        label: true,
-        totalAmount: true,
-        currency: true,
-      },
-    });
-
-    return rows.map((feePlan) => ({
-      id: feePlan.id,
-      schoolYearId: feePlan.schoolYearId,
-      levelId: feePlan.levelId,
-      label: feePlan.label,
-      totalAmount: this.decimalToNumber(feePlan.totalAmount),
-      currency: feePlan.currency,
-    }));
-  }
-
   private buildResponse(
     input: Pick<
       AdmissionPrerequisitesResponse,
@@ -283,7 +250,7 @@ export class AdmissionPrerequisitesService {
       levels: input.levels ?? [],
       classes: input.classes ?? [],
       feePlans: input.feePlans ?? [],
-      financePolicy: "UNCONFIGURED",
+      financePolicy: ADMISSION_FINANCE_POLICY,
       permissions: input.permissions,
       blockingIssues: input.blockingIssues,
       warnings: input.warnings,
@@ -291,7 +258,4 @@ export class AdmissionPrerequisitesService {
     };
   }
 
-  private decimalToNumber(value: Prisma.Decimal): number {
-    return Number(value.toString());
-  }
 }

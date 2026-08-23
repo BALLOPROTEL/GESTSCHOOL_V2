@@ -40,6 +40,7 @@ import {
   type AdmissionGuardianDraft,
 } from "./admission-cases.types";
 import { AdmissionPrerequisitesService } from "./admission-prerequisites.service";
+import { AdmissionFinancePolicyService } from "./admission-finance-policy.service";
 import { FinalizeAdmissionCaseDto } from "./dto/admission-cases.dto";
 import { normalizeMatricule } from "../common/identity-normalization";
 
@@ -93,6 +94,7 @@ export class AdmissionFinalizationService {
     private readonly studentsService: StudentsService,
     private readonly parentsService: ParentsService,
     private readonly academicPolicy: AdmissionAcademicPolicyService,
+    private readonly financePolicy: AdmissionFinancePolicyService,
     private readonly academicStructureService: AcademicStructureService,
     private readonly auditService: AuditService,
     private readonly outboxService: OutboxService,
@@ -342,6 +344,12 @@ export class AdmissionFinalizationService {
           academics,
           transaction,
         );
+        const finance = await this.financePolicy.assertFinalIntent(
+          tenantId,
+          draft.FINANCE,
+          academics,
+          transaction,
+        );
 
         const student =
           admissionCase.mode === AdmissionCaseMode.NEW_ADMISSION
@@ -425,6 +433,7 @@ export class AdmissionFinalizationService {
           enrollmentId: placement.enrollmentId,
           guardianIds,
           parentStudentLinkIds,
+          finance,
           invoiceIds: [],
           confirmedAt: confirmedAt.toISOString(),
           version: admissionCase.version + 1,
@@ -443,6 +452,10 @@ export class AdmissionFinalizationService {
               enrollmentId: placement.enrollmentId,
               guardianIds,
               parentStudentLinkIds,
+              finance: {
+                mode: finance.mode,
+                feePlanId: finance.feePlanId,
+              },
             },
           },
           transaction,
@@ -459,6 +472,10 @@ export class AdmissionFinalizationService {
               studentId,
               placementId: placement.placementId,
               enrollmentId: placement.enrollmentId,
+              finance: {
+                mode: finance.mode,
+                feePlanId: finance.feePlanId,
+              },
             },
           },
           transaction,

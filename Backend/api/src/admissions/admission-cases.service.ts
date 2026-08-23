@@ -31,11 +31,14 @@ import {
 } from "./admission-cases.types";
 import { AdmissionPrerequisitesService } from "./admission-prerequisites.service";
 import { type AdmissionPrerequisitesResponse } from "./admission-prerequisites.types";
+import { AdmissionFinancePolicyService } from "./admission-finance-policy.service";
+import { type AdmissionFinanceOptionsResponse } from "./admission-finance-policy.types";
 import {
   AdmissionAcademicsSectionDto,
   AdmissionCaseListQueryDto,
   AdmissionFinanceSectionDto,
   AdmissionGuardiansSectionDto,
+  LegacyAdmissionFinanceSectionDto,
   AdmissionStudentSectionDto,
   CancelAdmissionCaseDto,
   CreateAdmissionCaseDto,
@@ -56,6 +59,9 @@ const EDITABLE_ADMISSION_FAILURE_CODES = new Set([
   "GUARDIAN_DUPLICATE_SUSPECTED",
   "GUARDIAN_REQUIRED",
   "PRIMARY_GUARDIAN_CONFLICT",
+  "FINANCE_ACADEMIC_CONTEXT_REQUIRED",
+  "FEE_PLAN_NOT_AVAILABLE",
+  "FEE_PLAN_NOT_COMPATIBLE",
 ]);
 
 const admissionCaseSelect = {
@@ -101,8 +107,34 @@ export class AdmissionCasesService {
     private readonly prisma: PrismaService,
     private readonly prerequisitesService: AdmissionPrerequisitesService,
     private readonly academicPolicy: AdmissionAcademicPolicyService,
+    private readonly financePolicy: AdmissionFinancePolicyService,
     private readonly auditService: AuditService,
   ) {}
+
+  async getFinanceOptions(
+    tenantId: string,
+    role: UserRole,
+    id: string,
+  ): Promise<AdmissionFinanceOptionsResponse> {
+    const [row, prerequisites] = await Promise.all([
+      this.requireCase(tenantId, id),
+      this.prerequisitesService.getPrerequisites(tenantId, role),
+    ]);
+    const draft = this.parseStoredDraftData(row.draftData);
+    return this.financePolicy.getOptions({
+      tenantId,
+      admissionCaseId: row.id,
+      academics: draft.ACADEMICS,
+      finance: draft.FINANCE,
+      capabilities: {
+        canReadFeePlans: prerequisites.permissions.canReadFeePlans,
+        canSelectFeePlan: prerequisites.permissions.canReadFeePlans,
+        canDefer: prerequisites.permissions.modes[row.mode].allowed,
+        canCreateInvoice: prerequisites.permissions.canCreateInvoice,
+        automaticInvoiceCreation: false,
+      },
+    });
+  }
 
   async create(
     tenantId: string,
@@ -609,10 +641,7 @@ export class AdmissionCasesService {
       );
     }
     if (raw.FINANCE !== undefined) {
-      result.FINANCE = this.validateStoredSection(
-        AdmissionFinanceSectionDto,
-        raw.FINANCE,
-      );
+      result.FINANCE = this.parseStoredFinance(raw.FINANCE);
     }
     return result;
   }
@@ -632,6 +661,34 @@ export class AdmissionCasesService {
       value as Record<string, unknown>,
       true,
     );
+  }
+
+  private parseStoredFinance(value: unknown): AdmissionFinanceDraft {
+    if (!value || Array.isArray(value) || typeof value !== "object") {
+      throw new InternalServerErrorException({
+        code: "ADMISSION_DRAFT_CORRUPTED",
+        message: "Stored admission finance section is invalid.",
+      });
+    }
+    const raw = value as Record<string, unknown>;
+    if (Object.prototype.hasOwnProperty.call(raw, "mode")) {
+      return this.validateDto(AdmissionFinanceSectionDto, raw, true);
+    }
+
+    const legacy = this.validateDto(
+      LegacyAdmissionFinanceSectionDto,
+      raw,
+      true,
+    );
+    if (!legacy.disposition) return {};
+    if (legacy.disposition === "IMMEDIATE") {
+      return {
+        mode: "FEE_PLAN",
+        feePlanId: legacy.feePlanId,
+        note: legacy.note,
+      };
+    }
+    return { mode: "DEFERRED", note: legacy.note };
   }
 
   private async validateSectionReferences(
@@ -657,8 +714,22 @@ export class AdmissionCasesService {
     if (section === "ACADEMICS" && draft.ACADEMICS) {
       await this.academicPolicy.assertDraftSelection(tenantId, draft.ACADEMICS);
     }
-    if (section === "FINANCE" && draft.FINANCE) {
-      this.validateFinance(draft.FINANCE, prerequisites);
+    if (
+      section === "FINANCE" &&
+      draft.FINANCE?.mode === "FEE_PLAN" &&
+      !prerequisites.permissions.canReadFeePlans
+    ) {
+      throw new ForbiddenException({
+        code: "FINANCE_PERMISSION_DENIED",
+        message: "Fee plan selection is not permitted for this account.",
+      });
+    }
+    if ((section === "FINANCE" || section === "ACADEMICS") && draft.FINANCE) {
+      await this.financePolicy.assertDraftIntent(
+        tenantId,
+        draft.FINANCE,
+        draft.ACADEMICS,
+      );
     }
     if (
       section === "STUDENT" &&
@@ -742,27 +813,6 @@ export class AdmissionCasesService {
     }
   }
 
-  private validateFinance(
-    section: AdmissionFinanceDraft,
-    prerequisites: AdmissionPrerequisitesResponse,
-  ): void {
-    if (
-      section.feePlanId &&
-      !prerequisites.feePlans.some((item) => item.id === section.feePlanId)
-    ) {
-      throw this.badRequest(
-        "FEE_PLAN_NOT_AVAILABLE",
-        "Fee plan is not available for this tenant.",
-      );
-    }
-    if (section.feePlanId && section.disposition !== "IMMEDIATE") {
-      throw this.badRequest(
-        "ADMISSION_SECTION_INVALID",
-        "A fee plan can only be selected for immediate finance.",
-      );
-    }
-  }
-
   private evaluateReadiness(
     row: AdmissionCaseRow,
     draft: AdmissionDraftData,
@@ -830,11 +880,20 @@ export class AdmissionCasesService {
       });
     }
 
+    const financeReadiness = this.financePolicy.evaluateReadiness(
+      draft.FINANCE,
+      draft.ACADEMICS,
+      prerequisites.feePlans,
+    );
+    if (financeReadiness.blockingIssue) {
+      blockingIssues.push(financeReadiness.blockingIssue);
+    }
+
     const completion: AdmissionCaseCompletion = {
       STUDENT: studentComplete,
       GUARDIANS: guardiansComplete,
       ACADEMICS: academicsComplete,
-      FINANCE: this.isFinanceComplete(draft.FINANCE, prerequisites),
+      FINANCE: financeReadiness.complete,
       DOCUMENTS: false,
     };
     const uniqueBlockingIssues = this.uniqueIssues(blockingIssues);
@@ -887,18 +946,6 @@ export class AdmissionCasesService {
       this.hasText(guardian.firstName) &&
       this.hasText(guardian.lastName) &&
       this.hasText(guardian.primaryPhone),
-    );
-  }
-
-  private isFinanceComplete(
-    section: AdmissionFinanceDraft | undefined,
-    prerequisites: AdmissionPrerequisitesResponse,
-  ): boolean {
-    if (!section?.disposition) return false;
-    if (section.disposition !== "IMMEDIATE") return true;
-    return Boolean(
-      section.feePlanId &&
-      prerequisites.feePlans.some((item) => item.id === section.feePlanId),
     );
   }
 

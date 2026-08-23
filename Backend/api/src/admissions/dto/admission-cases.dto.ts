@@ -33,6 +33,7 @@ import {
   type AdmissionStudentDraft,
 } from "../admission-cases.types";
 import { PARENT_RELATION_CODES } from "../../parents/parent-relations";
+import { ADMISSION_FINANCE_MODES } from "../admission-finance-policy.types";
 
 const PARENT_ROLE_VALUES = PARENT_RELATION_CODES;
 
@@ -346,6 +347,21 @@ export class AdmissionAcademicsSectionDto implements AdmissionAcademicsDraft {
 
 export class AdmissionFinanceSectionDto implements AdmissionFinanceDraft {
   @IsOptional()
+  @IsIn(ADMISSION_FINANCE_MODES)
+  mode?: AdmissionFinanceDraft["mode"];
+
+  @IsOptional()
+  @IsUUID("all")
+  feePlanId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+export class LegacyAdmissionFinanceSectionDto {
+  @IsOptional()
   @IsIn(["IMMEDIATE", "DEFERRED", "EXEMPT_OR_SPECIAL"])
   disposition?: "IMMEDIATE" | "DEFERRED" | "EXEMPT_OR_SPECIAL";
 
@@ -357,4 +373,10 @@ export class AdmissionFinanceSectionDto implements AdmissionFinanceDraft {
   @IsString()
   @MaxLength(500)
   note?: string;
+}
+
+export class AdmissionFinanceOptionsQueryDto {
+  @ApiProperty()
+  @IsUUID("all")
+  admissionCaseId!: string;
 }
