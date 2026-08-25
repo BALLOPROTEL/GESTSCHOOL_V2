@@ -1058,6 +1058,46 @@ describe("critical frontend flows", () => {
     }
   });
 
+  it("ne recharge pas les inscriptions lorsque la réponse renouvelle la prop initiale", async () => {
+    const api = vi.fn(async (path: string) => {
+      if (path.startsWith("/admission-cases")) {
+        return new Response(JSON.stringify({
+          contractVersion: "1",
+          items: [],
+          page: 1,
+          pageSize: 25,
+          total: 0,
+          totalPages: 0
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    const onError = vi.fn();
+    const onNotice = vi.fn();
+    const onEnrollmentsChange = vi.fn();
+    const props = {
+      api,
+      classes: [classroom, arabophoneClassroom],
+      initialEnrollments: [enrollment],
+      onEnrollmentsChange,
+      onError,
+      onNotice,
+      remoteEnabled: true,
+      schoolYears: [schoolYear],
+      students: [student]
+    };
+    const view = render(<EnrollmentsScreen {...props} />);
+
+    await waitFor(() => {
+      expect(api.mock.calls.filter(([path]) => path === "/enrollments")).toHaveLength(1);
+    });
+
+    view.rerender(<EnrollmentsScreen {...props} initialEnrollments={[{ ...enrollment }]} />);
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
+
+    expect(api.mock.calls.filter(([path]) => path === "/enrollments")).toHaveLength(1);
+  });
+
   it("monte les flux eleves, inscriptions et bulletins avec des donnees bi-cursus", async () => {
     render(
       <StudentsScreen

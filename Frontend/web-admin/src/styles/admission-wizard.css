@@ -1,0 +1,684 @@
+.admission-wizard,
+.admission-loading,
+.admission-blocked,
+.admission-mode,
+.admission-success,
+.admission-drafts {
+  --admission-surface: var(--erp-surface);
+  --admission-surface-raised: var(--erp-surface-raised);
+  --admission-surface-soft: var(--erp-surface-soft);
+  --admission-text: var(--erp-text);
+  --admission-text-strong: var(--erp-text-strong);
+  --admission-text-muted: var(--erp-muted);
+  --admission-text-soft: var(--erp-muted-soft);
+  --admission-border: var(--erp-border);
+  --admission-border-strong: var(--erp-border-strong);
+  --admission-accent: var(--erp-primary);
+  --admission-accent-strong: var(--erp-primary-strong);
+  --admission-accent-soft: var(--erp-primary-soft);
+  --admission-accent-ink: var(--erp-button-primary-text);
+  --admission-success: var(--erp-success);
+  --admission-success-soft: var(--erp-success-soft);
+  --admission-danger: #b42318;
+  --admission-danger-soft: var(--erp-danger-soft);
+  min-width: 0;
+  max-width: 68rem;
+  margin-inline: auto;
+  color: var(--admission-text);
+}
+
+:root[data-theme="dark"] :is(
+  .admission-wizard,
+  .admission-loading,
+  .admission-blocked,
+  .admission-mode,
+  .admission-success,
+  .admission-drafts
+) {
+  --admission-danger: #fda4af;
+}
+
+.admission-wizard {
+  display: grid;
+  gap: var(--responsive-space-4, 1rem);
+}
+
+.admission-wizard-header,
+.admission-step-heading,
+.admission-drafts-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--responsive-space-4, 1rem);
+}
+
+.admission-wizard-header h1,
+.admission-step-heading h2,
+.admission-drafts-header h2,
+.admission-mode h2,
+.admission-success h2 {
+  margin: 0;
+  letter-spacing: 0;
+  color: var(--admission-text-strong);
+}
+
+.admission-wizard-header p,
+.admission-step-heading p,
+.admission-drafts-header p,
+.admission-mode header p,
+.admission-success p {
+  margin-block: 0.35rem 0;
+  color: var(--admission-text-muted);
+}
+
+.admission-wizard .section-kicker,
+.admission-drafts .section-kicker,
+.admission-mode .section-kicker,
+.admission-blocked .section-kicker,
+.admission-success .section-kicker {
+  border: 1px solid color-mix(in srgb, var(--admission-accent) 30%, var(--admission-border));
+  background: var(--admission-accent-soft);
+  color: var(--admission-accent-strong);
+}
+
+.admission-wizard-header-actions,
+.admission-step-actions,
+.admission-draft-actions,
+.admission-guardian-actions,
+.admission-editor-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.admission-wizard-header-actions {
+  justify-content: flex-end;
+}
+
+.admission-wizard-header-actions .admission-danger-action,
+.admission-draft-actions .admission-danger-action {
+  border-color: color-mix(in srgb, var(--admission-danger) 42%, var(--admission-border));
+  background: var(--admission-danger-soft);
+  color: var(--admission-danger);
+}
+
+.admission-wizard-header-actions .admission-danger-action:hover:not(:disabled),
+.admission-draft-actions .admission-danger-action:hover:not(:disabled) {
+  border-color: var(--admission-danger);
+  background: color-mix(in srgb, var(--admission-danger) 16%, var(--admission-surface));
+}
+
+.admission-stepper {
+  min-width: 0;
+  border-block: 1px solid var(--admission-border);
+  padding-block: 0.85rem;
+}
+
+.admission-stepper ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admission-stepper-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-block-end: 0.7rem;
+  color: var(--admission-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.admission-stepper-summary > span {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.admission-stepper li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  min-block-size: 2.75rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  color: var(--admission-text-soft);
+}
+
+.admission-stepper li > span {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 2rem;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border: 1px solid var(--admission-border-strong);
+  border-radius: 50%;
+  background: var(--admission-surface-soft);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.admission-stepper li strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admission-stepper li.is-active {
+  border-color: color-mix(in srgb, var(--admission-accent) 36%, var(--admission-border));
+  background: var(--admission-accent-soft);
+  color: var(--admission-text-strong);
+}
+
+.admission-stepper li.is-complete {
+  color: var(--admission-success);
+}
+
+.admission-stepper li.is-active > span {
+  border-color: var(--admission-accent);
+  background: var(--admission-accent);
+  color: var(--admission-accent-ink);
+}
+
+.admission-stepper li.is-complete > span {
+  border-color: var(--admission-success);
+  background: var(--admission-success);
+  color: var(--admission-surface-raised);
+}
+
+.admission-stepper progress {
+  display: none;
+  inline-size: 100%;
+  accent-color: var(--admission-accent);
+}
+
+.admission-save-state,
+.admission-local-loading {
+  color: var(--admission-text-muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.admission-save-state {
+  justify-self: end;
+}
+
+.admission-step-card,
+.admission-success,
+.admission-mode,
+.admission-blocked,
+.admission-loading {
+  display: grid;
+  gap: 1.1rem;
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px solid var(--admission-border);
+  border-radius: 0.75rem;
+  background: var(--admission-surface);
+  box-shadow: var(--erp-shadow-card);
+}
+
+.admission-drafts {
+  border-color: var(--admission-border);
+  background: var(--admission-surface);
+}
+
+.admission-step-card :is(h2, h3, strong),
+.admission-draft-card :is(h3, strong),
+.admission-review-card :is(h3, dd),
+.admission-success :is(h2, dd) {
+  color: var(--admission-text-strong);
+}
+
+.admission-wizard :is(input, select, textarea),
+.admission-drafts :is(input, select, textarea) {
+  border-color: var(--admission-border-strong);
+  background: var(--admission-surface-raised);
+  color: var(--admission-text-strong);
+}
+
+.admission-wizard :is(input, select, textarea):focus-visible,
+.admission-drafts :is(input, select, textarea):focus-visible,
+.admission-wizard button:focus-visible,
+.admission-drafts button:focus-visible,
+.admission-wizard summary:focus-visible {
+  outline: 2px solid var(--admission-accent-strong);
+  outline-offset: 2px;
+}
+
+.admission-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.admission-form-grid > label,
+.admission-search-bar label,
+.admission-advanced-options > label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  color: var(--admission-text);
+  font-weight: 750;
+}
+
+.admission-form-grid input,
+.admission-form-grid select,
+.admission-search-bar input,
+.admission-advanced-options input {
+  min-width: 0;
+  inline-size: 100%;
+}
+
+.admission-step-actions {
+  justify-content: flex-end;
+  padding-block-start: 0.25rem;
+}
+
+.admission-step-actions.is-split {
+  justify-content: space-between;
+}
+
+.admission-step-actions > button,
+.admission-draft-actions > button,
+.admission-wizard-header-actions > button {
+  min-block-size: 2.75rem;
+}
+
+.admission-advanced-options {
+  border: 1px solid var(--admission-border);
+  border-radius: 0.65rem;
+  padding: 0.8rem;
+  background: var(--admission-surface-soft);
+}
+
+.admission-advanced-options summary {
+  min-block-size: 2.75rem;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.admission-manual-matricule {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-block-size: 2.75rem;
+}
+
+.admission-manual-matricule input {
+  inline-size: 1.1rem;
+}
+
+.admission-duplicate-check,
+.admission-search-bar,
+.admission-conflict,
+.admission-failure {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.admission-duplicate-check {
+  padding: 0.85rem;
+  border: 1px dashed var(--admission-border-strong);
+  border-radius: 0.65rem;
+}
+
+.admission-duplicate-check p {
+  margin: 0.2rem 0 0;
+  color: var(--admission-text-muted);
+}
+
+.admission-search-bar label {
+  flex: 1 1 24rem;
+}
+
+.admission-search-results,
+.admission-guardian-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admission-result-grid,
+.admission-guardian-list,
+.admission-plan-grid,
+.admission-draft-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.admission-result-card,
+.admission-guardian-card,
+.admission-plan-card,
+.admission-draft-card,
+.admission-review-card,
+.admission-choice-card {
+  min-width: 0;
+  border: 1px solid var(--admission-border);
+  border-radius: 0.65rem;
+  background: var(--admission-surface-soft);
+}
+
+.admission-result-card,
+.admission-guardian-card,
+.admission-draft-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.85rem;
+}
+
+.admission-result-card > div,
+.admission-guardian-card > div,
+.admission-draft-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.admission-result-card span,
+.admission-result-card small,
+.admission-guardian-card span,
+.admission-guardian-card small,
+.admission-draft-copy p,
+.admission-draft-copy small {
+  overflow-wrap: anywhere;
+  color: var(--admission-text-muted);
+}
+
+.admission-result-card.is-selected,
+.admission-plan-card.is-selected,
+.admission-choice-card.is-selected {
+  border-color: var(--admission-accent-strong);
+  background: color-mix(in srgb, var(--admission-accent-soft) 72%, var(--admission-surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--admission-accent) 18%, transparent);
+}
+
+.admission-choice-card:focus-within,
+.admission-plan-card:focus-within {
+  outline: 2px solid var(--admission-accent-strong);
+  outline-offset: 2px;
+}
+
+.admission-guardian-actions {
+  justify-content: space-between;
+}
+
+.admission-guardian-actions label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-block-size: 2.75rem;
+}
+
+.admission-segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid var(--admission-border);
+  border-radius: 0.65rem;
+  background: var(--admission-surface-soft);
+}
+
+.admission-segmented-control button {
+  min-width: 0;
+  min-block-size: 2.75rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--admission-text-muted);
+  box-shadow: none;
+}
+
+.admission-segmented-control button.is-active {
+  border-color: color-mix(in srgb, var(--admission-accent) 32%, var(--admission-border));
+  background: var(--admission-surface-raised);
+  color: var(--admission-text-strong);
+  box-shadow: var(--erp-shadow-card);
+}
+
+.admission-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admission-choice-card,
+.admission-plan-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  cursor: pointer;
+}
+
+.admission-choice-card > span,
+.admission-plan-card > span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admission-choice-card small,
+.admission-plan-card small {
+  color: var(--admission-text-muted);
+}
+
+.admission-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admission-review-card {
+  padding: 0.9rem;
+}
+
+.admission-review-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.admission-review-card h3,
+.admission-review-card dl,
+.admission-review-card dt,
+.admission-review-card dd {
+  margin: 0;
+}
+
+.admission-review-card dl {
+  display: grid;
+  gap: 0.5rem;
+  margin-block-start: 0.7rem;
+}
+
+.admission-review-card dl > div,
+.admission-success dl > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.8fr) minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.admission-review-card dt,
+.admission-success dt {
+  color: var(--admission-text-muted);
+}
+
+.admission-inline-error,
+.admission-global-error {
+  margin: 0;
+}
+
+.admission-global-error {
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--admission-danger) 40%, var(--admission-border));
+  border-radius: 0.65rem;
+  background: var(--admission-danger-soft);
+  color: var(--admission-danger);
+}
+
+.admission-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.admission-mode-grid > button {
+  display: grid;
+  gap: 0.45rem;
+  min-block-size: 8rem;
+  padding: 1rem;
+  border-color: var(--admission-border-strong);
+  background: var(--admission-surface-raised);
+  color: var(--admission-text-strong);
+  text-align: start;
+}
+
+.admission-mode-grid > button:hover:not(:disabled) {
+  border-color: var(--admission-accent);
+  background: var(--admission-accent-soft);
+}
+
+.admission-mode-grid > button span {
+  color: inherit;
+  font-weight: 600;
+  opacity: 0.82;
+}
+
+.admission-drafts {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.admission-draft-progress {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admission-draft-progress progress {
+  inline-size: 100%;
+  accent-color: var(--admission-accent);
+}
+
+.admission-draft-progress span {
+  color: var(--admission-text-muted);
+}
+
+.admission-draft-actions {
+  align-self: end;
+}
+
+.admission-success {
+  justify-items: start;
+}
+
+.admission-success-mark {
+  display: grid;
+  place-items: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  border: 1px solid color-mix(in srgb, var(--admission-success) 32%, var(--admission-border));
+  border-radius: 50%;
+  background: var(--admission-success-soft);
+  color: var(--admission-success);
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.admission-success dl {
+  display: grid;
+  gap: 0.55rem;
+  inline-size: min(100%, 42rem);
+  margin: 0;
+}
+
+@media (max-width: 1023px) {
+  .admission-result-grid,
+  .admission-guardian-list,
+  .admission-draft-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admission-wizard-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admission-wizard-header-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .admission-wizard-header,
+  .admission-step-heading,
+  .admission-drafts-header,
+  .admission-duplicate-check,
+  .admission-search-bar,
+  .admission-conflict,
+  .admission-failure {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admission-stepper ol {
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .admission-stepper li {
+    flex: 0 0 auto;
+    min-inline-size: 8.5rem;
+  }
+
+  .admission-stepper progress {
+    display: block;
+    margin-block-start: 0.65rem;
+  }
+
+  .admission-form-grid,
+  .admission-choice-grid,
+  .admission-review-grid,
+  .admission-mode-grid,
+  .admission-segmented-control {
+    grid-template-columns: 1fr;
+  }
+
+  .admission-step-actions,
+  .admission-step-actions.is-split,
+  .admission-wizard-header-actions,
+  .admission-draft-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .admission-step-actions > button,
+  .admission-wizard-header-actions > button,
+  .admission-draft-actions > button,
+  .admission-search-bar > button,
+  .admission-duplicate-check > button {
+    inline-size: 100%;
+  }
+
+  .admission-review-card dl > div,
+  .admission-success dl > div {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+}

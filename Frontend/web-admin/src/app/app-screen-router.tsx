@@ -246,6 +246,7 @@ export function AppScreenRouter({
           remoteEnabled={remoteEnabled}
           language={uiLanguage}
           locale={locale}
+          currentRole={currentRole}
           onEnrollmentsChange={dataActions.setEnrollments}
           {...sharedScreenCallbacks}
         />

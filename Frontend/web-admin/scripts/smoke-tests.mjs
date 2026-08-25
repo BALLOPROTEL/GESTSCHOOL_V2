@@ -122,12 +122,20 @@ for (const file of expectedStyleLayers) {
 
 const cssFiles = walkFiles(srcRoot).filter((file) => file.endsWith(".css"));
 const cssBytes = cssFiles.reduce((total, file) => total + statSync(file).size, 0);
+const admissionWizardCss = path.join(srcRoot, "styles/admission-wizard.css");
+const admissionWizardCssBytes = existsSync(admissionWizardCss) ? statSync(admissionWizardCss).size : 0;
+const legacyCssBytes = cssBytes - admissionWizardCssBytes;
 const cssBudgetBytes = 586_000;
+const admissionWizardCssBudgetBytes = 16_000;
 const importantCount = cssFiles.reduce(
   (total, file) => total + (readFileSync(file, "utf8").match(/!important/gu)?.length || 0),
   0
 );
-assert(cssBytes <= cssBudgetBytes, `Le CSS source depasse le budget LOT R6: ${cssBytes} octets.`);
+assert(legacyCssBytes <= cssBudgetBytes, `Le CSS source historique depasse le budget LOT R6: ${legacyCssBytes} octets.`);
+assert(
+  admissionWizardCssBytes <= admissionWizardCssBudgetBytes,
+  `Le CSS de l'assistant d'inscription depasse son budget I8: ${admissionWizardCssBytes} octets.`
+);
 assert(importantCount <= 1_200, `Le nombre de !important depasse le budget LOT 8D: ${importantCount}.`);
 
 const removedVisualScripts = [
@@ -161,5 +169,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Smoke frontend OK: structure, dette CSS (${cssBytes} octets, ${importantCount} !important), observers et scripts visuels verifies.`
+  `Smoke frontend OK: structure, dette CSS (${cssBytes} octets dont ${admissionWizardCssBytes} pour I8, ${importantCount} !important), observers et scripts visuels verifies.`
 );

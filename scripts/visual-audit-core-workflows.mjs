@@ -95,7 +95,6 @@ const responsiveFormWorkflowKeys = new Set([
   "students",
   "teachers",
   "iam",
-  "enrollments",
   "finance",
   "grades",
   "attendance",
@@ -108,7 +107,6 @@ const responsiveFormWorkflowKeys = new Set([
   "preferences"
 ]);
 const responsiveFormOpeners = {
-  enrollments: ".enrollments-v3-page-header > button",
   finance: ".workflow-tabs [role='tab']:nth-child(2)",
   grades: ".workflow-tabs [role='tab']:nth-child(2)",
   iam: ".iam-v3-table-card .v3-table-head button",
@@ -1318,9 +1316,9 @@ async function assertR6BusinessJourney(page, workflow, metadata) {
 
   if (workflow.key === "enrollments") {
     await page.getByRole("button", { name: "Nouvelle inscription", exact: true }).click();
-    await page.locator("#enrollments-create[data-active-step='true']").waitFor({ state: "visible" });
-    const dialog = page.locator("form.responsive-form-surface[role='dialog']:visible").first();
-    if (await dialog.isVisible().catch(() => false)) await page.keyboard.press("Escape");
+    await page.getByRole("heading", { name: "Que souhaitez-vous faire ?", exact: true }).waitFor({ state: "visible" });
+    await page.getByRole("button", { name: /Inscrire un nouvel élève/u }).click();
+    await page.getByRole("heading", { name: "Identité de l'élève", exact: true }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Liste des inscriptions", exact: true }).click();
     await page.locator("#enrollments-list[data-active-step='true']").waitFor({ state: "visible" });
     return;

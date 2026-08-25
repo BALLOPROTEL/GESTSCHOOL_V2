@@ -1,4 +1,4 @@
-import { useMemo, useState, type JSX } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type JSX } from "react";
 
 import {
   ACADEMIC_TRACK_OPTIONS,
@@ -10,7 +10,8 @@ import type {
   Enrollment,
   FieldErrors,
   SchoolYear,
-  Student
+  Student,
+  Role
 } from "../../shared/types/app";
 import { translateUiString, type UiLanguage } from "../../shared/i18n";
 import { ResponsiveForm } from "../../shared/components/responsive-form";
@@ -18,8 +19,17 @@ import { ResponsiveDataTable } from "../../shared/components/responsive-data-tab
 import { ResponsiveFilterPanel } from "../../shared/components/responsive-filter-panel";
 import { RowActionMenu } from "../../shared/components/row-action-menu";
 import { WorkflowContextBar } from "../../shared/components/responsive-workflow";
+import { useConfirmDialog } from "../../shared/components/confirm-dialog";
 import { useEnrollmentsData } from "./hooks/use-enrollments-data";
 import type { EnrollmentsApiClient } from "./types/enrollments";
+import type { AdmissionCase } from "./types/admission";
+import { AdmissionDraftList } from "./admission/admission-draft-list";
+import { admissionErrorSource } from "./admission/admission-copy";
+import { AdmissionApiError, cancelAdmissionCase, listAdmissionCases } from "./services/admission-service";
+
+const AdmissionWizard = lazy(() =>
+  import("./admission/admission-wizard").then((module) => ({ default: module.AdmissionWizard }))
+);
 
 type EnrollmentsScreenProps = {
   api: EnrollmentsApiClient;
@@ -30,6 +40,7 @@ type EnrollmentsScreenProps = {
   remoteEnabled?: boolean;
   language?: UiLanguage;
   locale?: string;
+  currentRole?: Role | null;
   onEnrollmentsChange?: (enrollments: Enrollment[]) => void;
   onError: (message: string | null) => void;
   onNotice: (message: string | null) => void;
@@ -117,14 +128,20 @@ export function EnrollmentsScreen({
   remoteEnabled,
   language = "fr",
   locale = "fr-FR",
+  currentRole = null,
   onEnrollmentsChange,
   onError,
   onNotice
 }: EnrollmentsScreenProps): JSX.Element {
-  const t = (source: string): string => translateUiString(language, source);
+  const t = useCallback((source: string): string => translateUiString(language, source), [language]);
+  const confirm = useConfirmDialog();
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
   const [enrollmentSearch, setEnrollmentSearch] = useState("");
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+  const [admissionWizardOpen, setAdmissionWizardOpen] = useState(false);
+  const [activeAdmissionCase, setActiveAdmissionCase] = useState<AdmissionCase | null>(null);
+  const [admissionCases, setAdmissionCases] = useState<AdmissionCase[]>([]);
+  const [admissionCasesLoading, setAdmissionCasesLoading] = useState(false);
   const {
     deleteEnrollment,
     editingEnrollmentId,
@@ -133,6 +150,7 @@ export function EnrollmentsScreen({
     enrollmentForm,
     enrollments,
     enrollmentWorkflowStep,
+    loadEnrollments,
     resetEnrollmentFilters,
     resetEnrollmentForm,
     setEnrollmentFilters,
@@ -152,6 +170,27 @@ export function EnrollmentsScreen({
     onError,
     onNotice
   });
+
+  const loadAdmissionDrafts = useCallback(async (): Promise<void> => {
+    if (!remoteEnabled) {
+      setAdmissionCases([]);
+      return;
+    }
+    setAdmissionCasesLoading(true);
+    try {
+      const page = await listAdmissionCases(api, 1, 25);
+      setAdmissionCases(page.items);
+    } catch (caught) {
+      const code = caught instanceof AdmissionApiError ? caught.code : null;
+      onError(t(admissionErrorSource(code)));
+    } finally {
+      setAdmissionCasesLoading(false);
+    }
+  }, [api, onError, remoteEnabled, t]);
+
+  useEffect(() => {
+    void loadAdmissionDrafts();
+  }, [loadAdmissionDrafts]);
 
   const schoolYearById = useMemo(() => new Map(schoolYears.map((item) => [item.id, item])), [schoolYears]);
   const classById = useMemo(() => new Map(classes.map((item) => [item.id, item])), [classes]);
@@ -191,7 +230,7 @@ export function EnrollmentsScreen({
         }
         return true;
       }),
-    [classById, enrollmentFilters, enrollmentSearch, enrollments, schoolYearById, studentById]
+    [classById, enrollmentFilters, enrollmentSearch, enrollments, schoolYearById, studentById, t]
   );
 
   const activeEnrollments = enrollments.filter((item) => item.enrollmentStatus.trim().toUpperCase() === "ENROLLED");
@@ -204,15 +243,51 @@ export function EnrollmentsScreen({
     enrollmentFilters.track.length > 0 ||
     enrollmentFilters.enrollmentStatus.length > 0;
 
-  const openEnrollmentForm = (): void => {
+  const openAdmissionWizard = (): void => {
     setSelectedEnrollmentId(null);
-    resetEnrollmentForm();
-    setEnrollmentWorkflowStep("create");
+    setActiveAdmissionCase(null);
+    setAdmissionWizardOpen(true);
   };
 
   const showEnrollmentList = (): void => {
+    setAdmissionWizardOpen(false);
+    setActiveAdmissionCase(null);
     resetEnrollmentForm();
     setEnrollmentWorkflowStep("list");
+  };
+
+  const resumeAdmissionCase = (admissionCase: AdmissionCase): void => {
+    setActiveAdmissionCase(admissionCase);
+    setAdmissionWizardOpen(true);
+  };
+
+  const handleAdmissionCaseChange = useCallback((updated: AdmissionCase): void => {
+    setActiveAdmissionCase(updated);
+    setAdmissionCases((current) => {
+      const exists = current.some((item) => item.id === updated.id);
+      return exists
+        ? current.map((item) => item.id === updated.id ? updated : item)
+        : [updated, ...current];
+    });
+  }, []);
+
+  const cancelDraft = async (admissionCase: AdmissionCase): Promise<void> => {
+    const accepted = await confirm({
+      title: t("Annuler cette inscription"),
+      description: t("Le dossier sera conservé dans l'historique avec le statut annulé."),
+      cancelLabel: t("Conserver le brouillon"),
+      confirmLabel: t("Annuler l'inscription"),
+      tone: "danger"
+    });
+    if (!accepted) return;
+    try {
+      const cancelled = await cancelAdmissionCase(api, admissionCase);
+      setAdmissionCases((current) => current.map((item) => item.id === cancelled.id ? cancelled : item));
+      onNotice(t("Inscription annulée."));
+    } catch (caught) {
+      const code = caught instanceof AdmissionApiError ? caught.code : null;
+      onError(t(admissionErrorSource(code)));
+    }
   };
 
   const resetListFilters = (): void => {
@@ -240,18 +315,40 @@ export function EnrollmentsScreen({
           <h1>{t("Inscriptions")}</h1>
           <p>{t("Gérez les admissions, placements et rattachements académiques des élèves.")}</p>
         </div>
-        {enrollmentWorkflowStep === "create" ? (
+        {admissionWizardOpen || enrollmentWorkflowStep === "create" ? (
           <button type="button" className="button-ghost" onClick={showEnrollmentList}>
             {t("Liste des inscriptions")}
           </button>
         ) : (
-          <button type="button" onClick={openEnrollmentForm}>
+          <button type="button" onClick={openAdmissionWizard}>
             {t("Nouvelle inscription")}
           </button>
         )}
       </header>
 
-      {enrollmentWorkflowStep === "create" ? (
+      {admissionWizardOpen ? (
+        <Suspense fallback={<section className="panel admission-loading" role="status">{t("Chargement de l'assistant...")}</section>}>
+          <AdmissionWizard
+            key={activeAdmissionCase?.id || "new"}
+            api={api}
+            initialCase={activeAdmissionCase}
+            locale={locale}
+            role={currentRole}
+            t={t}
+            onCaseChange={handleAdmissionCaseChange}
+            onClose={() => {
+              setAdmissionWizardOpen(false);
+              setActiveAdmissionCase(null);
+              void loadAdmissionDrafts();
+            }}
+            onConfirmed={() => {
+              void loadAdmissionDrafts();
+              void loadEnrollments();
+            }}
+            onNotice={(message) => onNotice(message)}
+          />
+        </Suspense>
+      ) : enrollmentWorkflowStep === "create" ? (
         <section
           id="enrollments-create"
           data-step-id="create"
@@ -260,11 +357,9 @@ export function EnrollmentsScreen({
         >
           <div className="enrollments-v3-table-head">
             <div>
-              <h2>{t(editingEnrollment ? "Modifier inscription" : "Nouvelle inscription")}</h2>
+              <h2>{t("Modifier inscription")}</h2>
               <p>
-                {t(editingEnrollment
-                  ? "Ajustez le placement, la date et le statut de l'inscription sélectionnée."
-                  : "Rattachez un élève à une année scolaire, un cursus et une classe.")}
+                {t("Ajustez le placement, la date et le statut de l'inscription sélectionnée.")}
               </p>
             </div>
             <span className="students-overview-status">{t("Placement académique")}</span>
@@ -291,9 +386,9 @@ export function EnrollmentsScreen({
           />
           <ResponsiveForm
             className="form-grid module-form enrollments-v3-form-grid"
-            formTitle={t(editingEnrollment ? "Modifier inscription" : "Nouvelle inscription")}
+            formTitle={t("Modifier inscription")}
             openOnMount
-            triggerLabel={t(editingEnrollment ? "Modifier inscription" : "Nouvelle inscription")}
+            triggerLabel={t("Modifier inscription")}
             onSubmit={(event) => void submitEnrollment(event)}
           >
             <label>
@@ -405,7 +500,7 @@ export function EnrollmentsScreen({
               <p>{t("Le placement principal est déterminé automatiquement selon le contexte scolaire de l'élève.")}</p>
             </div>
             <div className="actions span-2">
-              <button type="submit">{t(editingEnrollment ? "Mettre à jour" : "Créer inscription")}</button>
+              <button type="submit">{t("Mettre à jour")}</button>
               <button type="button" className="button-ghost" onClick={showEnrollmentList}>
                 {t("Voir la liste")}
               </button>
@@ -414,6 +509,14 @@ export function EnrollmentsScreen({
         </section>
       ) : (
         <>
+          <AdmissionDraftList
+            cases={admissionCases}
+            loading={admissionCasesLoading}
+            locale={locale}
+            t={t}
+            onCancel={(admissionCase) => void cancelDraft(admissionCase)}
+            onResume={resumeAdmissionCase}
+          />
           <ResponsiveFilterPanel
             className="panel enrollments-v3-filter-card"
             title={t("Filtres inscriptions")}

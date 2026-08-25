@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   ClassItem,
@@ -98,6 +98,7 @@ export const useEnrollmentsData = ({
   onNotice
 }: UseEnrollmentsDataOptions) => {
   const confirmAction = useConfirmDialog();
+  const initialEnrollmentsRef = useRef(initialEnrollments);
   const [enrollments, setEnrollments] = useState<Enrollment[]>(initialEnrollments);
   const [enrollmentFilters, setEnrollmentFilters] = useState<EnrollmentFilters>(() => buildInitialFilters());
   const [enrollmentForm, setEnrollmentForm] = useState<EnrollmentForm>(() => buildInitialForm());
@@ -114,6 +115,7 @@ export const useEnrollmentsData = ({
   );
 
   useEffect(() => {
+    initialEnrollmentsRef.current = initialEnrollments;
     setEnrollments(initialEnrollments);
   }, [initialEnrollments]);
 
@@ -150,7 +152,7 @@ export const useEnrollmentsData = ({
   const loadEnrollments = useCallback(
     async (filters: EnrollmentFilters = enrollmentFilters) => {
       if (!remoteEnabled) {
-        setEnrollmentsAndNotify(initialEnrollments);
+        setEnrollmentsAndNotify(initialEnrollmentsRef.current);
         return;
       }
       try {
@@ -159,7 +161,7 @@ export const useEnrollmentsData = ({
         onError(toUiErrorMessage(error, UI_MESSAGES.loadError));
       }
     },
-    [api, enrollmentFilters, initialEnrollments, onError, remoteEnabled, setEnrollmentsAndNotify]
+    [api, enrollmentFilters, onError, remoteEnabled, setEnrollmentsAndNotify]
   );
 
   useEffect(() => {

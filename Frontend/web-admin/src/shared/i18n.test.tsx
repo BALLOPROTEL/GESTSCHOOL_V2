@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  ADMISSION_UI_TRANSLATIONS,
   translateUiMessage,
   translateUiString,
   UI_MESSAGES,
@@ -115,6 +116,21 @@ function TranslationHarness(props: {
 }
 
 describe("declarative i18n", () => {
+  it("couvre intégralement l'assistant d'inscription en français, anglais et arabe", () => {
+    for (const [source, translations] of Object.entries(ADMISSION_UI_TRANSLATIONS)) {
+      expect(translations.fr, `${source} (fr)`).toBeTruthy();
+      expect(translations.en, `${source} (en)`).toBeTruthy();
+      expect(translations.ar, `${source} (ar)`).toBeTruthy();
+      expect(translateUiString("fr", source)).toBe(translations.fr);
+      expect(translateUiString("en", source)).toBe(translations.en);
+      expect(translateUiString("ar", source)).toBe(translations.ar);
+    }
+
+    expect(translateUiString("en", "Assistant d'inscription")).toBe("Enrollment assistant");
+    expect(translateUiString("ar", "Assistant d'inscription")).toBe("مساعد التسجيل");
+    expect(translateUiString("ar", "Confirmer l'inscription")).toBe("تأكيد التسجيل");
+  });
+
   it("rebascule les textes et attributs sans réécriture du DOM", () => {
     const { rerender } = render(<TranslationHarness language="fr" />);
 
