@@ -46,10 +46,6 @@ export function useNavigationDrawer(): NavigationDrawerController {
     const panel = panelRef.current;
     if (!panel) return undefined;
 
-    if (restoreFocusFrameRef.current !== null) {
-      window.cancelAnimationFrame(restoreFocusFrameRef.current);
-      restoreFocusFrameRef.current = null;
-    }
     document.documentElement.classList.add("mobile-shell-open");
     const focusInitialControl = () => {
       if (panel.contains(document.activeElement)) return;
@@ -100,12 +96,7 @@ export function useNavigationDrawer(): NavigationDrawerController {
       document.documentElement.classList.remove("mobile-shell-open");
       const trigger = triggerRef.current;
       if (trigger?.isConnected) {
-        restoreFocusFrameRef.current = window.requestAnimationFrame(() => {
-          restoreFocusFrameRef.current = null;
-          if (!panel.isConnected || !panel.classList.contains("is-open")) {
-            trigger.focus();
-          }
-        });
+        trigger.focus({ preventScroll: true });
       }
     };
   }, [close, isOpen]);

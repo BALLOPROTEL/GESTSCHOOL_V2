@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MutableRefObject, type RefObject } from "react";
+import { useLayoutEffect, useRef, type MutableRefObject, type RefObject } from "react";
 
 const activeDialogStack: symbol[] = [];
 
@@ -31,7 +31,7 @@ export function useDialogFocus(props: {
   const onEscapeRef = useRef(onEscape);
   onEscapeRef.current = onEscape;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active) return;
     const container = containerRef.current;
     if (!container) return;
@@ -42,9 +42,13 @@ export function useDialogFocus(props: {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (!restoreFocusRef.current) restoreFocusRef.current = previouslyFocused;
 
-    const frame = window.requestAnimationFrame(() => {
+    const focusInitialControl = (): void => {
       const target = initialFocusRef?.current || getFocusableElements(container)[0] || container;
       target.focus({ preventScroll: true });
+    };
+    focusInitialControl();
+    const frame = window.requestAnimationFrame(() => {
+      if (!container.contains(document.activeElement)) focusInitialControl();
     });
 
     const handleKeyDown = (event: KeyboardEvent): void => {
