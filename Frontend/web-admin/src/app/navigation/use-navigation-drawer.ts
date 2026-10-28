@@ -27,6 +27,7 @@ export function useNavigationDrawer(): NavigationDrawerController {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusFrameRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
 
   const close = useCallback(() => setIsOpen(false), []);
   const openFrom = useCallback((trigger: HTMLElement) => {
@@ -46,6 +47,7 @@ export function useNavigationDrawer(): NavigationDrawerController {
     const panel = panelRef.current;
     if (!panel) return undefined;
 
+    wasOpenRef.current = true;
     document.documentElement.classList.add("mobile-shell-open");
     const focusInitialControl = () => {
       if (panel.contains(document.activeElement)) return;
@@ -94,12 +96,17 @@ export function useNavigationDrawer(): NavigationDrawerController {
       panel.removeEventListener("transitionend", focusInitialControl);
       document.removeEventListener("keydown", handleKeyDown);
       document.documentElement.classList.remove("mobile-shell-open");
-      const trigger = triggerRef.current;
-      if (trigger?.isConnected) {
-        trigger.focus({ preventScroll: true });
-      }
     };
   }, [close, isOpen]);
+
+  useLayoutEffect(() => {
+    if (isOpen || !wasOpenRef.current) return;
+    wasOpenRef.current = false;
+    const trigger = triggerRef.current;
+    if (trigger?.isConnected) {
+      trigger.focus({ preventScroll: true });
+    }
+  }, [isOpen]);
 
   return { close, isOpen, openFrom, panelRef, toggleFrom };
 }
