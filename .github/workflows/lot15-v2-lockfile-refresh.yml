@@ -1,0 +1,45 @@
+name: LOT15 V2 lockfile refresh
+
+on:
+  push:
+    branches:
+      - fix/lot15-rollback-dependency-advisories
+    paths:
+      - pnpm-workspace.yaml
+      - .github/workflows/lot15-v2-lockfile-refresh.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/lot15-rollback-dependency-advisories
+          fetch-depth: 0
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+        with:
+          version: 10.24.0
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.22.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Refresh lockfile only
+        run: pnpm install --lockfile-only
+      - name: Commit refreshed lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already up to date."
+            exit 0
+          fi
+          git commit -m "chore(deps): refresh lockfile for security overrides"
+          git push origin HEAD:fix/lot15-rollback-dependency-advisories
