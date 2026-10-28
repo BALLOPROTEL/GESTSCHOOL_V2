@@ -25,8 +25,8 @@ export type NavigationDrawerController = {
 export function useNavigationDrawer(): NavigationDrawerController {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const restoreFocusFrameRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
 
   const close = useCallback(() => setIsOpen(false), []);
   const openFrom = useCallback((trigger: HTMLElement) => {
@@ -46,10 +46,7 @@ export function useNavigationDrawer(): NavigationDrawerController {
     const panel = panelRef.current;
     if (!panel) return undefined;
 
-    if (restoreFocusFrameRef.current !== null) {
-      window.cancelAnimationFrame(restoreFocusFrameRef.current);
-      restoreFocusFrameRef.current = null;
-    }
+    wasOpenRef.current = true;
     document.documentElement.classList.add("mobile-shell-open");
     const focusInitialControl = () => {
       if (panel.contains(document.activeElement)) return;
@@ -98,17 +95,17 @@ export function useNavigationDrawer(): NavigationDrawerController {
       panel.removeEventListener("transitionend", focusInitialControl);
       document.removeEventListener("keydown", handleKeyDown);
       document.documentElement.classList.remove("mobile-shell-open");
-      const trigger = triggerRef.current;
-      if (trigger?.isConnected) {
-        restoreFocusFrameRef.current = window.requestAnimationFrame(() => {
-          restoreFocusFrameRef.current = null;
-          if (!panel.isConnected || !panel.classList.contains("is-open")) {
-            trigger.focus();
-          }
-        });
-      }
     };
   }, [close, isOpen]);
+
+  useLayoutEffect(() => {
+    if (isOpen || !wasOpenRef.current) return;
+    wasOpenRef.current = false;
+    const trigger = triggerRef.current;
+    if (trigger?.isConnected) {
+      trigger.focus({ preventScroll: true });
+    }
+  }, [isOpen]);
 
   return { close, isOpen, openFrom, panelRef, toggleFrom };
 }
