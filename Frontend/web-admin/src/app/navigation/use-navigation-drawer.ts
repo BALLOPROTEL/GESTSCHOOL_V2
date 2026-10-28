@@ -25,7 +25,6 @@ export type NavigationDrawerController = {
 export function useNavigationDrawer(): NavigationDrawerController {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const restoreFocusFrameRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
 
